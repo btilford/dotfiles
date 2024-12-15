@@ -14,7 +14,7 @@ add_newline = false
 # 5. shell / lvl sudo character
 
 format = """\
-[](color_a)\
+[ ](color_a)\
 $os\
 $username$hostname\
 [](fg:color_a bg:color_b)\
@@ -31,14 +31,16 @@ right_format = """\
 [](color_d)\
 $time\
 $direnv\
-[ ](bg:color_d fg:color_c) \
-(@$package\
-@$java\
-@$python\
-@$nodejs\
-@$kotlin\
-@$gradle)\
-[](fg:color_c bg: color_b)\
+[](bg:color_d fg:color_c)\
+$package\
+$java\
+$python\
+$nodejs\
+$kotlin\
+$gradle\
+[](bg:color_c fg:color_b)\
+$cmd_duration\
+[](fg:color_b)\
 """
 
 [palettes.eyesaver]
@@ -50,15 +52,17 @@ fg_a = '#fffff0'
 fg_b = '#dddd00'
 fg_c = '#333333'
 fg_d = '#112211'
+orange = '#ffa000'
 
 [character]
-success_symbol = '[➜](bold #ffa000) '
-error_symbol = '[✗](bold red) '
-vimcmd_symbol = "[■](italic dimmed #ffa000)"
+success_symbol = '[](bold orange) '
+error_symbol = '[](bold red) '
+#vimcmd_symbol = "[■](italic dimmed orange)"
 # not supported in zsh
-vimcmd_replace_one_symbol = "◌"
-vimcmd_replace_symbol = "□"
-vimcmd_visual_symbol = "▼"
+#vimcmd_replace_one_symbol = "◌"
+#vimcmd_replace_symbol = "□"
+#vimcmd_visual_symbol = "▼"
+format = '$symbol'
 
 [os]
 disabled = false
@@ -107,7 +111,7 @@ format = '[$symbol](bg:color_d fg:fg_d)'
 
 [package]
 style = "bg:color_c fg:fg_c"
-format = '[ $symbol($version) ]($style)'
+format = '[$symbol($version)]($style)'
 
 
 [env_var.VIMSHELL]
@@ -124,7 +128,7 @@ disabled = false
 fish_indicator = '󰈺 '
 powershell_indicator = '_'
 unknown_indicator = 'mystery shell'
-style = '#ffa000 bold'
+style = 'orange bold'
 disabled = false
 format = '[$indicator]($style)'
 
@@ -135,7 +139,7 @@ threshold = 3
 
 [cmd_duration]
 min_time = 500
-format = 'underwent [$duration](bold yellow)'
+format = 'underwent [$duration](bg:color_b fg:bold yellow)'
 
 
 [directory.substitutions]
@@ -147,7 +151,7 @@ format = 'underwent [$duration](bold yellow)'
 [direnv]
 format = '[$symbol$loaded/$allowed]($style)'
 symbol = 'direnv'
-style = 'bold #ffa000'
+style = 'bold orange'
 
 
 [nodejs]
