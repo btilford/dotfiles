@@ -1,0 +1,10 @@
+[include]
+    path = ~/.config/git/core.gitconfig
+    path = ~/.config/git/aliases.gitconfig
+    path = ~/.config/git/commands.gitconfig
+    path = ~/.config/git/flow.gitconfig
+    path = ~/.config/git/shell.gitconfig
+    path = ~/.config/git/web.gitconfig
+    path = ~/.config/git/dirs.gitconfig
+
+

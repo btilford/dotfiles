@@ -1,0 +1,11 @@
+[core]
+    editor = nano
+    excludesfile = ~/.git-configs/default.gitignore
+    autocrlf = input
+    commentchar = '#'
+
+[init]
+    templatedir = ~/.git-configs/default-template
+
+[credential]
+  helper = store

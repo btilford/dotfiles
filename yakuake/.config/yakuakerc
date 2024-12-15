@@ -1,0 +1,60 @@
+[Animation]
+Frames=0
+
+[Appearance]
+HideSkinBorders=true
+#Skin=tabsonly
+#Skin=tabsonly-translucent
+Skin=transparent-tabs
+SkinInstalledWithKns=true
+Translucency=true
+BackgroundColorOpacity=30
+# Blur doesn't work with transparency very well
+Blur=false
+
+
+[Desktop Entry]
+DefaultProfile=Shell.profile
+
+[Dialogs]
+FirstRun=false
+
+[Favorite Profiles]
+Favorites=
+
+[KFileDialog Settings]
+Height 1024=490
+Height 900=423
+Recent Files[$e]=
+Recent URLs[$e]=$HOME/nix-config,$HOME/.config,$HOME/Projects,$HOME/Downloads
+Width 1280=720
+Width 1600=782
+
+[Notification Messages]
+ShowPasteHugeTextWarning=false
+
+[Shortcuts]
+close-active-terminal=Ctrl+W
+close-session=none
+decrease-window-height=none
+decrease-window-width=none
+file_quit=none
+help_whats_this=none
+increase-window-height=none
+increase-window-width=none
+#new-session=Ctrl+T
+#new-session-quad=Ctrl+Shift+G
+#next-session=Ctrl+Tab
+next-terminal=Ctrl+Tab
+#previous-session=Ctrl+Shift+Tab
+previous-terminal=Ctrl+Shift+Tab
+split-left-right=Ctrl+Shift+E; Ctrl+Shift+L
+split-top-bottom=Ctrl+Shift+O; Ctrl+Shift+B
+
+[Window]
+DynamicTabTitles=true
+Height=42
+KeepOpen=false
+Position=46
+ToggleToFocus=true
+Width=75

@@ -1,0 +1,8 @@
+[user]
+    name = btilford
+    email = 248725+btilford@users.noreply.github.com
+    signingKey = 02339D9F60276D1365268D45D3B91B326476394A
+
+
+[commit]
+    gpgSign = true

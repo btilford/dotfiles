@@ -1,0 +1,84 @@
+# Is this shell interactive? Maybe...
+# set -x
+# Commands that should be applied only for interactive shells.
+[[ $- == *i* ]] || return
+
+HISTCONTROL=erasedups
+HISTFILESIZE=200000
+HISTIGNORE='ls:exit'
+HISTSIZE=10000
+
+shopt -s histappend
+shopt -s checkwinsize
+shopt -s extglob
+shopt -s globstar
+shopt -s checkjobs
+
+alias ll='ls -ltrah'
+
+# if [[ ! -v BASH_COMPLETION_VERSINFO ]]; then
+  # . "/nix/store/14izq6jjd2l24w2p4j4xmkfkp0521vr0-bash-completion-2.13.0/etc/profile.d/bash_completion.sh"
+# fi
+
+# export NIX_CONFIG="experimental-features =  nix-command flakes"
+#PATH="${PATH}:${HOME}/.emacs.d/bin"
+#export PATH="~/development/flutter/bin:$PATH"
+#source /usr/share/bash-completion/bash_completion
+source <(k3sup completion bash)
+alias k=kubectl
+source <(cmctl completion bash)
+eval "$(direnv hook bash)"
+# Set up fzf key bindings and fuzzy completion
+eval "$(fzf --bash)"
+eval "$(starship init bash)"
+source <(obsidian-cli completion bash)
+#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# pkgfile for arch...
+if [[ -f /usr/share/doc/pkgfile/command-not-found.bash ]]; then
+    . /usr/share/doc/pkgfile/command-not-found.bash
+fi
+
+# source "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"
+
+PATH="${PATH}:${HOME}/.local/bin"
+eval "$(zoxide init bash --cmd cd)"
+
+# eval "$(zellij setup --generate-auto-start bash)"
+export OBSIDIAN_REST_API_KEY='***REMOVED***'
+# Yazi for replacing cd
+function y() {
+	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+	yazi "$@" --cwd-file="$tmp"
+	if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+		builtin cd -- "$cwd"
+	fi
+	rm -f -- "$tmp"
+}
+source "$HOME/.asdf/asdf.sh"
+export SUDO_EDITOR="nvim"
+_sudoedit() {
+  sudo -e "$1";
+}
+alias "sudoedit"='_sudoedit'
+
+if [[ $TERM != "dumb" ]]; then
+  eval "$(/usr/bin/starship init bash --print-full-init)"
+fi
+
+source <(/usr/bin/carapace _carapace bash)
+
+__HM_PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND%;};}__hm_vte_prompt_command"
+. /etc/profile.d/vte.sh
+if [[ $(type -t __vte_prompt_command) = function ]]; then
+  __hm_vte_prompt_command() {
+    local old_exit_status=$?
+    __vte_prompt_command
+    return $old_exit_status
+  }
+  PROMPT_COMMAND="$__HM_PROMPT_COMMAND"
+fi
+unset __HM_PROMPT_COMMAND
+

@@ -1,0 +1,16 @@
+
+[help]
+    autocorrect = 1
+[push]
+    default = current
+;     gpgSign = true
+[merge]
+    ff = only
+    tool = meld
+[mergetool]
+    prompt = true
+[pull]
+    #rebase = interactive
+    ff = only
+[fetch]
+    prune = true

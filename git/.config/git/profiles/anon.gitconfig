@@ -1,0 +1,6 @@
+[user]
+  name = nil
+  email = nil@a.hole
+  signingKey = ""
+[commit]
+  gpgSign = false

@@ -1,0 +1,80 @@
+[alias]
+    # Checkout
+    checkout-orphan = !sh -c 'git checkout --orphan $1&& git rm --cached -r .' -
+
+    # Add
+    a = add --all
+    ai = add -i
+
+    # Commit
+    ci = commit -v
+    c = commit
+    ca = commit -a
+
+    # Push
+    push-origin = push origin
+    push-upstream = push upstream
+    push-tags = push --tags
+
+    # Pull
+    pull-origin = pull origin
+    push-upstream = pull upstream
+    pull-tags = pull --tags
+
+
+    # Fetch
+    f = fetch
+    fetch-origin = fetch origin
+    fetch-upstream = fetch upstream
+
+    # Status
+    stat = status
+    s = status
+    stat = status
+    status-terse = status -s -b
+    status-behind = !git rev-list --left-only --count $(git bu).-.HEAD
+    status-ahead = !git rev-list --right-only --count $(git bu)...HEAD
+
+    # Branch
+    branch-name = rev-parse --abbrev-ref HEAD
+
+    # Stash
+    stash-apply = stash apply
+    stash-list = stash list
+    stash-pop = stash pop
+    stash-popAtIdx = !sh -c 'git stash pop --index $1' -
+    stash-push = stash push
+    stash-show = stash show
+    stash-branch = !sh -c 'git stash branch $1' -
+    stash-find = !git stash list | wc -l 2>/dev/null | grep -oEi $1
+
+    # Tag
+    tag-delete-local = tag -d
+    tag-delete-local-matching = !sh -c 'git tag --list $1 | xargs -I echo "git tag -d %" | sh' -
+    tag-delete-origin = git push --delete origin
+    tag-delete-originMatching = !sh -c 'git tag --list $1 | xargs -I echo "git tag -d %; git push --delete origin %" | sh' -
+
+
+    # GH
+    clone-gh = !sh -c 'git clone git://github-com/$1 $(basename $1)' -
+
+    # Search
+    find-pattern = grep -p
+    find-file = ~git ls-files | grep -i
+
+    # Logs
+    log-show = log --oneline --branches  --tags --decorate --graph
+    log-last = log -1 HEAD
+    log-whois = !sh -c 'git log -i -1 --author=\"$1\" --pretty=\"format:%an <%ae>\"' -
+    log-graph = !sh -c 'git log --oneline --graph $1..$2' -
+    log-changes = !sh -c 'git log --oneline --graph $1..$2' -
+
+
+
+
+    # Config
+    remote-all = remote -v
+    aliases-list = !git config -l | grep alias | cut -c 7-
+
+    root = rev-parse --show-toplevel
+    cd-root = !sh -c 'cd $(git rev-parse --show-toplevel)'
