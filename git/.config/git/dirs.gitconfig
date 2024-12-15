@@ -2,30 +2,30 @@
 # Path specific git configs extending ~/.gitconfig
 
 [includeIf "gitdir:~/.dotfiles/"]
-    path = ~/.git-configs/profiles/default.gitconfig
+    path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/nix-configs/"]
-    path = ~/.git-configs/profiles/default.gitconfig
+    path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/.config/"]
-    path = ~/.git-configs/profiles/default.gitconfig
+    path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/Documents/personal-notes/notes/"]
-    path = ~/.git-configs/profiles/default.gitconfig
+    path = ~/.config/git/profiles/default.gitconfig
 
 
 [includeIf "gitdir:~/Projects/open/"]
-    path = ~/.git-configs/profiles/default.gitconfig
+    path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/Projects/personal/"]
-    path = ~/.git-configs/profiles/default.gitconfig
+    path = ~/.config/git/profiles/default.gitconfig
 
 [includeIf "gitdir:~/Projects/homelab/"]
-    path = ~/.git-configs/profiles/default.gitconfig
+    path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/Projects/ttp/"]
-    path = ~/.git-configs/profiles/anon.gitconfig
+    path = ~/.config/git/profiles/anon.gitconfig
 
 
 
 # Old layout
 [includeIf "gitdir:~/work/"]
-    path = ~/.git-configs/profiles/default.gitconfig
+    path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/work/anon/"]
-    path = ~/.git-configs/profiles/anon.gitconfig
+    path = ~/.config/git/profiles/anon.gitconfig
 
