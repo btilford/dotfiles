@@ -1,4 +1,3 @@
-
 [gitflow "prefix"]
         feature = feature-
         release = release-

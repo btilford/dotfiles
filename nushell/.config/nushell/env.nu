@@ -35,3 +35,17 @@ if not ($carapace_cache | path exists) {
 /usr/bin/carapace _carapace nushell | save -f $"($carapace_cache)/init.nu"
 
 $env.OBSIDIAN_REST_API_KEY = '***REMOVED***'
+
+$env.PATH = (
+  $env.PATH
+    | split row (char esep)
+    | append /usr/local/bin
+    | append ($env.HOME | path join .local/bin)
+    | uniq
+)
+
+$env.VISUAL = '/usr/bin/nvim'
+$env.EDITOR = '/usr/bin/nvim'
+$env.config.buffer_editor = '/usr/bin/nvim'
+
+
