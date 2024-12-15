@@ -14,7 +14,7 @@ let carapace_completer = {|spans|
 
 # The default config record. This is where much of your global configuration is setup.
 $env.config = {
-    show_banner: true # true or false to enable or disable the welcome banner at startup
+    show_banner: false # true or false to enable or disable the welcome banner at startup
 
     ls: {
         use_ls_colors: true # use the LS_COLORS environment variable to colorize output
@@ -26,8 +26,8 @@ $env.config = {
     }
 
     table: {
-        mode: rounded # basic, compact, compact_double, light, thin, with_love, rounded, reinforced, heavy, none, other
-        index_mode: always # "always" show indexes, "never" show indexes, "auto" = show indexes when a table has "index" column
+        mode: rounded #, compact, compact_double, light, thin, with_love, rounded, reinforced, heavy, none, other
+        index_mode: auto # "always" show indexes, "never" show indexes, "auto" = show indexes when a table has "index" column
         show_empty: true # show 'empty list' and 'empty record' placeholders for command output
         padding: { left: 1, right: 1 } # a left right padding of each column in a table
         trim: {
@@ -737,7 +737,7 @@ $env.config = {
 
 $env.ASDF_DIR = ($env.HOME | path join '.asdf')
 source /home/btilford/.asdf/asdf.nu
-use /home/btilford/.cache/starship/init.nu
+#use /home/btilford/.cache/starship/init.nu
 
 source /home/btilford/.cache/carapace/init.nu
 alias ll = ls -lam

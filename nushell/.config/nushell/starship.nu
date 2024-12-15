@@ -23,7 +23,7 @@ export-env { $env.STARSHIP_SHELL = "nu"; load-env {
     }
 
     config: ($env.config? | default {} | merge {
-        render_right_prompt_on_last_line: true
+        render_right_prompt_on_last_line: false
     })
 
     PROMPT_COMMAND_RIGHT: {||
