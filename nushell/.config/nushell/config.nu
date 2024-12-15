@@ -10,7 +10,7 @@ let dark_theme = {
     # color for nushell primitives
     separator: white
     leading_trailing_space_bg: { attr: n } # no fg, no bg, attr none effectively turns this off
-    header: green_bold
+    header: orange_bold
     empty: blue
     # Closures can be used to choose colors for specific values.
     # The value (in this case, a bool) is piped into the closure.
@@ -26,7 +26,7 @@ let dark_theme = {
     nothing: white
     binary: white
     cell-path: white
-    row_index: green_bold
+    row_index: orange_bold
     record: white
     list: white
     block: white
@@ -36,12 +36,12 @@ let dark_theme = {
     shape_binary: purple_bold
     shape_block: blue_bold
     shape_bool: light_cyan
-    shape_closure: green_bold
-    shape_custom: green
+    shape_closure: orange_bold
+    shape_custom: orange
     shape_datetime: cyan_bold
     shape_directory: cyan
     shape_external: cyan
-    shape_externalarg: green_bold
+    shape_externalarg: orange_bold
     shape_external_resolved: light_yellow_bold
     shape_filepath: cyan
     shape_flag: blue_bold
@@ -54,7 +54,7 @@ let dark_theme = {
     shape_keyword: cyan_bold
     shape_list: cyan_bold
     shape_literal: blue
-    shape_match_pattern: green
+    shape_match_pattern: orange
     shape_matching_brackets: { attr: u }
     shape_nothing: light_cyan
     shape_operator: yellow
@@ -63,8 +63,8 @@ let dark_theme = {
     shape_range: yellow_bold
     shape_record: cyan_bold
     shape_redirection: purple_bold
-    shape_signature: green_bold
-    shape_string: green
+    shape_signature: orange_bold
+    shape_string: orange
     shape_string_interpolation: cyan_bold
     shape_table: blue_bold
     shape_variable: purple
@@ -75,7 +75,7 @@ let light_theme = {
     # color for nushell primitives
     separator: dark_gray
     leading_trailing_space_bg: { attr: n } # no fg, no bg, attr none effectively turns this off
-    header: green_bold
+    header: orange_bold
     empty: blue
     # Closures can be used to choose colors for specific values.
     # The value (in this case, a bool) is piped into the closure.
@@ -91,7 +91,7 @@ let light_theme = {
     nothing: dark_gray
     binary: dark_gray
     cell-path: dark_gray
-    row_index: green_bold
+    row_index: orange_bold
     record: dark_gray
     list: dark_gray
     block: dark_gray
@@ -101,12 +101,12 @@ let light_theme = {
     shape_binary: purple_bold
     shape_block: blue_bold
     shape_bool: light_cyan
-    shape_closure: green_bold
-    shape_custom: green
+    shape_closure: orange_bold
+    shape_custom: orange
     shape_datetime: cyan_bold
     shape_directory: cyan
     shape_external: cyan
-    shape_externalarg: green_bold
+    shape_externalarg: orange_bold
     shape_external_resolved: light_purple_bold
     shape_filepath: cyan
     shape_flag: blue_bold
@@ -119,7 +119,7 @@ let light_theme = {
     shape_keyword: cyan_bold
     shape_list: cyan_bold
     shape_literal: blue
-    shape_match_pattern: green
+    shape_match_pattern: orange
     shape_matching_brackets: { attr: u }
     shape_nothing: light_cyan
     shape_operator: yellow
@@ -128,8 +128,8 @@ let light_theme = {
     shape_range: yellow_bold
     shape_record: cyan_bold
     shape_redirection: purple_bold
-    shape_signature: green_bold
-    shape_string: green
+    shape_signature: orange_bold
+    shape_string: orange
     shape_string_interpolation: cyan_bold
     shape_table: blue_bold
     shape_variable: purple
@@ -281,7 +281,7 @@ $env.config = {
                 col_padding: 2
             }
             style: {
-                text: green
+                text: orange
                 selected_text: { attr: r }
                 description_text: yellow
                 match_text: { attr: u }
@@ -314,7 +314,7 @@ $env.config = {
                 correct_cursor_pos: false
             }
             style: {
-                text: green
+                text: orange
                 selected_text: { attr: r }
                 description_text: yellow
                 match_text: { attr: u }
@@ -330,8 +330,8 @@ $env.config = {
                 page_size: 10
             }
             style: {
-                text: green
-                selected_text: green_reverse
+                text: orange
+                selected_text: orange_reverse
                 description_text: yellow
             }
         }
@@ -348,8 +348,8 @@ $env.config = {
                 description_rows: 10
             }
             style: {
-                text: green
-                selected_text: green_reverse
+                text: orange
+                selected_text: orange_reverse
                 description_text: yellow
             }
         }
@@ -872,3 +872,5 @@ use /home/btilford/.cache/starship/init.nu
 source /home/btilford/.cache/carapace/init.nu
 
 alias ll = ls -lam
+
+overlay use ./starship.nu
