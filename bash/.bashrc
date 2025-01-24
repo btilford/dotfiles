@@ -2,7 +2,6 @@
 # set -x
 # Commands that should be applied only for interactive shells.
 [[ $- == *i* ]] || return
-
 HISTCONTROL=erasedups
 HISTFILESIZE=200000
 HISTIGNORE='ls:exit'
@@ -26,7 +25,7 @@ alias ll='ls -ltrah'
 #source /usr/share/bash-completion/bash_completion
 source <(k3sup completion bash)
 alias k=kubectl
-source <(cmctl completion bash)
+# source <(cmctl completion bash)
 eval "$(direnv hook bash)"
 # Set up fzf key bindings and fuzzy completion
 eval "$(fzf --bash)"
@@ -43,7 +42,6 @@ fi
 
 # source "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"
 
-PATH="${PATH}:${HOME}/.local/bin"
 eval "$(zoxide init bash --cmd cd)"
 
 # eval "$(zellij setup --generate-auto-start bash)"
@@ -82,3 +80,5 @@ if [[ $(type -t __vte_prompt_command) = function ]]; then
 fi
 unset __HM_PROMPT_COMMAND
 
+export ENCORE_INSTALL="${HOME}/.encore"
+PATH="${PATH}:${HOME}/.local/bin:${GOPATH}/bin:${ENCORE_INSTALL}/bin"

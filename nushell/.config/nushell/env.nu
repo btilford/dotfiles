@@ -36,11 +36,13 @@ if not ($carapace_cache | path exists) {
 
 $env.OBSIDIAN_REST_API_KEY = '***REMOVED***'
 
+$env.GOPATH = '/home/btilford/go'
 $env.PATH = (
   $env.PATH
     | split row (char esep)
     | append /usr/local/bin
     | append ($env.HOME | path join .local/bin)
+    | append ($env.GOPATH | path join bin)
     | uniq
 )
 
