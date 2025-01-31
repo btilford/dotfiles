@@ -13,7 +13,11 @@ vim.opt.rtp:prepend(lazypath)
 
 local lazy_config = require "configs.lazy"
 
+-- local vimrc = vim.fn.stdpath "config" .. ".vimrc"
+-- vim.cmd('source ' .. vimrc)
 -- load plugins
+-- 
+-- ca
 require("lazy").setup({
   {
     "NvChad/NvChad",
