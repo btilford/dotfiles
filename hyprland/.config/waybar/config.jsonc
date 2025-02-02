@@ -1,0 +1,35 @@
+{
+  "layer": "top",
+  "modules-left": [
+    "hyperland/workspaces",
+    "hyperland/mode"
+  ],
+  "modules-center": [
+    "hyperland/window"
+  ],
+  "modules-right": [
+    "battery",
+    "mpd",
+    "pulseaudio",
+    "network",
+    "keyboard-state",
+    "tray",
+    "clock"
+  ],
+  "hyperland/window": {
+    "max-length": 50
+  },
+  "battery": {
+    "format": "{capacity}% {icon}",
+    "format-icons": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  "clock": {
+    "format-alt": "{:%a, %d. %b  %H:%M}"
+  }
+}
