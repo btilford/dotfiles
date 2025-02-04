@@ -13,7 +13,7 @@ shopt -s extglob
 shopt -s globstar
 shopt -s checkjobs
 
-alias ll='ls -ltrah'
+alias ll='ls -lrah'
 
 # if [[ ! -v BASH_COMPLETION_VERSINFO ]]; then
   # . "/nix/store/14izq6jjd2l24w2p4j4xmkfkp0521vr0-bash-completion-2.13.0/etc/profile.d/bash_completion.sh"

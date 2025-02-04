@@ -14,7 +14,8 @@ Blur=false
 
 
 [Desktop Entry]
-DefaultProfile=Shell.profile
+DefaultProfile=Default.profile
+#DefaultProfile=Shell.profile
 
 [Dialogs]
 FirstRun=false

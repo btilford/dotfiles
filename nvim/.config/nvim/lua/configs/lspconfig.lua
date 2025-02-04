@@ -6,7 +6,7 @@ local lspconfig = require "lspconfig"
 -- EXAMPLE
 local servers = {
   "html",
-  "cssls",
+  -- "cssls",
   "nixd",
   "nushell",
   "bashls",
