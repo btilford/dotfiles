@@ -13,7 +13,7 @@ by Stephan Raabe (2023)
 /* -----------------------------------------------------
  * Import Pywal colors 
  * ----------------------------------------------------- */
-@import '../../.cache/wal/colors-wlogout.css';
+/*@import '../../.cache/wal/colors-wlogout.css';*/
 
 /* -----------------------------------------------------
  * General 
@@ -27,7 +27,8 @@ by Stephan Raabe (2023)
 }
 
 window {
-	background: url("../ml4w/cache/blurred_wallpaper.png");
+  background-color: transparent;
+	/*background: url("../ml4w/cache/blurred_wallpaper.png");*/
 	background-size: cover;
 	font-size: 16pt;
 	color: #cdd6f4;
@@ -36,26 +37,38 @@ window {
 button {
 	background-repeat: no-repeat;
     	background-position: center;
-    	background-size: 20%;
-    	background-color: rgba(200, 220, 255, 0);
+    	background-size: 5%;
     	animation: gradient_f 20s ease-in infinite;
-    	border-radius: 80px; /* Increased border radius for a more rounded look */
+      background-color: rgba(0, 0, 0, 0.8);
+    	/*border-radius: 80px;*/ 
+    	/*background-color: rgba(200, 220, 255, 0);*/
 	border:0px;
+  margin: 3px;
+  box-shadow: 1px 1px 2px 2px rgba(0, 0, 0, 0.8);
 	transition: all 0.3s cubic-bezier(.55, 0.0, .28, 1.682), box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
+  /*width: 50px;*/
+  /*height: 50px;*/
+  /*max-width: 200px;*/
+  /*max-height: 200px;*/
+  /*margin: 2rem;*/
+  /*border-radius: 2rem;*/
+  /*padding: 2rem;*/
 }
 
 button:focus {
-    background-size: 22%;
+    background-size: 8%;
 	border: 0px;
 }
 
 button:hover {
-    background-color: @color11; 
-	opacity: 0.8;
+    /*background-color: @color11; */
+    background-color: rgba(255, 20, 0, 0.8);
+	  opacity: 0.8;
     color: #cdd6f4;
-    background-size: 30%;
-    margin: 30px;
-    border-radius: 80px; 
+    background-size: 10%;
+    /*margin: 10px;*/
+    /*padding: 10rem;*/
+    /*border-radius: 80px; */
     box-shadow: 0 0 50px @color7; 
 }
 
@@ -71,37 +84,37 @@ Buttons
 */
 
 #lock {
-	margin: 10px;
-	border-radius: 20px;
+	/*margin: 10px;*/
+	/*border-radius: 20px;*/
 	background-image: image(url("icons/lock.png"));
 }
 
 #logout {
-	margin: 10px;
-	border-radius: 20px;
+	/*margin: 10px;*/
+	/*border-radius: 20px;*/
 	background-image: image(url("icons/logout.png"));
 }
 
 #suspend {
-	margin: 10px;
-	border-radius: 20px;
+	/*margin: 10px;*/
+	/*border-radius: 20px;*/
 	background-image: image(url("icons/suspend.png"));
 }
 
 #hibernate {
-	margin: 10px;
-	border-radius: 20px;
+	/*margin: 10px;*/
+	/*border-radius: 20px;*/
 	background-image: image(url("icons/hibernate.png"));
 }
 
 #shutdown {
-	margin: 10px;
-	border-radius: 20px;
+	/*margin: 10px;*/
+	/*border-radius: 20px;*/
 	background-image: image(url("icons/shutdown.png"));
 }
 
 #reboot {
-	margin: 10px;
-	border-radius: 20px;
+	/*margin: 10px;*/
+	/*border-radius: 20px;*/
 	background-image: image(url("icons/reboot.png"));
 }
