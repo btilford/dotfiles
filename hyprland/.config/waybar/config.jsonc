@@ -5,13 +5,13 @@
   "reload_style_on_change": true,
   "gtk-layer-shell": true,
   "modules-left": [
-    "hyprland/workspaces",
+    "hyprland/window",
     "hyprland/submap",
     "custom/media"
   ],
   "modules-center": [
     "custom/distro",
-    "hyprland/window",
+    "hyprland/workspaces"
   ],
   "modules-right": [
     "mpd",
@@ -20,7 +20,7 @@
     "clock",
     "tray",
     "battery",
-    "custom/power"
+    "custom/logout"
   ],
   "hyperland/window": {
     "format": "{}",
@@ -58,7 +58,7 @@
   },
   "pulseaudio": {
     // "scroll-step": 1, // %, can be a float
-    "format": "{volume}% {icon} {format_source}",
+    "format": "{volume}% {icon}  {format_source}",
     "format-bluetooth": "{volume}% {icon} {format_source}",
     "format-bluetooth-muted": " {icon} {format_source}",
     "format-muted": " {format_source}",
@@ -81,7 +81,7 @@
   },
   "network": {
     // "interface": "wlp2*", // (Optional) To force the use of this interface
-    "format-wifi": "{essid} ({signalStrength}%) ",
+    "format-wifi": "{essid} ({signalStrength}%)  ",
     "format-ethernet": "{ipaddr}/{cidr} ",
     "tooltip-format": "{ifname} via {gwaddr} ",
     "format-linked": "{ifname} (No IP) ",
@@ -100,7 +100,7 @@
     "exec": "$HOME/.config/waybar/mediaplayer.py 2> /dev/null" // Script in resources folder
     // "exec": "$HOME/.config/waybar/mediaplayer.py --player spotify 2> /dev/null" // Filter player based on name
   },
-  "custom/power": {
+  "custom/logout": {
     "format": " ⏻ ",
     "on-click": "$HOME/.config/hypr/scripts/logout.sh"
   }

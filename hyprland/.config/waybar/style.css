@@ -302,7 +302,7 @@ tooltip label {
 
 #custom-wifi {
   padding-left: 5px;
-  padding-right: 8px;
+  padding-right: 10px;
   background: @tray;
 }
 
@@ -315,6 +315,7 @@ tooltip label {
 #bluetooth {
   padding-right: 5px;
   background: @tray;
+  color: rgb(20, 20, 200);
 }
 
 #bluetooth:hover {
@@ -366,7 +367,7 @@ tooltip label {
   background: inherit;
   /*background: @pulseaudio;*/
   margin-left: 2px;
-  margin-right: 2px;
+  margin-right: 4px;
 }
 
 #pulseaudio:hover {

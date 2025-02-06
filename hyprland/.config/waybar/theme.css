@@ -6,22 +6,22 @@
 
 /* Main Colors */
 
-@define-color main-fg #cdd6f4;
-@define-color main-bg #41111b;
+@define-color main-fg #442222;
+@define-color main-bg #f1a11b;
 @define-color main-br #cdd6f4;
 
-@define-color active-bg #9399b2;
-@define-color active-fg #11111b;
+@define-color active-bg #338833;
+@define-color active-fg #eeeeee;
 
-@define-color hover-bg #313244;
-@define-color hover-fg rgba(205, 214, 244, 0.75);
+@define-color hover-bg #c18100;
+@define-color hover-fg rgba(20, 21, 24, 0.75);
 
 @define-color white #ffffff;
 @define-color black #000000;
 
 /* Module Colors */
 
-@define-color module-fg #f5e0dc;
+@define-color module-fg #332222;
 @define-color workspaces #181825;
 
 @define-color cpuinfo #181825;
@@ -36,7 +36,7 @@
 @define-color pulseaudio #181825;
 @define-color backlight #1e1e2e;
 @define-color battery #313244;
-@define-color power #9399b2;
+@define-color power #f1a11b;
 
 /* State Colors */
 
