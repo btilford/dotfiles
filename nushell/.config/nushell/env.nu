@@ -3,7 +3,7 @@ $env.GPG_TTY = (tty)
 $env.SSH_AUTH_SOCK = ($env.SSH_AUTH_SOCK? | default (/usr/bin/gpgconf --list-dirs agent-ssh-socket))
 
 
-source ./.zoxide.nu
+#source ./.zoxide.nu
 
 #if ($env | get -i ZELLIJ | is-empty) {
 #  zellij
