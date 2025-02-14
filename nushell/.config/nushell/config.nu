@@ -737,9 +737,10 @@ $env.config = {
 }
 
 $env.ASDF_DIR = ($env.HOME | path join '.asdf')
-let asdfCmd = ($env.ASDF_DIR | path join 'asdf.nu')
-if ($asdfCmd | path exists) {
-  source ($asdfCmd)
+$env.adsfCmd = ($env.ASDF_DIR | path join 'asdf.nu')
+
+if ($env.asdfCmd | path exists) {
+  source ($env.asdfCmd)
 }
 #use /home/btilford/.cache/starship/init.nu
 
