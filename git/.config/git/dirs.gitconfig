@@ -1,6 +1,9 @@
 
 # Path specific git configs extending ~/.gitconfig
 
+
+[includeIf "gitdir:~/dotfiles/"]
+    path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/.dotfiles/"]
     path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/nix-configs/"]
