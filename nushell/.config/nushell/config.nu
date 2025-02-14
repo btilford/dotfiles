@@ -738,9 +738,9 @@ $env.config = {
 
 $env.ASDF_DIR = ($env.HOME | path join '.asdf')
 
-if ($nu.home-path | path join '.asdf/asdf.nu' | path exists) {
-  source ($nu.home-path | path join '.asdf/asdf.nu')
-}
+#if ($nu.home-path | path join '.asdf/asdf.nu' | path exists) {
+#  source ($nu.home-path | path join '.asdf/asdf.nu')
+#}
 #use /home/btilford/.cache/starship/init.nu
 
 source /home/btilford/.cache/carapace/init.nu
@@ -748,5 +748,5 @@ alias ll = ls -lam
 $env.config.hooks.env_change.PWD = (
   $env.config.hooks.env_change.PWD | append (source ~/.config/nushell/nupm/modules/nu-hooks/direnv/config.nu)
 )
-
+    
 overlay use ./starship.nu
