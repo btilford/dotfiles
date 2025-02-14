@@ -8,3 +8,7 @@
     path = ~/.config/git/dirs.gitconfig
 
 
+[http]
+	postBuffer = 524288000
+[credential]
+	helper = cache

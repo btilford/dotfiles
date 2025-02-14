@@ -23,6 +23,8 @@
     path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/Projects/ttp/"]
     path = ~/.config/git/profiles/anon.gitconfig
+[includeIf "gitdir:~/Projects/private/practice/"]
+    path = ~/.config/git/profiles/default.gitconfig
 
 
 
