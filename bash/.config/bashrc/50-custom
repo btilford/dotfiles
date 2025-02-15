@@ -62,6 +62,8 @@ function y() {
 if [[ -f "${HOME}/.asdf/asdf.sh" ]]; then
   source "$HOME/.asdf/asdf.sh"
 fi
+
+PATH="${PATH}:${HOME}/.asdf/shims"
 export SUDO_EDITOR="nvim"
 _sudoedit() {
   sudo -e "$1";
