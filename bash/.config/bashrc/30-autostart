@@ -6,6 +6,7 @@
 # Fastfetch
 # -----------------------------------------------------
 if [[ $(tty) == *"pts"* ]]; then
+    if [[ $- == *i* ]] exit 0
     fastfetch --config examples/13
 else
     echo

@@ -2,4 +2,4 @@ keybind =ctrl+l=goto_split:right
 keybind =ctrl+h=goto_split:left
 keybind =ctrl+k=goto_split:top
 keybind =ctrl+j=goto_split:bottom
-#background-opacity = 0.6
+background-opacity = 0.65

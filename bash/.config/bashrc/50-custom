@@ -89,4 +89,9 @@ fi
 unset __HM_PROMPT_COMMAND
 
 export ENCORE_INSTALL="${HOME}/.encore"
+source ~/.config/envman/PATH.env
+
 PATH="${PATH}:${HOME}/.local/bin:${GOPATH}/bin:${ENCORE_INSTALL}/bin"
+
+
+

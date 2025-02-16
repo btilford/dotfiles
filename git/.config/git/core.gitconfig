@@ -9,3 +9,7 @@
 
 [credential]
   helper = store
+
+[credential "https://gitlab.example.com"]
+  helper =
+  helper = !/usr/bin/glab auth git-credential
