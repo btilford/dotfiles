@@ -6,8 +6,11 @@
 # Fastfetch
 # -----------------------------------------------------
 if [[ $(tty) == *"pts"* ]]; then
-    if [[ $- == *i* ]] exit 0
-    fastfetch --config examples/13
+    if [[ $- == *i* ]]; then
+      echo "non tty"
+    else
+      fastfetch --config examples/13
+    fi
 else
     echo
     if [ -f /bin/qtile ]; then
