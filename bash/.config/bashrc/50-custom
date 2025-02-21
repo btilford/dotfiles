@@ -62,6 +62,8 @@ function y() {
 if [[ -f "${HOME}/.asdf/asdf.sh" ]]; then
   source "$HOME/.asdf/asdf.sh"
 fi
+
+PATH="${PATH}:${HOME}/.asdf/shims"
 export SUDO_EDITOR="nvim"
 _sudoedit() {
   sudo -e "$1";
@@ -87,4 +89,9 @@ fi
 unset __HM_PROMPT_COMMAND
 
 export ENCORE_INSTALL="${HOME}/.encore"
+source ~/.config/envman/PATH.env
+
 PATH="${PATH}:${HOME}/.local/bin:${GOPATH}/bin:${ENCORE_INSTALL}/bin"
+
+
+

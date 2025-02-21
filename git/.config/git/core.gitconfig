@@ -10,6 +10,14 @@
 [credential]
   helper = store
 
+
 [credential "https://gitlab.example.com"]
   helper =
-  helper = !/usr/bin/glab auth git-credential
+  helper = !/usr/local/bin/glab auth git-credential
+
+[credential "https://github.com"]
+        helper =
+        helper = !/usr/bin/gh auth git-credential
+
+[protocol "persistent-https"]
+	allow = always
