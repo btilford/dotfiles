@@ -134,7 +134,7 @@ format = '[$indicator]($style)'
 
 [shlvl]
 disabled = false
-format = '$shlvl level(s) down'
+format = '\($shlvl\) shells deep'
 threshold = 3
 
 [cmd_duration]
