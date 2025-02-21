@@ -6,10 +6,6 @@
 # Fastfetch
 # -----------------------------------------------------
 if [[ $(tty) == *"pts"* ]]; then
-    # if [[ $- == *i* ]]; then
-    #   echo "non tty"
-    # else
-    # fi
     fastfetch --config examples/13
 else
     echo
