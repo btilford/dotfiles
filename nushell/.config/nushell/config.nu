@@ -1,7 +1,7 @@
 # Nushell Config File
 #
 # version = "0.93.0"
-source ~/nu_scripts/themes/nu-themes/gruvbit.nu
+# source ~/nu_scripts/themes/nu-themes/gruvbit.nu
 # For more information on defining custom themes, see
 # https://www.nushell.sh/book/coloring_and_theming.html
 # And here is the theme collection
@@ -745,8 +745,8 @@ $env.ASDF_DIR = ($env.HOME | path join '.asdf')
 
 source /home/btilford/.cache/carapace/init.nu
 alias ll = ls -lam
-$env.config.hooks.env_change.PWD = (
-  $env.config.hooks.env_change.PWD | append (source ~/.config/nushell/nupm/modules/nu-hooks/direnv/config.nu)
-)
+#$env.config.hooks.env_change.PWD = (
+#  $env.config.hooks.env_change.PWD | append (source ~/.config/nushell/nupm/modules/nu-hooks/direnv/config.nu)
+#)
     
 overlay use ./starship.nu
