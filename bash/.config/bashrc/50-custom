@@ -23,7 +23,7 @@ shopt -s checkjobs
 #PATH="${PATH}:${HOME}/.emacs.d/bin"
 #export PATH="~/development/flutter/bin:$PATH"
 #source /usr/share/bash-completion/bash_completion
-source <(k3sup completion bash)
+# source <(k3sup completion bash)
 alias k=kubectl
 # source <(cmctl completion bash)
 eval "$(direnv hook bash)"
