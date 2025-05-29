@@ -44,27 +44,40 @@ Plug 'tpope/vim-commentary'
 "" Map \b to toggle the breakpoint on the current line
 "map \b <Action>(ToggleLineBreakpoint)
 let mapleader = " "
-
+imap <C-v> <Action>($Paste)
+imap <C-p> <Action>($Paste)
+imap <C-c> <Action>($Copy)
+imap <C-y> <Action>($Copy)
+map <C-a> <Action>($SelectAll)
+map <C-a> <Action>($SelectAll)
 " ----------------------------------------------
 " Menus
 " ----------------------------------------------
 nmap si <Action>(GotoAction)
 nmap sc <Action>(GotoClass)
 nmap sf <Action>(GotoFile)
-nmap sa <Action>(SearchEverywhere)
+# Grep Search
+nmap sg <Action>(SearchEverywhere)
+nmap sw <Action>($SearchWeb)
 nmap ss <Action>(GotoSymbol)
+nmap ss <Action>(ReplaceInPath)
 
 " ----------------------------------------------
 " Editor Nav
 " ----------------------------------------------
 nmap <S-Tab> <Action>(PreviousTab)
 nmap <Tab> <Action>(NextTab)
-
+map <leader>e <Action>(ActivateProjectToolWindow)
+map <C-l> <Action>(NextSplitter)
+map <C-j> <Action>(NextSplitter)
+map <C-h> <Action>(PrevSplitter)
+map <C-k> <Action>(PrevSplitter)
 " ----------------------------------------------
 " Refactoring
 " ----------------------------------------------
-map <leader>mr <Action>(RefactoringMenu)
-map <leader>rn <Action>(RenameElement)
+map <leader>ca <Action>(RefactoringMenu)
+map <leader>cr <Action>(RenameElement)
+nmap grn <Action>(RenameElement)
 
 " ----------------------------------------------
 " Code Manipulation
@@ -78,6 +91,9 @@ map <leader>ld <Action>(EditorDuplicateLines)
 nmap gd <Action>(GotoDeclaration)
 nmap gi <Action>(GotoImplementation)
 " map <A-j> <Action>(SelectNextOccurrence)
+nmap gf <Action>(GoToLinkTarget)
+nmap ge <Action>(GoNextError)
+nmap gE <Action>(GoPreviousError)
 
 
 " ----------------------------------------------
