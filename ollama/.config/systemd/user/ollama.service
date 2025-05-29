@@ -1,0 +1,12 @@
+[Unit]
+Description=Ollama Service
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/ollama serve
+ExecStop=/usr/bin/ollama
+
+Type=oneshot
+RemainAfterExit=true
+WorkingDirectory=%h/.local/share/ollama
+WantedBy=single-user.target

@@ -1,5 +1,42 @@
-keybind =ctrl+l=goto_split:right
-keybind =ctrl+h=goto_split:left
-keybind =ctrl+k=goto_split:top
-keybind =ctrl+j=goto_split:bottom
-background-opacity = 0.65
+
+
+background-opacity = 0.75
+cursor-color = #aa8844
+cursor-text = #111111
+#cursor-invert-fg-bg = true
+cursor-style = block
+#cursor-style = block_hollow
+cursor-opacity = 0.7
+cursor-click-to-move = true
+#selection-invert-fg-bg
+selection-background=#ffaa00
+selection-foreground=#222222
+mouse-hide-while-typing = true
+mouse-shift-capture = true
+clipboard-trim-trailing-spaces = true
+clipboard-paste-protection = true
+clipboard-paste-bracketed-safe = true
+copy-on-select = true
+shell-integration-features = cursor,sudo,title
+desktop-notifications = true
+
+
+keybind = global:f12=toggle_quick_terminal
+keybind = alt+l=goto_split:right
+keybind = alt+h=goto_split:left
+keybind = alt+k=goto_split:top
+keybind = alt+j=goto_split:bottom
+keybind = ctrl+enter=unbind
+
+keybind = ctrl+shift+u=copy_url_to_clipboard
+
+# MacOS hacks :(
+keybind = ctrl+shift+v=paste_from_clipboard
+keybind = ctrl+shift+c=copy_to_clipboard
+keybind = ctrl+c=text:\x03
+
+# keybind = "ctrl+shift+j=write_scrollback_file:paste"
+# keybind = "ctrl+alt+shift+j=write_scrollback_file:open"
+
+#env = GHOSTTY_THEME=dark
+#env = SNACKS_GHOSTTY=true

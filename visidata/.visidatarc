@@ -1,0 +1,2 @@
+import plugins
+options.clipboard_copy_cmd = 'wl-copy'

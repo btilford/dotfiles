@@ -102,6 +102,6 @@
   },
   "custom/logout": {
     "format": " ⏻ ",
-    "on-click": "$HOME/.config/hypr/scripts/logout.sh"
+    "on-click": "wlogout"
   }
 }

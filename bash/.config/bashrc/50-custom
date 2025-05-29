@@ -13,7 +13,7 @@ shopt -s extglob
 shopt -s globstar
 shopt -s checkjobs
 
-alias ll='ls -lrah'
+# alias ll='ls -ltrah'
 
 # if [[ ! -v BASH_COMPLETION_VERSINFO ]]; then
   # . "/nix/store/14izq6jjd2l24w2p4j4xmkfkp0521vr0-bash-completion-2.13.0/etc/profile.d/bash_completion.sh"
@@ -27,8 +27,6 @@ source <(k3sup completion bash)
 alias k=kubectl
 # source <(cmctl completion bash)
 eval "$(direnv hook bash)"
-# Set up fzf key bindings and fuzzy completion
-eval "$(fzf --bash)"
 eval "$(starship init bash)"
 OBS_CLI="$(command -v obsidian-cli)"
 if [[ "$OBS_CLI" != "" ]]; then
@@ -59,11 +57,13 @@ function y() {
 	rm -f -- "$tmp"
 }
 
-if [[ -f "${HOME}/.asdf/asdf.sh" ]]; then
-  source "$HOME/.asdf/asdf.sh"
-fi
+# if [[ -f "${HOME}/.asdf/asdf.sh" ]]; then
+#   source "$HOME/.asdf/asdf.sh"
+# fi
+export ASDF_DATA_DIR="${HOME}/.asdf"
+. <(asdf completion bash)
 
-PATH="${PATH}:${HOME}/.asdf/shims"
+PATH="${ASDF_DATA_DIR}/shims:${HOME}/.cargo/bin:${PATH}"
 export SUDO_EDITOR="nvim"
 _sudoedit() {
   sudo -e "$1";
@@ -71,13 +71,15 @@ _sudoedit() {
 alias "sudoedit"='_sudoedit'
 
 if [[ $TERM != "dumb" ]]; then
-  eval "$(/usr/bin/starship init bash --print-full-init)"
+  eval "$(starship init bash --print-full-init)"
 fi
 
-source <(/usr/bin/carapace _carapace bash)
+source <(carapace _carapace bash)
 
 __HM_PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND%;};}__hm_vte_prompt_command"
-. /etc/profile.d/vte.sh
+if [ -f /etc/profile.d/vte.sh ]; then
+    . /etc/profile.d/vte.sh
+fi
 if [[ $(type -t __vte_prompt_command) = function ]]; then
   __hm_vte_prompt_command() {
     local old_exit_status=$?
@@ -89,9 +91,11 @@ fi
 unset __HM_PROMPT_COMMAND
 
 export ENCORE_INSTALL="${HOME}/.encore"
-source ~/.config/envman/PATH.env
+# source ~/.config/envman/PATH.env
 
 PATH="${PATH}:${HOME}/.local/bin:${GOPATH}/bin:${ENCORE_INSTALL}/bin"
 
 
+# Set up fzf key bindings and fuzzy completion
+eval "$(fzf --bash)"
 
