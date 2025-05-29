@@ -3,3 +3,7 @@
 
 # include .bashrc if it exists
 [[ -f ~/.bashrc ]] && . ~/.bashrc
+
+#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
+export SDKMAN_DIR="/Users/bentilford/.sdkman"
+[[ -s "/Users/bentilford/.sdkman/bin/sdkman-init.sh" ]] && source "/Users/bentilford/.sdkman/bin/sdkman-init.sh"

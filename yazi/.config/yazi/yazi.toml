@@ -1,0 +1,84 @@
+# S>https://yazi-rs.github.io/docs/configuration/yazi
+[manager]
+show_hidden = true
+sort_by = "natural"
+scrolloff = 10
+
+[preview]
+tab_size = 2
+
+
+[opener]
+
+play = [
+    # Audio
+    { run = 'audacity "$@"', block = false, for = "unix",  orphan = true, esc = "Audacity" },
+    { run = 'audacious "$@"', block = false, for = "unix",  orphan = true, desc = "Audacious" },
+    { run = 'deadbeef "$@"', block = false, for = "unix",  orphan = true, desc = "DeadBeef" },
+    # Video
+    { run = 'vlc "$@"', block = false, for = "unix",  orphan = true, desc = "VLC" },
+    { run = 'shotcut "$@"', block = false, for = "unix", orphan = true, desc = "Shotcut Editor" },
+]
+
+edit = [
+    { run = '$EDITOR "$@"', block = true, for = "unix", desc = "Edit" },
+    { run = 'nvim-qt "$@"', block = false, orphan = true, for = "unix", desc = "NVIM QT" },
+    { run = 'nvim "$@"', block = true, for = "unix", desc = "NVIM" },
+    { run = 'kate "$@"', block = false, orphan = true, for = "unix", desc = "Kate" },
+    { run = 'vi "$@"', block = true, for = "unix", desc = "Vim" },
+    { run = 'idea "$@"', block = false, orphan = true, for = "unix", desc = "IntelliJ" },
+    { run = 'webstorm "$@"', block = false, orphan = true, for = "unix", desc = "Webstorm" },
+    { run = 'pycharm "$@"', block = false, orphan = true, for = "unix", desc = "PyCharm" },
+    { run = 'datagrip "$@"', block = false, orphan = true, for = "unix", desc = "DataGrip" },
+    { run = 'studio "$@"', block = false, orphan = true, for = "unix", desc = "Android Studio" },
+    { run = 'goland "$@"', block = false, orphan = true, for = "unix", desc = "Goland" },
+    { run = 'meld "$@"', block = false, orphan = true, for = "unix", desc = "Meld" },
+    { run = 'micro "$@"', block = true, for = "unix", desc = "Micro" },
+    { run = 'nano "$@"', block = true, for = "unix", desc = "Nano" },
+]
+
+open = [
+    { run = 'xdg-open "$@"', block = false, orphan = true, desc = "Open" },
+]
+
+[open]
+
+prepend_rules = [
+
+    { name = "*.html", use = ["open", "edit"] },
+
+    { name = "*.json", use = "edit" },
+    { name = "*.lua", use = "edit" },
+    { name = "*.java", use = "edit" },
+    { name = "*.kt", use = "edit" },
+    { name = "*.kts", use = "edit" },
+    { name = "*.ts", use = "edit" },
+    { name = "*.js", use = "edit" },
+    { name = "*.tsx", use = "edit" },
+    { name = "*.jsx", use = "edit" },
+    { name = "*.sh", use = "edit" },
+    { name = "*.fish", use = "edit" },
+    { name = "*.bash", use = "edit" },
+    { name = "*rc", use = "edit" },
+    { name = "*.conf", use = "edit" },
+    { name = "*.toml", use = "edit" },
+    { name = "*.yaml", use = "edit" },
+    { name = "*.yml", use = "edit" },
+    { name = "*.md", use = ["edit", "open"] },
+    { name = "*.go", use = "edit" },
+    { name = "*.groovy", use = "edit" },
+    { name = "*.scala", use = "edit" },
+]
+
+append_rules = [
+    { name = "*", use = "open" },
+]
+
+rules = [
+    { mime = "text/*", use = "edit" },
+    { mime = "video/*", use = "play" },
+]
+
+
+[input]
+cursor_blink = false

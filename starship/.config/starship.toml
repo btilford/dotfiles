@@ -24,8 +24,9 @@ $git_branch\
 $git_status\
 [](fg:color_c bg:color_d)\
 $docker_context\
-[](fg:color_d)\
-\n$shell$shlvl$nix_shell $sudo$character"""
+[](color_d)\
+ $shlvl$shell$nix_shell $sudo$character (bg:color_d)\
+"""
 
 right_format = """\
 [](color_d)\
@@ -130,12 +131,15 @@ powershell_indicator = '_'
 unknown_indicator = 'mystery shell'
 style = 'orange bold'
 disabled = false
-format = '[$indicator]($style)'
+format = ' [$indicator]($style)'
 
 [shlvl]
 disabled = false
-format = '\($shlvl\) shells deep'
-threshold = 3
+format = ' $symbol$shlvl'
+threshold = 2
+repeat = true
+style = 'orange bold'
+symbol = ''
 
 [cmd_duration]
 min_time = 500

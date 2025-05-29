@@ -6,3 +6,7 @@
 
 [commit]
     gpgSign = true
+
+
+[credential "https://github.com"]
+    username = btilford

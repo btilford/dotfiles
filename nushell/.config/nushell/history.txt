@@ -1,0 +1,18 @@
+carapace 
+carapace nushell
+exit
+carapace _carapace nushell | save --force ~/.cache/carapace/init.nu<\n>
+exit
+brew install gpg-agent
+brew install gnupg gpg-agent pinentry-mac
+brew install gnupg pinentry-mac
+exit
+gpg-connect-agent exit
+exit
+ll
+ltra
+lt
+llt
+ls --tree
+ls -t
+exit
