@@ -19,7 +19,6 @@ set clipboard^=ideaput
 set colorcolumn=1,+0
 set list
 
-
 set ideacopypreprocess
 set idearefactormode=select
 set ideastatusicon=enabled
@@ -33,7 +32,8 @@ Plug 'machakann/vim-highlightedyank'
 " Commentary plugin
 Plug 'tpope/vim-commentary'
 
-
+Plug 'tpope/vim-surround'
+set surround
 "" -- Map IDE actions to IdeaVim -- https://jb.gg/abva4t
 "" Map \r to the Reformat Code action
 "map \r <Action>(ReformatCode)
@@ -50,6 +50,7 @@ imap <C-c> <Action>($Copy)
 imap <C-y> <Action>($Copy)
 map <C-a> <Action>($SelectAll)
 map <C-a> <Action>($SelectAll)
+map <leader>f <Action>(ReformatCode)
 " ----------------------------------------------
 " Menus
 " ----------------------------------------------
@@ -76,9 +77,9 @@ map <C-k> <Action>(PrevSplitter)
 " Refactoring
 " ----------------------------------------------
 map <leader>ca <Action>(RefactoringMenu)
-map <leader>cr <Action>(RenameElement)
+map <leader>crn <Action>(RenameElement)
 nmap grn <Action>(RenameElement)
-
+map <leader>crm <Action>(RefactoringMenu)
 " ----------------------------------------------
 " Code Manipulation
 " ----------------------------------------------
@@ -90,11 +91,18 @@ map <leader>ld <Action>(EditorDuplicateLines)
 " ----------------------------------------------
 nmap gd <Action>(GotoDeclaration)
 nmap gi <Action>(GotoImplementation)
+nmap gu <Action>(ShowUsages)
 " map <A-j> <Action>(SelectNextOccurrence)
 nmap gf <Action>(GoToLinkTarget)
-nmap ge <Action>(GoNextError)
-nmap gE <Action>(GoPreviousError)
-
+nmap ge <Action>(GotoNextError)
+nmap gE <Action>(GotoPreviousError)
+nmap grc <Action>(ContextRun)
+nmap gdc <Action>(ContextDebug)
+nmap grr <Action>(Rerun)
+nmap grft <Action>(RerunFailedTests)
+nmap grt <Action>(RerunTests)
+nmap grv <Action>(RunCoverage)
+nmap grg <Action>(Gradle.ExecuteTask)
 
 " ----------------------------------------------
 " TODO

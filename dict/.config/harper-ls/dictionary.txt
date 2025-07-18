@@ -32,3 +32,5 @@ etc
 Lua_Ls
 lua_ls
 Kickstart
+figma
+Figma

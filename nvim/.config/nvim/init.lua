@@ -1,7 +1,7 @@
 vim.cmd("set runtimepath^=~/.vim runtimepath+=~/.vim/after")
 vim.o.packpath = vim.o.runtimepath
 vim.cmd("source ~/.vimrc")
-
+vim.g.autoformat = false
 -- Set <space> as the leader key
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
@@ -71,3 +71,6 @@ require("lazy").setup({
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
 --
+vim.opt.termguicolors = true
+vim.opt.guicursor = "i:block"
+-- vim.opt.guicursor = "i-ci-ve:hor30"

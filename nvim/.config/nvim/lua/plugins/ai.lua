@@ -1,6 +1,27 @@
 return {
 	{
 		"github/copilot.vim",
+		config = function()
+			vim.g.copilot_no_tab_map = true
+			vim.g.copilot_assume_mapped = true
+			vim.api.nvim_set_keymap(
+				"i",
+				"<C-a>",
+				"copilot#Accept()",
+				{ expr = true, silent = true, noremap = false }
+			)
+
+			vim.api.nvim_set_keymap("i", "<C-m>", "copilot#Next()", { expr = true, silent = true, noremap = false })
+			vim.api.nvim_set_keymap("i", "<C-M>", "copilot#Previous()", { expr = true, silent = true, noremap = false })
+			vim.api.nvim_set_keymap("i", "<C-x>", "copilot#Clear()", { expr = true, silent = true, noremap = false })
+			vim.api.nvim_set_keymap("i", "<C-/>", "copilot#Dismiss()", { expr = true, silent = true, noremap = false })
+			vim.api.nvim_set_keymap(
+				"i",
+				"<C-\\>",
+				"copilot#Complete()<Esc><CR>",
+				{ expr = true, silent = true, noremap = false }
+			)
+		end,
 	},
 	-- Custom Parameters (with defaults)
 	{

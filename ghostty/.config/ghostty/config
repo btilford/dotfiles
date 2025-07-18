@@ -1,5 +1,6 @@
 
-
+font-size = 20
+font-family = "JetBrains Mono"
 background-opacity = 0.75
 cursor-color = #aa8844
 cursor-text = #111111
@@ -21,7 +22,10 @@ shell-integration-features = cursor,sudo,title
 desktop-notifications = true
 
 
+keybind = alt+r=reload_config
+
 keybind = global:f12=toggle_quick_terminal
+
 keybind = alt+l=goto_split:right
 keybind = alt+h=goto_split:left
 keybind = alt+k=goto_split:top

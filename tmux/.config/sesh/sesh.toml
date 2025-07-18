@@ -1,10 +1,11 @@
 [default_session]
-startup_command = "nvim . -c ':Telescope find_files'"
+startup_command = "nvim (fzf)"
 preview_command = "eza --all --git --icons --color=always {}"
 
 [[session]]
 name = "dotfiles"
 path = "~/dotfiles"
+startup_command = "nvim"
 
 [[session]]
 name = "Downloads"
@@ -19,5 +20,21 @@ startup_command = "yazi"
 [[session]]
 name = "Notes"
 path = "~/Documents/personal-notes/notes"
-secret = "***REMOVED***"
+startup_command = "nvim"
+
+[[session]]
+name = "REDACTED Notes"
+path = "~/Projects/REDACTED/notes/REDACTED/"
+startup_command = "nvim $(fzf) "
+
+[[session]]
+name = "REDACTED Projects"
+path = "~/Projects/REDACTED/"
+startup_command = "nvim $(fd --type directory --max-depth 3 | fzf) "
+
+
+[[session]]
+name = "square_root"
+path = "~/Projects/REDACTED/square_root"
+startup_command = "nvim $(fd --type directory --max-depth 3 | fzf)"
 

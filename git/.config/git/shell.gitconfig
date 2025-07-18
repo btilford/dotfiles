@@ -6,9 +6,14 @@
 
 [remote "origin"]
     fetch = +refs/notes/*:refs/notes/*
+    push = '+refs/notes/*:refs/notes/*'
+
+[notes]
+    displayRef = 'refs/notes/*'
 
 [diff]
     tool = meld
+
 [difftool "meld"]
     prompt = true
     cmd = meld "$LOCAL" "$BASE" "$REMOTE" --output "$MERGED"

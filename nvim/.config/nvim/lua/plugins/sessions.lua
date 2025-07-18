@@ -10,23 +10,22 @@ return {
 			local autoSession = require("auto-session")
 
 			autoSession.setup({
-				suppressed_dirs = {
-					"~/",
-					"~/Projects",
-					"~/Downloads",
-					"/",
-				},
-				-- log_level = 'debug',
-				auto_session_use_git_branch = false,
-				auto_session_enable_last_session = true,
+				auto_restore_last_session = false,
+
+				git_use_branch_name = false,
 				session_lens = {
 					load_on_setup = true,
-					previewer = false,
+					previewer = true,
 				},
+				suppressed_dirs = { "~/", "~/Downloads", "/" },
+				close_unsupported_windows = true,
 			})
 			vim.keymap.set("n", "<leader>Sl", require("auto-session.session-lens").search_session, {
 				desc = "[S]ession [l]oad",
 				noremap = true,
+			})
+			vim.keymap.set("n", "<leader>Sd", ":Autosession delete<CR>", {
+				desc = "[S]ession [d]delete",
 			})
 		end,
 	},

@@ -1,0 +1,24 @@
+#theme = "onedark"
+theme = "base16_transparent"
+
+#theme = "gruvbox_dark_hard"
+#theme = "gruvbox"
+
+
+[editor]
+line-number = "relative"
+rulers = [120]
+end-of-line-diagnostics = "hint"
+#clipboard-provider = "wayland"
+[editor.whitespace]
+render = "all"
+
+[editor.indent-guides]
+render = true
+
+[editor.soft-wrap]
+enable = false
+
+[editor.inline-diagnostics]
+cursor-line = "hint"
+other-lines = "warning"

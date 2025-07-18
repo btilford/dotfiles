@@ -58,4 +58,5 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 	end,
 })
 
-
+vim.keymap.set("n", ",p", '"0p', { desc = "Paste from the default register" })
+vim.keymap.set("x", ",p", '"0p', { desc = "Paste from the default register" })

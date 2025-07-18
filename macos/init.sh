@@ -75,5 +75,19 @@ source ~/.zshrc
 
 asdf plugin add nodejs
 asdf plugin add python
+asdf install nodejs latest
+asdf install python latest
 
 echo "Completed"
+
+echo "# Don't forget to logout and then install:
+
+- [ ] Jetbrains Toolbox
+- [ ] Configure keyboard in settings
+- [ ] Configure KMonad
+- [ ] Install Raycast
+- [ ] Install Java and Kotlin SDKs
+- [ ] Install Slack
+
+
+" | tee ~/POST_INSTALL.md | glow

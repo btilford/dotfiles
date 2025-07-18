@@ -28,7 +28,7 @@ return {
 		-- Main LSP Configuration
 		"neovim/nvim-lspconfig",
 		dependencies = {
-			"jose-elias-alvarez/typescript.nvim",
+			-- "jose-elias-alvarez/typescript.nvim",
 			-- Automatically install LSPs and related tools to stdpath for Neovim
 			-- Mason must be loaded before its dependents so we need to set it up here.
 			-- NOTE: `opts = {}` is the same as calling `require('mason').setup({})`
@@ -230,7 +230,8 @@ return {
 			--  - Settings (table): Override the default settings passed when initializing the server.
 			--        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
 			local servers = {
-				-- clangd = {},
+				-- ["kulala_ls"] = {},
+				clangd = {},
 				marksman = {},
 				gopls = {},
 				pyright = {},
@@ -300,6 +301,62 @@ return {
 				-- 	-- Specify * to use this function as a fallback for any server
 				-- 	-- ["*"] = function(server, opts) end,
 				-- },
+				-- "kulala_ls",
+				-- ts_ls = {
+				-- 	enabled = false,
+				-- },
+				-- vtsls = {
+				-- 	enable = true,
+				-- 	filetypes = {
+				-- 		"typescript",
+				-- 		"typescriptreact",
+				-- 		"typescript.tsx",
+				-- 		"javascript",
+				-- 		"javascriptreact",
+				-- 		"javascript.jsx",
+				-- 	},
+				-- 	settings = {
+				-- 		complete_function_calls = true,
+				-- 		vtsls = {
+				-- 			enableMoveToFileCodeAction = true,
+				-- 			autoUseWorkspaceTsdk = true,
+				-- 			experimental = {
+				-- 				maxInlayHintLength = 30,
+				-- 				completion = {
+				-- 					enableServerSideFuzzyMatch = true,
+				-- 				},
+				-- 			},
+				-- 		},
+				-- 		typescript = {
+				-- 			updateImportsOnFileMove = {
+				-- 				enable = "always",
+				-- 			},
+				-- 			suggest = {
+				-- 				completeFunctionCalls = true,
+				-- 			},
+				-- 			inlayHints = {
+				-- 				enumMemberValues = {
+				-- 					enabled = true,
+				-- 				},
+				-- 				functionLikeReturnTypes = {
+				-- 					enabled = true,
+				-- 				},
+				-- 				parameterNames = {
+				-- 					enabled = true,
+				-- 				},
+				-- 				parameterTypes = {
+				-- 					enabled = true,
+				-- 				},
+				-- 				propertyDeclarationTypes = {
+				-- 					enabled = true,
+				-- 				},
+				-- 				variableTypes = {
+				-- 					enabled = true,
+				-- 				},
+				-- 			},
+				-- 		},
+				-- 	},
+				-- },
 			}
 
 			-- Ensure the servers and tools above are installed
@@ -363,7 +420,6 @@ return {
 
 				-- formatters
 				-- "google-java-format",
-				"hclfmt",
 				"beautysh",
 				"htmlbeautifier",
 				"jq",
