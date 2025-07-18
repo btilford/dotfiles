@@ -1,3 +1,19 @@
+-- local obsidianWorkspaces = {}
+-- local notes = "~/Documents/personal-notes/notes/"
+-- local psqnotes = "~/Projects/REDACTED/notes/REDACTED/"
+-- if ( !vim.fn.empty(vim.fn.glob(notes)) and vim.fn.isdirectory(notes) ) then
+-- 	obsidianWorkspaces[#obsidianWorkspaces + 1] = {
+-- 		name = "notes",
+-- 		path = "~/Documents/personal-notes/notes/",
+-- 	}
+-- end
+-- if ( !vim.fn.empty(vim.fn.glob(psqnotes)) and vim.fn.isdirectory(psqnotes) ) then
+-- 	obsidianWorkspaces[#obsidianWorkspaces + 1] = {
+-- 		name = "REDACTED",
+-- 		path = "~/Projects/REDACTED/notes/REDACTED/",
+-- 	}
+-- end
+--
 return {
 	{
 		"TobinPalmer/pastify.nvim",
@@ -62,18 +78,20 @@ return {
 	-- },
 	{
 		"epwalsh/obsidian.nvim",
+		priority = 1001,
 		version = "*",
 		lazy = false,
 		-- ft = "markdown",
 		dependencies = {
 			"nvim-lua/plenary.nvim",
 		},
-		gvopts = {
+		opts = {
 			ui = { enable = false },
 			daily_notes = {
-				folder = "Daily Notes",
-				date_format = "%Y/%m/%b-%d-%a",
+				folder = "daily-notes",
+				date_format = "%Y/%m/%Y%m%d %a %b %d",
 				--alias_format = "%Y/%m/%b-%d-%a",
+				alias_format = "%Y/%m/%Y%m%d %a %b %d",
 				default_tags = {
 					"daily-notes",
 				},
@@ -82,13 +100,9 @@ return {
 			new_notes_location = "Inbox",
 			preferred_link_style = "markdown",
 			open_notes_in = "vsplit",
-			workspaces = {
-				{
-					name = "notes",
-					path = "~/Documents/personal-notes/notes/",
-				},
-			},
+			workspaces = require("obsidian-workspaces"),
 			completion = {
+
 				nvim_cmp = false,
 				min_chars = 2,
 			},
@@ -109,10 +123,14 @@ return {
 			sort_by = "modified",
 			sort_reversed = true,
 		},
+		-- config = function()
+		-- 	require("obsidian").setup()
+		-- end,
 	},
 	{
 		"MeanderingProgrammer/render-markdown.nvim",
 		dependencies = { "nvim-treesitter/nvim-treesitter", "echasnovski/mini.nvim" }, -- if you use the mini.nvim suite
+		priority = 1000,
 		init = function()
 			vim.opt_local.wrap = true
 			-- local color_sign = "#ebfafa"
@@ -168,7 +186,7 @@ return {
 			},
 			checkbox = {
 				enabled = true,
-				position = "inline",
+				-- position = "inline",
 				unchecked = {
 					-- Replaces '[ ]' of 'task_list_marker_unchecked'
 					icon = "   󰄱 ",

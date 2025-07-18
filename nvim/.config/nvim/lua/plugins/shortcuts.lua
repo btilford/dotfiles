@@ -37,36 +37,36 @@ return {
 		keys = {
 			-- TODO use other keybindings
 			{
-				"<leader>fj",
+				"<leader>Fj",
 				mode = { "n", "x", "o" },
 				function()
 					require("flash").jump()
 				end,
-				desc = "[f]lash [j]ump",
+				desc = "[F]lash [j]ump",
 			},
 			{
-				"<leader>ft",
+				"<leader>Ft",
 				mode = { "n", "x", "o" },
 				function()
 					require("flash").treesitter()
 				end,
-				desc = "[f]lash [t]reesitter",
+				desc = "[F]lash [t]reesitter",
 			},
 			{
-				"<leader>fr",
+				"<leader>Fr",
 				mode = "o",
 				function()
 					require("flash").remote()
 				end,
-				desc = "[f]lash [r]emote",
+				desc = "[F]lash [r]emote",
 			},
 			{
-				"<leader>fR",
+				"<leader>FR",
 				mode = { "o", "x" },
 				function()
 					require("flash").treesitter_search()
 				end,
-				desc = "[f]lash [R]emote Treesitter Search",
+				desc = "[F]lash [R]emote Treesitter Search",
 			},
 			{
 				"<c-s>",

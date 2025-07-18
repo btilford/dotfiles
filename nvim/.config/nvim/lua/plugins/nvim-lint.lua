@@ -79,10 +79,8 @@ return {
 				terraform = {
 					"tflint",
 					"tfsec",
-					"hclint",
 				},
 				hcl = {
-					"hclint",
 					"tflint",
 					"tfsec",
 				},

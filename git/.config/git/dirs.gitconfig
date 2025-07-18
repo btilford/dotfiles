@@ -30,6 +30,9 @@
     path = ~/.config/git/profiles/anon.gitconfig
 [includeIf "gitdir:~/Projects/private/practice/"]
     path = ~/.config/git/profiles/default.gitconfig
+[includeIf "gitdir:~/Projects/private/qmk/"]
+    path = ~/.config/git/profiles/default.gitconfig
+
 
 
 
@@ -38,4 +41,6 @@
     path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/work/anon/"]
     path = ~/.config/git/profiles/anon.gitconfig
+[includeIf "gitdir:~/Projects/REDACTED/"]
+    path = ~/.config/git/profiles/REDACTED.gitconfig
 

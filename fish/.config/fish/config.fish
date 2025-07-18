@@ -1,6 +1,3 @@
-# TODO is anything in this?
-# source /usr/share/cachyos-fish-config/cachyos-config.fish
-
 # overwrite greeting
 # potentially disabling fastfetch
 #function fish_greeting
@@ -36,3 +33,10 @@ source ~/.config/fish/env.fish
 source ~/.config/fish/custom.fish
 source ~/.config/fish/aliases.fish
 source ~/.config/fish/keybinds.fish
+
+### MANAGED BY RANCHER DESKTOP START (DO NOT EDIT)
+set --export --prepend PATH "/Users/btilford/.rd/bin"
+### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)
+
+# Added by `rbenv init` on Tue Jun 10 13:26:03 MDT 2025
+status --is-interactive; and rbenv init - --no-rehash fish | source

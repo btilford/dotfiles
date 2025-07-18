@@ -1,7 +1,3 @@
--- vim.cmd([[highlight SnacksIndent1 guifg=#E06C75 guibg=#0000FF gui=nocombine]])
--- vim.cmd([[highlight SnacksIndent2 guifg=#E06C75 gui=nocombine]])
--- vim.cmd([[highlight SnacksIndent3 guifg=#E06C75 gui=nocombine]])
--- vim.cmd([[highlight SnacksIndent4 guifg=#E06C75 gui=nocombine]])
 return {
 	{
 		"HiPhish/nvim-ts-rainbow2",

@@ -132,7 +132,16 @@ $env.config = {
         pre_prompt: [{ null }] # run before the prompt is shown
         pre_execution: [{ null }] # run before the repl input is run
         env_change: {
-            PWD: [{|before, after| null }] # run if the PWD environment is different since the last repl input
+            PWD: [
+                {|before, after| null }
+                { ||
+                    if (which direnv | is-empty) {
+                        return
+                }
+
+    direnv export json | from json | default {} | load-env
+}
+            ] # run if the PWD environment is different since the last repl input
         }
         display_output: "if (term size).columns >= 100 { table -e } else { table }" # run to display the output of a pipeline
         command_not_found: { null } # return an error message when a command is not found
@@ -745,9 +754,7 @@ $env.ASDF_DIR = ($env.HOME | path join '.asdf')
 
 source ~/.cache/carapace/init.nu
 alias ll = ls -lam
-#$env.config.hooks.env_change.PWD = (
-#  $env.config.hooks.env_change.PWD | append (source ~/.config/nushell/nupm/modules/nu-hooks/direnv/config.nu)
-#)
     
 overlay use ./starship.nu
 source ~/.config/nushell/.zoxide.nu
+source $"($nu.home-path)/.cargo/env.nu"
