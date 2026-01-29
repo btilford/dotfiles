@@ -24,6 +24,10 @@ return {
 				local disable_filetypes = {
 					c = true,
 					cpp = true,
+                    tf = true,
+                    yaml = true,
+                    terraform = true,
+                    hcl = true,
 				}
 				if disable_filetypes[vim.bo[bufnr].filetype] then
 					return nil
@@ -45,6 +49,7 @@ return {
 				lua = { "stylua" },
 				http = { "kulala-fmt" },
 				md = { "mdformat" },
+				mdx = { "mdformat" },
 				json = { "jq", args = { "--indent", "2", "--compact", "--pretty" } },
 				jsonc = { "jq", args = { "--indent", "2", "--compact", "--pretty" } },
 				yaml = { "yamlfix" },

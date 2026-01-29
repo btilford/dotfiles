@@ -40,8 +40,9 @@
 :set foldlevel=99
 :set foldlevelstart=99
 ":set foldenable=true
-:set textwidth=120
-:set formatoptions+=t
+:set textwidth=0
+":set textwidth=120
+:set formatoptions-=t
 :set colorcolumn=120
 :set formatoptions-=l
 :set sessionoptions+=localoptions
@@ -71,3 +72,7 @@ set termguicolors
 "    let &t_SI .= "\e[5 q" " insert mode - vertical bar
 "    let &t_EI .= "\e[2 q" " normal mode - block
 "endif
+
+if has('ide')
+
+endif

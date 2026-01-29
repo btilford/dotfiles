@@ -24,6 +24,7 @@ fi
 export SDKMAN_DIR="/Users/btilford/.sdkman"
 [[ -s "/Users/btilford/.sdkman/bin/sdkman-init.sh" ]] && source "/Users/btilford/.sdkman/bin/sdkman-init.sh"
 
-### MANAGED BY RANCHER DESKTOP START (DO NOT EDIT)
-export PATH="/Users/btilford/.rd/bin:$PATH"
-### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)
+
+fpath+=~/.zfunc; autoload -Uz compinit; compinit
+
+zstyle ':completion:*' menu select

@@ -1,4 +1,5 @@
-
+custom-shader = shaders/cursor_warp.glsl
+#custom-shader = shaders/ripple_rectangle_cursor.glsl
 font-size = 20
 font-family = "JetBrains Mono"
 background-opacity = 0.75
@@ -20,7 +21,7 @@ clipboard-paste-bracketed-safe = true
 copy-on-select = true
 shell-integration-features = cursor,sudo,title
 desktop-notifications = true
-
+app-notifications = clipboard-copy,no-config-reload
 
 keybind = alt+r=reload_config
 
@@ -44,3 +45,10 @@ keybind = ctrl+c=text:\x03
 
 #env = GHOSTTY_THEME=dark
 #env = SNACKS_GHOSTTY=true
+#
+#
+# Theme switching (optional): managed by your theme changer (symlink or generated file).
+config-file = ?~/.config/ghostty/theme.conf
+
+# Wallust (optional): wallust template should write Ghostty colors here; it will override theme colors.
+config-file = ?~/.config/ghostty/wallust.conf

@@ -4,6 +4,7 @@ set -gx  --prepend PATH /opt/homebrew/bin
 set -x VISUAL 'nvim-qt'
 
 
+set -x M2_HOME $HOME/.m2
 # ASDF configuration code
 if test -z $ASDF_DATA_DIR
     set _asdf_shims "$HOME/.asdf/shims"
@@ -22,10 +23,4 @@ set -gx --prepend PATH $HOME/.cargo/bin
 set -gx --prepend PATH $HOME/.local/bin
 fzf --fish | source
 # TODO catch for OS
-set -gx --prepend PATH /Users/btilford/.rd/bin
-
-if [ "$OS_KERN" = "Darwin" ]
-  set -x DOCKER_HOST "unix://$HOME/.rd/docker.sock"
-  set -x TESTCONTAINERS_DOCKER_SOCKER_OVERRIDE '/var/run/docker.sock'
-  set -x TESTCONTAINERS_HOST_OVERRIDE (rdctl shell ip a show vznat | awk '/inet / {sub("/.*",""); print $2}')
-end
+# set -gx --prepend PATH /Users/btilford/.rd/bin

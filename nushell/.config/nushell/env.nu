@@ -2,7 +2,7 @@ $env.GPG_TTY = (tty)
 gpg-connect-agent updatestartuptty /bye | ignore
 $env.SSH_AUTH_SOCK = ($env.SSH_AUTH_SOCK? | default (gpgconf --list-dirs agent-ssh-socket))
 
-
+$env.M2_HOME = ($env.HOME | path join .m2)
 #source ./.zoxide.nu
 
 #if ($env | get -i ZELLIJ | is-empty) {

@@ -1,6 +1,6 @@
 [default_session]
-startup_command = "nvim (fzf)"
 preview_command = "eza --all --git --icons --color=always {}"
+startup_command = "nvim"
 
 [[session]]
 name = "dotfiles"
@@ -20,7 +20,7 @@ startup_command = "yazi"
 [[session]]
 name = "Notes"
 path = "~/Documents/personal-notes/notes"
-startup_command = "nvim"
+startup_command = "nvim (fzf)"
 
 [[session]]
 name = "REDACTED Notes"
@@ -30,11 +30,8 @@ startup_command = "nvim $(fzf) "
 [[session]]
 name = "REDACTED Projects"
 path = "~/Projects/REDACTED/"
-startup_command = "nvim $(fd --type directory --max-depth 3 | fzf) "
-
 
 [[session]]
 name = "square_root"
 path = "~/Projects/REDACTED/square_root"
 startup_command = "nvim $(fd --type directory --max-depth 3 | fzf)"
-

@@ -11,18 +11,5 @@
 [notes]
     displayRef = 'refs/notes/*'
 
-[diff]
-    tool = meld
 
-[difftool "meld"]
-    prompt = true
-    cmd = meld "$LOCAL" "$BASE" "$REMOTE" --output "$MERGED"
 
-;
-; [merge]
-;         tool = intellij
-; [difftool "intellij"]
-;         cmd = /Applications/IntelliJ\\ IDEA.app/Contents/MacOS/idea diff $(cd $(dirname \"$LOCAL\") && pwd)/$(basename \"$LOCAL\") $(cd $(dirname \"$REMOTE\") && pwd)/$(basename \"$REMOTE\")
-; [mergetool "intellij"]
-;         cmd = /Applications/IntelliJ\\ IDEA.app/Contents/MacOS/idea merge $(cd $(dirname \"$LOCAL\") && pwd)/$(basename \"$LOCAL\") $(cd $(dirname \"$REMOTE\") && pwd)/$(basename \"$REMOTE\") $(cd $(dirname \"$BASE\") && pwd)/$(basename \"$BASE\") $(cd $(dirname \"$MERGED\") && pwd)/$(basename \"$MERGED\")
-;         trustExitCode = true

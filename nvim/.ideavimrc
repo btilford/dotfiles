@@ -24,7 +24,7 @@ set idearefactormode=select
 set ideastatusicon=enabled
 set ideavimsupport=dialog,singleline
 set ideawrite=file
-set trackactionids
+"set trackactionids
 " --- Enable IdeaVim plugins https://jb.gg/ideavim-plugins
 
 " Highlight copied text
@@ -33,6 +33,21 @@ Plug 'machakann/vim-highlightedyank'
 Plug 'tpope/vim-commentary'
 
 Plug 'tpope/vim-surround'
+Plug 'vim-scripts/argtextobj.vim'
+Plug 'easymotion/vim-easymotion'
+Plug 'machakann/vim-highlightedyank'
+Plug 'michaeljsmith/vim-indent-object'
+packadd matchit
+set min-ai
+Plug 'terryma/vim-multiple-cursors'
+Plug 'preservim/nerdtree'
+set peekaboo
+set quickscope
+Plug 'vim-scripts/ReplaceWithRegister'
+Plug 'justinmk/vim-sneak'
+set which-key
+set timeoutlen=5000
+let g:WhichKey_ShowVimActions = "true"
 set surround
 "" -- Map IDE actions to IdeaVim -- https://jb.gg/abva4t
 "" Map \r to the Reformat Code action
@@ -97,13 +112,16 @@ nmap gf <Action>(GoToLinkTarget)
 nmap ge <Action>(GotoNextError)
 nmap gE <Action>(GotoPreviousError)
 nmap grc <Action>(ContextRun)
+nmap gre <Action>(Console.Jdbc.Execute)
+imap <C-Enter> <Action>(Console.Jdbc.Execute)
+
 nmap gdc <Action>(ContextDebug)
 nmap grr <Action>(Rerun)
 nmap grft <Action>(RerunFailedTests)
 nmap grt <Action>(RerunTests)
 nmap grv <Action>(RunCoverage)
 nmap grg <Action>(Gradle.ExecuteTask)
-
+nmap <C-n> <Action>(NextOccurence)
 " ----------------------------------------------
 " TODO
 " ----------------------------------------------
