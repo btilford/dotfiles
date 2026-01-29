@@ -40,16 +40,4 @@ else
 end
 
 
-### MANAGED BY RANCHER DESKTOP START (DO NOT EDIT)
-set --export --prepend PATH "/Users/btilford/.rd/bin"
-### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)
 
-# Added by `rbenv init` on Tue Jun 10 13:26:03 MDT 2025
-# status --is-interactive; and rbenv init - --no-rehash fish | source
-
-### MANAGED BY RANCHER DESKTOP START (DO NOT EDIT)
-set --export --prepend PATH "/Users/btilford/.rd/bin"
-### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)
-
-# Added by `rbenv init` on Tue Jun 10 13:26:03 MDT 2025
-status --is-interactive; and rbenv init - --no-rehash fish | source

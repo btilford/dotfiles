@@ -13,6 +13,5 @@ export SDKMAN_DIR="$HOME/.sdkman"
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
 eval "$(zoxide init zsh --cmd cd)"
 
-#eval "$(rbenv init - zsh)"
 source <(fzf --zsh)
 export M2_HOME="$HOME/.m2"
