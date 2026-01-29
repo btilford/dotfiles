@@ -5,11 +5,33 @@
 ;     gpgSign = true
 [merge]
     ff = only
-    tool = meld
+    ;tool = meld
+    tool = intellij
 [mergetool]
     prompt = true
+
+[difftool "intellij"]
+        cmd = /Applications/IntelliJ\\ IDEA.app/Contents/MacOS/idea diff $(cd $(dirname \"$LOCAL\") && pwd)/$(basename \"$LOCAL\") $(cd $(dirname \"$REMOTE\") && pwd)/$(basename \"$REMOTE\")
+[mergetool "intellij"]
+        cmd = /Applications/IntelliJ\\ IDEA.app/Contents/MacOS/idea merge $(cd $(dirname \"$LOCAL\") && pwd)/$(basename \"$LOCAL\") $(cd $(dirname \"$REMOTE\") && pwd)/$(basename \"$REMOTE\") $(cd $(dirname \"$BASE\") && pwd)/$(basename \"$BASE\") $(cd $(dirname \"$MERGED\") && pwd)/$(basename \"$MERGED\")
+        trustExitCode = true
 [pull]
     #rebase = interactive
     ff = only
 [fetch]
     prune = true
+
+[diff]
+    tool = nvimdiff
+
+[difftool "nvimdiff"]
+    prompt = false
+    layout = "LOCAL,BASE,REMOTE / MERGED"
+    keepBackup = false
+
+
+[difftool "meld"]
+    prompt = true
+    cmd = meld "$LOCAL" "$BASE" "$REMOTE" --output "$MERGED"
+
+

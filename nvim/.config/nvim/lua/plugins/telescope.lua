@@ -63,7 +63,7 @@ return {
 
 			telescope.setup({
 				defaults = {
-					no_ignore = true,
+					no_ignore = false,
 					-- initial_mode = "normal",
 				},
 				-- You can put your default mappings / updates / etc. in here

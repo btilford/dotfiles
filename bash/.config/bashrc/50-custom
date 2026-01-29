@@ -98,4 +98,4 @@ PATH="${PATH}:${HOME}/.local/bin:${GOPATH}/bin:${ENCORE_INSTALL}/bin"
 
 # Set up fzf key bindings and fuzzy completion
 eval "$(fzf --bash)"
-
+export M2_HOME="$HOME/.m2"

@@ -20,9 +20,12 @@ return {
 				suppressed_dirs = { "~/", "~/Downloads", "/" },
 				close_unsupported_windows = true,
 			})
-			vim.keymap.set("n", "<leader>Sl", require("auto-session.session-lens").search_session, {
-				desc = "[S]ession [l]oad",
-				noremap = true,
+			-- vim.keymap.set("n", "<leader>Sl", require("auto-session.session-lens").search_session, {
+			-- 	desc = "[S]ession [l]oad",
+			-- 	noremap = true,
+			-- })
+			vim.keymap.set("n", "<leader>Sd", ":Autosession delete<CR>", {
+				desc = "[S]ession [d]delete",
 			})
 			vim.keymap.set("n", "<leader>Sd", ":Autosession delete<CR>", {
 				desc = "[S]ession [d]delete",

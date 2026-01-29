@@ -1,3 +1,4 @@
+
 * {
   font-family: "JetBrainsMono Nerd Font";
   font-weight: bold;
@@ -35,6 +36,7 @@ window#waybar>box {
   border-radius: 20px;
   margin: 2px;
   padding: 4px;
+  color: @main-fg;
 }
 
 /* === Tooltip === */
@@ -76,7 +78,7 @@ tooltip label {
   color: @active-fg;
   background: @active-bg;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
-  box-shadow: 0 0 2px 1px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 2px 1px rgba(200, 200, 200, 0.4);
   margin: 2px;
   padding: 0 6px;
 }
@@ -93,6 +95,7 @@ tooltip label {
 #clock,
 #custom-wifi,
 #bluetooth,
+bluetooth,
 #custom-update,
 #custom-media,
 #pulseaudio,
@@ -100,11 +103,16 @@ tooltip label {
 #battery,
 #custom-power {
   opacity: 1;
-  color: @module-fg;
+  color: @main-fg;
   padding: 0 4px;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
 }
-
+bluetooth,
+#bluetooth,
+#bluetooth.on,
+#bluetooth.off {
+    color: @main-fg;
+}
 #custom-left1,
 #custom-left2,
 #custom-left3,
@@ -314,8 +322,7 @@ tooltip label {
 
 #bluetooth {
   padding-right: 5px;
-  background: @tray;
-  color: rgb(20, 20, 200);
+  /* background: @tray; */
 }
 
 #bluetooth:hover {
@@ -444,3 +451,8 @@ tooltip label {
   text-shadow: none;
   box-shadow: none;
 }
+
+#custom-logout {
+    color: @active-bg;
+}
+

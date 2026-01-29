@@ -24,6 +24,10 @@
 [includeIf "gitdir:~/Projects/public/"]
     path = ~/.config/git/profiles/default.gitconfig
 
+[includeIf "gitdir:~/Projects/keyboard/"]
+    path = ~/.config/git/profiles/default.gitconfig
+
+
 [includeIf "gitdir:~/Projects/homelab/"]
     path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/Projects/ttp/"]

@@ -239,3 +239,14 @@ textbox {
     vertical-align:              0.5;
     horizontal-align:            0.5;
 }
+
+//@theme "/usr/share/rofi/themes/material.rasi"
+
+//@theme "/usr/share/rofi/themes/gruvbox-dark-hard.rasi"
+
+//@theme "/usr/share/rofi/themes/docu.rasi"
+
+//@theme "/usr/share/rofi/themes/gruvbox-dark-soft.rasi"
+
+// @theme "/usr/share/rofi/themes/material.rasi"
+@theme "~/.config/rofi/themes/KooL_style-4.rasi"

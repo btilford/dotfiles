@@ -47,3 +47,5 @@ export SDKMAN_DIR="${HOME}/.sdkman"
 export PATH="/Users/btilford/.rd/bin:$PATH"
 ### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)
 . "$HOME/.cargo/env"
+
+source '/home/btilford/.bash_completions/hf.sh'
