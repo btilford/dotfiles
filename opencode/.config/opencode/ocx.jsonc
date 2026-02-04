@@ -3,6 +3,9 @@
   "registries": {
     "kdco": {
       "url": "https://registry.kdco.dev"
+    },
+    "kit": {
+      "url": "https://ocx-kit.kdco.dev"
     }
   },
   "lockRegistries": false,
