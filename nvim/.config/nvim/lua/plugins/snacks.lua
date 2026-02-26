@@ -15,9 +15,26 @@ return {
 			-- your configuration comes here
 			-- or leave it empty to use the default settings
 			-- refer to the configuration section below
+			--
+			-- scope = { enabled = false },
 			bigfile = { enabled = true },
 			dashboard = { enabled = false },
-			explorer = { enabled = true, hidden = true },
+			explorer = {
+				enabled = true,
+				replace_netrw = true,
+				hidden = true,
+				files = {
+					hidden = true,
+					ignored = true,
+					follow = true,
+					root = true,
+				},
+				trash = true,
+				git_status_open = true,
+				exclude = {
+					".git",
+				},
+			},
 			indent = {
 				enabled = true,
 				only_scope = true,
@@ -71,7 +88,53 @@ return {
 			{
 				"<leader>e",
 				function()
-					Snacks.explorer({ hidden = true })
+					Snacks.explorer({
+						replace_netrw = true,
+						hidden = true,
+						ignored = true,
+						follow = true,
+						root = true,
+						auto_scope = false,
+						scope = {
+							enabled = false,
+						},
+
+						files = {
+							hidden = true,
+							ignored = true,
+							follow = true,
+							root = true,
+						},
+						trash = true,
+						git_status_open = true,
+						exclude = {
+							".git",
+						},
+					})
+				end,
+				desc = "File [e]xplorer",
+			},
+			{
+				"<leader>E",
+				function()
+					Snacks.explorer({
+						replace_netrw = true,
+						hidden = true,
+						root = false,
+						ignored = true,
+						follow = true,
+						files = {
+							hidden = true,
+							ignored = true,
+							follow = true,
+							root = false,
+						},
+						trash = true,
+						git_status_open = true,
+						exclude = {
+							-- ".git",
+						},
+					})
 				end,
 				desc = "File [E]xplorer",
 			},
