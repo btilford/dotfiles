@@ -8,11 +8,12 @@
 
 @define-color main-fg #f1e1eb;
 /* @define-color main-fg #442222; */
-@define-color main-bg rgba(88,22,22,0.6);
+/* @define-color main-bg rgba(88,22,22,0.6); */
+@define-color main-bg rgba(22,22,22,0.3);
 /* @define-color main-bg #f1a11b; */
 @define-color main-br #cdd6f4;
 
-@define-color active-bg rgba(98,32,32,0.8);
+@define-color active-bg rgba(200,110,32,0.5);
 @define-color active-fg #eeeeee;
 
 @define-color hover-bg #c1c1c0;
@@ -38,7 +39,7 @@
 @define-color pulseaudio #181825;
 @define-color backlight #1e1e2e;
 @define-color battery #313244;
-@define-color power #f1a11b;
+@define-color power #f1511b;
 
 /* State Colors */
 
