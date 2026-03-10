@@ -23,7 +23,7 @@ return {
 			require("mini.basics").setup()
 			require("mini.bracketed").setup()
 			require("mini.clue").setup()
-			require("mini.diff").setup()
+			-- require("mini.diff").setup()
 			require("mini.files").setup()
 			require("mini.pick").setup()
 			require("mini.visits").setup()
