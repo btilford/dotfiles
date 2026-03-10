@@ -20,12 +20,12 @@
         },
         "pycharm": {
             "url": "http://localhost:64343/sse",
-            "type": "sse",
+            "type": "remote",
             "enabled": true
         },
         "webstorm": {
             "url": "http://localhost:64344/sse",
-            "type": "sse",
+            "type": "remote",
             "enabled": true
         },
         "context7": {
@@ -42,6 +42,14 @@
             "type": "remote",
             "url": "https://mcp.grep.app",
             "enabled": true
+        },
+        "obsidian": {
+            "command": [
+                "npx",
+                "@mauricio.wolff/mcp-obsidian@latest",
+                "/Users/btilford/Projects/REDACTED/notes/REDACTED"
+            ],
+            "type": "local"
         }
     },
     "plugin": [
@@ -80,7 +88,6 @@
                 "bash": {
                     "*": "deny",
                     "gh repo view*": "allow",
-                    "gh pr view*": "allow",
                     "gh pr list*": "allow",
                     "gh issue view*": "allow",
                     "gh issue list*": "allow",
