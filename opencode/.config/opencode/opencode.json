@@ -88,6 +88,7 @@
                 "bash": {
                     "*": "deny",
                     "gh repo view*": "allow",
+                    "gh pr view*": "allow",
                     "gh pr list*": "allow",
                     "gh issue view*": "allow",
                     "gh issue list*": "allow",
