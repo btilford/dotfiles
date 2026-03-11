@@ -49,3 +49,5 @@ export PATH="/Users/btilford/.rd/bin:$PATH"
 . "$HOME/.cargo/env"
 
 source '/home/btilford/.bash_completions/hf.sh'
+
+if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init bash)"; fi
