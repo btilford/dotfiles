@@ -1,6 +1,27 @@
 return {
 	{
-		"HiPhish/nvim-ts-rainbow2",
+		-- Successor to nvim-ts-rainbow2; uses nvim's native treesitter API directly
+		"HiPhish/rainbow-delimiters.nvim",
+		init = function()
+			vim.g.rainbow_delimiters = {
+				strategy = {
+					[""] = "rainbow-delimiters.strategy.global",
+				},
+				query = {
+					[""] = "rainbow-delimiters",
+					lua = "rainbow-blocks",
+				},
+				highlight = {
+					"RainbowDelimiterRed",
+					"RainbowDelimiterYellow",
+					"RainbowDelimiterBlue",
+					"RainbowDelimiterOrange",
+					"RainbowDelimiterGreen",
+					"RainbowDelimiterViolet",
+					"RainbowDelimiterCyan",
+				},
+			}
+		end,
 	},
 	-- {
 	-- 	"lukas-reineke/indent-blankline.nvim",
@@ -67,22 +88,15 @@ return {
 			bufdelete = { enabled = true },
 			debug = { enabled = true },
 			dim = { enabled = true },
-			lazygit = { enabled = true },
 			rename = { enabled = true },
 			terminal = { enabled = true },
 			toggle = { enabled = true },
 			util = { enabled = true },
 			win = { enabled = true },
 			image = { enabled = true },
-			git = {
-				enabled = true,
-			},
-			gitbrowse = {
-				enabled = true,
-			},
-			lazygit = {
-				enabled = true,
-			},
+			git = { enabled = true },
+			gitbrowse = { enabled = true },
+			lazygit = { enabled = true },
 		},
 		keys = {
 			{

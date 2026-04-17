@@ -49,18 +49,6 @@ return {
 			-- Allows extra capabilities provided by blink.cmp
 			"saghen/blink.cmp",
 		},
-		opts = {
-			["kotlin-ls"] = {
-				cmd = { "kotlin-ls", "--stdio" },
-				single_file_support = true,
-				filetypes = { "kotlin", "kt", "kts" },
-				root_markers = {
-					"build.gradle",
-					"build.gradle.kts",
-					"pom.xml",
-				},
-			},
-		},
 		config = function()
 			local home = os.getenv("HOME")
 			-- If you're wondering about lsp vs treesitter, you can check out the wonderfully
@@ -242,6 +230,7 @@ return {
 				marksman = {},
 				gopls = {},
 				pyright = {},
+				kotlin_lsp = {},
 				-- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
 				--
 				-- Some languages (like typescript) have entire language plugins that can be useful:
@@ -383,6 +372,7 @@ return {
 			vim.list_extend(ensure_installed, {
 				-- debuggers
 				"jdtls",
+				"kotlin-lsp",
 				-- "java-test",
 				"js-debug-adapter",
 				"kotlin-debug-adapter",
