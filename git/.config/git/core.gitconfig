@@ -14,10 +14,10 @@
 
 
 [credential "https://gitlab.example.com"]
-  helper = !/usr/bin/glab auth git-credential
+  helper = !~/.local/bin/glab-git-credential
 
 [credential "https://github.com"]
-        helper = !/usr/bin/gh auth git-credential
+  helper = !~/.local/bin/gh-git-credential
 
 [protocol "persistent-https"]
 	allow = always
