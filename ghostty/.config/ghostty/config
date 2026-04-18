@@ -11,6 +11,7 @@ font-family = "JetBrains Mono"
 # ── Appearance ────────────────────────────────────────────────────────────────
 background-opacity = 0.85
 background = #1a1b26
+foreground = #cdd6f4
 cursor-color = #aa8844
 cursor-text = #111111
 cursor-style = block

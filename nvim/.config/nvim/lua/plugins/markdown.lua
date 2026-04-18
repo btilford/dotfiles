@@ -68,14 +68,22 @@ return {
 			-- Your setup opts here
 		},
 	},
-	-- - {
-	-- 	"iamcco/markdown-preview.nvim",
-	-- 	cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
-	-- 	ft = { "markdown" },
-	-- 	build = function()
-	-- 		vim.fn["mkdp#util#install"]()
-	-- 	end,
-	-- },
+	{
+		"iamcco/markdown-preview.nvim",
+		cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
+		ft = { "markdown" },
+		build = function()
+			vim.fn["mkdp#util#install"]()
+		end,
+		keys = {
+			{ "<leader>mp", "<cmd>MarkdownPreviewToggle<cr>", desc = "Markdown preview toggle", ft = "markdown" },
+		},
+		config = function()
+			vim.g.mkdp_auto_close = 0        -- don't close preview when leaving buffer
+			vim.g.mkdp_combine_preview = 1   -- combine multiple preview windows
+			vim.g.mkdp_browser = ""          -- use system default browser
+		end,
+	},
 	{
 		"epwalsh/obsidian.nvim",
 		priority = 1001,
@@ -316,63 +324,65 @@ return {
 		},
 		lazy = false,
 	},
-	-- {
-	-- 	"3rd/diagram.nvim",
-	-- 	dependencies = {
-	-- 		"3rd/image.nvim",
-	-- 	},
-	-- 	opts = { -- you can just pass {}, defaults below
-	-- 		events = {
-	-- 			render_buffer = { "InsertLeave", "BufWinEnter", "TextChanged" },
-	-- 			clear_buffer = { "BufLeave" },
-	-- 		},
-	-- 		renderer_options = {
-	-- 			mermaid = {
-	-- 				background = nil, -- nil | "transparent" | "white" | "#hex"
-	-- 				theme = nil, -- nil | "default" | "dark" | "forest" | "neutral"
-	-- 				scale = 1, -- nil | 1 (default) | 2  | 3 | ...
-	-- 				width = nil, -- nil | 800 | 400 | ...
-	-- 				height = nil, -- nil | 600 | 300 | ...
-	-- 			},
-	-- 			plantuml = {
-	-- 				charset = nil,
-	-- 			},
-	-- 			d2 = {
-	-- 				theme_id = nil,
-	-- 				dark_theme_id = nil,
-	-- 				scale = nil,
-	-- 				layout = nil,
-	-- 				sketch = nil,
-	-- 			},
-	-- 			gnuplot = {
-	-- 				size = nil, -- nil | "800,600" | ...
-	-- 				font = nil, -- nil | "Arial,12" | ...
-	-- 				theme = nil, -- nil | "light" | "dark" | custom theme string
-	-- 			},
-	-- 		},
-	-- 	},
-	-- 	config = function()
-	-- 		require("diagram").setup({
-	-- 			integrations = {
-	-- 				require("diagram.integrations.markdown"),
-	-- 				require("diagram.integrations.neorg"),
-	-- 			},
-	-- 			renderer_options = {
-	-- 				mermaid = {
-	-- 					theme = "forest",
-	-- 				},
-	-- 				plantuml = {
-	-- 					charset = "utf-8",
-	-- 				},
-	-- 				d2 = {
-	-- 					theme_id = 1,
-	-- 				},
-	-- 				gnuplot = {
-	-- 					theme = "dark",
-	-- 					size = "800,600",
-	-- 				},
-	-- 			},
-	-- 		})
-	-- 	end,
-	-- },
+	{
+		-- image.nvim: inline image rendering in nvim
+		-- backend = "kitty" works natively in Ghostty (Kitty graphics protocol)
+		-- backend = "ueberzugpp" for tmux (requires luarocks make to build)
+		"3rd/image.nvim",
+		build = "luarocks --lua-version 5.1 --local make",
+		ft = { "markdown" },
+		opts = {
+			backend = "kitty",
+			integrations = {
+				markdown = {
+					enabled = true,
+					clear_in_insert_mode = false,
+					download_remote_images = true,
+					only_render_image_at_cursor = false,
+					filetypes = { "markdown" },
+				},
+			},
+			max_width = nil,
+			max_height = nil,
+			max_width_window_percentage = nil,
+			max_height_window_percentage = 50,
+			window_overlap_clear_enabled = true,
+			window_overlap_clear_ft_ignore = { "cmp_menu", "cmp_docs", "" },
+			editor_only_render_when_focused = false,
+			tmux_show_only_in_active_window = true,
+		},
+	},
+	{
+		-- diagram.nvim: render mermaid/gnuplot diagrams inline
+		-- Requires: mmdc (mermaid), gnuplot — both installed
+		-- plantuml/d2 disabled (not installed)
+		"3rd/diagram.nvim",
+		ft = { "markdown" },
+		dependencies = { "3rd/image.nvim" },
+		opts = {
+			events = {
+				render_buffer = { "InsertLeave", "BufWinEnter", "TextChanged" },
+				clear_buffer = { "BufLeave" },
+			},
+			renderer_options = {
+				mermaid = {
+					background = "transparent",
+					theme = "dark",
+					scale = 1,
+				},
+				gnuplot = {
+					theme = "dark",
+					size = "800,400",
+				},
+			},
+		},
+		config = function(_, opts)
+			require("diagram").setup({
+				integrations = {
+					require("diagram.integrations.markdown"),
+				},
+				renderer_options = opts.renderer_options,
+			})
+		end,
+	},
 }

@@ -154,3 +154,5 @@ stow --no-folding starship
 stow --no-folding ghostty
 stow --no-folding macos
 ```
+
+
