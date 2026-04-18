@@ -9,7 +9,8 @@ font-size = 20
 font-family = "JetBrains Mono"
 
 # ── Appearance ────────────────────────────────────────────────────────────────
-background-opacity = 0.75
+background-opacity = 0.85
+background = #1a1b26
 cursor-color = #aa8844
 cursor-text = #111111
 cursor-style = block
@@ -34,8 +35,8 @@ clipboard-paste-bracketed-safe = true
 copy-on-select = true
 
 # ── Shell integration ─────────────────────────────────────────────────────────
-# ssh: better prompt tracking in SSH sessions
-shell-integration-features = cursor,sudo,title,ssh
+# cursor,sudo,title are the valid features (ssh is not a valid value)
+shell-integration-features = cursor,sudo,title
 
 # ── Notifications ─────────────────────────────────────────────────────────────
 desktop-notifications = true
@@ -48,7 +49,12 @@ macos-option-as-alt = true
 
 # ── Keybindings ───────────────────────────────────────────────────────────────
 keybind = alt+r=reload_config
+
+# ── Quick terminal (quake/drop-down style) ────────────────────────────────────
 keybind = global:f12=toggle_quick_terminal
+quick-terminal-position = top
+quick-terminal-screen = main
+quick-terminal-animation-duration = 0.1
 
 # NOTE: alt+hjkl removed — Ghostty would intercept these before tmux receives
 # them, breaking tmux.nvim's M-hjkl pane resize. Use tmux prefix+hjkl instead.

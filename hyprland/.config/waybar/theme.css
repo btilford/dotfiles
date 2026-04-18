@@ -1,48 +1,44 @@
-/* 
-  bg - background
-  fg - foreground
-  br - border
+/*
+  Waybar theme — colors sourced from wallust (colors-waybar.css)
+  Imported after wallust colors so @colorN references resolve correctly.
+  
+  Rule: text elements → color12–color15 (bright)
+        backgrounds/accents → color4–color8 (mid)
+        urgent/power → color13
 */
 
-/* Main Colors */
+/* Base */
+@define-color main-fg @foreground;
+@define-color main-bg rgba(0,0,0,0.35);
+@define-color main-br @color12;
 
-@define-color main-fg #f1e1eb;
-/* @define-color main-fg #442222; */
-/* @define-color main-bg rgba(88,22,22,0.6); */
-@define-color main-bg rgba(22,22,22,0.3);
-/* @define-color main-bg #f1a11b; */
-@define-color main-br #cdd6f4;
+/* Interactive states */
+@define-color active-bg @color12;
+@define-color active-fg @background;
+@define-color hover-bg @color14;
+@define-color hover-fg @background;
 
-@define-color active-bg rgba(200,110,32,0.5);
-@define-color active-fg #eeeeee;
-
-@define-color hover-bg #c1c1c0;
-@define-color hover-fg rgba(20, 21, 24, 0.75);
-
+/* Utility */
 @define-color white #ffffff;
 @define-color black #000000;
 
-/* Module Colors */
+/* Module text colors — bright so they're readable on dark bar */
+@define-color module-fg @foreground;
+@define-color workspaces @color8;
+@define-color cpuinfo @color14;
+@define-color memory @color13;
+@define-color cpu @color12;
+@define-color distro-fg @foreground;
+@define-color distro-bg @color5;
+@define-color time @color15;
+@define-color date @color14;
+@define-color tray @color14;
+@define-color pulseaudio @color13;
+@define-color backlight @color14;
+@define-color battery @color14;
 
-@define-color module-fg #f1f1fb;
-@define-color workspaces #181825;
-
-@define-color cpuinfo #181825;
-@define-color memory #1e1e2e;
-@define-color cpu #313244;
-@define-color distro-fg #dddddd;
-@define-color distro-bg #41111b;
-@define-color time #313244;
-@define-color date #1e1e2e;
-@define-color tray #181825;
-
-@define-color pulseaudio #181825;
-@define-color backlight #1e1e2e;
-@define-color battery #313244;
-@define-color power #f1511b;
-
-/* State Colors */
-
-@define-color warning #f9e2af;
-@define-color critical #f38ba8;
-@define-color charging #cdd6f4;
+/* State colors */
+@define-color power @color13;
+@define-color warning @color12;
+@define-color critical @color13;
+@define-color charging @color14;

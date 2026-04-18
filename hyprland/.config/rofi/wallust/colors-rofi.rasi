@@ -1,50 +1,47 @@
-
- /* ---- 💫 https://github.com/JaKooLit 💫 ---- */  
+ /* ---- 💫 https://github.com/JaKooLit 💫 ---- */
  /* wallust template - colors-rofi */
 
 * {
-active-background: #784CA0;
-active-foreground: #FAE8E1;
-normal-background: #181519;
-normal-foreground: #FAE8E1;
-urgent-background: #CC659A;
-urgent-foreground: #FAE8E1;
+active-background: #826B6C;
+active-foreground: #C7D7D6;
+normal-background: #1D1E1F;
+normal-foreground: #C7D7D6;
+urgent-background: #CD4A3A;
+urgent-foreground: #C7D7D6;
 
-alternate-active-background: #914B4B;
-alternate-active-foreground: #FAE8E1;
-alternate-normal-background: #181519;
-alternate-normal-foreground: #FAE8E1;
-alternate-urgent-background: #181519;
-alternate-urgent-foreground: #FAE8E1;
+alternate-active-background: #4B1B19;
+alternate-active-foreground: #C7D7D6;
+alternate-normal-background: #1D1E1F;
+alternate-normal-foreground: #C7D7D6;
+alternate-urgent-background: #1D1E1F;
+alternate-urgent-foreground: #C7D7D6;
 
-selected-active-background: #CC659A;
-selected-active-foreground: #FAE8E1;
-selected-normal-background: #CC659A;
-selected-normal-foreground: #FAE8E1;
-selected-urgent-background: #784CA0;
-selected-urgent-foreground: #FAE8E1;
+selected-active-background: #826B6C;
+selected-active-foreground: #1D1E1F;
+selected-normal-background: #826B6C;
+selected-normal-foreground: #1D1E1F;
+selected-urgent-background: #4B1B19;
+selected-urgent-foreground: #1D1E1F;
 
-background-color: #181519;
-background: rgba(0,0,0,0.7);
-foreground: #FAE8E1;
-border-color: #784CA0;
+background-color: rgba(29,30,31,0.3);
+background: rgba(29,30,31,0.3);
+foreground: #C7D7D6;
+border-color: #826B6C;
 
-color0: #3F3C40;
-color1: #1A1022;
-color2: #492E61;
-color3: #6D3838;
-color4: #5A3978;
-color5: #994C74;
-color6: #B58E80;
-color7: #F0D6CC;
-color8: #A8958F;
-color9: #23152D;
-color10: #613D81;
-color11: #914B4B;
-color12: #784CA0;
-color13: #CC659A;
-color14: #F2BDAA;
-color15: #F0D6CC;
-
-
+color0: #434546;
+color1: #15171A;
+color2: #2F1515;
+color3: #381413;
+color4: #615051;
+color5: #9A382B;
+color6: #476A68;
+color7: #A7BEBC;
+color8: #758584;
+color9: #1C1F22;
+color10: #3E1C1B;
+color11: #4B1B19;
+color12: #826B6C;
+color13: #CD4A3A;
+color14: #5F8D8A;
+color15: #A7BEBC;
 }

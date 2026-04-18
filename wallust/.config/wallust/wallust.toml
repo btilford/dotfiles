@@ -1,0 +1,23 @@
+# /* ---- 💫 https://github.com/JaKooLit 💫 ---- */
+# wallust configuration - adapted from JaKooLit/Hyprland-Dots
+
+backend = "kmeans"
+color_space = "labmixed"
+palette = "dark16"
+threshold = 11
+
+[templates]
+hypr.template = 'colors-hyprland.conf'
+hypr.target = '~/.config/hypr/wallust/wallust-hyprland.conf'
+
+rofi.template = 'colors-rofi.rasi'
+rofi.target = '~/.config/rofi/wallust/colors-rofi.rasi'
+
+waybar.template = 'colors-waybar.css'
+waybar.target = '~/.config/waybar/wallust/colors-waybar.css'
+
+ghostty.template = 'colors-ghostty.conf'
+ghostty.target = '~/.config/ghostty/wallust.conf'
+
+swaync.template = 'colors-swaync.css'
+swaync.target = '~/.config/swaync/wallust/colors-wallust.css'
