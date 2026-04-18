@@ -3,44 +3,17 @@ gpg-connect-agent updatestartuptty /bye | ignore
 $env.SSH_AUTH_SOCK = ($env.SSH_AUTH_SOCK? | default (gpgconf --list-dirs agent-ssh-socket))
 
 $env.M2_HOME = ($env.HOME | path join .m2)
-#source ./.zoxide.nu
+$env.GOPATH = ($env.HOME | path join go)
 
-#if ($env | get -i ZELLIJ | is-empty) {
-#  zellij
-#} else {
-#  echo "Zellij already running..,"
-#}
-def --env y [...args] {
-	let tmp = (mktemp -t "yazi-cwd.XXXXXX")
-	yazi ...$args --cwd-file $tmp
-	let cwd = (open $tmp)
-	if $cwd != "" and $cwd != $env.PWD {
-		cd $cwd
-	}
-	rm -fp $tmp
-}
+# Editor — resolve from PATH, no hardcoded /usr/bin
+let nvim_path = (which nvim | get path?.0? | default "nvim")
+$env.VISUAL = $nvim_path
+$env.EDITOR = $nvim_path
+$env.config = ($env.config? | default {} | merge { buffer_editor: $nvim_path })
 
-
-
-let starship_cache = "~/.cache/starship"
-if not ($starship_cache | path exists) {
-  mkdir $starship_cache
-}
-starship init nu | save --force ~/.cache/starship/init.nu
-## ~/.config/nushell/env.nu
-$env.CARAPACE_BRIDGES = 'zsh,fish,bash,inshellisense' # optional
-let carapace_cache = "~/.cache/carapace"
-if not ($carapace_cache | path exists) {
-  mkdir $carapace_cache
-}
-# /usr/bin/carapace _carapace nushell | save -f $"($carapace_cache)/init.nu"
-carapace _carapace nushell | save --force ~/.cache/carapace/init.nu
-
-$env.OBSIDIAN_REST_API_KEY = '***REMOVED***'
-
-$env.GOPATH = '~/go'
+# PATH additions
 $env.PATH = (
-  $env.PATH
+    $env.PATH
     | split row (char esep)
     | append /usr/local/bin
     | append ($env.HOME | path join .local/bin)
@@ -49,8 +22,36 @@ $env.PATH = (
     | uniq
 )
 
-$env.VISUAL = '/usr/bin/nvim'
-$env.EDITOR = '/usr/bin/nvim'
-$env.config.buffer_editor = '/usr/bin/nvim'
+# Starship prompt cache
+if (which starship | is-not-empty) {
+    let starship_cache = ($env.HOME | path join .cache/starship)
+    if not ($starship_cache | path exists) { mkdir $starship_cache }
+    starship init nu | save --force ($starship_cache | path join init.nu)
+}
 
-zoxide init nushell | save -f ~/.zoxide.nu
+# Carapace completions cache
+if (which carapace | is-not-empty) {
+    $env.CARAPACE_BRIDGES = 'zsh,fish,bash,inshellisense'
+    carapace _carapace nushell | save --force ($env.HOME | path join .config/nushell/carapace.nu)
+}
+
+# Zoxide
+if (which zoxide | is-not-empty) {
+    zoxide init nushell --cmd cd | save -f ($env.HOME | path join .config/nushell/.zoxide.nu)
+}
+
+# Yazi wrapper: cd into last directory on exit
+def --env y [...args] {
+    let tmp = (mktemp -t "yazi-cwd.XXXXXX")
+    yazi ...$args --cwd-file $tmp
+    let cwd = (open $tmp)
+    if $cwd != "" and $cwd != $env.PWD {
+        cd $cwd
+    }
+    rm -fp $tmp
+}
+
+# Sensitive credentials — load from local-only file not in version control
+# Create ~/.config/nushell/local.nu and add secrets there
+# Note: source requires a parse-time literal; the file must exist at parse time.
+source ~/.config/nushell/local.nu

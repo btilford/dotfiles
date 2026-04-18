@@ -43,11 +43,8 @@ export SDKMAN_DIR="${HOME}/.sdkman"
 # Generated for envman. Do not edit.
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
 
-### MANAGED BY RANCHER DESKTOP START (DO NOT EDIT)
-export PATH="/Users/btilford/.rd/bin:$PATH"
-### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)
 . "$HOME/.cargo/env"
 
-source '/home/btilford/.bash_completions/hf.sh'
+[[ -f "${HOME}/.bash_completions/hf.sh" ]] && source "${HOME}/.bash_completions/hf.sh"
 
 if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init bash)"; fi

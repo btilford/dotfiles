@@ -35,3 +35,7 @@ path = "~/Projects/REDACTED/"
 name = "square_root"
 path = "~/Projects/REDACTED/infra/square_root"
 # startup_command = "nvim $(fd --type directory --max-depth 3 | fzf)"
+[[session]]
+name = "BigCom"
+path = "~/Projects/REDACTED/payments/psq-payments-bigcom/"
+

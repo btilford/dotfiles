@@ -1,19 +1,16 @@
 export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$HOME/.cargo/bin:$PATH"
-# append completions to fpath
-eval "$(direnv hook zsh)"
-
 fpath=(${ASDF_DATA_DIR:-$HOME/.asdf}/completions $fpath)
-# initialise completions with ZSH's compinit
 autoload -Uz compinit && compinit
+
+command -v direnv  >/dev/null 2>&1 && eval "$(direnv hook zsh)"
+command -v zoxide  >/dev/null 2>&1 && eval "$(zoxide init zsh --cmd cd)"
+command -v fzf     >/dev/null 2>&1 && source <(fzf --zsh)
+command -v wt      >/dev/null 2>&1 && eval "$(command wt config shell init zsh)"
+
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="$HOME/.sdkman"
 [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
 
-# Generated for envman. Do not edit.
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
-eval "$(zoxide init zsh --cmd cd)"
 
-source <(fzf --zsh)
 export M2_HOME="$HOME/.m2"
-if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
-

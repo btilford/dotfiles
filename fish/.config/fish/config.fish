@@ -1,8 +1,8 @@
-# overwrite greeting
-# potentially disabling fastfetch
-#function fish_greeting
-#    # smth smth
-#end
+source ~/.config/fish/env.fish
+
+if not status is-interactive
+    exit
+end
 
 # Enable vi key bindings
 fish_vi_key_bindings
@@ -29,14 +29,12 @@ function fish_mode_prompt
     set_color normal
 end
 
-source ~/.config/fish/env.fish
 source ~/.config/fish/custom.fish
 source ~/.config/fish/aliases.fish
 source ~/.config/fish/keybinds.fish
-if test ~/.config/fish/local_only.fish
+
+if test -f ~/.config/fish/local_only.fish
     source ~/.config/fish/local_only.fish
-else
-    echo "No local_only.fish found, skipping."
 end
 
 

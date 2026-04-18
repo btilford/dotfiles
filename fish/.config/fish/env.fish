@@ -1,6 +1,10 @@
 set -x OS_KERN (uname -s)
+set -gx XDG_CONFIG_HOME $HOME/.config
 set -x EDITOR 'nvim'
-set -gx  --prepend PATH /opt/homebrew/bin
+# Homebrew on macOS (Apple Silicon)
+if test "$OS_KERN" = Darwin
+    set -gx --prepend PATH /opt/homebrew/bin
+end
 set -x VISUAL 'nvim-qt'
 
 
@@ -21,6 +25,7 @@ set --erase _asdf_shims
 
 set -gx --prepend PATH $HOME/.cargo/bin
 set -gx --prepend PATH $HOME/.local/bin
-fzf --fish | source
-# TODO catch for OS
-# set -gx --prepend PATH /Users/btilford/.rd/bin
+# fzf key bindings are interactive-only; guard so Claude/scripts don't error
+if status is-interactive
+    fzf --fish | source
+end

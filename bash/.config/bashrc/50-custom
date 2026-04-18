@@ -1,7 +1,6 @@
-# Is this shell interactive? Maybe...
-# set -x
-# Commands that should be applied only for interactive shells.
+# Interactive shells only
 [[ $- == *i* ]] || return
+
 HISTCONTROL=erasedups
 HISTFILESIZE=200000
 HISTIGNORE='ls:exit'
@@ -13,89 +12,71 @@ shopt -s extglob
 shopt -s globstar
 shopt -s checkjobs
 
-# alias ll='ls -ltrah'
-
-# if [[ ! -v BASH_COMPLETION_VERSINFO ]]; then
-  # . "/nix/store/14izq6jjd2l24w2p4j4xmkfkp0521vr0-bash-completion-2.13.0/etc/profile.d/bash_completion.sh"
-# fi
-
-# export NIX_CONFIG="experimental-features =  nix-command flakes"
-#PATH="${PATH}:${HOME}/.emacs.d/bin"
-#export PATH="~/development/flutter/bin:$PATH"
-#source /usr/share/bash-completion/bash_completion
-# source <(k3sup completion bash)
 alias k=kubectl
-# source <(cmctl completion bash)
-eval "$(direnv hook bash)"
-eval "$(starship init bash)"
-OBS_CLI="$(command -v obsidian-cli)"
-if [[ "$OBS_CLI" != "" ]]; then
-  source <(obsidian-cli completion bash)
+
+command -v direnv    >/dev/null 2>&1 && eval "$(direnv hook bash)"
+command -v zoxide    >/dev/null 2>&1 && eval "$(zoxide init bash --cmd cd)"
+command -v fzf       >/dev/null 2>&1 && eval "$(fzf --bash)"
+command -v carapace  >/dev/null 2>&1 && source <(carapace _carapace bash)
+
+if command -v starship >/dev/null 2>&1; then
+    if [[ $TERM != "dumb" ]]; then
+        eval "$(starship init bash)"
+    fi
 fi
+
+if command -v asdf >/dev/null 2>&1; then
+    . <(asdf completion bash)
+    export ASDF_DATA_DIR="${HOME}/.asdf"
+    PATH="${ASDF_DATA_DIR}/shims:${PATH}"
+fi
+
+if command -v obsidian-cli >/dev/null 2>&1; then
+    source <(obsidian-cli completion bash)
+fi
+
+if command -v wt >/dev/null 2>&1; then
+    eval "$(command wt config shell init bash)"
+fi
+
+# Yazi wrapper: cd into last directory on exit
+function y() {
+    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+    yazi "$@" --cwd-file="$tmp"
+    if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+        builtin cd -- "$cwd"
+    fi
+    rm -f -- "$tmp"
+}
+
+export SUDO_EDITOR="nvim"
+_sudoedit() { sudo -e "$1"; }
+alias sudoedit='_sudoedit'
+
+export GOPATH="$HOME/go"
+export M2_HOME="$HOME/.m2"
+export ENCORE_INSTALL="${HOME}/.encore"
+PATH="${PATH}:${HOME}/.local/bin:${GOPATH}/bin:${ENCORE_INSTALL}/bin"
+
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="$HOME/.sdkman"
 [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
 
-# pkgfile for arch...
-if [[ -f /usr/share/doc/pkgfile/command-not-found.bash ]]; then
-    . /usr/share/doc/pkgfile/command-not-found.bash
-fi
-
-# source "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"
-
-eval "$(zoxide init bash --cmd cd)"
-
-# eval "$(zellij setup --generate-auto-start bash)"
-export OBSIDIAN_REST_API_KEY='***REMOVED***'
-# Yazi for replacing cd
-function y() {
-	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
-	yazi "$@" --cwd-file="$tmp"
-	if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
-		builtin cd -- "$cwd"
-	fi
-	rm -f -- "$tmp"
-}
-
-# if [[ -f "${HOME}/.asdf/asdf.sh" ]]; then
-#   source "$HOME/.asdf/asdf.sh"
-# fi
-export ASDF_DATA_DIR="${HOME}/.asdf"
-. <(asdf completion bash)
-
-PATH="${ASDF_DATA_DIR}/shims:${HOME}/.cargo/bin:${PATH}"
-export SUDO_EDITOR="nvim"
-_sudoedit() {
-  sudo -e "$1";
-}
-alias "sudoedit"='_sudoedit'
-
-if [[ $TERM != "dumb" ]]; then
-  eval "$(starship init bash --print-full-init)"
-fi
-
-source <(carapace _carapace bash)
-
-__HM_PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND%;};}__hm_vte_prompt_command"
-if [ -f /etc/profile.d/vte.sh ]; then
+# VTE prompt integration (Linux GNOME terminals)
+if [[ -f /etc/profile.d/vte.sh ]]; then
     . /etc/profile.d/vte.sh
+    if [[ $(type -t __vte_prompt_command) == function ]]; then
+        __HM_PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND%;};}__hm_vte_prompt_command"
+        __hm_vte_prompt_command() {
+            local old_exit_status=$?
+            __vte_prompt_command
+            return $old_exit_status
+        }
+        PROMPT_COMMAND="$__HM_PROMPT_COMMAND"
+        unset __HM_PROMPT_COMMAND
+    fi
 fi
-if [[ $(type -t __vte_prompt_command) = function ]]; then
-  __hm_vte_prompt_command() {
-    local old_exit_status=$?
-    __vte_prompt_command
-    return $old_exit_status
-  }
-  PROMPT_COMMAND="$__HM_PROMPT_COMMAND"
-fi
-unset __HM_PROMPT_COMMAND
 
-export ENCORE_INSTALL="${HOME}/.encore"
-# source ~/.config/envman/PATH.env
-
-PATH="${PATH}:${HOME}/.local/bin:${GOPATH}/bin:${ENCORE_INSTALL}/bin"
-
-
-# Set up fzf key bindings and fuzzy completion
-eval "$(fzf --bash)"
-export M2_HOME="$HOME/.m2"
+# pkgfile command-not-found (Arch Linux)
+[[ -f /usr/share/doc/pkgfile/command-not-found.bash ]] && \
+    . /usr/share/doc/pkgfile/command-not-found.bash
