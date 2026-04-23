@@ -136,19 +136,16 @@ return {
 					-- Reasoning/chat model — Windows Ollama
 					ollama_chat = function()
 						return require("codecompanion.adapters").extend("openai_compatible", {
-							name = "ollama_chat",
 							env = {
-								url     = "http://ollama.example.lan:11434",
-								api_key = "ollama",
+								url      = "http://ollama.example.lan:11434",
+								api_key  = "ollama",
+								chat_url = "/v1/chat/completions",
+								models_endpoint = "/v1/models",
 							},
 							schema = {
 								model       = { default = "qwen3-coder-next" },
 								max_tokens  = { default = 8192 },
 								temperature = { default = 0.6 },
-							},
-							headers = {
-								["Content-Type"]  = "application/json",
-								["Authorization"] = "Bearer ollama",
 							},
 						})
 					end,
@@ -156,19 +153,16 @@ return {
 					-- Fast completion model — Windows Ollama
 					ollama_inline = function()
 						return require("codecompanion.adapters").extend("openai_compatible", {
-							name = "ollama_inline",
 							env = {
-								url     = "http://ollama.example.lan:11434",
-								api_key = "ollama",
+								url      = "http://ollama.example.lan:11434",
+								api_key  = "ollama",
+								chat_url = "/v1/chat/completions",
+								models_endpoint = "/v1/models",
 							},
 							schema = {
 								model       = { default = "qwen2.5-coder:7b" },
 								max_tokens  = { default = 2048 },
 								temperature = { default = 0.2 },
-							},
-							headers = {
-								["Content-Type"]  = "application/json",
-								["Authorization"] = "Bearer ollama",
 							},
 						})
 					end,
