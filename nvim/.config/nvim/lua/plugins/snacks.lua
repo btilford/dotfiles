@@ -39,7 +39,7 @@ return {
 			--
 			-- scope = { enabled = false },
 			bigfile = { enabled = true },
-			dashboard = { enabled = false },
+			dashboard = { enabled = true },
 			explorer = {
 				enabled = true,
 				replace_netrw = true,
@@ -77,7 +77,7 @@ return {
 				},
 			},
 			input = { enabled = true },
-			picker = { enabled = false },
+			picker = { enabled = true },
 			notifier = { enabled = true },
 			quickfile = { enabled = true },
 			scope = { enabled = true },
