@@ -89,9 +89,9 @@ return {
 				providers = {
 					lazydev = { module = "lazydev.integrations.blink", score_offset = 100 },
 					minuet = {
-						name   = "minuet",
+						name = "minuet",
 						module = "minuet.blink",
-						score_offset = 8,  -- show AI completions above buffer/path, below LSP
+						score_offset = 8, -- show AI completions above buffer/path, below LSP
 					},
 				},
 			},
