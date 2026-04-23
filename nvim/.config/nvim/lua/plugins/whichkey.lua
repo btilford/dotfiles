@@ -48,6 +48,12 @@ return {
                 { '<leader>s', group = '[S]earch' },
                 { '<leader>t', group = '[T]oggle' },
                 { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
+                -- AI
+                { '<leader>c', group = '[C]odeCompanion', mode = { 'n', 'v' } },
+                { '<A-a>',     desc = 'AI: Ask opencode',           mode = { 'n', 'x' } },
+                { '<A-x>',     desc = 'AI: OpenCode action menu',   mode = { 'n', 'x' } },
+                { 'ga',        desc = 'AI: Add to opencode',        mode = { 'n', 'x' } },
+                { '<C-.>',     desc = 'AI: Toggle opencode panel',  mode = { 'n', 't' } },
             },
         },
     },
