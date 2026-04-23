@@ -133,14 +133,11 @@ return {
 
 			require("codecompanion").setup({
 				adapters = {
-					-- Reasoning/chat model — Windows Ollama
+					-- Reasoning/chat model — Windows Ollama (qwen3-coder-next)
 					ollama_chat = function()
-						return require("codecompanion.adapters").extend("openai_compatible", {
+						return require("codecompanion.adapters").extend("ollama", {
 							env = {
-								url      = "http://ollama.example.lan:11434",
-								api_key  = "ollama",
-								chat_url = "/v1/chat/completions",
-								models_endpoint = "/v1/models",
+								url = "http://ollama.example.lan:11434",
 							},
 							schema = {
 								model       = { default = "qwen3-coder-next" },
@@ -150,14 +147,11 @@ return {
 						})
 					end,
 
-					-- Fast completion model — Windows Ollama
+					-- Fast completion model — Windows Ollama (qwen2.5-coder:7b)
 					ollama_inline = function()
-						return require("codecompanion.adapters").extend("openai_compatible", {
+						return require("codecompanion.adapters").extend("ollama", {
 							env = {
-								url      = "http://ollama.example.lan:11434",
-								api_key  = "ollama",
-								chat_url = "/v1/chat/completions",
-								models_endpoint = "/v1/models",
+								url = "http://ollama.example.lan:11434",
 							},
 							schema = {
 								model       = { default = "qwen2.5-coder:7b" },
