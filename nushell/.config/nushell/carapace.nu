@@ -1,4 +1,5 @@
-$env.PATH = ($env.PATH | split row (char esep) | where { $in != "/home/btilford/.config/carapace/bin" } | prepend "/home/btilford/.config/carapace/bin")
+let carapace_bin = $"($env.HOME)/.config/carapace/bin"
+$env.PATH = ($env.PATH | split row (char esep) | where { $in != $carapace_bin } | prepend $carapace_bin)
 
 def --env get-env [name] { $env | get $name }
 def --env set-env [name, value] { load-env { $name: $value } }
