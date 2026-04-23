@@ -4,6 +4,8 @@ return {
 		event = "VimEnter",
 		version = "1.*",
 		dependencies = {
+			-- AI completion
+			"milanglacier/minuet-ai.nvim",
 			-- Snippet Engine
 			{
 				"L3MON4D3/LuaSnip",
@@ -83,9 +85,14 @@ return {
 			},
 
 			sources = {
-				default = { "lsp", "path", "snippets", "lazydev" },
+				default = { "lsp", "path", "snippets", "lazydev", "minuet" },
 				providers = {
 					lazydev = { module = "lazydev.integrations.blink", score_offset = 100 },
+					minuet = {
+						name = "minuet",
+						module = "minuet.blink",
+						score_offset = 8, -- show AI completions above buffer/path, below LSP
+					},
 				},
 			},
 

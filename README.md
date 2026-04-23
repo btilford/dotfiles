@@ -42,6 +42,84 @@ stow --no-folding -R fish
 stow --no-folding -n -v fish
 ```
 
+## Git
+
+The `git` package uses a fragmented config structure. `~/.gitconfig` is the entry point; it includes all fragments via `[include]` directives. All fragments live under `~/.config/git/`.
+
+```
+git/
+  .gitconfig                        # entry point — includes all fragments
+  .config/git/
+    core.gitconfig                  # editor, pager (delta), credential helpers
+    aliases.gitconfig               # git aliases
+    commands.gitconfig              # push/pull/merge/diff tool settings
+    flow.gitconfig                  # gitflow branch prefixes
+    shell.gitconfig                 # color, rebase editor, notes refs
+    web.gitconfig                   # browser, instaweb
+    dirs.gitconfig                  # includeIf profile routing by directory
+    ignore                          # global gitignore
+    default.gitignore               # additional global ignore patterns
+    profiles/
+      default.gitconfig             # personal identity (btilford)
+      REDACTED.gitconfig               # work identity (REDACTED / REDACTED)
+      anon.gitconfig                # anonymous commits (no name, no GPG)
+      REDACTED-commit.txt              # commit message template for work repos
+  .local/bin/
+    gh-git-credential               # wrapper: exec gh auth git-credential "$@"
+    glab-git-credential             # wrapper: exec glab auth git-credential "$@"
+```
+
+### Profile switching
+
+`dirs.gitconfig` uses `includeIf "gitdir:..."` to select the right identity automatically based on the working directory:
+
+| Directory | Profile | Identity |
+|-----------|---------|----------|
+| `~/Projects/REDACTED/` | `REDACTED.gitconfig` | REDACTED, GPG signed |
+| `~/Projects/ttp/`, `~/work/anon/` | `anon.gitconfig` | no name, no GPG |
+| Everything else | `default.gitconfig` | btilford, GPG signed |
+
+No manual profile switching is needed — git picks the right identity when you `cd` into a repo.
+
+### Credential helpers
+
+Per-host credential helpers are configured in `core.gitconfig`:
+
+```ini
+[credential "https://github.com"]
+    helper = !~/.local/bin/gh-git-credential
+
+[credential "https://gitlab.example.com"]
+    helper = !~/.local/bin/glab-git-credential
+```
+
+The `!` prefix tells git to invoke the value as a shell command, which is required for tilde expansion and PATH resolution. Each wrapper script calls the CLI tool by name (`gh` or `glab`) rather than by absolute path, keeping the helpers cross-platform.
+
+The global fallback chain in `.gitconfig` is `cache` (in-memory) → `store` (plaintext `~/.git-credentials`). The per-host helpers override this for GitHub and the private GitLab instance.
+
+Git Credential Manager (GCM) is intentionally **not** in the dotfiles — it is machine-specific. On macOS, add it to `~/.gitconfig.local` after stowing:
+
+```ini
+[credential]
+    helper =
+    helper = /opt/homebrew/bin/git-credential-manager
+```
+
+The empty `helper =` line resets the inherited chain before setting GCM. This is required behavior for Git ≥ 2.38.
+
+### Git setup on a new machine
+
+```sh
+stow --no-folding git
+
+# Authenticate CLIs so the credential wrappers work
+gh auth login
+glab auth login --hostname gitlab.example.com
+
+# macOS only: configure GCM in a local override (not tracked in dotfiles)
+# Create ~/.gitconfig.local with the [credential] block shown above
+```
+
 ## Local Config
 
 Machine-specific config (local env vars, overrides, secrets) should **not** be committed to this repo. Place those files directly in their target locations outside of stow. Since `--no-folding` is always used, unmanaged files in the same directories as stowed files are left untouched.
@@ -76,3 +154,5 @@ stow --no-folding starship
 stow --no-folding ghostty
 stow --no-folding macos
 ```
+
+

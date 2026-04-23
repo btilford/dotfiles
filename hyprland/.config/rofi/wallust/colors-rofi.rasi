@@ -1,50 +1,47 @@
-
- /* ---- 💫 https://github.com/JaKooLit 💫 ---- */  
+ /* ---- 💫 https://github.com/JaKooLit 💫 ---- */
  /* wallust template - colors-rofi */
 
 * {
-active-background: #784CA0;
-active-foreground: #FAE8E1;
-normal-background: #181519;
-normal-foreground: #FAE8E1;
-urgent-background: #CC659A;
-urgent-foreground: #FAE8E1;
+active-background: #5D494D;
+active-foreground: #DED9DA;
+normal-background: #2A0E14;
+normal-foreground: #DED9DA;
+urgent-background: #5D494D;
+urgent-foreground: #DED9DA;
 
-alternate-active-background: #914B4B;
-alternate-active-foreground: #FAE8E1;
-alternate-normal-background: #181519;
-alternate-normal-foreground: #FAE8E1;
-alternate-urgent-background: #181519;
-alternate-urgent-foreground: #FAE8E1;
+alternate-active-background: #664B4E;
+alternate-active-foreground: #DED9DA;
+alternate-normal-background: #2A0E14;
+alternate-normal-foreground: #DED9DA;
+alternate-urgent-background: #2A0E14;
+alternate-urgent-foreground: #DED9DA;
 
-selected-active-background: #CC659A;
-selected-active-foreground: #FAE8E1;
-selected-normal-background: #CC659A;
-selected-normal-foreground: #FAE8E1;
-selected-urgent-background: #784CA0;
-selected-urgent-foreground: #FAE8E1;
+selected-active-background: #5D494D;
+selected-active-foreground: #2A0E14;
+selected-normal-background: #5D494D;
+selected-normal-foreground: #2A0E14;
+selected-urgent-background: #664B4E;
+selected-urgent-foreground: #2A0E14;
 
-background-color: #181519;
-background: rgba(0,0,0,0.7);
-foreground: #FAE8E1;
-border-color: #784CA0;
+background-color: rgba(42,14,20,0.3);
+background: rgba(42,14,20,0.3);
+foreground: #DED9DA;
+border-color: #5D494D;
 
-color0: #3F3C40;
-color1: #1A1022;
-color2: #492E61;
-color3: #6D3838;
-color4: #5A3978;
-color5: #994C74;
-color6: #B58E80;
-color7: #F0D6CC;
-color8: #A8958F;
-color9: #23152D;
-color10: #613D81;
-color11: #914B4B;
-color12: #784CA0;
-color13: #CC659A;
-color14: #F2BDAA;
-color15: #F0D6CC;
-
-
+color0: #B1AAAB;
+color1: #BD5952;
+color2: #A95650;
+color3: #5B4749;
+color4: #544548;
+color5: #544548;
+color6: #544548;
+color7: #661813;
+color8: #9E261D;
+color9: #E54A3F;
+color10: #CE5F58;
+color11: #664B4E;
+color12: #5D494D;
+color13: #5D494D;
+color14: #5D494D;
+color15: #E8928C;
 }

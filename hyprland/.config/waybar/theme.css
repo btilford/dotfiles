@@ -1,48 +1,47 @@
-/* 
-  bg - background
-  fg - foreground
-  br - border
+/*
+  Waybar theme — colors sourced from wallust (colors-waybar.css)
+  Imported after wallust colors so @colorN references resolve correctly.
+
+  Rule: ALL text → @foreground (wallust guarantees this is light/readable)
+        accents/active states → @color12/@color13 (saturated palette accents)
+        backgrounds → rgba black overlay (never wallust — too dark/unpredictable)
+
+  Rationale: with red-dominant wallpapers, color0–color15 are all dark/saturated
+  reds. Only @foreground is reliably light (wallust always makes it contrast bg).
 */
 
-/* Main Colors */
+/* Base */
+@define-color main-fg @foreground;
+@define-color main-bg rgba(0,0,0,0.35);
+@define-color main-br @color13;
 
-@define-color main-fg #f1e1eb;
-/* @define-color main-fg #442222; */
-/* @define-color main-bg rgba(88,22,22,0.6); */
-@define-color main-bg rgba(22,22,22,0.3);
-/* @define-color main-bg #f1a11b; */
-@define-color main-br #cdd6f4;
+/* Interactive states */
+@define-color active-bg @color13;
+@define-color active-fg @background;
+@define-color hover-bg rgba(255,255,255,0.15);
+@define-color hover-fg @foreground;
 
-@define-color active-bg rgba(200,110,32,0.5);
-@define-color active-fg #eeeeee;
-
-@define-color hover-bg #c1c1c0;
-@define-color hover-fg rgba(20, 21, 24, 0.75);
-
+/* Utility */
 @define-color white #ffffff;
 @define-color black #000000;
 
-/* Module Colors */
+/* Module text — ALL use @foreground for guaranteed readability */
+@define-color module-fg @foreground;
+@define-color workspaces @foreground;
+@define-color cpuinfo @foreground;
+@define-color memory @foreground;
+@define-color cpu @foreground;
+@define-color distro-fg @foreground;
+@define-color distro-bg @color13;
+@define-color time @foreground;
+@define-color date @foreground;
+@define-color tray @foreground;
+@define-color pulseaudio @foreground;
+@define-color backlight @foreground;
+@define-color battery @foreground;
 
-@define-color module-fg #f1f1fb;
-@define-color workspaces #181825;
-
-@define-color cpuinfo #181825;
-@define-color memory #1e1e2e;
-@define-color cpu #313244;
-@define-color distro-fg #dddddd;
-@define-color distro-bg #41111b;
-@define-color time #313244;
-@define-color date #1e1e2e;
-@define-color tray #181825;
-
-@define-color pulseaudio #181825;
-@define-color backlight #1e1e2e;
-@define-color battery #313244;
-@define-color power #f1511b;
-
-/* State Colors */
-
-@define-color warning #f9e2af;
-@define-color critical #f38ba8;
-@define-color charging #cdd6f4;
+/* State colors — use accent colors, not text */
+@define-color power @color13;
+@define-color warning @color13;
+@define-color critical @color14;
+@define-color charging @color7;

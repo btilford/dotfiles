@@ -7,7 +7,7 @@
   "modules-left": [
     "hyprland/window",
     "hyprland/submap",
-    "custom/media"
+    "mpris"
   ],
   "modules-center": [
     "custom/distro",
@@ -26,17 +26,23 @@
     "battery",
     "custom/logout"
   ],
-  "hyperland/window": {
+  "hyprland/window": {
     "format": "{}",
-    "min-length": 5,
-    "max-length": 50,
-    "separate-outputs": true,   
-
+    "separate-outputs": true,
+    "max-length": 40,
+    "rewrite": {
+      "(.*) — Mozilla Firefox": "󰈹 $1",
+      "(.*) - Brave": "󰖟 $1",
+      "(.*) - Visual Studio Code": "󰨞 $1",
+      "(.*) – Code": "󰨞 $1",
+      "(.*) - Ghostty": " $1",
+      "(.*)": "$1"
+    }
   },
   "hyprland/workspaces#main": {
     "on-scroll-up": "hyprctl dispatch workspace -1",
     "on-scroll-down": "hyprctl dispatch workspace +1",
-     "format": "{icon} {name}",
+     "format": "{icon}",
     // "show-special": false,
     // "active-only": false,
     // "persistent-only": true,
@@ -53,8 +59,8 @@
       "6": "󱦹",
       "7": "",
 
-      "10": "",
-    },
+      "10": ""
+    }
     //  "persistent-workspaces": {
     //         // "*":10,
     //         // "*": [1, 5, 9],
@@ -99,7 +105,7 @@
     //   "6": "",
     // },
      "persistent-workspaces": {
-            "*": [2, 6, 10],
+            "*": [2, 6, 10]
     //         "DP-3": [1,5,9],
     //         "DVI-I-2": [2,6,10],
     //         "DVI-I-1": [3,7,11],
@@ -128,7 +134,7 @@
     //   "6": "",
     // },
      "persistent-workspaces": {
-            "*": [3, 7],
+            "*": [3, 7]
     //         "DP-3": [1,5,9],
     //         "DVI-I-2": [2,6,10],
     //         "DVI-I-1": [3,7,11],
@@ -157,7 +163,7 @@
     //   "6": "",
     // },
      "persistent-workspaces": {
-            "*": [4, 8],
+            "*": [4, 8]
     //         "DP-3": [1,5,9],
     //         "DVI-I-2": [2,6,10],
     //         "DVI-I-1": [3,7,11],
@@ -180,7 +186,24 @@
     ]
   },
   "clock": {
-    "format-alt": "{:%a, %d. %b  %H:%M}"
+    "format": " {:%H:%M}",
+    "format-alt": " {:%A, %B %d %Y}",
+    "tooltip-format": "<big>{:%B %Y}</big>\n<tt><small>{calendar}</small></tt>",
+    "calendar": {
+      "mode": "month",
+      "weeks-pos": "left",
+      "on-scroll": 1,
+      "format": {
+        "today":    "<span color='#ff6699'><b><u>{}</u></b></span>",
+        "weeks":    "<span color='#99ccff'><i>{}</i></span>",
+        "weekdays": "<span color='#ffcc66'><b>{}</b></span>"
+      }
+    },
+    "actions": {
+      "on-click-right": "mode",
+      "on-scroll-up": "shift_up",
+      "on-scroll-down": "shift_down"
+    }
   },
   "custom/distro": {
     "format": " ",
@@ -206,7 +229,7 @@
         "show-icon": true
     },
         "bluetooth": {
-        "format-connected-battery": "{device_alias} {device_battery_percentage}%",
+        "format-connected-battery": "{device_alias} {device_battery_percentage}%"
     },
   "pulseaudio": {
     // "scroll-step": 1, // %, can be a float
@@ -232,28 +255,34 @@
     "on-click": "pavucontrol"
   },
   "network": {
-    // "interface": "wlp2*", // (Optional) To force the use of this interface
-    "format-wifi": "{essid} ({signalStrength}%)  ",
-    "format-ethernet": "{ipaddr}/{cidr} ",
-    "tooltip-format": "{ifname} via {gwaddr} ",
-    "format-linked": "{ifname} (No IP) ",
-    "format-disconnected": "Disconnected ⚠",
-    "format-alt": "{ifname}: {ipaddr}/{cidr}"
+    "format-wifi": "{essid} ({signalStrength}%) 󰤨 ",
+    "format-ethernet": "{ipaddr}/{cidr} 󰈀 ",
+    "format-linked": "{ifname} (No IP) 󰌘 ",
+    "format-disconnected": "Disconnected 󰤭 ",
+    "tooltip-format-wifi": "{essid} {signalStrength}%\n{ifname} — {ipaddr}/{cidr}\nGateway: {gwaddr}",
+    "tooltip-format-ethernet": "{ifname} — {ipaddr}/{cidr}\nGateway: {gwaddr}",
+    "tooltip-format-disconnected": "No network connection",
+    "on-click": "networkmanager_dmenu",
+    "on-click-right": "nm-connection-editor"
   },
-  "custom/media": {
-    "format": "{icon} {text}",
-    "return-type": "json",
+  "mpris": {
+    "format": "{player_icon} {title} — {artist}",
+    "format-paused": "{player_icon}  {title} — {artist}",
     "max-length": 40,
-    "format-icons": {
-      "spotify": "",
-      "default": "🎜"
+    "player-icons": {
+      "default": "▶",
+      "mpv": "🎵",
+      "spotify": "",
+      "firefox": "󰈹",
+      "brave": "󰖟"
     },
-    "escape": true,
-    "exec": "$HOME/.config/waybar/mediaplayer.py 2> /dev/null" // Script in resources folder
-    // "exec": "$HOME/.config/waybar/mediaplayer.py --player spotify 2> /dev/null" // Filter player based on name
+    "status-icons": {
+      "paused": "⏸"
+    }
   },
   "custom/logout": {
     "format": " ⏻ ",
-    "on-click": "wlogout"
+    "tooltip": false,
+    "on-click": "wlogout --protocol layer-shell"
   }
 }
