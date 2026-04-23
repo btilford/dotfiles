@@ -225,7 +225,7 @@ return {
 				context_ratio  = 0.75,
 				throttle       = 1000,
 				debounce       = 400,
-				notify         = "warn",
+				notify         = false,
 				virtualtext = {
 					auto_trigger_ft = {},
 					keymap = {
