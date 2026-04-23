@@ -209,34 +209,20 @@ return {
 				context_ratio  = 0.75,
 				throttle       = 1000,
 				debounce       = 400,
-				notify         = false,
-				virtualtext = {
-					auto_trigger_ft = {},
-					keymap = {
-						accept      = "<Tab>",
-						accept_line = "<S-Tab>",
-						prev        = "<C-,>",
-						next        = "<C-.>",
-						dismiss     = "<C-e>",
-					},
-				},
-			})
+			notify         = false,
+			virtualtext = {
+				auto_trigger_ft = {},
+				-- keymap managed via explicit vim.keymap.set below for telescope/fzf searchability
+			},
+		})
 
-			-- blink.cmp integration — add to your blink config:
-			-- sources = {
-			--   providers = {
-			--     minuet = { name = "minuet", module = "minuet.blink", score_offset = 8 },
-			--   },
-			--   completion = { enabled_providers = { "lsp", "path", "minuet", "buffer" } },
-			-- }
-
-			-- Explicit keymaps so they appear in telescope/fzf keymap search
-			vim.keymap.set("i", "<Tab>",   function() require("minuet").accept() end,      { desc = "AI (Minuet): Accept completion",      silent = true })
-			vim.keymap.set("i", "<S-Tab>", function() require("minuet").accept_line() end, { desc = "AI (Minuet): Accept line",            silent = true })
-			vim.keymap.set("i", "<C-y>",   function() require("minuet").complete() end,    { desc = "AI (Minuet): Trigger completion",     silent = true })
-			vim.keymap.set("i", "<C-,>",   function() require("minuet").prev() end,        { desc = "AI (Minuet): Previous suggestion",    silent = true })
-			vim.keymap.set("i", "<C-.>",   function() require("minuet").next() end,        { desc = "AI (Minuet): Next suggestion",        silent = true })
-			vim.keymap.set("i", "<C-e>",   function() require("minuet").dismiss() end,     { desc = "AI (Minuet): Dismiss completion",     silent = true })
+		-- Explicit keymaps so they appear in telescope/fzf keymap search
+		vim.keymap.set("i", "<Tab>",   function() require("minuet").accept() end,      { desc = "AI (Minuet): Accept completion",   silent = true })
+		vim.keymap.set("i", "<S-Tab>", function() require("minuet").accept_line() end, { desc = "AI (Minuet): Accept line",         silent = true })
+		vim.keymap.set("i", "<C-y>",   function() require("minuet").complete() end,    { desc = "AI (Minuet): Trigger completion",  silent = true })
+		vim.keymap.set("i", "<C-k>",   function() require("minuet").prev() end,        { desc = "AI (Minuet): Previous suggestion", silent = true })
+		vim.keymap.set("i", "<C-j>",   function() require("minuet").next() end,        { desc = "AI (Minuet): Next suggestion",     silent = true })
+		vim.keymap.set("i", "<C-e>",   function() require("minuet").dismiss() end,     { desc = "AI (Minuet): Dismiss completion",  silent = true })
 		end,
 	},
 }

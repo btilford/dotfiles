@@ -50,6 +50,7 @@ return {
                 { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
                 -- AI
                 { '<leader>c', group = 'AI [C]odeCompanion', mode = { 'n', 'v' } },
+                { '<leader>m', group = 'AI [M]inuet',        mode = { 'i' } },
             },
         },
     },
