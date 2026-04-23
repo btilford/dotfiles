@@ -19,22 +19,22 @@ return {
 			-- Recommended/example keymaps.
 			vim.keymap.set({ "n", "x" }, "<A-a>", function()
 				require("opencode").ask("@this: ", { submit = true })
-			end, { desc = "Ask opencode" })
+			end, { desc = "AI (OpenCode): Ask about this" })
 			vim.keymap.set({ "n", "x" }, "<A-x>", function()
 				require("opencode").select()
-			end, { desc = "Execute opencode action…" })
+			end, { desc = "AI (OpenCode): Action menu" })
 			vim.keymap.set({ "n", "x" }, "ga", function()
 				require("opencode").prompt("@this")
-			end, { desc = "Add to opencode" })
+			end, { desc = "AI (OpenCode): Add to context" })
 			vim.keymap.set({ "n", "t" }, "<C-.>", function()
 				require("opencode").toggle()
-			end, { desc = "Toggle opencode" })
+			end, { desc = "AI (OpenCode): Toggle panel" })
 			vim.keymap.set("n", "<S-C-u>", function()
 				require("opencode").command("session.half.page.up")
-			end, { desc = "opencode half page up" })
+			end, { desc = "AI (OpenCode): Scroll up" })
 			vim.keymap.set("n", "<S-C-d>", function()
 				require("opencode").command("session.half.page.down")
-			end, { desc = "opencode half page down" })
+			end, { desc = "AI (OpenCode): Scroll down" })
 			-- You may want these if you stick with the opinionated "<C-a>" and "<C-x>" above — otherwise consider "<leader>o".
 			vim.keymap.set("n", "+", "<C-a>", { desc = "Increment", noremap = true })
 			vim.keymap.set("n", "-", "<C-x>", { desc = "Decrement", noremap = true })
@@ -45,18 +45,12 @@ return {
 		config = function()
 			vim.g.copilot_no_tab_map = true
 			vim.g.copilot_assume_mapped = true
-			vim.api.nvim_set_keymap("i", "<C-a>", "copilot#Accept()", { expr = true, silent = true, noremap = false })
-
-			vim.api.nvim_set_keymap("i", "<C-m>", "copilot#Next()", { expr = true, silent = true, noremap = false })
-			vim.api.nvim_set_keymap("i", "<C-M>", "copilot#Previous()", { expr = true, silent = true, noremap = false })
-			vim.api.nvim_set_keymap("i", "<C-x>", "copilot#Clear()", { expr = true, silent = true, noremap = false })
-			vim.api.nvim_set_keymap("i", "<C-/>", "copilot#Dismiss()", { expr = true, silent = true, noremap = false })
-			vim.api.nvim_set_keymap(
-				"i",
-				"<C-\\>",
-				"copilot#Complete()<Esc><CR>",
-				{ expr = true, silent = true, noremap = false }
-			)
+			vim.keymap.set("i", "<C-a>",  "copilot#Accept()",           { expr = true, silent = true, noremap = false, desc = "AI (Copilot): Accept suggestion" })
+			vim.keymap.set("i", "<C-m>",  "copilot#Next()",              { expr = true, silent = true, noremap = false, desc = "AI (Copilot): Next suggestion" })
+			vim.keymap.set("i", "<C-M>",  "copilot#Previous()",          { expr = true, silent = true, noremap = false, desc = "AI (Copilot): Previous suggestion" })
+			vim.keymap.set("i", "<C-x>",  "copilot#Clear()",             { expr = true, silent = true, noremap = false, desc = "AI (Copilot): Clear suggestion" })
+			vim.keymap.set("i", "<C-/>",  "copilot#Dismiss()",           { expr = true, silent = true, noremap = false, desc = "AI (Copilot): Dismiss suggestion" })
+			vim.keymap.set("i", "<C-\\>", "copilot#Complete()<Esc><CR>", { expr = true, silent = true, noremap = false, desc = "AI (Copilot): Complete and insert" })
 		end,
 	},
 	-- Custom Parameters (with defaults)
@@ -126,10 +120,10 @@ return {
 		config = function()
 			local map = vim.keymap.set
 
-			map({ "n", "v" }, "<leader>cc", "<cmd>CodeCompanionChat Toggle<cr>", { desc = "CodeCompanion: Toggle chat" })
-			map({ "n", "v" }, "<leader>ca", "<cmd>CodeCompanionActions<cr>", { desc = "CodeCompanion: Actions" })
-			map("v", "<leader>ci", "<cmd>CodeCompanion<cr>", { desc = "CodeCompanion: Inline edit" })
-			map("v", "<leader>ce", "<cmd>CodeCompanion /explain<cr>", { desc = "CodeCompanion: Explain" })
+			map({ "n", "v" }, "<leader>cc", "<cmd>CodeCompanionChat Toggle<cr>", { desc = "AI (CodeCompanion): Toggle chat" })
+			map({ "n", "v" }, "<leader>ca", "<cmd>CodeCompanionActions<cr>",   { desc = "AI (CodeCompanion): Actions menu" })
+			map("v",          "<leader>ci", "<cmd>CodeCompanion<cr>",           { desc = "AI (CodeCompanion): Inline edit" })
+			map("v",          "<leader>ce", "<cmd>CodeCompanion /explain<cr>",  { desc = "AI (CodeCompanion): Explain code" })
 
 			require("codecompanion").setup({
 				adapters = {
@@ -235,6 +229,14 @@ return {
 			--   },
 			--   completion = { enabled_providers = { "lsp", "path", "minuet", "buffer" } },
 			-- }
+
+			-- Explicit keymaps so they appear in telescope/fzf keymap search
+			vim.keymap.set("i", "<Tab>",   function() require("minuet").accept() end,      { desc = "AI (Minuet): Accept completion",      silent = true })
+			vim.keymap.set("i", "<S-Tab>", function() require("minuet").accept_line() end, { desc = "AI (Minuet): Accept line",            silent = true })
+			vim.keymap.set("i", "<C-y>",   function() require("minuet").complete() end,    { desc = "AI (Minuet): Trigger completion",     silent = true })
+			vim.keymap.set("i", "<C-,>",   function() require("minuet").prev() end,        { desc = "AI (Minuet): Previous suggestion",    silent = true })
+			vim.keymap.set("i", "<C-.>",   function() require("minuet").next() end,        { desc = "AI (Minuet): Next suggestion",        silent = true })
+			vim.keymap.set("i", "<C-e>",   function() require("minuet").dismiss() end,     { desc = "AI (Minuet): Dismiss completion",     silent = true })
 		end,
 	},
 }
