@@ -3,8 +3,9 @@
 
 backend = "kmeans"
 color_space = "labmixed"
-palette = "dark16"
-threshold = 11
+palette = "softdark16"
+threshold = 15
+check_contrast = true
 
 [templates]
 hypr.template = 'colors-hyprland.conf'

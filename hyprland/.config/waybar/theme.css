@@ -1,44 +1,47 @@
 /*
   Waybar theme — colors sourced from wallust (colors-waybar.css)
   Imported after wallust colors so @colorN references resolve correctly.
-  
-  Rule: text elements → color12–color15 (bright)
-        backgrounds/accents → color4–color8 (mid)
-        urgent/power → color13
+
+  Rule: ALL text → @foreground (wallust guarantees this is light/readable)
+        accents/active states → @color12/@color13 (saturated palette accents)
+        backgrounds → rgba black overlay (never wallust — too dark/unpredictable)
+
+  Rationale: with red-dominant wallpapers, color0–color15 are all dark/saturated
+  reds. Only @foreground is reliably light (wallust always makes it contrast bg).
 */
 
 /* Base */
 @define-color main-fg @foreground;
 @define-color main-bg rgba(0,0,0,0.35);
-@define-color main-br @color12;
+@define-color main-br @color13;
 
 /* Interactive states */
-@define-color active-bg @color12;
+@define-color active-bg @color13;
 @define-color active-fg @background;
-@define-color hover-bg @color14;
-@define-color hover-fg @background;
+@define-color hover-bg rgba(255,255,255,0.15);
+@define-color hover-fg @foreground;
 
 /* Utility */
 @define-color white #ffffff;
 @define-color black #000000;
 
-/* Module text colors — bright so they're readable on dark bar */
+/* Module text — ALL use @foreground for guaranteed readability */
 @define-color module-fg @foreground;
-@define-color workspaces @color8;
-@define-color cpuinfo @color14;
-@define-color memory @color13;
-@define-color cpu @color12;
+@define-color workspaces @foreground;
+@define-color cpuinfo @foreground;
+@define-color memory @foreground;
+@define-color cpu @foreground;
 @define-color distro-fg @foreground;
-@define-color distro-bg @color5;
-@define-color time @color15;
-@define-color date @color14;
-@define-color tray @color14;
-@define-color pulseaudio @color13;
-@define-color backlight @color14;
-@define-color battery @color14;
+@define-color distro-bg @color13;
+@define-color time @foreground;
+@define-color date @foreground;
+@define-color tray @foreground;
+@define-color pulseaudio @foreground;
+@define-color backlight @foreground;
+@define-color battery @foreground;
 
-/* State colors */
+/* State colors — use accent colors, not text */
 @define-color power @color13;
-@define-color warning @color12;
-@define-color critical @color13;
-@define-color charging @color14;
+@define-color warning @color13;
+@define-color critical @color14;
+@define-color charging @color7;

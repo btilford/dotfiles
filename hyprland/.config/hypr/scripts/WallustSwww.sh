@@ -19,21 +19,9 @@ read_cached_wallpaper() {
 
 read_wallpaper_from_query() {
   local monitor="$1"
-  awww query | awk -v mon="$monitor" '
-    {
-      # New awww 0.11+ format:
-      # "namespace: OUTPUT: SIZE, scale: SCALE, currently displaying: /path/img.jpg"
-      # The monitor name appears as the second colon-delimited field
-      n = split($0, parts, ": ")
-      # parts[2] is the output name, parts[n] is the path (last field)
-      cur = parts[2]
-      gsub(/^ +| +$/, "", cur)
-      if (cur == mon) {
-        print parts[n]
-        exit
-      }
-    }
-  '
+  # awww 0.12 query format:
+  # ": DP-3: 2560x1440, scale: 1.5, currently displaying: image: /path/img.jpg"
+  awww query | grep -F ": ${monitor}:" | grep -oP 'image: \K[^\s]+'
 }
 
 # Helper: get focused monitor name (prefer JSON)
