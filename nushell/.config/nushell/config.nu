@@ -765,3 +765,7 @@ source ~/.config/nushell/.zoxide.nu
 if ($env.HOME | path join .config/nushell/local.nu | path exists) {
     source ~/.config/nushell/local.nu
 }
+let mise_path = ($nu.default-config-dir | path join mise.nu)
+if ($mise_path | path exists) {
+    use ($nu.default-config-dir | path join mise.nu)
+}

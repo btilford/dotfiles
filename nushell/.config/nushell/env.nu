@@ -55,3 +55,7 @@ def --env y [...args] {
 # Create ~/.config/nushell/local.nu and add secrets there
 # Note: source requires a parse-time literal; the file must exist at parse time.
 source ~/.config/nushell/local.nu
+if (which mise | is-not-empty) {
+    let mise_path = ($nu.default-config-dir | path join mise.nu)
+    ^mise activate nu | save $mise_path --force
+}

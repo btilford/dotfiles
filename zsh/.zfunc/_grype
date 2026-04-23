@@ -1,5 +1,4 @@
 #compdef grype
-compdef _grype grype
 
 # zsh completion for grype                                -*- shell-script -*-
 
