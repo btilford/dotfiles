@@ -5,6 +5,7 @@
 # -----------------------------------------------------
 # Exports
 # -----------------------------------------------------
+export XDG_CONFIG_HOME="$HOME/.config"
 export OS_KERN="$(uname -s)"
 export EDITOR=nvim
 export PATH="/usr/lib/ccache/bin/:$PATH"

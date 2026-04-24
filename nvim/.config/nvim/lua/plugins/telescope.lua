@@ -170,7 +170,7 @@ return {
 				"n",
 				"<leader>sa",
 				"<cmd>Telescope find_files hidden=true<cr>",
-				{ desc = "[s]earc [A]ll (Hidden) Files" }
+				{ desc = "[s]earch [A]ll (Hidden) Files" }
 			)
 		end,
 	},

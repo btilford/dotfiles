@@ -4,6 +4,7 @@
     excludesfile = ~/.config/git/default.gitignore
     autocrlf = input
     commentchar = '#'
+    pager = delta
 
 [init]
     #templatedir = ~/.config/git/default-template
@@ -13,10 +14,16 @@
 
 
 [credential "https://gitlab.example.com"]
-  helper = !/usr/bin/glab auth git-credential
+  helper = !~/.local/bin/glab-git-credential
 
 [credential "https://github.com"]
-        helper = !/usr/bin/gh auth git-credential
+  helper = !~/.local/bin/gh-git-credential
 
 [protocol "persistent-https"]
 	allow = always
+
+
+[delta]
+    features = decorations
+    side-by-side = true
+    light = false

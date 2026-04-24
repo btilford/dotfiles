@@ -1,6 +1,6 @@
 [default_session]
 preview_command = "eza --all --git --icons --color=always {}"
-startup_command = "nvim"
+# startup_command = "yazi"
 
 [[session]]
 name = "dotfiles"
@@ -20,12 +20,12 @@ startup_command = "yazi"
 [[session]]
 name = "Notes"
 path = "~/Documents/personal-notes/notes"
-startup_command = "nvim (fzf)"
+# startup_command = "nvim (fzf)"
 
 [[session]]
 name = "REDACTED Notes"
 path = "~/Projects/REDACTED/notes/REDACTED/"
-startup_command = "nvim $(fzf) "
+# startup_command = "nvim $(fzf) "
 
 [[session]]
 name = "REDACTED Projects"
@@ -33,5 +33,9 @@ path = "~/Projects/REDACTED/"
 
 [[session]]
 name = "square_root"
-path = "~/Projects/REDACTED/square_root"
-startup_command = "nvim $(fd --type directory --max-depth 3 | fzf)"
+path = "~/Projects/REDACTED/infra/square_root"
+# startup_command = "nvim $(fd --type directory --max-depth 3 | fzf)"
+[[session]]
+name = "BigCom"
+path = "~/Projects/REDACTED/payments/psq-payments-bigcom/"
+

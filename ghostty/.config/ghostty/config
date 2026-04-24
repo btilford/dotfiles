@@ -1,41 +1,71 @@
+# ── Shader ────────────────────────────────────────────────────────────────────
+# File: ~/.config/ghostty/shaders/cursor_warp.glsl
+# Source: https://github.com/search?q=cursor_warp+ghostty+glsl&type=repositories
 custom-shader = shaders/cursor_warp.glsl
 #custom-shader = shaders/ripple_rectangle_cursor.glsl
+
+# ── Font ──────────────────────────────────────────────────────────────────────
 font-size = 20
 font-family = "JetBrains Mono"
-background-opacity = 0.75
+
+# ── Appearance ────────────────────────────────────────────────────────────────
+background-opacity = 0.85
+background = #1a1b26
+foreground = #cdd6f4
 cursor-color = #aa8844
 cursor-text = #111111
-#cursor-invert-fg-bg = true
 cursor-style = block
-#cursor-style = block_hollow
 cursor-opacity = 0.7
 cursor-click-to-move = true
+#cursor-style = block_hollow
+#cursor-invert-fg-bg = true
 #selection-invert-fg-bg
-selection-background=#ffaa00
-selection-foreground=#222222
+
+selection-background = #ffaa00
+selection-foreground = #222222
+
+# ── Mouse ─────────────────────────────────────────────────────────────────────
 mouse-hide-while-typing = true
-mouse-shift-capture = true
+# shift+click will bypass terminal mouse capture (useful in tmux)
+mouse-shift-capture = false
+
+# ── Clipboard ─────────────────────────────────────────────────────────────────
 clipboard-trim-trailing-spaces = true
 clipboard-paste-protection = true
 clipboard-paste-bracketed-safe = true
 copy-on-select = true
+
+# ── Shell integration ─────────────────────────────────────────────────────────
+# cursor,sudo,title are the valid features (ssh is not a valid value)
 shell-integration-features = cursor,sudo,title
+
+# ── Notifications ─────────────────────────────────────────────────────────────
 desktop-notifications = true
 app-notifications = clipboard-copy,no-config-reload
 
+# ── macOS ─────────────────────────────────────────────────────────────────────
+# Send escape sequences for Option+key so alt bindings work in tmux/nvim.
+# Ignored on Linux (no Option key concept).
+macos-option-as-alt = true
+
+# ── Keybindings ───────────────────────────────────────────────────────────────
 keybind = alt+r=reload_config
 
+# ── Quick terminal (quake/drop-down style) ────────────────────────────────────
 keybind = global:f12=toggle_quick_terminal
+quick-terminal-position = top
+quick-terminal-screen = main
+quick-terminal-animation-duration = 0.1
 
-keybind = alt+l=goto_split:right
-keybind = alt+h=goto_split:left
-keybind = alt+k=goto_split:top
-keybind = alt+j=goto_split:bottom
+# NOTE: alt+hjkl removed — Ghostty would intercept these before tmux receives
+# them, breaking tmux.nvim's M-hjkl pane resize. Use tmux prefix+hjkl instead.
+# With macos-option-as-alt=true, Option+hjkl now passes through as escape
+# sequences that tmux correctly interprets as M-hjkl.
+
 keybind = ctrl+enter=unbind
-
 keybind = ctrl+shift+u=copy_url_to_clipboard
 
-# MacOS hacks :(
+# Linux/macOS ctrl+c/v normalization
 keybind = ctrl+shift+v=paste_from_clipboard
 keybind = ctrl+shift+c=copy_to_clipboard
 keybind = ctrl+c=text:\x03
@@ -43,12 +73,8 @@ keybind = ctrl+c=text:\x03
 # keybind = "ctrl+shift+j=write_scrollback_file:paste"
 # keybind = "ctrl+alt+shift+j=write_scrollback_file:open"
 
-#env = GHOSTTY_THEME=dark
-#env = SNACKS_GHOSTTY=true
-#
-#
-# Theme switching (optional): managed by your theme changer (symlink or generated file).
+# ── Theme (optional, managed via symlink or theme switcher) ───────────────────
 config-file = ?~/.config/ghostty/theme.conf
 
-# Wallust (optional): wallust template should write Ghostty colors here; it will override theme colors.
+# ── Wallust (optional, written by wallust on wallpaper change) ────────────────
 config-file = ?~/.config/ghostty/wallust.conf

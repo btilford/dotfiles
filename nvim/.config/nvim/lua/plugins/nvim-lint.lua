@@ -78,11 +78,11 @@ return {
 				},
 				terraform = {
 					"tflint",
-					"tfsec",
+					-- tfsec scans the entire project tree, not just the current file.
+					-- Run manually with :lua require("lint").try_lint("tfsec")
 				},
 				hcl = {
 					"tflint",
-					"tfsec",
 				},
 				playbook = {
 					"ansiblelint",
@@ -170,7 +170,6 @@ return {
 			}
 			local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })
 			vim.api.nvim_create_autocmd({
-				"BufEnter",
 				"BufWritePost",
 				"InsertLeave",
 			}, {
@@ -178,6 +177,16 @@ return {
 				pattern = "*",
 				callback = function()
 					lint.try_lint()
+				end,
+			})
+
+			-- Run tfsec manually via <leader>lT in terraform/hcl files
+			vim.api.nvim_create_autocmd("FileType", {
+				pattern = { "terraform", "hcl" },
+				callback = function()
+					vim.keymap.set("n", "<leader>lT", function()
+						lint.try_lint("tfsec")
+					end, { buffer = true, desc = "[L]int [T]fsec (project-wide)" })
 				end,
 			})
 		end,

@@ -27,9 +27,6 @@ return {
 			vim.keymap.set("n", "<leader>Sd", ":Autosession delete<CR>", {
 				desc = "[S]ession [d]delete",
 			})
-			vim.keymap.set("n", "<leader>Sd", ":Autosession delete<CR>", {
-				desc = "[S]ession [d]delete",
-			})
 		end,
 	},
 	-- {

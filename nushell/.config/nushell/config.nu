@@ -752,9 +752,20 @@ $env.ASDF_DIR = ($env.HOME | path join '.asdf')
 #}
 #use /home/btilford/.cache/starship/init.nu
 
-source ~/.cache/carapace/init.nu
-alias ll = ls -lam
-    
-overlay use ./starship.nu
+alias ll = eza -al --icons always
+
+# source requires a parse-time literal path; use runtime variable only for the existence check
+source ~/.config/nushell/carapace.nu
+
+overlay use ~/.config/nushell/starship.nu
+
 source ~/.config/nushell/.zoxide.nu
-source $"($nu.home-path)/.cargo/env.nu"
+
+# Machine-local secrets/config — not in version control
+if ($env.HOME | path join .config/nushell/local.nu | path exists) {
+    source ~/.config/nushell/local.nu
+}
+let mise_path = ($nu.default-config-dir | path join mise.nu)
+if ($mise_path | path exists) {
+    use ($nu.default-config-dir | path join mise.nu)
+}

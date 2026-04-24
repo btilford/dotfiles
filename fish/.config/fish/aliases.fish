@@ -10,3 +10,8 @@ function git.latest
   end
   git describe --tags (git rev-list --tags --max-count=$count)
 end
+
+
+alias wt.n.claude="wt switch --create --execute=claude"
+alias wt.n.gemini="wt switch --create --execute=gemini"
+alias wt.n.opencode="wt switch --create --execute=opencode"

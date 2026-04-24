@@ -7,122 +7,32 @@ return {
 		end,
 	},
 	{ -- Highlight, edit, and navigate code
+		-- NOTE: main branch is a full rewrite for nvim 0.12+. Highlighting is
+		-- now handled natively by neovim; this plugin manages parsers + queries.
+		-- master branch has TSNode:range() API incompatibility with nvim 0.12.
 		"nvim-treesitter/nvim-treesitter",
+		lazy = false, -- must not be lazy loaded (required by main branch)
+		branch = "main",
 		build = ":TSUpdate",
-		main = "nvim-treesitter.configs", -- Sets main module to use for opts
 		config = function()
-			-- local ft_to_parser = require("nvim-treesitter.parsers").filetype_to_parsername
-			-- ft_to_parser.mdx = "markdown"
+			-- Prepend install_dir to rtp so user-installed parsers take priority
+			-- over the stale pre-compiled parsers bundled in the plugin directory.
+			require("nvim-treesitter").setup({
+				install_dir = vim.fn.stdpath("data") .. "/site",
+			})
 
-			require("nvim-treesitter.configs").setup({
-				ensure_installed = {
-					"bash",
-					"c",
-					"diff",
-					"html",
-					"lua",
-					"luadoc",
-					"markdown",
-					"markdown_inline",
-					"query",
-					"vim",
-					"vimdoc",
-					"sql",
-					"java",
-					"kotlin",
-					"typescript",
-					"tsx",
-					"javascript",
-					"html",
-					"xml",
-					"css",
-					"latex",
-					"norg",
-					"scss",
-					"svelte",
-					"typst",
-					"vue",
-					"regex",
-					"comment",
-					"go",
-					"zig",
-					"awk",
-					"desktop",
-					"dockerfile",
-					"dot",
-					"editorconfig",
-					"fish",
-					"git_config",
-					"git_rebase",
-					"gitattributes",
-					"gitcommit",
-					"gitignore",
-					"graphql",
-					"gpg",
-					"hcl",
-					"hjson",
-					"helm",
-					"hocon",
-					"http",
-					"hyprlang",
-					"javadoc",
-					"jinja",
-					"jinja_inline",
-					"jq",
-					"jsdoc",
-					"json",
-					"json5",
-					"jsonc",
-					"llvm",
-					"luadoc",
-					"make",
-					"markdown_inline",
-					"mermaid",
-					"meson",
-					"nginx",
-					"nu",
-					"passwd",
-					"pem",
-					"printf",
-					"python",
-					"regex",
-					"readline",
-					"requirements",
-					"scss",
-					"strace",
-					"svelte",
-					"terraform",
-					"tmux",
-					"toml",
-					"tsv",
-					"vim",
-					"vimdoc",
-					"csv",
-					"yaml",
-
-					-- "mermaid",
-					-- "fish",
-					-- "zsh",
-				},
-				-- Autoinstall languages that are not installed
-				auto_install = true,
-				highlight = {
-					enable = true,
-					-- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-					--  If you are experiencing weird indenting issues, add the language to
-					--  the list of additional_vim_regex_highlighting and disabled languages for indent.
-					additional_vim_regex_highlighting = { "ruby" },
-				},
-				indent = { enable = true, disable = { "ruby" } },
+			-- Install parsers asynchronously on startup.
+			-- Requires: tree-sitter-cli + C compiler (clang/gcc).
+			require("nvim-treesitter").install({
+				"bash", "c", "lua", "luadoc", "python", "vim", "vimdoc",
+				"markdown", "markdown_inline", "query", "diff",
+				"typescript", "tsx", "javascript", "html", "css", "json",
+				"yaml", "toml", "xml", "sql",
+				"go", "java", "kotlin",
+				"git_config", "gitcommit", "gitignore", "git_rebase", "gitattributes",
+				"dockerfile", "fish", "tmux", "regex",
+				-- "dot" removed: tree-sitter-dot repo has broken branch structure
 			})
 		end,
-		-- [[ Configure Treesitter ]] See `:help nvim-treesitter`
-		-- opts = ,
-		-- There are additional nvim-treesitter modules that you can use to interact
-		-- with nvim-treesitter. You should go explore a few and see what interests you:
-		--
-		--    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-		--    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-		--    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
 	},
 }

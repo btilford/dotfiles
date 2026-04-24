@@ -7,7 +7,7 @@ vim.g.autoformat = false
 --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
-
+-- Default mappings: gra (code actions), gri (implementations)   
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = true
 
@@ -74,3 +74,10 @@ require("lazy").setup({
 vim.opt.termguicolors = true
 vim.opt.guicursor = "i:block"
 -- vim.opt.guicursor = "i-ci-ve:hor30"
+vim.o.cmdheight = 0
+require('vim._core.ui2').enable({
+  msg = {
+    targets = { [''] = 'cmd' },
+    cmd = { height = 0.5 },
+  },
+})

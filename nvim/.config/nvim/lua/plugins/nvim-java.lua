@@ -1,9 +1,7 @@
 local sdkman_home = os.getenv("HOME") .. "/.sdkman/candidates/java"
+local java21 = sdkman_home .. "/21.0.7-zulu"
+
 return {
-	-- {
-	-- 	"mfussenegger/nvim-jdtls",
-	-- 	-- ft = "java",
-	-- },
 	{
 		"nvim-java/nvim-java",
 		config = false,
@@ -12,22 +10,26 @@ return {
 				"neovim/nvim-lspconfig",
 				opts = {
 					servers = {
-						-- Your JDTLS configuration goes here
 						jdtls = {
 							settings = {
 								java = {
-									home = sdkman_home .. "/21.0.6-graal",
+									home = java21,
 
 									eclipse = {
 										downloadSources = true,
 									},
 									configuration = {
 										updateBuildConfiguration = "interactive",
-										-- The runtimes' name parameter needs to match a specific Java execution environments.  See https://github.com/eclipse-jdtls/eclipse.jdt.ls/wiki/Running-the-JAVA-LS-server-from-the-command-line#initialize-request and search "ExecutionEnvironment".
+										-- Name must match a jdtls execution environment:
+										-- https://github.com/eclipse-jdtls/eclipse.jdt.ls/wiki/Running-the-JAVA-LS-server-from-the-command-line#initialize-request
 										runtimes = {
 											{
-												name = "Graal 21",
-												path = sdkman_home .. "/21.0.6-graal",
+												name = "JavaSE-21",
+												path = java21,
+											},
+											{
+												name = "JavaSE-17",
+												path = sdkman_home .. "/17.0.15-zulu",
 											},
 										},
 									},
@@ -44,14 +46,7 @@ return {
 										includeDecompiledSources = true,
 									},
 									signatureHelp = { enabled = true },
-									format = {
-										enabled = true,
-										-- Formatting works by default, but you can refer to a specific file/URL if you choose
-										-- settings = {
-										--   url = "https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml",
-										--   profile = "GoogleStyle",
-										-- },
-									},
+									format = { enabled = true },
 									completion = {
 										favoriteStaticMembers = {
 											"org.hamcrest.MatcherAssert.assertThat",
@@ -62,12 +57,7 @@ return {
 											"java.util.Objects.requireNonNullElse",
 											"org.mockito.Mockito.*",
 										},
-										importOrder = {
-											"java",
-											"javax",
-											"com",
-											"org",
-										},
+										importOrder = { "java", "javax", "com", "org" },
 									},
 									sources = {
 										organizeImports = {
@@ -81,48 +71,26 @@ return {
 										},
 										useBlocks = true,
 									},
-
-									-- java = {
-									-- 	configuration = {
-									-- 		runtimes = {
-									-- 			{
-									-- 				default = true,
-									-- 				name = "graal-v21",
-									-- 				path = "~/.sdkman/candidates/java/21.0.6-graalk",
-									-- 			},
-									-- 		},
-									-- 	},
-									-- },
 								},
 							},
 						},
 					},
 					setup = {
 						jdtls = function()
-							-- your nvim-java configuration goes here
 							require("java").setup({
 								root_markers = {
 									"settings.gradle",
 									"settings.gradle.kts",
 									"pom.xml",
 									"build.gradle",
+									"build.gradle.kts",
 									"mvnw",
 									"gradlew",
-									"build.gradle",
-									"build.gradle.kts",
 								},
-								-- java_test = {
-								-- 	enable = true,
-								-- },
-								-- java_debug_adapter = {
-								-- 	enable = true,
-								-- },
-								-- spring_boot_tools = {
-								-- 	enable = true,
-								-- },
 								jdk = {
 									auto_install = false,
-									version = "21.0.6",
+									-- Match the installed version
+									version = "21.0.7",
 								},
 								notifications = {
 									dap = true,

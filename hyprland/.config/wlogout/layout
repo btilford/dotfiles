@@ -1,12 +1,12 @@
 {
     "label" : "lock",
-    "action" : "hyprlock",
+    "action" : "loginctl lock-session",
     "text" : "Lock",
     "keybind" : "l"
 }
 {
     "label" : "logout",
-    "action" : "wayland-logout",
+    "action" : "hyprctl dispatch exit",
     "text" : "Log Out",
     "keybind" : "e"
 }
@@ -29,8 +29,8 @@
     "keybind" : "s"
 }
 {
-  "label" : "hibernate",
-  "action" : "systemctl hibernate",
-  "text" : "Hibernate",
-  "keybind": "h"
+    "label" : "hibernate",
+    "action" : "systemctl hibernate",
+    "text" : "Hibernate",
+    "keybind" : "h"
 }

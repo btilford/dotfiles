@@ -27,6 +27,7 @@
 ":set signcolumn=yes:1
 :set mouse=a
 :set scrolloff=5
+:set sidescrolloff=5
 :set incsearch
 :set ruler
 ":set whichkey
