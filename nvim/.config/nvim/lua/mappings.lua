@@ -37,6 +37,9 @@ vim.keymap.set("n", "<C-Right>", "<C-w><C-l>", { desc = "Move focus to the right
 vim.keymap.set("n", "<C-Left>", "<C-w><C-h>", { desc = "Move focus to the left window" })
 vim.keymap.set("n", "<C-Down>", "<C-w><C-j>", { desc = "Move focus to the lower window" })
 vim.keymap.set("n", "<C-Up>", "<C-w><C-k>", { desc = "Move focus to the upper window" })
+vim.keymap.set('n', '<leader>bn', ':bnext<CR>', {desc = 'Next buffer '})
+vim.keymap.set('n', '<leader>bp', ':bprevious<CR>', {desc = 'Previous buffer '})
+vim.keymap.set('n', '<leader>bb', '<cmd>e #<cr>', {desc = 'Switch to other buffer'})
 
 -- NOTE: Some terminals have colliding keymaps or are not able to send distinct keycodes
 vim.keymap.set("n", "<C-S-h>", "<C-w>H", { desc = "Move window to the left" })
@@ -60,3 +63,42 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 
 vim.keymap.set("n", ",p", '"0p', { desc = "Paste from the default register" })
 vim.keymap.set("x", ",p", '"0p', { desc = "Paste from the default register" })
+
+
+-- visual lines
+vim.keymap.set({'n', 'x'}, 'j', "v:count == 0 ? 'gj' : 'j'", { desc = 'Down', expr = true, silent = true})
+vim.keymap.set({'n', 'x'}, 'k', "v:count == 0 ? 'gk' : 'k'", { desc = 'Up', expr = true, silent = true})
+
+
+-- Move lines up/down (Alt+j/k like VSCode)
+
+map("n", "<A-j>", "<cmd>execute 'move .+' . v:count1<cr>==", { desc = "Move Down" })
+map("n", "<A-k>", "<cmd>execute 'move .-' . (v:count1 + 1)<cr>==", { desc = "Move Up" })
+map("i", "<A-j>", "<esc><cmd>m .+1<cr>==gi", { desc = "Move Down" })
+map("i", "<A-k>", "<esc><cmd>m .-2<cr>==gi", { desc = "Move Up" })
+map("v", "<A-j>", ":<C-u>execute \"'<,'>move '>+\" . v:count1<cr>gv=gv", { desc = "Move Down" })
+map("v", "<A-k>", ":<C-u>execute \"'<,'>move '<-\" . (v:count1 + 1)<cr>gv=gv", { desc = "Move Up" })
+
+-- Alternative line movement (for terminals that don't support Alt)
+-- map("v", "J", ":move '>+1<CR>gv=gv", { desc = "Move Block Down" })
+-- map("v", "K", ":move '<-2<CR>gv=gv", { desc = "Move Block Up" })
+-- map("n", "<A-Down>", ":m .+1<CR>", opts)
+-- map("n", "<A-Up>", ":m .-2<CR>", opts)
+-- map("i", "<A-Down>", "<Esc>:m .+1<CR>==gi", opts)
+-- map("i", "<A-Up>", "<Esc>:m .-2<CR>==gi", opts)
+-- map("v", "<A-Down>", ":m '>+1<CR>gv=gv", opts)
+-- map("v", "<A-Up>", ":m '<-2<CR>gv=gv", opts)
+--
+-- Select all content
+map("n", "==", "gg<S-v>G")
+map("n", "<A-a>", "ggVG", { noremap = true, silent = true, desc = "Select all" })
+
+
+-- Better indenting (stay in visual mode)
+map("v", "<", "<gv")
+map("v", ">", ">gv")
+
+-- Commenting (add comment above/below current line)
+map("n", "gco", "o<esc>Vcx<esc><cmd>normal gcc<cr>fxa<bs>", { desc = "Add Comment Below" })
+map("n", "gcO", "O<esc>Vcx<esc><cmd>normal gcc<cr>fxa<bs>", { desc = "Add Comment Above" })
+
