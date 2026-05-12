@@ -9,7 +9,7 @@ return {
 					number = false,
 				},
 				cursorword = {
-					enable = true,
+					enable = false, -- E803 compat issue with nvim 0.12.2 ui2 cmdline
 					min_length = 3,
 					hl = { underline = true },
 				},

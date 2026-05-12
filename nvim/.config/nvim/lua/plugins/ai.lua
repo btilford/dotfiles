@@ -45,7 +45,7 @@ return {
 		config = function()
 			vim.g.copilot_no_tab_map = true
 			vim.g.copilot_assume_mapped = true
-			vim.keymap.set("i", "<C-a>",  "copilot#Accept()",           { expr = true, silent = true, noremap = false, desc = "AI (Copilot): Accept suggestion" })
+			-- vim.keymap.set("i", "<C-a>",  "copilot#Accept()",           { expr = true, silent = true, noremap = false, desc = "AI (Copilot): Accept suggestion" })
 			vim.keymap.set("i", "<C-m>",  "copilot#Next()",              { expr = true, silent = true, noremap = false, desc = "AI (Copilot): Next suggestion" })
 			vim.keymap.set("i", "<C-M>",  "copilot#Previous()",          { expr = true, silent = true, noremap = false, desc = "AI (Copilot): Previous suggestion" })
 			vim.keymap.set("i", "<C-x>",  "copilot#Clear()",             { expr = true, silent = true, noremap = false, desc = "AI (Copilot): Clear suggestion" })

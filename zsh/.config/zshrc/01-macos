@@ -1,4 +1,4 @@
 if [[ "${OS_KERN}" == "Darwin" ]]; then
-  export PATH="/opt/homebrew/bin/:$PATH"
+  export PATH="/opt/homebrew/bin/:/Applications/Obsidian.app/Contents/MacOS:$PATH"
 
 fi
