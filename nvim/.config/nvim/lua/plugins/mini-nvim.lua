@@ -9,6 +9,7 @@ return {
 			--  - yinq - [Y]ank [I]nside [N]ext [Q]uote
 			--  - ci'  - [C]hange [I]nside [']quote
 			require("mini.ai").setup({ n_lines = 500 })
+			require("mini.cursorword").setup()
 
 			-- Add/delete/replace surroundings (brackets, quotes, etc.)
 			--
@@ -33,6 +34,9 @@ return {
 			-- Simple and easy statusline.
 			--  You could remove this setup call if you don't like it,
 			--  and try some other statusline plugin
+			vim.api.nvim_set_hl(0, "MiniCursorword", { underline = true })
+			vim.api.nvim_set_hl(0, "MiniCursorwordCurrent", { underline = true })
+
 			local statusline = require("mini.statusline")
 			-- set use_icons to true if you have a Nerd Font
 			statusline.setup({ use_icons = vim.g.have_nerd_font })

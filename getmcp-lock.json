@@ -1,0 +1,51 @@
+{
+  "version": 2,
+  "installations": {
+    "io.github.brave/brave-search-mcp-server": {
+      "apps": [
+        "claude-code",
+        "opencode",
+        "codex",
+        "gemini-cli",
+        "continue",
+        "antigravity"
+      ],
+      "installedAt": "2026-04-24T23:00:10.532Z",
+      "updatedAt": "2026-04-24T23:00:10.532Z",
+      "envVars": [
+        "BRAVE_API_KEY"
+      ],
+      "scopes": {
+        "claude-code": "global",
+        "opencode": "project",
+        "codex": "global",
+        "gemini-cli": "project",
+        "continue": "project",
+        "antigravity": "project"
+      },
+      "registry": "official"
+    },
+    "com.gitlab/mcp": {
+      "apps": [
+        "claude-code",
+        "opencode",
+        "codex",
+        "gemini-cli",
+        "continue",
+        "antigravity"
+      ],
+      "installedAt": "2026-04-24T23:01:16.081Z",
+      "updatedAt": "2026-04-24T23:01:16.081Z",
+      "envVars": [],
+      "scopes": {
+        "claude-code": "project",
+        "opencode": "project",
+        "codex": "project",
+        "gemini-cli": "project",
+        "continue": "project",
+        "antigravity": "project"
+      },
+      "registry": "official"
+    }
+  }
+}
