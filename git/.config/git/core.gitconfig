@@ -4,7 +4,7 @@
     excludesfile = ~/.config/git/default.gitignore
     autocrlf = input
     commentchar = '#'
-    pager = delta
+    pager = 'delta'
 
 [init]
     #templatedir = ~/.config/git/default-template

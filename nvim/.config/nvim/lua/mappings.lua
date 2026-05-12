@@ -64,6 +64,8 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 vim.keymap.set("n", ",p", '"0p', { desc = "Paste from the default register" })
 vim.keymap.set("x", ",p", '"0p', { desc = "Paste from the default register" })
 
+vim.keymap.set("x", "<C-d>", "<C-d>zz", { noremap = true, desc = "Scroll down and extend selection" })
+vim.keymap.set("x", "<C-u>", "<C-u>zz", { noremap = true, desc = "Scroll up and extend selection" })
 
 -- visual lines
 vim.keymap.set({'n', 'x'}, 'j', "v:count == 0 ? 'gj' : 'j'", { desc = 'Down', expr = true, silent = true})

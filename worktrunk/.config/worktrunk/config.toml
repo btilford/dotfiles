@@ -219,7 +219,7 @@ tmux select-pane -t "$S:dev.0" -T "shell"
 tmux select-pane -t "$CLAUDE_PANE" -T "claude"
 
 # Start claude in the right pane
-tmux send-keys -t "$CLAUDE_PANE" 'claude' Enter
+# tmux send-keys -t "$CLAUDE_PANE" 'claude' Enter
 
 # Highlight this window in the status bar whenever output appears
 tmux set-window-option -t "$S:dev" monitor-activity on

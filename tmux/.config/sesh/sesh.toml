@@ -5,7 +5,7 @@ preview_command = "eza --all --git --icons --color=always {}"
 [[session]]
 name = "dotfiles"
 path = "~/dotfiles"
-startup_command = "nvim"
+startup_command = "yazi"
 
 [[session]]
 name = "Downloads"
