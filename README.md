@@ -134,6 +134,36 @@ Machine-specific config (local env vars, overrides, secrets) should **not** be c
 
 ## Setup on a New Machine
 
+## Development Tools
+
+Some tools in this repo require [mise](https://mise.jdx.dev/) to be installed and activated:
+
+```sh
+# Install mise
+brew install mise              # macOS
+curl https://mise.run | sh     # Linux
+
+# Activate mise in your shell
+# Fish: add to ~/.config/fish/config.fish
+eval (mise activate fish)
+
+# Bash/Zsh: add to ~/.bashrc or ~/.zshrc
+eval "$(mise activate bash)"
+
+# Install tools from .mise.toml (if present)
+mise install
+```
+
+### graphify
+
+The `graphify` command requires mise to be activated in the current shell. If you see `graphify: command not found`, run:
+
+```sh
+mise install
+```
+
+Then activate mise in your shell as shown above.
+
 ```sh
 git clone <repo> ~/dotfiles
 cd ~/dotfiles
