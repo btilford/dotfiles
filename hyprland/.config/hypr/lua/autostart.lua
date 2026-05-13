@@ -48,7 +48,7 @@ hl.on("hyprland.start", function()
 
     -- Wallpaper and theme scripts
     hl.exec_cmd("sh -c \"$HOME/.config/hypr/scripts/Hyprsunset.sh init\"")
-    hl.exec_cmd("sh -c \"$HOME/.config/hypr/scripts/WallpaperAutoChange.sh\"")
+    hl.exec_cmd("sh -c \"$HOME/.config/hypr/scripts/WallpaperAutoChange.sh $HOME/Pictures/wallpapers/\"")
 
     -- Element messenger
     hl.exec_cmd("element-desktop")

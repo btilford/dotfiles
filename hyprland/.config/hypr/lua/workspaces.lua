@@ -5,7 +5,7 @@ hl.workspace_rule({
     default = true,
     persistent = true,
     default_name = "Main",
-    monitor = "desc:Dell Inc. DELL U3225QE SERIAL",
+    monitor = "desc: Dell Inc. DELL U3225QE SERIAL",
     layout = "master",
 })
 
@@ -37,7 +37,7 @@ hl.workspace_rule({
     workspace = "5",
     persistent = true,
     default_name = "CLI2",
-    monitor = "desc:Dell Inc. DELL U3225QE SERIAL",
+    monitor = "desc: Dell Inc. DELL U3225QE SERIAL",
     layout = "master",
 })
 
@@ -69,7 +69,7 @@ hl.workspace_rule({
     workspace = "9",
     persistent = true,
     default_name = "Other",
-    monitor = "desc:Dell Inc. DELL U3225QE SERIAL",
+    monitor = "desc: Dell Inc. DELL U3225QE SERIAL",
     layout = "scrolling",
 })
 

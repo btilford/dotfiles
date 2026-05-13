@@ -197,3 +197,142 @@ After logging into Hyprland:
 - [Hyprland Lua API Documentation](https://wiki.hypr.land/Configuring/Start/)
 - [Hyprland Discussion #11014](https://github.com/hyprwm/Hyprland/discussions/11014) — s flag bug
 - [Hyprland Example Config](https://github.com/hyprwm/Hyprland/blob/main/example/hyprland.lua)
+
+### 3. Waybar Workspace 11 Ghost Display (Unresolved)
+
+**Status**: ❌ Unresolved - upstream issue
+
+**Problem**: Workspace 11 persistently appears on the XPPen monitor in waybar despite:
+- Not being defined in `workspaces.lua`
+- `hyprctl workspaces` showing workspace 11 does not exist
+- `ignore_workspaces: [11]` set in all waybar modules
+- Empty workspace creation keybind commented out
+
+**Root Cause**: Waybar's `hyprland/workspaces` module creates ghost workspace entries when the persistent-workspaces configuration conflicts with workspace monitor assignments. This appears to be an interaction issue between:
+- Hyprland Lua API workspace definitions
+- Waybar's workspace display logic
+- The `persistent-workspaces` vs `all-outputs` configuration
+
+**Attempted Fixes**:
+1. ✅ Added workspace 11 to `ignore_workspaces` in all waybar modules
+2. ✅ Removed `persistent-workspaces` section from waybar config
+3. ✅ Commented out `SUPER + CTRL + down` keybind that creates empty workspaces
+4. ✅ Fixed monitor descriptions in workspaces.lua
+
+**None resolved the issue.**
+
+**Workaround**: None available. Workspace 11 can be ignored visually or waybar can be configured to not show workspace numbers.
+
+**When Fixed**: Requires upstream investigation from either Hyprland or Waybar maintainers.
+
+## Additional Issues Discovered
+
+### 4. Wallpaper Auto-Change Script Broken
+
+**Status**: ⚠️ Partially Fixed
+
+**Problem**: The `WallpaperAutoChange.sh` script has multiple issues:
+
+1. **Dangling symlink**: `cp: not writing through dangling symlink '/home/btilford/.config/hypr/wallpaper_effects/.wallpaper_current'`
+2. **Missing wallust template**: `Reading /home/btilford/.config/wallust/templates/colors-hyprland.lua failed: No such file or directory`
+3. **JSON parsing error**: `jq: parse error: Invalid numeric literal at line 1, column 9`
+
+**Fix Applied**: Updated autostart.lua to pass the wallpapers directory:
+```lua
+-- Before (broken - missing directory argument):
+hl.exec_cmd("sh -c \"$HOME/.config/hypr/scripts/WallpaperAutoChange.sh\"")
+
+-- After (fixed):
+hl.exec_cmd("sh -c \"$HOME/.config/hypr/scripts/WallpaperAutoChange.sh $HOME/Pictures/wallpapers/\"")
+```
+
+**Remaining Issues**:
+- The `colors-hyprland.lua` wallust template needs to be created at `~/.config/wallust/templates/`
+- The dangling symlink at `~/.config/hypr/wallpaper_effects/.wallpaper_current` needs to be fixed
+- The `jq` JSON parsing error in the script may need debugging
+
+### 5. Missing Wallust Template for Hyprland Lua
+
+**Status**: ❌ Not Fixed
+
+**Problem**: Wallust cannot generate the `colors.lua` file because the template is missing:
+
+```
+Reading /home/btilford/.config/wallust/templates/colors-hyprland.lua failed: No such file or directory
+```
+
+**Location**: The template exists in the repo at:
+- `~/dotfiles/wallust/.config/wallust/templates/colors-hyprland.lua`
+
+But it's not being found at the expected location:
+- `~/.config/wallust/templates/colors-hyprland.lua`
+
+**Fix Needed**: The wallust template needs to be symlinked or copied to the correct location. Check if the `wallust` stow package is properly stowed.
+
+### 6. Glow Effect Implementation
+
+**Status**: ✅ Implemented
+
+**Implementation**: Replaced shadow with the new glow effect from Hyprland v0.55:
+
+```lua
+glow = {
+    enabled = true,
+    range = 12,
+    render_power = 2,
+    color = glow_color(colors.color15, "AA"),
+    color_inactive = glow_color(colors.color0, "22"),
+},
+```
+
+**Features**:
+- Dynamic colors from wallust theme (uses `colors.color15` and `colors.color0`)
+- Smaller radius (12) compared to default shadow
+- Active windows get lightest color, inactive get subtle dark glow
+- Automatically updates when wallust regenerates colors
+
+## Testing Checklist (Updated)
+
+After logging into Hyprland:
+
+- [ ] No overlap warnings on startup
+- [ ] All 4 monitors accessible via mouse
+- [ ] Workspace icons visible in waybar
+- [ ] `SUPER + 1-0` switches workspaces
+- [ ] Submap keybindings work (SUPER + w for window, SUPER + d for desktop)
+- [ ] Wlogout logout button works
+- [ ] Autostart apps launch (waybar, swaync, etc.)
+- [ ] Glow effect visible on windows
+- [ ] Wallpaper changes automatically (every 30 min)
+- [ ] Wallust generates colors.lua properly
+
+## Known Limitations Summary
+
+| Issue | Status | Workaround |
+|-------|--------|------------|
+| Super_L/Super_R distinction | ⚠️ Upstream bug | Both super keys do same thing |
+| Waybar workspace 11 ghost | ⚠️ Upstream bug | None - can be ignored |
+| Wallpaper auto-change | ⚠️ Partially fixed | Manual run with directory arg |
+| Missing wallust template | ❌ Not fixed | Manual symlink needed |
+
+### 7. jq JSON Parse Error in Wallpaper Script
+
+**Status**: ⚠️ Documented - Non-fatal error
+
+**Error Message**:
+```
+++ CURRENT_WALLPAPER=$(echo "$CURRENT_WALLPAPER" | jq -r .wallpaper)
+jq: parse error: Invalid numeric literal at line 1, column 9
+```
+
+**Root Cause**: The jq error comes from a script called by `WallustSwww.sh` (likely `RefreshNoWaybar.sh`), not from the dotfiles scripts themselves. The error occurs when trying to parse wallpaper JSON that may be empty or malformed.
+
+**Impact**: Non-fatal - the wallpaper script continues execution despite the error. Wallpapers still change, but with an error message.
+
+**Fix Needed**: The `RefreshNoWaybar.sh` script (or other called scripts) needs error handling for jq parsing:
+```bash
+# Add error handling:
+CURRENT_WALLPAPER=$(echo "$CURRENT_WALLPAPER" | jq -r .wallpaper 2>/dev/null || echo "")
+```
+
+**Workaround**: The error can be safely ignored. Wallpapers still change automatically.
