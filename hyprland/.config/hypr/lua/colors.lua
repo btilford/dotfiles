@@ -1,0 +1,21 @@
+-- wallust template - colors-hyprland (Lua)
+return {
+    background = "251821",
+    foreground = "E1E0E1",
+    color0 = "B6B4B5",
+    color1 = "A47F74",
+    color2 = "B27A5D",
+    color3 = "7F8297",
+    color4 = "60534F",
+    color5 = "504D4F",
+    color6 = "504D4F",
+    color7 = "624C45",
+    color8 = "99766C",
+    color9 = "DAA99A",
+    color10 = "CF6E3C",
+    color11 = "7F84A6",
+    color12 = "6E5B56",
+    color13 = "585356",
+    color14 = "585356",
+    color15 = "E4CCC4",
+}

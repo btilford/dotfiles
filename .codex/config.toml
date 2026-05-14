@@ -1,0 +1,3 @@
+[mcp_servers."com.gitlab/mcp"]
+url = "https://gitlab.com/api/v4/mcp"
+

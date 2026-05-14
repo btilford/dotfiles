@@ -8,8 +8,8 @@ threshold = 15
 check_contrast = true
 
 [templates]
-hypr.template = 'colors-hyprland.conf'
-hypr.target = '~/.config/hypr/wallust/wallust-hyprland.conf'
+hypr.template = 'colors-hyprland.lua'
+hypr.target = '~/.config/hypr/lua/colors.lua'
 
 rofi.template = 'colors-rofi.rasi'
 rofi.target = '~/.config/rofi/wallust/colors-rofi.rasi'

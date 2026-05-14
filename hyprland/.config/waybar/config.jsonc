@@ -12,10 +12,7 @@
   "modules-center": [
     "custom/distro",
     "bluetooth",
-    // "hyprland/workspaces#left",
     "hyprland/workspaces#main"
-    // "hyprland/workspaces#bottom",
-    // "hyprland/workspaces#right",
   ],
   "modules-right": [
     "mpd",
@@ -31,10 +28,10 @@
     "separate-outputs": true,
     "max-length": 40,
     "rewrite": {
-      "(.*) — Mozilla Firefox": "󰈹 $1",
-      "(.*) - Brave": "󰖟 $1",
-      "(.*) - Visual Studio Code": "󰨞 $1",
-      "(.*) – Code": "󰨞 $1",
+      "(.*) \u2014 Mozilla Firefox": "\udb80\ude39 $1",
+      "(.*) - Brave": "\udb81\udd9f $1",
+      "(.*) - Visual Studio Code": "\udb82\ude1e $1",
+      "(.*) \u2013 Code": "\udb82\ude1e $1",
       "(.*) - Ghostty": " $1",
       "(.*)": "$1"
     }
@@ -42,147 +39,109 @@
   "hyprland/workspaces#main": {
     "on-scroll-up": "hyprctl dispatch workspace -1",
     "on-scroll-down": "hyprctl dispatch workspace +1",
-     "format": "{icon}",
-    // "show-special": false,
-    // "active-only": false,
-    // "persistent-only": true,
-    // "sort-by-number": true,
-    // "sort-by-coordinates": true,
-    // "expand": false,
+    "format": "{icon}",
     "all-outputs": false,
     "format-icons": {
-       "1": "",
-      "2": "",
-      "3": "󰖟",
-      "4": "󰖟",
-      "5": "",
-      "6": "󱦹",
-      "7": "",
-
-      "10": ""
-    }
-    //  "persistent-workspaces": {
-    //         // "*":10,
-    //         // "*": [1, 5, 9],
-    //          // "*": [1,2,3,4, 5,6,7,8, 9,10],
-    //         "1": [],
-    //         "2": [],
-    //         "3": [],
-    //         "4": [],
-    //         "5": [],
-    //         "6": [],
-    //         "7": [],
-    //         "8": [],
-    //         "9": [],
-    //         "10": [],
-    // //         "DP-3": [1,5,9],
-    // //         "DVI-I-2": [2,6,10],
-    // //         "DVI-I-1": [3,7,11],
-    // //         "eDP-2": [4,8,12]
-    //      },
-        // "ignore_workspaces": [
-        //     2,3,4,
-        //     6,7,8,
-        //     10,
-        // ]
+      "1": "\uf121",
+      "2": "\uf120",
+      "3": "\udb81\udd9f",
+      "4": "\udb81\udd9f",
+      "5": "\uf120",
+      "6": "\udb86\uddb9",
+      "7": "\uf1bc",
+      "10": "\uf1d7"
+    },
+    "ignore_workspaces": [
+      11
+    ]
   },
-    "hyprland/workspaces#bottom": {
+  "hyprland/workspaces#bottom": {
     "on-scroll-up": "hyprctl dispatch workspace -1",
     "on-scroll-down": "hyprctl dispatch workspace +1",
-    // "format": "{icon} {name}",
     "show-special": false,
     "active-only": false,
     "persistent-only": true,
     "sort-by-coordinates": true,
     "expand": false,
     "all-outputs": false,
-
-    // "format-icons": {
-    //   "1": "",
-    //   "2": "",
-    //   "4": "",
-    //   "5": "",
-    //   "6": "",
-    // },
-     "persistent-workspaces": {
-            "*": [2, 6, 10]
-    //         "DP-3": [1,5,9],
-    //         "DVI-I-2": [2,6,10],
-    //         "DVI-I-1": [3,7,11],
-    //         "eDP-2": [4,8,12]
-         },
-        "ignore_workspaces": [
-            1,3,4,
-            5,7,8,
-            9,10
-        ]
-  },"hyprland/workspaces#left": {
+    "persistent-workspaces": {
+      "*": [
+        2,
+        6,
+        10
+      ]
+    },
+    "ignore_workspaces": [
+      1,
+      3,
+      4,
+      5,
+      7,
+      8,
+      9,
+      10
+    ]
+  },
+  "hyprland/workspaces#left": {
     "on-scroll-up": "hyprctl dispatch workspace -1",
     "on-scroll-down": "hyprctl dispatch workspace +1",
-    // "format": "{icon} {name}",
     "show-special": false,
     "active-only": true,
     "persistent-only": true,
     "sort-by-coordinates": true,
     "expand": false,
-     "all-outputs": false,
-    // "format-icons": {
-    //   "1": "",
-    //   "2": "",
-    //   "4": "",
-    //   "5": "",
-    //   "6": "",
-    // },
-     "persistent-workspaces": {
-            "*": [3, 7]
-    //         "DP-3": [1,5,9],
-    //         "DVI-I-2": [2,6,10],
-    //         "DVI-I-1": [3,7,11],
-    //         "eDP-2": [4,8,12]
-         },
-        "ignore_workspaces": [
-            1,2,4,
-            5,6,8,
-            9,10
-        ]
-  },"hyprland/workspaces#right": {
+    "all-outputs": false,
+    "persistent-workspaces": {
+      "*": [
+        3,
+        7
+      ]
+    },
+    "ignore_workspaces": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10
+    ]
+  },
+  "hyprland/workspaces#right": {
     "on-scroll-up": "hyprctl dispatch workspace -1",
     "on-scroll-down": "hyprctl dispatch workspace +1",
-    // "format": "{icon} {name}",
     "show-special": false,
     "active-only": true,
     "persistent-only": true,
     "sort-by-coordinates": true,
     "expand": false,
-     "all-outputs": false,
-    // "format-icons": {
-    //   "1": "",
-    //   "2": "",
-    //   "4": "",
-    //   "5": "",
-    //   "6": "",
-    // },
-     "persistent-workspaces": {
-            "*": [4, 8]
-    //         "DP-3": [1,5,9],
-    //         "DVI-I-2": [2,6,10],
-    //         "DVI-I-1": [3,7,11],
-    //         "eDP-2": [4,8,12]
-         },
-        "ignore_workspaces": [
-            1,2,3,
-            5,6,7,
-            9,10
-        ]
+    "all-outputs": false,
+    "persistent-workspaces": {
+      "*": [
+        4,
+        8
+      ]
+    },
+    "ignore_workspaces": [
+      1,
+      2,
+      3,
+      5,
+      6,
+      7,
+      9,
+      10
+    ]
   },
   "battery": {
     "format": "{icon} {capacity}%",
     "format-icons": [
-      "",
-      "",
-      "",
-      "",
-      ""
+      "\uf244",
+      "\uf243",
+      "\uf242",
+      "\uf241",
+      "\uf240"
     ]
   },
   "clock": {
@@ -194,8 +153,8 @@
       "weeks-pos": "left",
       "on-scroll": 1,
       "format": {
-        "today":    "<span color='#ff6699'><b><u>{}</u></b></span>",
-        "weeks":    "<span color='#99ccff'><i>{}</i></span>",
+        "today": "<span color='#ff6699'><b><u>{}</u></b></span>",
+        "weeks": "<span color='#99ccff'><i>{}</i></span>",
         "weekdays": "<span color='#ffcc66'><b>{}</b></span>"
       }
     },
@@ -206,82 +165,80 @@
     }
   },
   "custom/distro": {
-    "format": " ",
+    "format": "\uf303 ",
     "tooltip": false
   },
-    "upower#g502": {
-        "native-path": "hidpp_battery_0",
-        "tooltip": false,
-        "format": "keyboard {percent}",
-        "show-icon": true
-    },
-    
-    "upower#crosses": {
-        "native-path": "/org/bluez/hci1/dev_D2_32_09_04_7C_62",
-        "tooltip": false,
-        "format": "keyboard {percent}",
-        "show-icon": true
-    },
-    "upower#corne": {
-        "native-path": "/org/bluez/hci1/dev_E8_AA_19_64_36_26",
-        "tooltip": false,
-        "format": "keyboard {percent}",
-        "show-icon": true
-    },
-        "bluetooth": {
-        "format-connected-battery": "{device_alias} {device_battery_percentage}%"
-    },
+  "upower#g502": {
+    "native-path": "hidpp_battery_0",
+    "tooltip": false,
+    "format": "keyboard {percent}",
+    "show-icon": true
+  },
+  "upower#crosses": {
+    "native-path": "/org/bluez/hci1/dev_D2_32_09_04_7C_62",
+    "tooltip": false,
+    "format": "keyboard {percent}",
+    "show-icon": true
+  },
+  "upower#corne": {
+    "native-path": "/org/bluez/hci1/dev_E8_AA_19_64_36_26",
+    "tooltip": false,
+    "format": "keyboard {percent}",
+    "show-icon": true
+  },
+  "bluetooth": {
+    "format-connected-battery": "{device_alias} {device_battery_percentage}%"
+  },
   "pulseaudio": {
-    // "scroll-step": 1, // %, can be a float
     "format": "{volume}% {icon}  {format_source}",
-    "format-bluetooth": "{volume}% {icon} {format_source}",
-    "format-bluetooth-muted": " {icon} {format_source}",
-    "format-muted": " {format_source}",
-    "format-source": "{volume}% ",
-    "format-source-muted": "",
+    "format-bluetooth": "{volume}% {icon}\uf294 {format_source}",
+    "format-bluetooth-muted": "\uf6a9 {icon}\uf294 {format_source}",
+    "format-muted": "\uf6a9 {format_source}",
+    "format-source": "{volume}% \uf130",
+    "format-source-muted": "\uf131",
     "format-icons": {
-      "headphone": "",
-      "hands-free": "",
-      "headset": "",
-      "phone": "",
-      "portable": "",
-      "car": "",
+      "headphone": "\uf025",
+      "hands-free": "\uf590",
+      "headset": "\uf590",
+      "phone": "\uf095",
+      "portable": "\uf095",
+      "car": "\uf1b9",
       "default": [
-        "",
-        "",
-        ""
+        "\uf026",
+        "\uf027",
+        "\uf028"
       ]
     },
     "on-click": "pavucontrol"
   },
   "network": {
-    "format-wifi": "{essid} ({signalStrength}%) 󰤨 ",
-    "format-ethernet": "{ipaddr}/{cidr} 󰈀 ",
-    "format-linked": "{ifname} (No IP) 󰌘 ",
-    "format-disconnected": "Disconnected 󰤭 ",
-    "tooltip-format-wifi": "{essid} {signalStrength}%\n{ifname} — {ipaddr}/{cidr}\nGateway: {gwaddr}",
-    "tooltip-format-ethernet": "{ifname} — {ipaddr}/{cidr}\nGateway: {gwaddr}",
+    "format-wifi": "{essid} ({signalStrength}%) \udb82\udd28 ",
+    "format-ethernet": "{ipaddr}/{cidr} \udb80\ude00 ",
+    "format-linked": "{ifname} (No IP) \udb80\udf18 ",
+    "format-disconnected": "Disconnected \udb82\udd2d ",
+    "tooltip-format-wifi": "{essid} {signalStrength}%\n{ifname} \u2014 {ipaddr}/{cidr}\nGateway: {gwaddr}",
+    "tooltip-format-ethernet": "{ifname} \u2014 {ipaddr}/{cidr}\nGateway: {gwaddr}",
     "tooltip-format-disconnected": "No network connection",
     "on-click": "networkmanager_dmenu",
     "on-click-right": "nm-connection-editor"
   },
   "mpris": {
-    "format": "{player_icon} {title} — {artist}",
-    "format-paused": "{player_icon}  {title} — {artist}",
+    "format": "{player_icon} {title} \u2014 {artist}",
+    "format-paused": "{player_icon}  {title} \u2014 {artist}",
     "max-length": 40,
     "player-icons": {
-      "default": "▶",
-      "mpv": "🎵",
+      "default": "\u25b6",
+      "mpv": "\ud83c\udfb5",
       "spotify": "",
-      "firefox": "󰈹",
-      "brave": "󰖟"
+      "firefox": "\udb80\ude39",
+      "brave": "\udb81\udd9f"
     },
     "status-icons": {
-      "paused": "⏸"
+      "paused": "\u23f8"
     }
   },
   "custom/logout": {
-    "format": " ⏻ ",
+    "format": " \u23fb ",
     "tooltip": false,
     "on-click": "wlogout --protocol layer-shell"
   }
