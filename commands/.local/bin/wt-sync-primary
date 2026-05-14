@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Sync dev-config changes from the current worktree back to the primary.
+#
+# 1. Copies gitignored config files that differ from primary.
+# 2. Detects tracked dev-config changes (mise.toml, .claude/, .config/wt.toml)
+#    on this branch that aren't in master, then prompts to apply as a patch.
+#
+# Called automatically by worktrunk pre-remove hook.
+# Set NONINTERACTIVE=1 to skip the interactive patch prompt (applies automatically).
+
+set -euo pipefail
+
+PRIMARY=$(git worktree list | head -1 | awk '{print $1}')
+CURRENT=$(pwd)
+NONINTERACTIVE="${NONINTERACTIVE:-}"
+
+if [ "$PRIMARY" = "$CURRENT" ]; then
+    echo "[wt-sync-primary] primary worktree — nothing to sync"
+    exit 0
+fi
+
+# ── 1. Gitignored config files ────────────────────────────────────────────────
+GITIGNORED_CONFIGS=(
+    ".env"
+    ".env.intellij"
+    ".claude/settings.local.json"
+)
+
+echo ""
+echo "── Gitignored config files ──────────────────────────────────────────────"
+synced=0
+for f in "${GITIGNORED_CONFIGS[@]}"; do
+    src="$CURRENT/$f"
+    dst="$PRIMARY/$f"
+
+    [ -f "$src" ] || continue
+
+    if [ -f "$dst" ] && diff -q "$src" "$dst" >/dev/null 2>&1; then
+        echo "  $f — identical"
+        continue
+    fi
+
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+    echo "  $f — synced to primary"
+    synced=$((synced + 1))
+done
+[ "$synced" -eq 0 ] && echo "  nothing to sync"
+
+# ── 2. Tracked dev-config changes ────────────────────────────────────────────
+echo ""
+echo "── Tracked dev-config changes (branch-only) ─────────────────────────────"
+
+DEFAULT_BRANCH=$(git -C "$PRIMARY" symbolic-ref --short HEAD 2>/dev/null || echo "master")
+MERGE_BASE=$(git merge-base HEAD "origin/$DEFAULT_BRANCH" 2>/dev/null \
+    || git merge-base HEAD "$DEFAULT_BRANCH" 2>/dev/null \
+    || echo "")
+
+TRACKED_PATHS=(".claude/" "mise.toml" ".config/wt.toml" "CLAUDE.md")
+
+if [ -z "$MERGE_BASE" ]; then
+    echo "  could not determine merge base — skipping"
+    exit 0
+fi
+
+DIFF=$(git diff "$MERGE_BASE" HEAD -- "${TRACKED_PATHS[@]}" 2>/dev/null || true)
+
+if [ -z "$DIFF" ]; then
+    echo "  no changes"
+    exit 0
+fi
+
+echo ""
+git diff "$MERGE_BASE" HEAD -- "${TRACKED_PATHS[@]}" --stat
+echo ""
+
+if [ -n "$NONINTERACTIVE" ]; then
+    REPLY="y"
+else
+    read -rp "Apply these changes to primary worktree as a patch? [y/N] " REPLY
+fi
+
+if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+    echo "$DIFF" | git -C "$PRIMARY" apply --whitespace=nowarn -
+    echo ""
+    echo "[wt-sync-primary] patch applied — review and commit in primary:"
+    echo "  cd $PRIMARY && git add ${TRACKED_PATHS[*]} && git commit"
+else
+    echo "[wt-sync-primary] skipped — run again later with: wt-sync-primary"
+fi
