@@ -29,10 +29,10 @@ foreground: #E1E0E1;
 border-color: #6E5B56;
 
 color0: #B6B4B5;
-color1: #A8857A;
+color1: #A47F74;
 color2: #B27A5D;
-color3: #7F8397;
-color4: #61534F;
+color3: #7F8297;
+color4: #60534F;
 color5: #504D4F;
 color6: #504D4F;
 color7: #624C45;

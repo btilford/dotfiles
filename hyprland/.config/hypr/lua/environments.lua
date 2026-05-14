@@ -28,9 +28,12 @@ hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
 hl.env("__NV_PRIME_RENDER_OFFLOAD", "1")
 hl.env("__VK_LAYER_NV_optimus", "NVIDIA_only")
 hl.env("EGL_PLATFORM", "wayland")
+-- Alternative way to prevent 2nd cursor
+hl.env("WLR_NO_HARDWARE_CURSORS", "1")
 
 hl.config({
     cursor = {
+        -- Prevent 2nd dead cursor at center of screen (sometimes)
         no_hardware_cursors = true,
     },
 })
