@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Copy .env (and other gitignored secrets) from the primary git worktree
+# to the current worktree so new branches don't require re-generating secrets.
+#
+# Called automatically by worktrunk post-create hook.
+# Safe to re-run; skips files that already exist unless FORCE=1.
+
+set -euo pipefail
+
+PRIMARY=$(git worktree list | head -1 | awk '{print $1}')
+CURRENT=$(pwd)
+
+if [ "$PRIMARY" = "$CURRENT" ]; then
+    echo "[wt-setup-worktree] primary worktree — nothing to copy"
+    exit 0
+fi
+
+GITIGNORED_CONFIGS=(
+    ".env"
+    ".env.intellij"
+    ".claude/settings.local.json"
+)
+
+copied=0
+for f in "${GITIGNORED_CONFIGS[@]}"; do
+    src="$PRIMARY/$f"
+    dst="$CURRENT/$f"
+
+    [ -f "$src" ] || continue
+
+    if [ -f "$dst" ] && diff -q "$src" "$dst" >/dev/null 2>&1; then
+        continue
+    fi
+
+    if [ -f "$dst" ] && [ "${FORCE:-}" != "1" ]; then
+        echo "[wt-setup-worktree] $f exists — skipping (FORCE=1 to overwrite)"
+        continue
+    fi
+
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+    echo "[wt-setup-worktree] copied $f"
+    copied=$((copied + 1))
+done
+
+[ "$copied" -eq 0 ] && echo "[wt-setup-worktree] nothing to copy"
+
+# Delegate to project-level task if available
+if [ -f mise.toml ] && grep -q '"setup:worktree"' mise.toml 2>/dev/null; then
+    mise run setup:worktree
+fi

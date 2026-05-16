@@ -4,6 +4,8 @@ if not status is-interactive
     exit
 end
 
+mise activate fish | source
+
 # Enable vi key bindings
 fish_vi_key_bindings
 
