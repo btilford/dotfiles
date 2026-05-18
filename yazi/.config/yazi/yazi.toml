@@ -22,7 +22,6 @@ play = [
 
 edit = [
     { run = '$EDITOR "$@"', block = true, for = "unix", desc = "Edit" },
-    { run = 'nvim-qt "$@"', block = false, orphan = true, for = "unix", desc = "NVIM QT" },
     { run = 'nvim "$@"', block = true, for = "unix", desc = "NVIM" },
     { run = 'kate "$@"', block = false, orphan = true, for = "unix", desc = "Kate" },
     { run = 'vi "$@"', block = true, for = "unix", desc = "Vim" },
@@ -45,33 +44,33 @@ open = [
 
 prepend_rules = [
 
-    { name = "*.html", use = ["open", "edit"] },
+    { url = "*.html", use = ["open", "edit"] },
 
-    { name = "*.json", use = "edit" },
-    { name = "*.lua", use = "edit" },
-    { name = "*.java", use = "edit" },
-    { name = "*.kt", use = "edit" },
-    { name = "*.kts", use = "edit" },
-    { name = "*.ts", use = "edit" },
-    { name = "*.js", use = "edit" },
-    { name = "*.tsx", use = "edit" },
-    { name = "*.jsx", use = "edit" },
-    { name = "*.sh", use = "edit" },
-    { name = "*.fish", use = "edit" },
-    { name = "*.bash", use = "edit" },
-    { name = "*rc", use = "edit" },
-    { name = "*.conf", use = "edit" },
-    { name = "*.toml", use = "edit" },
-    { name = "*.yaml", use = "edit" },
-    { name = "*.yml", use = "edit" },
-    { name = "*.md", use = ["edit", "open"] },
-    { name = "*.go", use = "edit" },
-    { name = "*.groovy", use = "edit" },
-    { name = "*.scala", use = "edit" },
+    { url = "*.json", use = "edit" },
+    { url = "*.lua", use = "edit" },
+    { url = "*.java", use = "edit" },
+    { url = "*.kt", use = "edit" },
+    { url = "*.kts", use = "edit" },
+    { url = "*.ts", use = "edit" },
+    { url = "*.js", use = "edit" },
+    { url = "*.tsx", use = "edit" },
+    { url = "*.jsx", use = "edit" },
+    { url = "*.sh", use = "edit" },
+    { url = "*.fish", use = "edit" },
+    { url = "*.bash", use = "edit" },
+    { url = "*rc", use = "edit" },
+    { url = "*.conf", use = "edit" },
+    { url = "*.toml", use = "edit" },
+    { url = "*.yaml", use = "edit" },
+    { url = "*.yml", use = "edit" },
+    { url = "*.md", use = ["edit", "open"] },
+    { url = "*.go", use = "edit" },
+    { url = "*.groovy", use = "edit" },
+    { url = "*.scala", use = "edit" },
 ]
 
 append_rules = [
-    { name = "*", use = "open" },
+    { mime = "*/*", use = "open" },
 ]
 
 rules = [
