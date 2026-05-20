@@ -12,8 +12,6 @@
 	postBuffer = 524288000
 [credential]
 	helper = cache
-	helper = 
-	helper = /usr/local/share/gcm-core/git-credential-manager
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
@@ -21,3 +19,6 @@
 	required = true
 [credential "https://dev.azure.com"]
 	useHttpPath = true
+
+[include]
+    path = ~/.gitconfig.local
