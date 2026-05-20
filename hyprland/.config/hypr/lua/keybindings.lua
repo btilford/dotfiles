@@ -65,13 +65,16 @@ hl.define_submap("workspace-cmd", function()
 	hl.bind("0", hl.dsp.focus({ workspace = "10" }))
 	hl.bind("escape", hl.dsp.submap("reset"))
 end)
-
+hl.bind("SUPER + w", hl.dsp.submap("window-cmd"))
 hl.define_submap("window-cmd", function()
 	-- hl.bind("SHIFT + h", hl.dsp.resize({ x = 10, y = 0, relative = true }), { repeating = true })
 	hl.bind("TAB", function()
 		hl.dispatch(hl.dsp.window.cycle_next())
 		hl.dispatch(hl.dsp.window.bring_to_top())
 	end)
+
+	hl.bind("n", hl.dsp.layout("togglesplit"))
+	hl.bind("SUPER + l", hl.dsp.layout("dwindle"))
 
 	hl.bind("q", hl.dsp.window.close())
 	hl.bind("c", hl.dsp.window.center())
