@@ -1,11 +1,11 @@
 set -x OS_KERN (uname -s)
 set -gx XDG_CONFIG_HOME $HOME/.config
 set -x EDITOR 'nvim'
+set -x VISUAL 'nvim'
 # Homebrew on macOS (Apple Silicon)
 if test "$OS_KERN" = Darwin
     set -gx --prepend PATH /opt/homebrew/bin
 end
-set -x VISUAL 'nvim-qt'
 
 
 set -x M2_HOME $HOME/.m2

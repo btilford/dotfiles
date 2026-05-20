@@ -6,7 +6,6 @@ cwd = { fg = "#EBDBB2" }
 # Tab
 tab_active = { fg = "#12202B", bg = "#E9C46A", bold = true}
 tab_inactive = { fg = "#EBDBB2", bg = "#504945"}
-tab_width = 1 
 
 # Find
 find_keyword  = { fg = "#2A9D8F", bold = true, italic = true, underline = true }
@@ -147,13 +146,13 @@ rules = [
 
 
 	# Special files
-	{ name = "*", is = "orphan", bg = "#504945" },
-	{ name = "*", is = "exec"  , fg = "#2a9d8F" },
+	{ url = "*", is = "orphan", bg = "#504945" },
+	{ url = "*", is = "exec"  , fg = "#2a9d8F" },
 
 	# Dummy files
-	{ name = "*", is = "dummy", bg = "#504945" },
-	{ name = "*/", is = "dummy", bg = "#504950" },
+	{ url = "*", is = "dummy", bg = "#504945" },
+	{ url = "*/", is = "dummy", bg = "#504950" },
 
 	# Fallback
-	{ name = "*/", fg = "#e9c461" }
+	{ url = "*/", fg = "#e9c461" }
 ]
