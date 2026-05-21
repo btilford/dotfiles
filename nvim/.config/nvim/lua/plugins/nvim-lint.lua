@@ -8,6 +8,15 @@ return {
 		},
 		config = function()
 			local lint = require("lint")
+			-- TODO: does this overwrite existing linters or add the md config to them?
+			lint.linters["markdownlint-cli2"] = {
+				args = {
+					"--config",
+					vim.fn.expand("~/.markdownlint-cli2.yaml"),
+					"--",
+				},
+			}
+
 			lint.linters_by_ft = {
 				["*"] = {
 					"gitleaks",

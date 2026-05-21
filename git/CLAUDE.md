@@ -14,8 +14,8 @@ The `git` stow package provides the complete git configuration for all machines.
 
 | File | Purpose |
 |------|---------|
-| `.gitconfig` | Entry point. Contains `[include]` directives for all fragments, plus global LFS config, global credential fallback chain, and Azure DevOps `useHttpPath`. |
-| `core.gitconfig` | Editor (`nvim`), pager (`delta`), global excludesfile, `autocrlf`, and per-host credential helper entries for GitHub and the private GitLab instance. Also sets `credential.helper = store` as the second fallback. |
+| `.gitconfig` | Entry point. Contains `[include]` directives for all fragments plus LFS config. Includes `~/.gitconfig.local` last so machine-local settings (GCM, etc.) take effect after all shared config. |
+| `core.gitconfig` | Editor (`nvim`), pager (`delta`), global excludesfile, `autocrlf`, and per-host credential helper entries for GitHub and the private GitLab instance. |
 | `aliases.gitconfig` | Short-form and descriptive aliases. Aliases that shell out use the `!sh -c '...'` pattern. |
 | `commands.gitconfig` | Push/pull/fetch/merge/diff behavior. Configures merge and diff tools (nvimdiff, IntelliJ, meld). Note: IntelliJ tool paths are macOS-specific absolute paths and should not be changed to relative. |
 | `flow.gitconfig` | Branch prefix conventions for git-flow (`feature-`, `release-`, `hotfix-`, `bug-`, `poc-`, `spike-`). |
@@ -44,21 +44,72 @@ Removing the `!` prefix will silently break the per-host helpers.
 
 ### Why GCM is excluded from dotfiles
 
-Git Credential Manager stores its configuration by operating system (macOS Keychain, Windows Credential Manager, etc.) and its install path varies by machine and package manager. Hardcoding it here would break on any machine where GCM is not installed at the expected path, or on Linux where it may not be present at all.
+Git Credential Manager stores its configuration by operating system (macOS Keychain, libsecret on Linux, etc.) and its install path varies by machine and package manager. Hardcoding it here would break on any machine where GCM is not installed at the expected path.
 
-GCM belongs in `~/.gitconfig.local`, which is never stowed:
+GCM belongs in `~/.gitconfig.local`, which is never stowed. `.gitconfig` includes this file last so it can override any shared config.
+
+The empty `helper =` line is load-bearing on Git ≥ 2.38. It resets any previously-accumulated helpers (including `osxkeychain` from Xcode's system gitconfig) so GCM is the sole fallback for unmatched hosts.
+
+### macOS setup (`~/.gitconfig.local`)
+
+GCM 2.8.0 is installed via Homebrew Cask (`brew install git-credential-manager`). Binary at `/usr/local/bin/git-credential-manager`. Uses macOS Keychain as the backing store.
 
 ```ini
+# ~/.gitconfig.local
 [credential]
-    helper =
-    helper = /opt/homebrew/bin/git-credential-manager
+    helper = 
+    helper = /usr/local/bin/git-credential-manager
+
+[credential "https://dev.azure.com"]
+    useHttpPath = true
 ```
 
-The empty `helper =` line is load-bearing on Git ≥ 2.38. Without it, the new helper appends to the inherited chain rather than replacing it, causing git to try every helper in sequence and potentially prompting multiple times or using stale credentials.
+### Linux setup (`~/.gitconfig.local`)
+
+GCM on Linux uses `libsecret` (GNOME Keyring / KWallet) or a headless store. Install via:
+
+```bash
+# Debian/Ubuntu — download .deb from GitHub releases
+wget https://github.com/git-ecosystem/git-credential-manager/releases/latest/download/gcm-linux_amd64.deb
+sudo dpkg -i gcm-linux_amd64.deb
+git-credential-manager configure   # writes to ~/.gitconfig, move entry to .gitconfig.local
+
+# Arch
+yay -S git-credential-manager-core-bin
+
+# After installing, find the binary path:
+which git-credential-manager
+```
+
+Then create `~/.gitconfig.local`:
+
+```ini
+# ~/.gitconfig.local
+[credential]
+    helper = 
+    helper = /usr/lib/git-core/git-credential-manager   # adjust path per distro
+
+[credential "https://dev.azure.com"]
+    useHttpPath = true
+```
+
+For headless/SSH Linux machines without a keyring daemon, set the backing store before first use:
+
+```bash
+export GCM_CREDENTIAL_STORE=secretservice   # if GNOME Keyring is running
+# or
+export GCM_CREDENTIAL_STORE=gpg            # GPG-encrypted file store (no daemon needed)
+# or
+export GCM_CREDENTIAL_STORE=cache          # in-memory, lost on reboot
+```
+
+Add the chosen `GCM_CREDENTIAL_STORE` export to `~/.config/fish/conf.d/local.fish` (or shell equiv) — do not commit it.
+
+Run `git credential-manager configure` once after setup to verify. Then authenticate by performing a `git fetch` or `git push` against a protected repo; GCM will prompt once and store the credential in the keyring.
 
 ### Global fallback credential chain
 
-`.gitconfig` sets `credential.helper = cache` (in-memory, session-scoped). `core.gitconfig` appends `credential.helper = store` (plaintext `~/.git-credentials`). Because git tries helpers in order and stops at the first that returns credentials, the per-host entries in `core.gitconfig` take priority for GitHub and the private GitLab host, while `cache` → `store` handles everything else.
+The per-host helpers in `core.gitconfig` (GitHub → `gh` CLI, GitLab → `glab` CLI) fire first for those hosts. For all other hosts, `~/.gitconfig.local` provides GCM as the sole fallback. `~/.git-credentials` (plaintext store) is no longer used and should be removed once GCM is set up on each machine.
 
 ## Profile system
 

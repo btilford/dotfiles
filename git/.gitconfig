@@ -6,6 +6,7 @@
     path = ~/.config/git/shell.gitconfig
     path = ~/.config/git/web.gitconfig
     path = ~/.config/git/dirs.gitconfig
+    path = ~/.gitconfig.local
 
 
 [http]
