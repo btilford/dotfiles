@@ -6,18 +6,13 @@
     path = ~/.config/git/shell.gitconfig
     path = ~/.config/git/web.gitconfig
     path = ~/.config/git/dirs.gitconfig
+    path = ~/.gitconfig.local
 
 
 [http]
 	postBuffer = 524288000
-[credential]
-	helper = cache
-	helper = 
-	helper = /usr/local/share/gcm-core/git-credential-manager
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
-[credential "https://dev.azure.com"]
-	useHttpPath = true

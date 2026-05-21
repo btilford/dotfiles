@@ -11,7 +11,14 @@ return {
 				sources = {
 					null_ls.builtins.completion.spell,
 					require("none-ls.diagnostics.eslint"),
+                    null_ls.builtins.diagnostics.yamllint.with({
+                        extra_args = {
+                            "--config-data",
+                            "{rules: {line-length: {max: 120 }}}"
+                        }
+                    }),
 				},
+
 			})
 		end,
 	},

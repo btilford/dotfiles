@@ -41,10 +41,10 @@
 :set foldlevel=99
 :set foldlevelstart=99
 ":set foldenable=true
-:set textwidth=0
+:set textwidth=120
 ":set textwidth=120
 :set formatoptions-=t
-:set colorcolumn=120
+:set colorcolumn=+1
 :set formatoptions-=l
 :set sessionoptions+=localoptions
 "inoremap <CR> pumvisible() ? "<C-Y>" : "<CR>"
