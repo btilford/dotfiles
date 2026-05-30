@@ -123,6 +123,51 @@
           "type": "chat",
           "contextWindow": 32768,
           "capabilities": { "coding": true, "toolCalling": true }
+        },
+        "zen/claude-sonnet-4-6": {
+          "name": "zen/claude-sonnet-4-6",
+          "displayName": "Claude Sonnet 4.6 (Zen)",
+          "modelId": "zen/claude-sonnet-4-6",
+          "vendor": "anthropic",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": { "coding": true, "toolCalling": true }
+        },
+        "zen/claude-opus-4-7": {
+          "name": "zen/claude-opus-4-7",
+          "displayName": "Claude Opus 4.7 (Zen)",
+          "modelId": "zen/claude-opus-4-7",
+          "vendor": "anthropic",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": { "coding": true, "toolCalling": true, "reasoning": true }
+        },
+        "zen/claude-haiku-4-5": {
+          "name": "zen/claude-haiku-4-5",
+          "displayName": "Claude Haiku 4.5 (Zen)",
+          "modelId": "zen/claude-haiku-4-5",
+          "vendor": "anthropic",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": { "coding": true, "toolCalling": true }
+        },
+        "zen/gemini-3.5-flash": {
+          "name": "zen/gemini-3.5-flash",
+          "displayName": "Gemini 3.5 Flash (Zen)",
+          "modelId": "zen/gemini-3.5-flash",
+          "vendor": "google",
+          "type": "chat",
+          "contextWindow": 1000000,
+          "capabilities": { "toolCalling": true }
+        },
+        "zen/gpt-5": {
+          "name": "zen/gpt-5",
+          "displayName": "GPT-5 (Zen)",
+          "modelId": "zen/gpt-5",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": { "toolCalling": true }
         }
       }
     },
