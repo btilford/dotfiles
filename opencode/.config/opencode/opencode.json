@@ -71,6 +71,61 @@
     "obsidian_*": "allow"
   },
   "provider": {
+    "litellm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LiteLLM (homelab)",
+      "options": {
+        "baseURL": "https://litellm.example.net/v1",
+        "apiKey": "$OPENCODE_API_KEY"
+      },
+      "models": {
+        "local/qwen3-coder-next": {
+          "name": "local/qwen3-coder-next",
+          "displayName": "Qwen3-Coder-Next (Lemonade)",
+          "modelId": "local/qwen3-coder-next",
+          "vendor": "alibaba",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": { "coding": true, "toolCalling": true }
+        },
+        "local/qwen3.6-35b": {
+          "name": "local/qwen3.6-35b",
+          "displayName": "Qwen3.6-35B (Lemonade)",
+          "modelId": "local/qwen3.6-35b",
+          "vendor": "alibaba",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": { "toolCalling": true }
+        },
+        "local/qwen3-30b": {
+          "name": "local/qwen3-30b",
+          "displayName": "Qwen3-30B (Lemonade)",
+          "modelId": "local/qwen3-30b",
+          "vendor": "alibaba",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": { "reasoning": true, "toolCalling": true }
+        },
+        "local/qwen2.5-coder-7b": {
+          "name": "local/qwen2.5-coder-7b",
+          "displayName": "Qwen2.5-Coder-7B (Ollama)",
+          "modelId": "local/qwen2.5-coder-7b",
+          "vendor": "alibaba",
+          "type": "chat",
+          "contextWindow": 32768,
+          "capabilities": { "coding": true }
+        },
+        "local/qwen3-coder-next-32k": {
+          "name": "local/qwen3-coder-next-32k",
+          "displayName": "Qwen3-Coder-Next-32k (Ollama)",
+          "modelId": "local/qwen3-coder-next-32k",
+          "vendor": "alibaba",
+          "type": "chat",
+          "contextWindow": 32768,
+          "capabilities": { "coding": true, "toolCalling": true }
+        }
+      }
+    },
     "openai": {
       "options": {
         "baseURL": "http://127.0.0.1:3456/v1"
