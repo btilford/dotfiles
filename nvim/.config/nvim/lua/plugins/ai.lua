@@ -127,41 +127,43 @@ return {
 
 			require("codecompanion").setup({
 				adapters = {
-					http = {
-						-- Reasoning/chat model — Windows Ollama (qwen3-coder-next)
-						ollama_chat = function()
-							return require("codecompanion.adapters").extend("ollama", {
-								env = {
-									url = "http://ollama.example.lan:11434",
-								},
-								schema = {
-									model       = { default = "qwen3-coder-next" },
-									max_tokens  = { default = 8192 },
-									temperature = { default = 0.6 },
-								},
-							})
-						end,
+					-- Reasoning/chat model — Lemonade via LiteLLM
+					litellm_chat = function()
+						return require("codecompanion.adapters").extend("openai_compatible", {
+							env = {
+								url      = "https://litellm.example.net",
+								api_key  = "NEOVIM_API_KEY",
+								chat_url = "/v1/chat/completions",
+							},
+							schema = {
+								model       = { default = "local/qwen3-coder-next" },
+								max_tokens  = { default = 8192 },
+								temperature = { default = 0.6 },
+							},
+						})
+					end,
 
-						-- Fast completion model — Windows Ollama (qwen2.5-coder:7b)
-						ollama_inline = function()
-							return require("codecompanion.adapters").extend("ollama", {
-								env = {
-									url = "http://ollama.example.lan:11434",
-								},
-								schema = {
-									model       = { default = "qwen2.5-coder:7b" },
-									max_tokens  = { default = 2048 },
-									temperature = { default = 0.2 },
-								},
-							})
-						end,
-					},
+					-- Fast inline model — Ollama via LiteLLM
+					litellm_inline = function()
+						return require("codecompanion.adapters").extend("openai_compatible", {
+							env = {
+								url      = "https://litellm.example.net",
+								api_key  = "NEOVIM_API_KEY",
+								chat_url = "/v1/chat/completions",
+							},
+							schema = {
+								model       = { default = "local/qwen2.5-coder-7b" },
+								max_tokens  = { default = 2048 },
+								temperature = { default = 0.2 },
+							},
+						})
+					end,
 				},
 
 				strategies = {
-					chat   = { adapter = "ollama_chat" },
-					inline = { adapter = "ollama_inline" },
-					agent  = { adapter = "ollama_chat" },
+					chat   = { adapter = "litellm_chat" },
+					inline = { adapter = "litellm_inline" },
+					agent  = { adapter = "litellm_chat" },
 				},
 
 				display = {
@@ -193,9 +195,9 @@ return {
 				provider = "openai_compatible",
 				provider_options = {
 					openai_compatible = {
-						model     = "qwen2.5-coder:7b",
-						end_point = "http://ollama.example.lan:11434/v1/chat/completions",
-						api_key   = "ollama",
+						model     = "local/qwen2.5-coder-7b",
+						end_point = "https://litellm.example.net/v1/chat/completions",
+						api_key   = vim.env.NEOVIM_API_KEY or "missing-NEOVIM_API_KEY",
 						stream    = true,
 						optional  = {
 							max_tokens  = 256,
