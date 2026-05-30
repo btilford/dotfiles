@@ -86,7 +86,10 @@
           "vendor": "alibaba",
           "type": "chat",
           "contextWindow": 131072,
-          "capabilities": { "coding": true, "toolCalling": true }
+          "capabilities": {
+            "coding": true,
+            "toolCalling": true
+          }
         },
         "local/qwen3.6-35b": {
           "name": "local/qwen3.6-35b",
@@ -95,7 +98,9 @@
           "vendor": "alibaba",
           "type": "chat",
           "contextWindow": 131072,
-          "capabilities": { "toolCalling": true }
+          "capabilities": {
+            "toolCalling": true
+          }
         },
         "local/qwen3-30b": {
           "name": "local/qwen3-30b",
@@ -104,7 +109,10 @@
           "vendor": "alibaba",
           "type": "chat",
           "contextWindow": 131072,
-          "capabilities": { "reasoning": true, "toolCalling": true }
+          "capabilities": {
+            "reasoning": true,
+            "toolCalling": true
+          }
         },
         "local/qwen2.5-coder-7b": {
           "name": "local/qwen2.5-coder-7b",
@@ -113,7 +121,9 @@
           "vendor": "alibaba",
           "type": "chat",
           "contextWindow": 32768,
-          "capabilities": { "coding": true }
+          "capabilities": {
+            "coding": true
+          }
         },
         "local/qwen3-coder-next-32k": {
           "name": "local/qwen3-coder-next-32k",
@@ -122,52 +132,540 @@
           "vendor": "alibaba",
           "type": "chat",
           "contextWindow": 32768,
-          "capabilities": { "coding": true, "toolCalling": true }
+          "capabilities": {
+            "coding": true,
+            "toolCalling": true
+          }
         },
-        "zen/claude-sonnet-4-6": {
-          "name": "zen/claude-sonnet-4-6",
-          "displayName": "Claude Sonnet 4.6 (Zen)",
-          "modelId": "zen/claude-sonnet-4-6",
-          "vendor": "anthropic",
+        "zen/big-pickle": {
+          "name": "zen/big-pickle",
+          "displayName": "big-pickle (Zen)",
+          "modelId": "zen/big-pickle",
+          "vendor": "other",
           "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": { "coding": true, "toolCalling": true }
-        },
-        "zen/claude-opus-4-7": {
-          "name": "zen/claude-opus-4-7",
-          "displayName": "Claude Opus 4.7 (Zen)",
-          "modelId": "zen/claude-opus-4-7",
-          "vendor": "anthropic",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": { "coding": true, "toolCalling": true, "reasoning": true }
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true
+          }
         },
         "zen/claude-haiku-4-5": {
           "name": "zen/claude-haiku-4-5",
-          "displayName": "Claude Haiku 4.5 (Zen)",
+          "displayName": "claude-haiku-4-5 (Zen)",
           "modelId": "zen/claude-haiku-4-5",
           "vendor": "anthropic",
           "type": "chat",
           "contextWindow": 200000,
-          "capabilities": { "coding": true, "toolCalling": true }
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/claude-opus-4-1": {
+          "name": "zen/claude-opus-4-1",
+          "displayName": "claude-opus-4-1 (Zen)",
+          "modelId": "zen/claude-opus-4-1",
+          "vendor": "anthropic",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/claude-opus-4-5": {
+          "name": "zen/claude-opus-4-5",
+          "displayName": "claude-opus-4-5 (Zen)",
+          "modelId": "zen/claude-opus-4-5",
+          "vendor": "anthropic",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/claude-opus-4-6": {
+          "name": "zen/claude-opus-4-6",
+          "displayName": "claude-opus-4-6 (Zen)",
+          "modelId": "zen/claude-opus-4-6",
+          "vendor": "anthropic",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/claude-opus-4-7": {
+          "name": "zen/claude-opus-4-7",
+          "displayName": "claude-opus-4-7 (Zen)",
+          "modelId": "zen/claude-opus-4-7",
+          "vendor": "anthropic",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/claude-opus-4-8": {
+          "name": "zen/claude-opus-4-8",
+          "displayName": "claude-opus-4-8 (Zen)",
+          "modelId": "zen/claude-opus-4-8",
+          "vendor": "anthropic",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/claude-sonnet-4": {
+          "name": "zen/claude-sonnet-4",
+          "displayName": "claude-sonnet-4 (Zen)",
+          "modelId": "zen/claude-sonnet-4",
+          "vendor": "anthropic",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/claude-sonnet-4-5": {
+          "name": "zen/claude-sonnet-4-5",
+          "displayName": "claude-sonnet-4-5 (Zen)",
+          "modelId": "zen/claude-sonnet-4-5",
+          "vendor": "anthropic",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/claude-sonnet-4-6": {
+          "name": "zen/claude-sonnet-4-6",
+          "displayName": "claude-sonnet-4-6 (Zen)",
+          "modelId": "zen/claude-sonnet-4-6",
+          "vendor": "anthropic",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/deepseek-v4-flash-free": {
+          "name": "zen/deepseek-v4-flash-free",
+          "displayName": "deepseek-v4-flash-free (Zen)",
+          "modelId": "zen/deepseek-v4-flash-free",
+          "vendor": "deepseek",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/gemini-3-flash": {
+          "name": "zen/gemini-3-flash",
+          "displayName": "gemini-3-flash (Zen)",
+          "modelId": "zen/gemini-3-flash",
+          "vendor": "google",
+          "type": "chat",
+          "contextWindow": 1000000,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "zen/gemini-3.1-pro": {
+          "name": "zen/gemini-3.1-pro",
+          "displayName": "gemini-3.1-pro (Zen)",
+          "modelId": "zen/gemini-3.1-pro",
+          "vendor": "google",
+          "type": "chat",
+          "contextWindow": 1000000,
+          "capabilities": {
+            "toolCalling": true
+          }
         },
         "zen/gemini-3.5-flash": {
           "name": "zen/gemini-3.5-flash",
-          "displayName": "Gemini 3.5 Flash (Zen)",
+          "displayName": "gemini-3.5-flash (Zen)",
           "modelId": "zen/gemini-3.5-flash",
           "vendor": "google",
           "type": "chat",
           "contextWindow": 1000000,
-          "capabilities": { "toolCalling": true }
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "zen/glm-5": {
+          "name": "zen/glm-5",
+          "displayName": "glm-5 (Zen)",
+          "modelId": "zen/glm-5",
+          "vendor": "zhipu",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "zen/glm-5.1": {
+          "name": "zen/glm-5.1",
+          "displayName": "glm-5.1 (Zen)",
+          "modelId": "zen/glm-5.1",
+          "vendor": "zhipu",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "reasoning": true
+          }
         },
         "zen/gpt-5": {
           "name": "zen/gpt-5",
-          "displayName": "GPT-5 (Zen)",
+          "displayName": "gpt-5 (Zen)",
           "modelId": "zen/gpt-5",
           "vendor": "openai",
           "type": "chat",
           "contextWindow": 128000,
-          "capabilities": { "toolCalling": true }
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/gpt-5-codex": {
+          "name": "zen/gpt-5-codex",
+          "displayName": "gpt-5-codex (Zen)",
+          "modelId": "zen/gpt-5-codex",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/gpt-5-nano": {
+          "name": "zen/gpt-5-nano",
+          "displayName": "gpt-5-nano (Zen)",
+          "modelId": "zen/gpt-5-nano",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/gpt-5.1": {
+          "name": "zen/gpt-5.1",
+          "displayName": "gpt-5.1 (Zen)",
+          "modelId": "zen/gpt-5.1",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/gpt-5.1-codex": {
+          "name": "zen/gpt-5.1-codex",
+          "displayName": "gpt-5.1-codex (Zen)",
+          "modelId": "zen/gpt-5.1-codex",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/gpt-5.1-codex-max": {
+          "name": "zen/gpt-5.1-codex-max",
+          "displayName": "gpt-5.1-codex-max (Zen)",
+          "modelId": "zen/gpt-5.1-codex-max",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/gpt-5.1-codex-mini": {
+          "name": "zen/gpt-5.1-codex-mini",
+          "displayName": "gpt-5.1-codex-mini (Zen)",
+          "modelId": "zen/gpt-5.1-codex-mini",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/gpt-5.2": {
+          "name": "zen/gpt-5.2",
+          "displayName": "gpt-5.2 (Zen)",
+          "modelId": "zen/gpt-5.2",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/gpt-5.2-codex": {
+          "name": "zen/gpt-5.2-codex",
+          "displayName": "gpt-5.2-codex (Zen)",
+          "modelId": "zen/gpt-5.2-codex",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/gpt-5.3-codex": {
+          "name": "zen/gpt-5.3-codex",
+          "displayName": "gpt-5.3-codex (Zen)",
+          "modelId": "zen/gpt-5.3-codex",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/gpt-5.3-codex-spark": {
+          "name": "zen/gpt-5.3-codex-spark",
+          "displayName": "gpt-5.3-codex-spark (Zen)",
+          "modelId": "zen/gpt-5.3-codex-spark",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 200000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true,
+            "reasoning": true
+          }
+        },
+        "zen/gpt-5.4": {
+          "name": "zen/gpt-5.4",
+          "displayName": "gpt-5.4 (Zen)",
+          "modelId": "zen/gpt-5.4",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/gpt-5.4-mini": {
+          "name": "zen/gpt-5.4-mini",
+          "displayName": "gpt-5.4-mini (Zen)",
+          "modelId": "zen/gpt-5.4-mini",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/gpt-5.4-nano": {
+          "name": "zen/gpt-5.4-nano",
+          "displayName": "gpt-5.4-nano (Zen)",
+          "modelId": "zen/gpt-5.4-nano",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/gpt-5.4-pro": {
+          "name": "zen/gpt-5.4-pro",
+          "displayName": "gpt-5.4-pro (Zen)",
+          "modelId": "zen/gpt-5.4-pro",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/gpt-5.5": {
+          "name": "zen/gpt-5.5",
+          "displayName": "gpt-5.5 (Zen)",
+          "modelId": "zen/gpt-5.5",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/gpt-5.5-pro": {
+          "name": "zen/gpt-5.5-pro",
+          "displayName": "gpt-5.5-pro (Zen)",
+          "modelId": "zen/gpt-5.5-pro",
+          "vendor": "openai",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/grok-build-0.1": {
+          "name": "zen/grok-build-0.1",
+          "displayName": "grok-build-0.1 (Zen)",
+          "modelId": "zen/grok-build-0.1",
+          "vendor": "xai",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "reasoning": true
+          }
+        },
+        "zen/kimi-k2.5": {
+          "name": "zen/kimi-k2.5",
+          "displayName": "kimi-k2.5 (Zen)",
+          "modelId": "zen/kimi-k2.5",
+          "vendor": "moonshot",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/kimi-k2.6": {
+          "name": "zen/kimi-k2.6",
+          "displayName": "kimi-k2.6 (Zen)",
+          "modelId": "zen/kimi-k2.6",
+          "vendor": "moonshot",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/mimo-v2.5-free": {
+          "name": "zen/mimo-v2.5-free",
+          "displayName": "mimo-v2.5-free (Zen)",
+          "modelId": "zen/mimo-v2.5-free",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "zen/minimax-m2.5": {
+          "name": "zen/minimax-m2.5",
+          "displayName": "minimax-m2.5 (Zen)",
+          "modelId": "zen/minimax-m2.5",
+          "vendor": "minimax",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "zen/minimax-m2.5-free": {
+          "name": "zen/minimax-m2.5-free",
+          "displayName": "minimax-m2.5-free (Zen)",
+          "modelId": "zen/minimax-m2.5-free",
+          "vendor": "minimax",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "zen/minimax-m2.7": {
+          "name": "zen/minimax-m2.7",
+          "displayName": "minimax-m2.7 (Zen)",
+          "modelId": "zen/minimax-m2.7",
+          "vendor": "minimax",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "zen/nemotron-3-super-free": {
+          "name": "zen/nemotron-3-super-free",
+          "displayName": "nemotron-3-super-free (Zen)",
+          "modelId": "zen/nemotron-3-super-free",
+          "vendor": "nvidia",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "zen/qwen3.5-plus": {
+          "name": "zen/qwen3.5-plus",
+          "displayName": "qwen3.5-plus (Zen)",
+          "modelId": "zen/qwen3.5-plus",
+          "vendor": "alibaba",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/qwen3.6-plus": {
+          "name": "zen/qwen3.6-plus",
+          "displayName": "qwen3.6-plus (Zen)",
+          "modelId": "zen/qwen3.6-plus",
+          "vendor": "alibaba",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
+        },
+        "zen/qwen3.6-plus-free": {
+          "name": "zen/qwen3.6-plus-free",
+          "displayName": "qwen3.6-plus-free (Zen)",
+          "modelId": "zen/qwen3.6-plus-free",
+          "vendor": "alibaba",
+          "type": "chat",
+          "contextWindow": 128000,
+          "capabilities": {
+            "toolCalling": true,
+            "coding": true
+          }
         }
       }
     },
