@@ -17,8 +17,13 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("wl-paste --type text --watch cliphist store")
     hl.exec_cmd("wl-paste --type image --watch cliphist store")
 
-    -- Idle/lock daemon
-    hl.exec_cmd("hypridle")
+    -- Idle/lock daemon — per-host config: hosts in nosuspend_hosts never call systemctl suspend.
+    local nosuspend_hosts = { ["cachyos-fwd"] = true }
+    local hf = io.open("/etc/hostname", "r")
+    local host = hf and hf:read("*l") or ""
+    if hf then hf:close() end
+    local hypridle_cfg = nosuspend_hosts[host] and "hypridle.nosuspend.conf" or "hypridle.conf"
+    hl.exec_cmd("hypridle -c " .. os.getenv("HOME") .. "/.config/hypr/" .. hypridle_cfg)
 
     -- App launcher helpers
     hl.exec_cmd("clipse")
