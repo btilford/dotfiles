@@ -68,7 +68,8 @@
     "kagi_*": "deny",
     "webfetch": "deny",
     "worktree_*": "deny",
-    "obsidian_*": "allow"
+    "obsidian_*": "allow",
+    "unifi_network_*": "allow"
   },
   "provider": {
     "litellm": {
@@ -991,8 +992,5 @@
         }
       }
     }
-  },
-  "permissions": {
-    "unifi_network_*": "allow"
   }
 }
