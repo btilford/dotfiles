@@ -1,0 +1,40 @@
+{
+  "lastChangelogVersion": "0.75.5",
+  "defaultProvider": "litellm",
+  "defaultModel": "zen/kimi-k2.5",
+  "defaultThinkingLevel": "medium",
+  "enabledModels": [
+    "local/qwen3-coder-next",
+    "local/qwen3.6-35b",
+    "zen/claude-opus-4-7",
+    "zen/claude-sonnet-4-6",
+    "zen/kimi-k2.5",
+    "zen/gemini-3.5-flash",
+    "zen/gpt-5.1",
+    "zen/deepseek-v4-flash-free"
+  ],
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 8192,
+    "keepRecentTokens": 12000
+  },
+  "retry": {
+    "enabled": true,
+    "maxRetries": 3,
+    "baseDelayMs": 1000,
+    "provider": {
+      "timeoutMs": 120000,
+      "maxRetries": 0,
+      "maxRetryDelayMs": 60000
+    }
+  },
+  "editorPaddingX": 2,
+  "terminal": {
+    "showTerminalProgress": true
+  },
+  "enableInstallTelemetry": false,
+  "treeFilterMode": "all",
+  "warnings": {
+    "anthropicExtraUsage": true
+  }
+}
