@@ -457,3 +457,12 @@ bluetooth,
     color: @active-bg;
 }
 
+
+#custom-hyprland-layout {
+  background: inherit;
+  color: @main-fg;
+  padding: 0 6px;
+  margin: 2px 0;
+  border-radius: 10px;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+}

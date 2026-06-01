@@ -54,9 +54,28 @@ button {
   /*padding: 2rem;*/
 }
 
+/* GTK3 does not support :focus-visible (CSS4 pseudo-class — browser/GTK4 only).
+ * :focus fires on initial programmatic focus too, so on open button[0] is
+ * already highlighted. When mouse hovers a different button both :focus and
+ * :hover are active simultaneously → two highlighted boxes.
+ * Options explored:
+ *   1. :focus-visible — silently ignored by GTK3; keyboard highlight disappears.
+ *   2. :focus only, drop :hover background — single highlight, keyboard-driven.
+ *   3. Accept double-highlight — cosmetic issue, only occurs if cursor drifts.
+ * Current state: :focus-visible in place (no keyboard highlight on GTK3).
+ * Revisit if wlogout moves to GTK4. */
 button:focus {
     background-size: 8%;
-	border: 0px;
+    border: 0px;
+}
+
+button:focus-visible {
+    background-color: rgba(255, 20, 0, 0.8);
+    opacity: 0.8;
+    color: #cdd6f4;
+    background-size: 10%;
+    border: 0px;
+    box-shadow: 0 0 50px @color7;
 }
 
 button:hover {

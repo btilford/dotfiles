@@ -6,7 +6,7 @@
   "gtk-layer-shell": true,
   "modules-left": [
     "hyprland/window",
-    "hyprland/submap",
+    "hyprland/submap", "custom/hyprland-layout",
     "mpris"
   ],
   "modules-center": [
@@ -241,5 +241,12 @@
     "format": " \u23fb ",
     "tooltip": false,
     "on-click": "wlogout --protocol layer-shell"
+  },
+  "custom/hyprland-layout": {
+    "exec": "$HOME/.config/waybar/scripts/layout.sh",
+    "interval": 1,
+    "format": "{}",
+    "tooltip": false
   }
+
 }

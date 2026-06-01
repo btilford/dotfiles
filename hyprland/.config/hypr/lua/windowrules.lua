@@ -46,7 +46,6 @@ hl.window_rule({
     dim_around = true,
     no_blur = true,
     no_dim = true,
-    no_shadow = true,
     no_screen_share = true,
     xray = true,
 })

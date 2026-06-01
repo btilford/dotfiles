@@ -46,10 +46,18 @@ hl.config({
         -- Glow effect using wallust colors (dynamic with theme changes)
         glow = {
             enabled = true,
-            range = 12,
-            render_power = 2,
-            color = glow_color(colors.color15, "AA"),        -- color15 with alpha for active
+            range = 5,
+            render_power = 3,
+            color = glow_color("FF6600", "FF"),        -- vivid orange (color9) for active
             color_inactive = glow_color(colors.color0, "22"), -- color0 with low alpha for inactive
+        },
+        -- Outer shadow for halo effect
+        shadow = {
+            enabled = true,
+            range = 10,
+            render_power = 3,
+            color = glow_color("FF6600", "88"),
+            color_inactive = glow_color("FF6600", "22"),
         },
     },
 })

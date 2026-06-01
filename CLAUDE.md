@@ -21,6 +21,12 @@ Stow-managed dotfiles for btilford. Each top-level directory is a stow package m
 - `master` — main
 - `macos` — macOS-specific work
 
+## Hyprland Lua API
+
+- Authoritative API stubs: `/usr/share/hypr/stubs/hl.meta.lua` (installed by `hyprland` package)
+- Example config: `/usr/share/hypr/hyprland.lua`
+- Consult stubs before guessing `hl.*` signatures or field names
+
 ## graphify
 
 This project has a graphify knowledge graph at graphify-out/.

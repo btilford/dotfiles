@@ -15,6 +15,38 @@ end)
 hl.bind("SUPER + Q", hl.dsp.window.close())
 hl.bind("SUPER + SHIFT + Q", hl.dsp.exec_cmd("sh -c \"hyprctl activewindow | grep pid | tr -d 'pid:' | xargs kill\""))
 hl.bind("SUPER + S", hl.dsp.layout("togglesplit"))
+local cycle_layouts = { "dwindle", "master", "scrolling" }
+local cycle_layout_idx = 1
+
+local function cycle_workspace_layout()
+	local ws = hl.get_active_workspace()
+	local current = ws and (ws.tiled_layout or ws.layout)
+	local found = false
+	
+	if current then
+		for i = 1, #cycle_layouts do
+			if cycle_layouts[i] == current then
+				cycle_layout_idx = i
+				found = true
+				break
+			end
+		end
+	end
+	
+	if not found then
+		cycle_layout_idx = 1
+	end
+	
+	cycle_layout_idx = (cycle_layout_idx % #cycle_layouts) + 1
+	local next_layout = cycle_layouts[cycle_layout_idx]
+	
+	hl.workspace_rule({
+		workspace = tostring(ws.id),
+		layout = next_layout,
+	})
+end
+
+hl.bind("SUPER + SHIFT + L", cycle_workspace_layout)
 hl.bind("SUPER + G", hl.dsp.exec_cmd("hyprctl dispatch togglegroup"))
 
 -- Focus movement
@@ -63,6 +95,7 @@ hl.define_submap("workspace-cmd", function()
 	hl.bind("8", hl.dsp.focus({ workspace = "8" }))
 	hl.bind("9", hl.dsp.focus({ workspace = "9" }))
 	hl.bind("0", hl.dsp.focus({ workspace = "10" }))
+	hl.bind("l", cycle_workspace_layout)
 	hl.bind("escape", hl.dsp.submap("reset"))
 end)
 hl.bind("SUPER + w", hl.dsp.submap("window-cmd"))
@@ -75,6 +108,38 @@ hl.define_submap("window-cmd", function()
 
 	hl.bind("n", hl.dsp.layout("togglesplit"))
 	hl.bind("SUPER + l", hl.dsp.layout("dwindle"))
+	hl.bind("r", function()
+		local ws = hl.get_active_workspace()
+		if ws then
+			if ws.tiled_layout == "master" then
+				hl.dispatch(hl.dsp.layout("orientationnext"))
+			elseif ws.tiled_layout == "dwindle" then
+				hl.dispatch(hl.dsp.layout("togglesplit"))
+			end
+		end
+	end)
+	hl.bind("SHIFT + r", function()
+		local ws = hl.get_active_workspace()
+		if ws and ws.tiled_layout == "master" then
+			hl.dispatch(hl.dsp.layout("orientationprev"))
+		end
+	end)
+	hl.bind("comma", function()
+		local ws = hl.get_active_workspace()
+		if ws then
+			if ws.tiled_layout == "master" then
+				hl.dispatch(hl.dsp.layout("swapwithmaster"))
+			elseif ws.tiled_layout == "dwindle" then
+				hl.dispatch(hl.dsp.layout("swapsplit"))
+			end
+		end
+	end)
+	hl.bind("period", function()
+		local ws = hl.get_active_workspace()
+		if ws and ws.tiled_layout == "master" then
+			hl.dispatch(hl.dsp.layout("rollnext"))
+		end
+	end)
 
 	hl.bind("q", hl.dsp.window.close())
 	hl.bind("c", hl.dsp.window.center())
