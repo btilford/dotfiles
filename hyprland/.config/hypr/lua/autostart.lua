@@ -57,4 +57,9 @@ hl.on("hyprland.start", function()
 
     -- Element messenger
     hl.exec_cmd("element-desktop")
+
+    -- OpenCode vault server (cachyos-fwd only — vault lives here)
+    if host == "cachyos-fwd" then
+        hl.exec_cmd("fish -c 'cd ~/Documents/personal-notes/notes && opencode serve --hostname 0.0.0.0 --port 4096'")
+    end
 end)
