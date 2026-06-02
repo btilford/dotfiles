@@ -1,1 +1,1 @@
-set -gx HERMES_TUI_GATEWAY_URL "https://hermes.example.com"
+set -gx HERMES_TUI_GATEWAY_URL "http://192.0.2.13:8642"
