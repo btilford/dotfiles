@@ -9,8 +9,8 @@ font-size = 20
 font-family = "JetBrains Mono"
 
 # ── Appearance ────────────────────────────────────────────────────────────────
-background-opacity = 0.85
-background = #1a1b26
+background-opacity = 0.8
+background = #1a0808
 foreground = #cdd6f4
 cursor-color = #aa8844
 cursor-text = #111111
