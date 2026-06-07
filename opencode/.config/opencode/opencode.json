@@ -45,9 +45,16 @@
       "enabled": true,
       "env": {
         "UNIFI_NETWORK_HOST": "192.0.2.1",
-        "UNIFI_NETWORK_USERNAME": "btilford",
-        "UNIFI_NETWORK_PASSWORD": "***REMOVED***"
+        "UNIFI_NETWORK_USERNAME": "btilford"
       }
+    },
+    "vault": {
+      "type": "local",
+      "command": [
+        "/home/btilford/.local/share/mise/installs/python/latest/bin/python3",
+        "/home/btilford/.local/bin/vault-mcp-server.py"
+      ],
+      "enabled": true
     }
   },
   "plugin": [
@@ -69,7 +76,8 @@
     "webfetch": "deny",
     "worktree_*": "deny",
     "obsidian_*": "allow",
-    "unifi_network_*": "allow"
+    "unifi_network_*": "allow",
+    "vault_*": "allow"
   },
   "provider": {
     "litellm": {
