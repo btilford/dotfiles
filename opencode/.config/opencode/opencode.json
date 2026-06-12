@@ -1,16 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "MCP_DOCKER": {
-      "type": "local",
-      "command": [
-        "docker",
-        "mcp",
-        "gateway",
-        "run"
-      ],
-      "enabled": true
-    },
     "context7": {
       "type": "remote",
       "url": "https://mcp.context7.com/mcp",
@@ -19,11 +9,6 @@
     "exa": {
       "type": "remote",
       "url": "https://mcp.exa.ai/mcp",
-      "enabled": true
-    },
-    "gh_grep": {
-      "type": "remote",
-      "url": "https://mcp.grep.app",
       "enabled": true
     },
     "obsidian": {
@@ -54,7 +39,10 @@
         "/home/btilford/.local/share/mise/installs/python/latest/bin/python3",
         "/home/btilford/.local/bin/vault-mcp-server.py"
       ],
-      "enabled": true
+      "enabled": true,
+      "env": {
+        "VAULT_AGENT": "opencode"
+      }
     }
   },
   "plugin": [
@@ -84,8 +72,7 @@
       "npm": "@ai-sdk/openai-compatible",
       "name": "LiteLLM (homelab)",
       "options": {
-        "baseURL": "https://litellm.example.net/v1",
-        "apiKey": "$OPENCODE_API_KEY"
+        "baseURL": "https://litellm.example.net/v1"
       },
       "models": {
         "local/qwen3-coder-next": {
@@ -678,162 +665,14 @@
         }
       }
     },
-    "openai": {
-      "options": {
-        "baseURL": "http://127.0.0.1:3456/v1"
-      }
-    },
+    
     "anthropic": {
       "options": {
         "baseURL": "http://127.0.0.1:3456",
         "apiKey": "dummy"
       }
-    },
-    "ollama-1": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Ollama (ollama-1)",
-      "options": {
-        "baseURL": "http://ollama.example.lan/v1"
-      },
-      "models": {
-        "opencode/qwen3-30b-a3b": {
-          "name": "opencode/qwen3-30b-a3b",
-          "enabled": true,
-          "displayName": "opencode/qwen3-30b-a3b",
-          "modelId": "opencode/qwen3-30b-a3b",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 40960
-        },
-        "qwen3:30b": {
-          "name": "qwen3:30b",
-          "enabled": true,
-          "displayName": "qwen3:30b",
-          "modelId": "qwen3:30b",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 40960
-        }
-      }
-    },
-    "lemonade": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Lemonade (local)",
-      "options": {
-        "baseURL": "http://localhost:13305/v1"
-      },
-      "models": {
-        "DeepSeek-Qwen3-8B-GGUF": {
-          "name": "DeepSeek-Qwen3-8B-GGUF",
-          "enabled": true,
-          "displayName": "DeepSeek-Qwen3-8B-GGUF",
-          "modelId": "DeepSeek-Qwen3-8B-GGUF",
-          "vendor": "deepseek",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "reasoning": true
-          }
-        },
-        "Flux-2-Klein-4B": {
-          "name": "Flux-2-Klein-4B",
-          "enabled": true,
-          "displayName": "Flux-2-Klein-4B",
-          "modelId": "Flux-2-Klein-4B",
-          "vendor": "blackforestlabs",
-          "type": "image",
-          "contextWindow": 8192,
-          "capabilities": {
-            "image": true,
-            "edit": true
-          }
-        },
-        "GLM-4.5-Air-UD-Q4K-XL-GGUF": {
-          "name": "GLM-4.5-Air-UD-Q4K-XL-GGUF",
-          "enabled": true,
-          "displayName": "GLM-4.5-Air-UD-Q4K-XL-GGUF",
-          "modelId": "GLM-4.5-Air-UD-Q4K-XL-GGUF",
-          "vendor": "zhipu",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "reasoning": true
-          }
-        },
-        "Llama-4-Scout-17B-16E-Instruct-GGUF": {
-          "name": "Llama-4-Scout-17B-16E-Instruct-GGUF",
-          "enabled": true,
-          "displayName": "Llama-4-Scout-17B-16E-Instruct-GGUF",
-          "modelId": "Llama-4-Scout-17B-16E-Instruct-GGUF",
-          "vendor": "meta",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "vision": true
-          }
-        },
-        "Qwen3-30B-A3B-GGUF": {
-          "name": "Qwen3-30B-A3B-GGUF",
-          "enabled": true,
-          "displayName": "Qwen3-30B-A3B-GGUF",
-          "modelId": "Qwen3-30B-A3B-GGUF",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "reasoning": true
-          }
-        },
-        "Qwen3-Coder-30B-A3B-Instruct-GGUF": {
-          "name": "Qwen3-Coder-30B-A3B-Instruct-GGUF",
-          "enabled": true,
-          "displayName": "Qwen3-Coder-30B-A3B-Instruct-GGUF",
-          "modelId": "Qwen3-Coder-30B-A3B-Instruct-GGUF",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "coding": true,
-            "toolCalling": true
-          }
-        },
-        "Qwen3-Coder-Next-GGUF": {
-          "name": "Qwen3-Coder-Next-GGUF",
-          "enabled": true,
-          "displayName": "Qwen3-Coder-Next-GGUF",
-          "modelId": "Qwen3-Coder-Next-GGUF",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "coding": true,
-            "toolCalling": true
-          }
-        },
-        "Qwen3.6-35B-A3B-GGUF": {
-          "name": "Qwen3.6-35B-A3B-GGUF",
-          "enabled": true,
-          "displayName": "Qwen3.6-35B-A3B-GGUF",
-          "modelId": "Qwen3.6-35B-A3B-GGUF",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "vision": true,
-            "toolCalling": true
-          }
-        },
-        "user.Llama-4-Scout-17B-16E-Instruct-GGUF": {
-          "name": "user.Llama-4-Scout-17B-16E-Instruct-GGUF",
-          "enabled": true,
-          "displayName": "user.Llama-4-Scout-17B-16E-Instruct-GGUF",
-          "modelId": "user.Llama-4-Scout-17B-16E-Instruct-GGUF",
-          "vendor": "meta",
-          "type": "chat",
-          "contextWindow": 131072
-        }
-      }
     }
+   
   },
   "agent": {
     "coder": {
@@ -999,6 +838,91 @@
           "realpath *": "allow"
         }
       }
+    },
+    "vdb-browser-assistant": {
+      "prompt": "Tier 3 \u2014 deep reasoning agent for the vdb-browser-assistant vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-browser-assistant/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 16000,
+      "model": "zen/gemini-3.1-pro"
+    },
+    "vdb-capacity-planner": {
+      "prompt": "Tier 2 \u2014 analysis agent for the vdb-capacity-planner vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-capacity-planner/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 8000,
+      "model": "zen/claude-sonnet-4"
+    },
+    "vdb-cert-monitor": {
+      "prompt": "Tier 1 \u2014 fast query agent for the vdb-cert-monitor vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-cert-monitor/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 4000,
+      "model": "zen/gemini-3-flash"
+    },
+    "vdb-change-log": {
+      "prompt": "Tier 1 \u2014 fast query agent for the vdb-change-log vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-change-log/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 4000,
+      "model": "zen/gemini-3-flash"
+    },
+    "vdb-host-inventory-sync": {
+      "prompt": "Tier 2 \u2014 analysis agent for the vdb-host-inventory-sync vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-host-inventory-sync/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 8000,
+      "model": "zen/claude-sonnet-4"
+    },
+    "vdb-incident-response": {
+      "prompt": "Tier 2 \u2014 analysis agent for the vdb-incident-response vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-incident-response/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 8000,
+      "model": "zen/claude-sonnet-4"
+    },
+    "vdb-incident-review": {
+      "prompt": "Tier 2 \u2014 analysis agent for the vdb-incident-review vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-incident-review/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 8000,
+      "model": "zen/claude-sonnet-4"
+    },
+    "vdb-morning-briefing": {
+      "prompt": "Tier 2 \u2014 analysis agent for the vdb-morning-briefing vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-morning-briefing/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 8000,
+      "model": "zen/claude-sonnet-4"
+    },
+    "vdb-network-audit": {
+      "prompt": "Tier 2 \u2014 analysis agent for the vdb-network-audit vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-network-audit/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 8000,
+      "model": "zen/claude-sonnet-4"
+    },
+    "vdb-optimizer": {
+      "prompt": "Tier 3 \u2014 deep reasoning agent for the vdb-optimizer vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-optimizer/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 16000,
+      "model": "zen/gemini-3.1-pro"
+    },
+    "vdb-periodic-review": {
+      "prompt": "Tier 3 \u2014 deep reasoning agent for the vdb-periodic-review vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-periodic-review/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 16000,
+      "model": "zen/gemini-3.1-pro"
+    },
+    "vdb-runbook-manager": {
+      "prompt": "Tier 2 \u2014 analysis agent for the vdb-runbook-manager vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-runbook-manager/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 8000,
+      "model": "zen/claude-sonnet-4"
+    },
+    "vdb-security-posture": {
+      "prompt": "Tier 2 \u2014 analysis agent for the vdb-security-posture vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-security-posture/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 8000,
+      "model": "zen/claude-sonnet-4"
+    },
+    "vdb-setup": {
+      "prompt": "Tier 3 \u2014 deep reasoning agent for the vdb-setup vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-setup/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 16000,
+      "model": "zen/gemini-3.1-pro"
+    },
+    "vdb-shopping": {
+      "prompt": "Tier 3 \u2014 deep reasoning agent for the vdb-shopping vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-shopping/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 16000,
+      "model": "zen/gemini-3.1-pro"
+    },
+    "vdb-stale-service-audit": {
+      "prompt": "Tier 1 \u2014 fast query agent for the vdb-stale-service-audit vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-stale-service-audit/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 4000,
+      "model": "zen/gemini-3-flash"
+    },
+    "vdb-weekly-review": {
+      "prompt": "Tier 2 \u2014 analysis agent for the vdb-weekly-review vault skill.\nRead skill instructions from ~/.config/opencode/skills/vdb-weekly-review/SKILL.md and follow all phases defined there exactly.",
+      "maxTokens": 8000,
+      "model": "zen/claude-sonnet-4"
     }
   }
 }
