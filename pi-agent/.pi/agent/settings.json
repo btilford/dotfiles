@@ -4,8 +4,8 @@
   "defaultModel": "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
   "defaultThinkingLevel": "medium",
   "enabledModels": [
-    "local/qwen3-coder-next",
-    "local/qwen3.6-35b",
+    "x870eglacial/qwen2.5-coder:7b",
+    "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
     "zen/claude-opus-4-7",
     "zen/claude-sonnet-4-6",
     "zen/kimi-k2.5",
