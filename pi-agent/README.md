@@ -10,7 +10,14 @@ Stow package for the Pi terminal AI agent.
    stow --no-folding pi-agent
    ```
 
-2. **Create your local `models.json`** with your real API key:
+2. **Create your local `models.json`** with your real API key.
+
+   > **Preferred:** once the key exists, run [`sync-litellm-models`](../commands/README.md)
+   > to auto-populate `models` from the live provider catalogs instead of
+   > hand-maintaining the list below. The `models` array is regenerated; your
+   > `apiKey`/`baseUrl` are preserved.
+
+   Minimal starter (the `models` array is replaced by the generator on first run):
    ```bash
    cat > ~/.pi/agent/models.json << 'EOF'
    {
