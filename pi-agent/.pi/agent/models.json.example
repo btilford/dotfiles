@@ -7,8 +7,8 @@
       "apiKey": "!printenv PI_API_KEY",
       "models": [
         {
-          "id": "x870eglacial/qwen3-coder-next-32k:latest",
-          "name": "Qwen3-Coder-Next-32k (Ollama)"
+          "id": "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
+          "name": "Qwen3.6-35B-MTP (Lemonade)"
         },
         {
           "id": "x870eglacial/qwen2.5-coder:7b",

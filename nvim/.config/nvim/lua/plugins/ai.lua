@@ -136,7 +136,7 @@ return {
 								chat_url = "/v1/chat/completions",
 							},
 							schema = {
-								model       = { default = "local/qwen3-coder-next" },
+								model       = { default = "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF" },
 								max_tokens  = { default = 8192 },
 								temperature = { default = 0.6 },
 							},

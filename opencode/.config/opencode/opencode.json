@@ -864,6 +864,19 @@
             "reasoning": true,
             "toolCalling": true
           }
+        },
+        "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF": {
+          "name": "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
+          "displayName": "Qwen3.6-35B-MTP (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
+          "vendor": "alibaba",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "toolCalling": true,
+            "reasoning": true,
+            "coding": true
+          }
         }
       }
     },
@@ -1125,5 +1138,5 @@
       "model": "zen/claude-sonnet-4"
     }
   },
-  "model": "x870eglacial/qwen3-coder-next-32k:latest"
+  "model": "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF"
 }
