@@ -75,10 +75,10 @@
         "baseURL": "https://litellm.example.net/v1"
       },
       "models": {
-        "local/qwen3-coder-next": {
-          "name": "local/qwen3-coder-next",
+        "cachyos-fwd/Qwen3-Coder-Next-GGUF": {
+          "name": "cachyos-fwd/Qwen3-Coder-Next-GGUF",
           "displayName": "Qwen3-Coder-Next (Lemonade)",
-          "modelId": "local/qwen3-coder-next",
+          "modelId": "cachyos-fwd/Qwen3-Coder-Next-GGUF",
           "vendor": "alibaba",
           "type": "chat",
           "contextWindow": 131072,
@@ -87,10 +87,10 @@
             "toolCalling": true
           }
         },
-        "local/qwen3.6-35b": {
-          "name": "local/qwen3.6-35b",
+        "cachyos-fwd/Qwen3.6-35B-A3B-GGUF": {
+          "name": "cachyos-fwd/Qwen3.6-35B-A3B-GGUF",
           "displayName": "Qwen3.6-35B (Lemonade)",
-          "modelId": "local/qwen3.6-35b",
+          "modelId": "cachyos-fwd/Qwen3.6-35B-A3B-GGUF",
           "vendor": "alibaba",
           "type": "chat",
           "contextWindow": 131072,
@@ -98,10 +98,10 @@
             "toolCalling": true
           }
         },
-        "local/qwen3-30b": {
-          "name": "local/qwen3-30b",
+        "cachyos-fwd/Qwen3-30B-A3B-GGUF": {
+          "name": "cachyos-fwd/Qwen3-30B-A3B-GGUF",
           "displayName": "Qwen3-30B (Lemonade)",
-          "modelId": "local/qwen3-30b",
+          "modelId": "cachyos-fwd/Qwen3-30B-A3B-GGUF",
           "vendor": "alibaba",
           "type": "chat",
           "contextWindow": 131072,
@@ -110,10 +110,10 @@
             "toolCalling": true
           }
         },
-        "local/qwen2.5-coder-7b": {
-          "name": "local/qwen2.5-coder-7b",
+        "x870eglacial/qwen2.5-coder:7b": {
+          "name": "x870eglacial/qwen2.5-coder:7b",
           "displayName": "Qwen2.5-Coder-7B (Ollama)",
-          "modelId": "local/qwen2.5-coder-7b",
+          "modelId": "x870eglacial/qwen2.5-coder:7b",
           "vendor": "alibaba",
           "type": "chat",
           "contextWindow": 32768,
@@ -121,10 +121,10 @@
             "coding": true
           }
         },
-        "local/qwen3-coder-next-32k": {
-          "name": "local/qwen3-coder-next-32k",
+        "x870eglacial/qwen3-coder-next-32k:latest": {
+          "name": "x870eglacial/qwen3-coder-next-32k:latest",
           "displayName": "Qwen3-Coder-Next-32k (Ollama)",
-          "modelId": "local/qwen3-coder-next-32k",
+          "modelId": "x870eglacial/qwen3-coder-next-32k:latest",
           "vendor": "alibaba",
           "type": "chat",
           "contextWindow": 32768,
@@ -662,17 +662,217 @@
             "toolCalling": true,
             "coding": true
           }
+        },
+        "cachyos-fwd/DeepSeek-Qwen3-8B-GGUF": {
+          "name": "cachyos-fwd/DeepSeek-Qwen3-8B-GGUF",
+          "displayName": "DeepSeek-Qwen3-8B (Lemonade)",
+          "modelId": "cachyos-fwd/DeepSeek-Qwen3-8B-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "reasoning": true,
+            "toolCalling": true
+          }
+        },
+        "cachyos-fwd/GLM-4.5-Air-UD-Q4K-XL-GGUF": {
+          "name": "cachyos-fwd/GLM-4.5-Air-UD-Q4K-XL-GGUF",
+          "displayName": "GLM-4.5-Air (Lemonade)",
+          "modelId": "cachyos-fwd/GLM-4.5-Air-UD-Q4K-XL-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "coding": true,
+            "reasoning": true,
+            "toolCalling": true
+          }
+        },
+        "cachyos-fwd/Llama-4-Scout-17B-16E-Instruct-GGUF": {
+          "name": "cachyos-fwd/Llama-4-Scout-17B-16E-Instruct-GGUF",
+          "displayName": "Llama-4-Scout-17B (Lemonade)",
+          "modelId": "cachyos-fwd/Llama-4-Scout-17B-16E-Instruct-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "cachyos-fwd/Qwen3-4B-Instruct-2507-GGUF": {
+          "name": "cachyos-fwd/Qwen3-4B-Instruct-2507-GGUF",
+          "displayName": "Qwen3-4B-Instruct (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3-4B-Instruct-2507-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "cachyos-fwd/gpt-oss-120b-mxfp-GGUF": {
+          "name": "cachyos-fwd/gpt-oss-120b-mxfp-GGUF",
+          "displayName": "gpt-oss-120b (Lemonade)",
+          "modelId": "cachyos-fwd/gpt-oss-120b-mxfp-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "coding": true,
+            "reasoning": true,
+            "toolCalling": true
+          }
+        },
+        "cachyos-fwd/gpt-oss-20b-mxfp4-GGUF": {
+          "name": "cachyos-fwd/gpt-oss-20b-mxfp4-GGUF",
+          "displayName": "gpt-oss-20b (Lemonade)",
+          "modelId": "cachyos-fwd/gpt-oss-20b-mxfp4-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "reasoning": true,
+            "toolCalling": true
+          }
+        },
+        "venice/venice-uncensored-1-2": {
+          "name": "venice/venice-uncensored-1-2",
+          "displayName": "Venice Uncensored 1.2",
+          "modelId": "venice/venice-uncensored-1-2",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 32768,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "venice/hermes-3-llama-3.1-405b": {
+          "name": "venice/hermes-3-llama-3.1-405b",
+          "displayName": "Hermes-3 Llama 405B (Venice)",
+          "modelId": "venice/hermes-3-llama-3.1-405b",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "venice/qwen3-coder-480b-a35b-instruct-turbo": {
+          "name": "venice/qwen3-coder-480b-a35b-instruct-turbo",
+          "displayName": "Qwen3-Coder-480B (Venice)",
+          "modelId": "venice/qwen3-coder-480b-a35b-instruct-turbo",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "coding": true,
+            "toolCalling": true
+          }
+        },
+        "venice/deepseek-v4-pro": {
+          "name": "venice/deepseek-v4-pro",
+          "displayName": "DeepSeek V4 Pro (Venice)",
+          "modelId": "venice/deepseek-v4-pro",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "coding": true,
+            "reasoning": true,
+            "toolCalling": true
+          }
+        },
+        "cachyos-fwd/Qwen3.5-122B-A10B-MTP-GGUF": {
+          "name": "cachyos-fwd/Qwen3.5-122B-A10B-MTP-GGUF",
+          "displayName": "Qwen3.5-122B-A10B (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3.5-122B-A10B-MTP-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "reasoning": true,
+            "toolCalling": true
+          }
+        },
+        "cachyos-fwd/Qwen3-Next-80B-A3B-Instruct-GGUF": {
+          "name": "cachyos-fwd/Qwen3-Next-80B-A3B-Instruct-GGUF",
+          "displayName": "Qwen3-Next-80B (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3-Next-80B-A3B-Instruct-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "toolCalling": true
+          }
+        },
+        "cachyos-fwd/Qwen2.5-Coder-32B-Instruct-GGUF": {
+          "name": "cachyos-fwd/Qwen2.5-Coder-32B-Instruct-GGUF",
+          "displayName": "Qwen2.5-Coder-32B (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen2.5-Coder-32B-Instruct-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "coding": true,
+            "toolCalling": true
+          }
+        },
+        "cachyos-fwd/Devstral-Small-2507-GGUF": {
+          "name": "cachyos-fwd/Devstral-Small-2507-GGUF",
+          "displayName": "Devstral-Small (Lemonade)",
+          "modelId": "cachyos-fwd/Devstral-Small-2507-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "coding": true,
+            "toolCalling": true
+          }
+        },
+        "cachyos-fwd/Qwen3-VL-8B-Instruct-GGUF": {
+          "name": "cachyos-fwd/Qwen3-VL-8B-Instruct-GGUF",
+          "displayName": "Qwen3-VL-8B vision (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3-VL-8B-Instruct-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "toolCalling": true,
+            "vision": true
+          }
+        },
+        "cachyos-fwd/Cogito-v2-llama-109B-MoE-GGUF": {
+          "name": "cachyos-fwd/Cogito-v2-llama-109B-MoE-GGUF",
+          "displayName": "Cogito-v2-109B (Lemonade)",
+          "modelId": "cachyos-fwd/Cogito-v2-llama-109B-MoE-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "reasoning": true,
+            "toolCalling": true
+          }
+        },
+        "cachyos-fwd/Nemotron-3-Nano-30B-A3B-GGUF": {
+          "name": "cachyos-fwd/Nemotron-3-Nano-30B-A3B-GGUF",
+          "displayName": "Nemotron-3-Nano-30B (Lemonade)",
+          "modelId": "cachyos-fwd/Nemotron-3-Nano-30B-A3B-GGUF",
+          "vendor": "other",
+          "type": "chat",
+          "contextWindow": 131072,
+          "capabilities": {
+            "reasoning": true,
+            "toolCalling": true
+          }
         }
       }
     },
-    
     "anthropic": {
       "options": {
         "baseURL": "http://127.0.0.1:3456",
         "apiKey": "dummy"
       }
     }
-   
   },
   "agent": {
     "coder": {
