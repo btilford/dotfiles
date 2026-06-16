@@ -1,7 +1,7 @@
 {
-  "lastChangelogVersion": "0.75.5",
+  "lastChangelogVersion": "0.79.1",
   "defaultProvider": "litellm",
-  "defaultModel": "zen/kimi-k2.5",
+  "defaultModel": "local/qwen3.6-35b",
   "defaultThinkingLevel": "medium",
   "enabledModels": [
     "local/qwen3-coder-next",
