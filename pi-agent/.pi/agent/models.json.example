@@ -6,13 +6,42 @@
       "api": "openai-completions",
       "apiKey": "!printenv PI_API_KEY",
       "models": [
-        { "id": "zen/kimi-k2.5", "name": "Kimi K2.5 (Zen)" },
-        { "id": "zen/claude-opus-4-7", "name": "Claude Opus 4.7 (Zen)" },
-        { "id": "zen/claude-sonnet-4-6", "name": "Claude Sonnet 4.6 (Zen)" },
-        { "id": "zen/gemini-3.5-flash", "name": "Gemini 3.5 Flash (Zen)" },
-        { "id": "zen/gpt-5.1", "name": "GPT-5.1 (Zen)" },
-        { "id": "zen/deepseek-v4-flash-free", "name": "DeepSeek V4 Flash Free (Zen)" },
-        { "id": "zen/big-pickle", "name": "big-pickle (Zen)" }
+        {
+          "id": "x870eglacial/qwen3-coder-next-32k:latest",
+          "name": "Qwen3-Coder-Next-32k (Ollama)"
+        },
+        {
+          "id": "x870eglacial/qwen2.5-coder:7b",
+          "name": "Qwen2.5-Coder-7B (Ollama)"
+        },
+        {
+          "id": "zen/kimi-k2.5",
+          "name": "Kimi K2.5 (Zen)"
+        },
+        {
+          "id": "zen/claude-opus-4-7",
+          "name": "Claude Opus 4.7 (Zen)"
+        },
+        {
+          "id": "zen/claude-sonnet-4-6",
+          "name": "Claude Sonnet 4.6 (Zen)"
+        },
+        {
+          "id": "zen/gemini-3.5-flash",
+          "name": "Gemini 3.5 Flash (Zen)"
+        },
+        {
+          "id": "zen/gpt-5.1",
+          "name": "GPT-5.1 (Zen)"
+        },
+        {
+          "id": "zen/deepseek-v4-flash-free",
+          "name": "DeepSeek V4 Flash Free (Zen)"
+        },
+        {
+          "id": "zen/big-pickle",
+          "name": "big-pickle (Zen)"
+        }
       ]
     }
   }

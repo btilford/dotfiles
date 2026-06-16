@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.79.1",
   "defaultProvider": "litellm",
-  "defaultModel": "local/qwen3.6-35b",
+  "defaultModel": "x870eglacial/qwen3-coder-next-32k:latest",
   "defaultThinkingLevel": "medium",
   "enabledModels": [
     "local/qwen3-coder-next",

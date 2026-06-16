@@ -1124,5 +1124,6 @@
       "maxTokens": 8000,
       "model": "zen/claude-sonnet-4"
     }
-  }
+  },
+  "model": "x870eglacial/qwen3-coder-next-32k:latest"
 }

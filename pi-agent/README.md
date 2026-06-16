@@ -21,6 +21,8 @@ Stow package for the Pi terminal AI agent.
          "api": "openai-completions",
          "apiKey": "YOUR_API_KEY_HERE",
          "models": [
+           { "id": "x870eglacial/qwen3-coder-next-32k:latest", "name": "Qwen3-Coder-Next-32k (Ollama)" },
+           { "id": "x870eglacial/qwen2.5-coder:7b", "name": "Qwen2.5-Coder-7B (Ollama)" },
            { "id": "zen/kimi-k2.5", "name": "Kimi K2.5 (Zen)" },
            { "id": "zen/claude-opus-4-7", "name": "Claude Opus 4.7 (Zen)" },
            { "id": "zen/claude-sonnet-4-6", "name": "Claude Sonnet 4.6 (Zen)" },
@@ -45,7 +47,7 @@ Stow package for the Pi terminal AI agent.
 
 | File | Tracked | Notes |
 |------|---------|-------|
-| `.pi/agent/settings.json` | ✅ Yes | Safe to share across machines. |
+| `.pi/agent/settings.json` | ✅ Yes | Safe to share across machines. Default model: `x870eglacial/qwen3-coder-next-32k:latest`. |
 | `.pi/agent/models.json` | ❌ No | **Contains API keys.** Ignored by git. Each machine maintains its own copy. |
 | `.pi/agent/models.json.example` | ✅ Yes | Template with placeholder key. |
 
