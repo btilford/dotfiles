@@ -11,7 +11,11 @@
     "zen/kimi-k2.5",
     "zen/gemini-3.5-flash",
     "zen/gpt-5.1",
-    "zen/deepseek-v4-flash-free"
+    "zen/deepseek-v4-flash-free",
+    "venice/llama-3.3-70b",
+    "venice/venice-uncensored-1-2",
+    "venice/qwen3-coder-480b-a35b-instruct-turbo",
+    "venice/deepseek-v4-pro"
   ],
   "compaction": {
     "enabled": true,
