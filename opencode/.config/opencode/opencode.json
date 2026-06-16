@@ -75,808 +75,893 @@
         "baseURL": "https://litellm.example.net/v1"
       },
       "models": {
-        "cachyos-fwd/Qwen3-Coder-Next-GGUF": {
-          "name": "cachyos-fwd/Qwen3-Coder-Next-GGUF",
-          "displayName": "Qwen3-Coder-Next (Lemonade)",
-          "modelId": "cachyos-fwd/Qwen3-Coder-Next-GGUF",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "coding": true,
-            "toolCalling": true
-          }
+        "venice/zai-org-glm-5-1": {
+          "name": "venice/zai-org-glm-5-1",
+          "displayName": "zai-org-glm-5-1 (Venice)",
+          "modelId": "venice/zai-org-glm-5-1",
+          "type": "chat"
         },
-        "cachyos-fwd/Qwen3.6-35B-A3B-GGUF": {
-          "name": "cachyos-fwd/Qwen3.6-35B-A3B-GGUF",
-          "displayName": "Qwen3.6-35B (Lemonade)",
-          "modelId": "cachyos-fwd/Qwen3.6-35B-A3B-GGUF",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "toolCalling": true
-          }
+        "venice/zai-org-glm-5": {
+          "name": "venice/zai-org-glm-5",
+          "displayName": "zai-org-glm-5 (Venice)",
+          "modelId": "venice/zai-org-glm-5",
+          "type": "chat"
         },
-        "cachyos-fwd/Qwen3-30B-A3B-GGUF": {
-          "name": "cachyos-fwd/Qwen3-30B-A3B-GGUF",
-          "displayName": "Qwen3-30B (Lemonade)",
-          "modelId": "cachyos-fwd/Qwen3-30B-A3B-GGUF",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "reasoning": true,
-            "toolCalling": true
-          }
+        "venice/z-ai-glm-5-turbo": {
+          "name": "venice/z-ai-glm-5-turbo",
+          "displayName": "z-ai-glm-5-turbo (Venice)",
+          "modelId": "venice/z-ai-glm-5-turbo",
+          "type": "chat"
         },
-        "x870eglacial/qwen2.5-coder:7b": {
-          "name": "x870eglacial/qwen2.5-coder:7b",
-          "displayName": "Qwen2.5-Coder-7B (Ollama)",
-          "modelId": "x870eglacial/qwen2.5-coder:7b",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 32768,
-          "capabilities": {
-            "coding": true
-          }
+        "venice/z-ai-glm-5v-turbo": {
+          "name": "venice/z-ai-glm-5v-turbo",
+          "displayName": "z-ai-glm-5v-turbo (Venice)",
+          "modelId": "venice/z-ai-glm-5v-turbo",
+          "type": "chat"
         },
-        "x870eglacial/qwen3-coder-next-32k:latest": {
-          "name": "x870eglacial/qwen3-coder-next-32k:latest",
-          "displayName": "Qwen3-Coder-Next-32k (Ollama)",
-          "modelId": "x870eglacial/qwen3-coder-next-32k:latest",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 32768,
-          "capabilities": {
-            "coding": true,
-            "toolCalling": true
-          }
+        "venice/olafangensan-glm-4.7-flash-heretic": {
+          "name": "venice/olafangensan-glm-4.7-flash-heretic",
+          "displayName": "olafangensan-glm-4.7-flash-heretic (Venice)",
+          "modelId": "venice/olafangensan-glm-4.7-flash-heretic",
+          "type": "chat"
         },
-        "zen/big-pickle": {
-          "name": "zen/big-pickle",
-          "displayName": "big-pickle (Zen)",
-          "modelId": "zen/big-pickle",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true
-          }
+        "venice/zai-org-glm-4.7-flash": {
+          "name": "venice/zai-org-glm-4.7-flash",
+          "displayName": "zai-org-glm-4.7-flash (Venice)",
+          "modelId": "venice/zai-org-glm-4.7-flash",
+          "type": "chat"
         },
-        "zen/claude-haiku-4-5": {
-          "name": "zen/claude-haiku-4-5",
-          "displayName": "claude-haiku-4-5 (Zen)",
-          "modelId": "zen/claude-haiku-4-5",
-          "vendor": "anthropic",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+        "venice/zai-org-glm-4.6": {
+          "name": "venice/zai-org-glm-4.6",
+          "displayName": "zai-org-glm-4.6 (Venice)",
+          "modelId": "venice/zai-org-glm-4.6",
+          "type": "chat"
         },
-        "zen/claude-opus-4-1": {
-          "name": "zen/claude-opus-4-1",
-          "displayName": "claude-opus-4-1 (Zen)",
-          "modelId": "zen/claude-opus-4-1",
-          "vendor": "anthropic",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
+        "venice/zai-org-glm-4.7": {
+          "name": "venice/zai-org-glm-4.7",
+          "displayName": "zai-org-glm-4.7 (Venice)",
+          "modelId": "venice/zai-org-glm-4.7",
+          "type": "chat"
         },
-        "zen/claude-opus-4-5": {
-          "name": "zen/claude-opus-4-5",
-          "displayName": "claude-opus-4-5 (Zen)",
-          "modelId": "zen/claude-opus-4-5",
-          "vendor": "anthropic",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
+        "venice/venice-uncensored-1-2": {
+          "name": "venice/venice-uncensored-1-2",
+          "displayName": "venice-uncensored-1-2 (Venice)",
+          "modelId": "venice/venice-uncensored-1-2",
+          "type": "chat"
         },
-        "zen/claude-opus-4-6": {
-          "name": "zen/claude-opus-4-6",
-          "displayName": "claude-opus-4-6 (Zen)",
-          "modelId": "zen/claude-opus-4-6",
-          "vendor": "anthropic",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
+        "venice/venice-uncensored-role-play": {
+          "name": "venice/venice-uncensored-role-play",
+          "displayName": "venice-uncensored-role-play (Venice)",
+          "modelId": "venice/venice-uncensored-role-play",
+          "type": "chat"
         },
-        "zen/claude-opus-4-7": {
-          "name": "zen/claude-opus-4-7",
-          "displayName": "claude-opus-4-7 (Zen)",
-          "modelId": "zen/claude-opus-4-7",
-          "vendor": "anthropic",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
+        "venice/qwen-3-7-max": {
+          "name": "venice/qwen-3-7-max",
+          "displayName": "qwen-3-7-max (Venice)",
+          "modelId": "venice/qwen-3-7-max",
+          "type": "chat"
+        },
+        "venice/qwen-3-7-plus": {
+          "name": "venice/qwen-3-7-plus",
+          "displayName": "qwen-3-7-plus (Venice)",
+          "modelId": "venice/qwen-3-7-plus",
+          "type": "chat"
+        },
+        "venice/qwen-3-6-plus": {
+          "name": "venice/qwen-3-6-plus",
+          "displayName": "qwen-3-6-plus (Venice)",
+          "modelId": "venice/qwen-3-6-plus",
+          "type": "chat"
+        },
+        "venice/qwen3-6-27b": {
+          "name": "venice/qwen3-6-27b",
+          "displayName": "qwen3-6-27b (Venice)",
+          "modelId": "venice/qwen3-6-27b",
+          "type": "chat"
+        },
+        "venice/qwen3-5-9b": {
+          "name": "venice/qwen3-5-9b",
+          "displayName": "qwen3-5-9b (Venice)",
+          "modelId": "venice/qwen3-5-9b",
+          "type": "chat"
+        },
+        "venice/qwen3-5-397b-a17b": {
+          "name": "venice/qwen3-5-397b-a17b",
+          "displayName": "qwen3-5-397b-a17b (Venice)",
+          "modelId": "venice/qwen3-5-397b-a17b",
+          "type": "chat"
+        },
+        "venice/qwen3-5-35b-a3b": {
+          "name": "venice/qwen3-5-35b-a3b",
+          "displayName": "qwen3-5-35b-a3b (Venice)",
+          "modelId": "venice/qwen3-5-35b-a3b",
+          "type": "chat"
+        },
+        "venice/qwen3-235b-a22b-thinking-2507": {
+          "name": "venice/qwen3-235b-a22b-thinking-2507",
+          "displayName": "qwen3-235b-a22b-thinking-2507 (Venice)",
+          "modelId": "venice/qwen3-235b-a22b-thinking-2507",
+          "type": "chat"
+        },
+        "venice/qwen3-235b-a22b-instruct-2507": {
+          "name": "venice/qwen3-235b-a22b-instruct-2507",
+          "displayName": "qwen3-235b-a22b-instruct-2507 (Venice)",
+          "modelId": "venice/qwen3-235b-a22b-instruct-2507",
+          "type": "chat"
+        },
+        "venice/qwen3-next-80b": {
+          "name": "venice/qwen3-next-80b",
+          "displayName": "qwen3-next-80b (Venice)",
+          "modelId": "venice/qwen3-next-80b",
+          "type": "chat"
+        },
+        "venice/qwen3-vl-235b-a22b": {
+          "name": "venice/qwen3-vl-235b-a22b",
+          "displayName": "qwen3-vl-235b-a22b (Venice)",
+          "modelId": "venice/qwen3-vl-235b-a22b",
+          "type": "chat"
+        },
+        "venice/qwen3-coder-480b-a35b-instruct-turbo": {
+          "name": "venice/qwen3-coder-480b-a35b-instruct-turbo",
+          "displayName": "qwen3-coder-480b-a35b-instruct-turbo (Venice)",
+          "modelId": "venice/qwen3-coder-480b-a35b-instruct-turbo",
+          "type": "chat"
+        },
+        "venice/google-gemma-4-26b-a4b-it": {
+          "name": "venice/google-gemma-4-26b-a4b-it",
+          "displayName": "google-gemma-4-26b-a4b-it (Venice)",
+          "modelId": "venice/google-gemma-4-26b-a4b-it",
+          "type": "chat"
+        },
+        "venice/google-gemma-4-31b-it": {
+          "name": "venice/google-gemma-4-31b-it",
+          "displayName": "google-gemma-4-31b-it (Venice)",
+          "modelId": "venice/google-gemma-4-31b-it",
+          "type": "chat"
+        },
+        "venice/gemma-4-uncensored": {
+          "name": "venice/gemma-4-uncensored",
+          "displayName": "gemma-4-uncensored (Venice)",
+          "modelId": "venice/gemma-4-uncensored",
+          "type": "chat"
+        },
+        "venice/google-gemma-3-27b-it": {
+          "name": "venice/google-gemma-3-27b-it",
+          "displayName": "google-gemma-3-27b-it (Venice)",
+          "modelId": "venice/google-gemma-3-27b-it",
+          "type": "chat"
+        },
+        "venice/arcee-trinity-large-thinking": {
+          "name": "venice/arcee-trinity-large-thinking",
+          "displayName": "arcee-trinity-large-thinking (Venice)",
+          "modelId": "venice/arcee-trinity-large-thinking",
+          "type": "chat"
+        },
+        "venice/grok-4-3": {
+          "name": "venice/grok-4-3",
+          "displayName": "grok-4-3 (Venice)",
+          "modelId": "venice/grok-4-3",
+          "type": "chat"
+        },
+        "venice/grok-4-20": {
+          "name": "venice/grok-4-20",
+          "displayName": "grok-4-20 (Venice)",
+          "modelId": "venice/grok-4-20",
+          "type": "chat"
+        },
+        "venice/grok-4-20-multi-agent": {
+          "name": "venice/grok-4-20-multi-agent",
+          "displayName": "grok-4-20-multi-agent (Venice)",
+          "modelId": "venice/grok-4-20-multi-agent",
+          "type": "chat"
+        },
+        "venice/grok-build-0-1": {
+          "name": "venice/grok-build-0-1",
+          "displayName": "grok-build-0-1 (Venice)",
+          "modelId": "venice/grok-build-0-1",
+          "type": "chat"
+        },
+        "venice/mistral-small-3-2-24b-instruct": {
+          "name": "venice/mistral-small-3-2-24b-instruct",
+          "displayName": "mistral-small-3-2-24b-instruct (Venice)",
+          "modelId": "venice/mistral-small-3-2-24b-instruct",
+          "type": "chat"
+        },
+        "venice/mistral-small-2603": {
+          "name": "venice/mistral-small-2603",
+          "displayName": "mistral-small-2603 (Venice)",
+          "modelId": "venice/mistral-small-2603",
+          "type": "chat"
+        },
+        "venice/hermes-3-llama-3.1-405b": {
+          "name": "venice/hermes-3-llama-3.1-405b",
+          "displayName": "hermes-3-llama-3.1-405b (Venice)",
+          "modelId": "venice/hermes-3-llama-3.1-405b",
+          "type": "chat"
+        },
+        "venice/gemini-3-1-pro-preview": {
+          "name": "venice/gemini-3-1-pro-preview",
+          "displayName": "gemini-3-1-pro-preview (Venice)",
+          "modelId": "venice/gemini-3-1-pro-preview",
+          "type": "chat"
+        },
+        "venice/gemini-3-5-flash": {
+          "name": "venice/gemini-3-5-flash",
+          "displayName": "gemini-3-5-flash (Venice)",
+          "modelId": "venice/gemini-3-5-flash",
+          "type": "chat"
+        },
+        "venice/gemini-3-flash-preview": {
+          "name": "venice/gemini-3-flash-preview",
+          "displayName": "gemini-3-flash-preview (Venice)",
+          "modelId": "venice/gemini-3-flash-preview",
+          "type": "chat"
+        },
+        "venice/claude-fable-5": {
+          "name": "venice/claude-fable-5",
+          "displayName": "claude-fable-5 (Venice)",
+          "modelId": "venice/claude-fable-5",
+          "type": "chat"
+        },
+        "venice/claude-opus-4-8": {
+          "name": "venice/claude-opus-4-8",
+          "displayName": "claude-opus-4-8 (Venice)",
+          "modelId": "venice/claude-opus-4-8",
+          "type": "chat"
+        },
+        "venice/claude-opus-4-8-fast": {
+          "name": "venice/claude-opus-4-8-fast",
+          "displayName": "claude-opus-4-8-fast (Venice)",
+          "modelId": "venice/claude-opus-4-8-fast",
+          "type": "chat"
+        },
+        "venice/claude-opus-4-7": {
+          "name": "venice/claude-opus-4-7",
+          "displayName": "claude-opus-4-7 (Venice)",
+          "modelId": "venice/claude-opus-4-7",
+          "type": "chat"
+        },
+        "venice/claude-opus-4-7-fast": {
+          "name": "venice/claude-opus-4-7-fast",
+          "displayName": "claude-opus-4-7-fast (Venice)",
+          "modelId": "venice/claude-opus-4-7-fast",
+          "type": "chat"
+        },
+        "venice/claude-opus-4-6": {
+          "name": "venice/claude-opus-4-6",
+          "displayName": "claude-opus-4-6 (Venice)",
+          "modelId": "venice/claude-opus-4-6",
+          "type": "chat"
+        },
+        "venice/claude-opus-4-6-fast": {
+          "name": "venice/claude-opus-4-6-fast",
+          "displayName": "claude-opus-4-6-fast (Venice)",
+          "modelId": "venice/claude-opus-4-6-fast",
+          "type": "chat"
+        },
+        "venice/claude-opus-4-5": {
+          "name": "venice/claude-opus-4-5",
+          "displayName": "claude-opus-4-5 (Venice)",
+          "modelId": "venice/claude-opus-4-5",
+          "type": "chat"
+        },
+        "venice/claude-sonnet-4-6": {
+          "name": "venice/claude-sonnet-4-6",
+          "displayName": "claude-sonnet-4-6 (Venice)",
+          "modelId": "venice/claude-sonnet-4-6",
+          "type": "chat"
+        },
+        "venice/claude-sonnet-4-5": {
+          "name": "venice/claude-sonnet-4-5",
+          "displayName": "claude-sonnet-4-5 (Venice)",
+          "modelId": "venice/claude-sonnet-4-5",
+          "type": "chat"
+        },
+        "venice/openai-gpt-oss-120b": {
+          "name": "venice/openai-gpt-oss-120b",
+          "displayName": "openai-gpt-oss-120b (Venice)",
+          "modelId": "venice/openai-gpt-oss-120b",
+          "type": "chat"
+        },
+        "venice/tencent-hy3-preview": {
+          "name": "venice/tencent-hy3-preview",
+          "displayName": "tencent-hy3-preview (Venice)",
+          "modelId": "venice/tencent-hy3-preview",
+          "type": "chat"
+        },
+        "venice/kimi-k2-6": {
+          "name": "venice/kimi-k2-6",
+          "displayName": "kimi-k2-6 (Venice)",
+          "modelId": "venice/kimi-k2-6",
+          "type": "chat"
+        },
+        "venice/kimi-k2-7-code": {
+          "name": "venice/kimi-k2-7-code",
+          "displayName": "kimi-k2-7-code (Venice)",
+          "modelId": "venice/kimi-k2-7-code",
+          "type": "chat"
+        },
+        "venice/kimi-k2-5": {
+          "name": "venice/kimi-k2-5",
+          "displayName": "kimi-k2-5 (Venice)",
+          "modelId": "venice/kimi-k2-5",
+          "type": "chat"
+        },
+        "venice/xiaomi-mimo-v2-5": {
+          "name": "venice/xiaomi-mimo-v2-5",
+          "displayName": "xiaomi-mimo-v2-5 (Venice)",
+          "modelId": "venice/xiaomi-mimo-v2-5",
+          "type": "chat"
+        },
+        "venice/deepseek-v4-pro": {
+          "name": "venice/deepseek-v4-pro",
+          "displayName": "deepseek-v4-pro (Venice)",
+          "modelId": "venice/deepseek-v4-pro",
+          "type": "chat"
+        },
+        "venice/deepseek-v4-flash": {
+          "name": "venice/deepseek-v4-flash",
+          "displayName": "deepseek-v4-flash (Venice)",
+          "modelId": "venice/deepseek-v4-flash",
+          "type": "chat"
+        },
+        "venice/deepseek-v3.2": {
+          "name": "venice/deepseek-v3.2",
+          "displayName": "deepseek-v3.2 (Venice)",
+          "modelId": "venice/deepseek-v3.2",
+          "type": "chat"
+        },
+        "venice/aion-labs-aion-2-0": {
+          "name": "venice/aion-labs-aion-2-0",
+          "displayName": "aion-labs-aion-2-0 (Venice)",
+          "modelId": "venice/aion-labs-aion-2-0",
+          "type": "chat"
+        },
+        "venice/llama-3.2-3b": {
+          "name": "venice/llama-3.2-3b",
+          "displayName": "llama-3.2-3b (Venice)",
+          "modelId": "venice/llama-3.2-3b",
+          "type": "chat"
+        },
+        "venice/llama-3.3-70b": {
+          "name": "venice/llama-3.3-70b",
+          "displayName": "llama-3.3-70b (Venice)",
+          "modelId": "venice/llama-3.3-70b",
+          "type": "chat"
+        },
+        "venice/openai-gpt-52": {
+          "name": "venice/openai-gpt-52",
+          "displayName": "openai-gpt-52 (Venice)",
+          "modelId": "venice/openai-gpt-52",
+          "type": "chat"
+        },
+        "venice/openai-gpt-52-codex": {
+          "name": "venice/openai-gpt-52-codex",
+          "displayName": "openai-gpt-52-codex (Venice)",
+          "modelId": "venice/openai-gpt-52-codex",
+          "type": "chat"
+        },
+        "venice/openai-gpt-53-codex": {
+          "name": "venice/openai-gpt-53-codex",
+          "displayName": "openai-gpt-53-codex (Venice)",
+          "modelId": "venice/openai-gpt-53-codex",
+          "type": "chat"
+        },
+        "venice/openai-gpt-54": {
+          "name": "venice/openai-gpt-54",
+          "displayName": "openai-gpt-54 (Venice)",
+          "modelId": "venice/openai-gpt-54",
+          "type": "chat"
+        },
+        "venice/openai-gpt-54-pro": {
+          "name": "venice/openai-gpt-54-pro",
+          "displayName": "openai-gpt-54-pro (Venice)",
+          "modelId": "venice/openai-gpt-54-pro",
+          "type": "chat"
+        },
+        "venice/openai-gpt-54-mini": {
+          "name": "venice/openai-gpt-54-mini",
+          "displayName": "openai-gpt-54-mini (Venice)",
+          "modelId": "venice/openai-gpt-54-mini",
+          "type": "chat"
+        },
+        "venice/openai-gpt-55": {
+          "name": "venice/openai-gpt-55",
+          "displayName": "openai-gpt-55 (Venice)",
+          "modelId": "venice/openai-gpt-55",
+          "type": "chat"
+        },
+        "venice/openai-gpt-55-pro": {
+          "name": "venice/openai-gpt-55-pro",
+          "displayName": "openai-gpt-55-pro (Venice)",
+          "modelId": "venice/openai-gpt-55-pro",
+          "type": "chat"
+        },
+        "venice/openai-gpt-4o-2024-11-20": {
+          "name": "venice/openai-gpt-4o-2024-11-20",
+          "displayName": "openai-gpt-4o-2024-11-20 (Venice)",
+          "modelId": "venice/openai-gpt-4o-2024-11-20",
+          "type": "chat"
+        },
+        "venice/openai-gpt-4o-mini-2024-07-18": {
+          "name": "venice/openai-gpt-4o-mini-2024-07-18",
+          "displayName": "openai-gpt-4o-mini-2024-07-18 (Venice)",
+          "modelId": "venice/openai-gpt-4o-mini-2024-07-18",
+          "type": "chat"
+        },
+        "venice/minimax-m3": {
+          "name": "venice/minimax-m3",
+          "displayName": "minimax-m3 (Venice)",
+          "modelId": "venice/minimax-m3",
+          "type": "chat"
+        },
+        "venice/minimax-m3-preview": {
+          "name": "venice/minimax-m3-preview",
+          "displayName": "minimax-m3-preview (Venice)",
+          "modelId": "venice/minimax-m3-preview",
+          "type": "chat"
+        },
+        "venice/minimax-m25": {
+          "name": "venice/minimax-m25",
+          "displayName": "minimax-m25 (Venice)",
+          "modelId": "venice/minimax-m25",
+          "type": "chat"
+        },
+        "venice/minimax-m27": {
+          "name": "venice/minimax-m27",
+          "displayName": "minimax-m27 (Venice)",
+          "modelId": "venice/minimax-m27",
+          "type": "chat"
+        },
+        "venice/mercury-2": {
+          "name": "venice/mercury-2",
+          "displayName": "mercury-2 (Venice)",
+          "modelId": "venice/mercury-2",
+          "type": "chat"
+        },
+        "venice/nvidia-nemotron-3-nano-30b-a3b": {
+          "name": "venice/nvidia-nemotron-3-nano-30b-a3b",
+          "displayName": "nvidia-nemotron-3-nano-30b-a3b (Venice)",
+          "modelId": "venice/nvidia-nemotron-3-nano-30b-a3b",
+          "type": "chat"
+        },
+        "venice/nvidia-nemotron-3-ultra-550b-a55b": {
+          "name": "venice/nvidia-nemotron-3-ultra-550b-a55b",
+          "displayName": "nvidia-nemotron-3-ultra-550b-a55b (Venice)",
+          "modelId": "venice/nvidia-nemotron-3-ultra-550b-a55b",
+          "type": "chat"
+        },
+        "venice/nvidia-nemotron-cascade-2-30b-a3b": {
+          "name": "venice/nvidia-nemotron-cascade-2-30b-a3b",
+          "displayName": "nvidia-nemotron-cascade-2-30b-a3b (Venice)",
+          "modelId": "venice/nvidia-nemotron-cascade-2-30b-a3b",
+          "type": "chat"
+        },
+        "venice/e2ee-venice-uncensored-24b-p": {
+          "name": "venice/e2ee-venice-uncensored-24b-p",
+          "displayName": "e2ee-venice-uncensored-24b-p (Venice)",
+          "modelId": "venice/e2ee-venice-uncensored-24b-p",
+          "type": "chat"
+        },
+        "venice/e2ee-gemma-3-27b-p": {
+          "name": "venice/e2ee-gemma-3-27b-p",
+          "displayName": "e2ee-gemma-3-27b-p (Venice)",
+          "modelId": "venice/e2ee-gemma-3-27b-p",
+          "type": "chat"
+        },
+        "venice/e2ee-gemma-4-26b-a4b-uncensored-p": {
+          "name": "venice/e2ee-gemma-4-26b-a4b-uncensored-p",
+          "displayName": "e2ee-gemma-4-26b-a4b-uncensored-p (Venice)",
+          "modelId": "venice/e2ee-gemma-4-26b-a4b-uncensored-p",
+          "type": "chat"
+        },
+        "venice/e2ee-glm-4-7-p": {
+          "name": "venice/e2ee-glm-4-7-p",
+          "displayName": "e2ee-glm-4-7-p (Venice)",
+          "modelId": "venice/e2ee-glm-4-7-p",
+          "type": "chat"
+        },
+        "venice/e2ee-gpt-oss-20b-p": {
+          "name": "venice/e2ee-gpt-oss-20b-p",
+          "displayName": "e2ee-gpt-oss-20b-p (Venice)",
+          "modelId": "venice/e2ee-gpt-oss-20b-p",
+          "type": "chat"
+        },
+        "venice/e2ee-gpt-oss-120b-p": {
+          "name": "venice/e2ee-gpt-oss-120b-p",
+          "displayName": "e2ee-gpt-oss-120b-p (Venice)",
+          "modelId": "venice/e2ee-gpt-oss-120b-p",
+          "type": "chat"
+        },
+        "venice/e2ee-qwen-2-5-7b-p": {
+          "name": "venice/e2ee-qwen-2-5-7b-p",
+          "displayName": "e2ee-qwen-2-5-7b-p (Venice)",
+          "modelId": "venice/e2ee-qwen-2-5-7b-p",
+          "type": "chat"
+        },
+        "venice/e2ee-qwen3-6-35b-a3b-uncensored-p": {
+          "name": "venice/e2ee-qwen3-6-35b-a3b-uncensored-p",
+          "displayName": "e2ee-qwen3-6-35b-a3b-uncensored-p (Venice)",
+          "modelId": "venice/e2ee-qwen3-6-35b-a3b-uncensored-p",
+          "type": "chat"
+        },
+        "venice/e2ee-qwen3-30b-a3b-p": {
+          "name": "venice/e2ee-qwen3-30b-a3b-p",
+          "displayName": "e2ee-qwen3-30b-a3b-p (Venice)",
+          "modelId": "venice/e2ee-qwen3-30b-a3b-p",
+          "type": "chat"
+        },
+        "venice/e2ee-qwen3-vl-30b-a3b-p": {
+          "name": "venice/e2ee-qwen3-vl-30b-a3b-p",
+          "displayName": "e2ee-qwen3-vl-30b-a3b-p (Venice)",
+          "modelId": "venice/e2ee-qwen3-vl-30b-a3b-p",
+          "type": "chat"
+        },
+        "venice/e2ee-glm-5-1": {
+          "name": "venice/e2ee-glm-5-1",
+          "displayName": "e2ee-glm-5-1 (Venice)",
+          "modelId": "venice/e2ee-glm-5-1",
+          "type": "chat"
+        },
+        "venice/e2ee-qwen3-6-35b-a3b": {
+          "name": "venice/e2ee-qwen3-6-35b-a3b",
+          "displayName": "e2ee-qwen3-6-35b-a3b (Venice)",
+          "modelId": "venice/e2ee-qwen3-6-35b-a3b",
+          "type": "chat"
+        },
+        "venice/e2ee-gemma-4-31b": {
+          "name": "venice/e2ee-gemma-4-31b",
+          "displayName": "e2ee-gemma-4-31b (Venice)",
+          "modelId": "venice/e2ee-gemma-4-31b",
+          "type": "chat"
+        },
+        "zen/claude-fable-5": {
+          "name": "zen/claude-fable-5",
+          "displayName": "claude-fable-5 (Zen)",
+          "modelId": "zen/claude-fable-5",
+          "type": "chat"
         },
         "zen/claude-opus-4-8": {
           "name": "zen/claude-opus-4-8",
           "displayName": "claude-opus-4-8 (Zen)",
           "modelId": "zen/claude-opus-4-8",
-          "vendor": "anthropic",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
+          "type": "chat"
         },
-        "zen/claude-sonnet-4": {
-          "name": "zen/claude-sonnet-4",
-          "displayName": "claude-sonnet-4 (Zen)",
-          "modelId": "zen/claude-sonnet-4",
-          "vendor": "anthropic",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+        "zen/claude-opus-4-7": {
+          "name": "zen/claude-opus-4-7",
+          "displayName": "claude-opus-4-7 (Zen)",
+          "modelId": "zen/claude-opus-4-7",
+          "type": "chat"
         },
-        "zen/claude-sonnet-4-5": {
-          "name": "zen/claude-sonnet-4-5",
-          "displayName": "claude-sonnet-4-5 (Zen)",
-          "modelId": "zen/claude-sonnet-4-5",
-          "vendor": "anthropic",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+        "zen/claude-opus-4-6": {
+          "name": "zen/claude-opus-4-6",
+          "displayName": "claude-opus-4-6 (Zen)",
+          "modelId": "zen/claude-opus-4-6",
+          "type": "chat"
         },
         "zen/claude-sonnet-4-6": {
           "name": "zen/claude-sonnet-4-6",
           "displayName": "claude-sonnet-4-6 (Zen)",
           "modelId": "zen/claude-sonnet-4-6",
-          "vendor": "anthropic",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+          "type": "chat"
         },
-        "zen/deepseek-v4-flash-free": {
-          "name": "zen/deepseek-v4-flash-free",
-          "displayName": "deepseek-v4-flash-free (Zen)",
-          "modelId": "zen/deepseek-v4-flash-free",
-          "vendor": "deepseek",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
-        },
-        "zen/gemini-3-flash": {
-          "name": "zen/gemini-3-flash",
-          "displayName": "gemini-3-flash (Zen)",
-          "modelId": "zen/gemini-3-flash",
-          "vendor": "google",
-          "type": "chat",
-          "contextWindow": 1000000,
-          "capabilities": {
-            "toolCalling": true
-          }
-        },
-        "zen/gemini-3.1-pro": {
-          "name": "zen/gemini-3.1-pro",
-          "displayName": "gemini-3.1-pro (Zen)",
-          "modelId": "zen/gemini-3.1-pro",
-          "vendor": "google",
-          "type": "chat",
-          "contextWindow": 1000000,
-          "capabilities": {
-            "toolCalling": true
-          }
+        "zen/claude-haiku-4-5": {
+          "name": "zen/claude-haiku-4-5",
+          "displayName": "claude-haiku-4-5 (Zen)",
+          "modelId": "zen/claude-haiku-4-5",
+          "type": "chat"
         },
         "zen/gemini-3.5-flash": {
           "name": "zen/gemini-3.5-flash",
           "displayName": "gemini-3.5-flash (Zen)",
           "modelId": "zen/gemini-3.5-flash",
-          "vendor": "google",
-          "type": "chat",
-          "contextWindow": 1000000,
-          "capabilities": {
-            "toolCalling": true
-          }
+          "type": "chat"
         },
-        "zen/glm-5": {
-          "name": "zen/glm-5",
-          "displayName": "glm-5 (Zen)",
-          "modelId": "zen/glm-5",
-          "vendor": "zhipu",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true
-          }
+        "zen/gemini-3.1-pro": {
+          "name": "zen/gemini-3.1-pro",
+          "displayName": "gemini-3.1-pro (Zen)",
+          "modelId": "zen/gemini-3.1-pro",
+          "type": "chat"
         },
-        "zen/glm-5.1": {
-          "name": "zen/glm-5.1",
-          "displayName": "glm-5.1 (Zen)",
-          "modelId": "zen/glm-5.1",
-          "vendor": "zhipu",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "reasoning": true
-          }
-        },
-        "zen/gpt-5": {
-          "name": "zen/gpt-5",
-          "displayName": "gpt-5 (Zen)",
-          "modelId": "zen/gpt-5",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
-        },
-        "zen/gpt-5-codex": {
-          "name": "zen/gpt-5-codex",
-          "displayName": "gpt-5-codex (Zen)",
-          "modelId": "zen/gpt-5-codex",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
-        },
-        "zen/gpt-5-nano": {
-          "name": "zen/gpt-5-nano",
-          "displayName": "gpt-5-nano (Zen)",
-          "modelId": "zen/gpt-5-nano",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
-        },
-        "zen/gpt-5.1": {
-          "name": "zen/gpt-5.1",
-          "displayName": "gpt-5.1 (Zen)",
-          "modelId": "zen/gpt-5.1",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
-        },
-        "zen/gpt-5.1-codex": {
-          "name": "zen/gpt-5.1-codex",
-          "displayName": "gpt-5.1-codex (Zen)",
-          "modelId": "zen/gpt-5.1-codex",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
-        },
-        "zen/gpt-5.1-codex-max": {
-          "name": "zen/gpt-5.1-codex-max",
-          "displayName": "gpt-5.1-codex-max (Zen)",
-          "modelId": "zen/gpt-5.1-codex-max",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
-        },
-        "zen/gpt-5.1-codex-mini": {
-          "name": "zen/gpt-5.1-codex-mini",
-          "displayName": "gpt-5.1-codex-mini (Zen)",
-          "modelId": "zen/gpt-5.1-codex-mini",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
-        },
-        "zen/gpt-5.2": {
-          "name": "zen/gpt-5.2",
-          "displayName": "gpt-5.2 (Zen)",
-          "modelId": "zen/gpt-5.2",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
-        },
-        "zen/gpt-5.2-codex": {
-          "name": "zen/gpt-5.2-codex",
-          "displayName": "gpt-5.2-codex (Zen)",
-          "modelId": "zen/gpt-5.2-codex",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
-        },
-        "zen/gpt-5.3-codex": {
-          "name": "zen/gpt-5.3-codex",
-          "displayName": "gpt-5.3-codex (Zen)",
-          "modelId": "zen/gpt-5.3-codex",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
-        },
-        "zen/gpt-5.3-codex-spark": {
-          "name": "zen/gpt-5.3-codex-spark",
-          "displayName": "gpt-5.3-codex-spark (Zen)",
-          "modelId": "zen/gpt-5.3-codex-spark",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 200000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true,
-            "reasoning": true
-          }
-        },
-        "zen/gpt-5.4": {
-          "name": "zen/gpt-5.4",
-          "displayName": "gpt-5.4 (Zen)",
-          "modelId": "zen/gpt-5.4",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
-        },
-        "zen/gpt-5.4-mini": {
-          "name": "zen/gpt-5.4-mini",
-          "displayName": "gpt-5.4-mini (Zen)",
-          "modelId": "zen/gpt-5.4-mini",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
-        },
-        "zen/gpt-5.4-nano": {
-          "name": "zen/gpt-5.4-nano",
-          "displayName": "gpt-5.4-nano (Zen)",
-          "modelId": "zen/gpt-5.4-nano",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
-        },
-        "zen/gpt-5.4-pro": {
-          "name": "zen/gpt-5.4-pro",
-          "displayName": "gpt-5.4-pro (Zen)",
-          "modelId": "zen/gpt-5.4-pro",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+        "zen/gemini-3-flash": {
+          "name": "zen/gemini-3-flash",
+          "displayName": "gemini-3-flash (Zen)",
+          "modelId": "zen/gemini-3-flash",
+          "type": "chat"
         },
         "zen/gpt-5.5": {
           "name": "zen/gpt-5.5",
           "displayName": "gpt-5.5 (Zen)",
           "modelId": "zen/gpt-5.5",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+          "type": "chat"
         },
         "zen/gpt-5.5-pro": {
           "name": "zen/gpt-5.5-pro",
           "displayName": "gpt-5.5-pro (Zen)",
           "modelId": "zen/gpt-5.5-pro",
-          "vendor": "openai",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+          "type": "chat"
+        },
+        "zen/gpt-5.4": {
+          "name": "zen/gpt-5.4",
+          "displayName": "gpt-5.4 (Zen)",
+          "modelId": "zen/gpt-5.4",
+          "type": "chat"
+        },
+        "zen/gpt-5.4-pro": {
+          "name": "zen/gpt-5.4-pro",
+          "displayName": "gpt-5.4-pro (Zen)",
+          "modelId": "zen/gpt-5.4-pro",
+          "type": "chat"
+        },
+        "zen/gpt-5.4-mini": {
+          "name": "zen/gpt-5.4-mini",
+          "displayName": "gpt-5.4-mini (Zen)",
+          "modelId": "zen/gpt-5.4-mini",
+          "type": "chat"
+        },
+        "zen/gpt-5.4-nano": {
+          "name": "zen/gpt-5.4-nano",
+          "displayName": "gpt-5.4-nano (Zen)",
+          "modelId": "zen/gpt-5.4-nano",
+          "type": "chat"
+        },
+        "zen/gpt-5.3-codex-spark": {
+          "name": "zen/gpt-5.3-codex-spark",
+          "displayName": "gpt-5.3-codex-spark (Zen)",
+          "modelId": "zen/gpt-5.3-codex-spark",
+          "type": "chat"
+        },
+        "zen/gpt-5.3-codex": {
+          "name": "zen/gpt-5.3-codex",
+          "displayName": "gpt-5.3-codex (Zen)",
+          "modelId": "zen/gpt-5.3-codex",
+          "type": "chat"
+        },
+        "zen/gpt-5.2": {
+          "name": "zen/gpt-5.2",
+          "displayName": "gpt-5.2 (Zen)",
+          "modelId": "zen/gpt-5.2",
+          "type": "chat"
+        },
+        "zen/gpt-5.2-codex": {
+          "name": "zen/gpt-5.2-codex",
+          "displayName": "gpt-5.2-codex (Zen)",
+          "modelId": "zen/gpt-5.2-codex",
+          "type": "chat"
+        },
+        "zen/gpt-5.1-codex-max": {
+          "name": "zen/gpt-5.1-codex-max",
+          "displayName": "gpt-5.1-codex-max (Zen)",
+          "modelId": "zen/gpt-5.1-codex-max",
+          "type": "chat"
+        },
+        "zen/gpt-5.1-codex-mini": {
+          "name": "zen/gpt-5.1-codex-mini",
+          "displayName": "gpt-5.1-codex-mini (Zen)",
+          "modelId": "zen/gpt-5.1-codex-mini",
+          "type": "chat"
         },
         "zen/grok-build-0.1": {
           "name": "zen/grok-build-0.1",
           "displayName": "grok-build-0.1 (Zen)",
           "modelId": "zen/grok-build-0.1",
-          "vendor": "xai",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "reasoning": true
-          }
+          "type": "chat"
         },
-        "zen/kimi-k2.5": {
-          "name": "zen/kimi-k2.5",
-          "displayName": "kimi-k2.5 (Zen)",
-          "modelId": "zen/kimi-k2.5",
-          "vendor": "moonshot",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+        "zen/deepseek-v4-pro": {
+          "name": "zen/deepseek-v4-pro",
+          "displayName": "deepseek-v4-pro (Zen)",
+          "modelId": "zen/deepseek-v4-pro",
+          "type": "chat"
         },
-        "zen/kimi-k2.6": {
-          "name": "zen/kimi-k2.6",
-          "displayName": "kimi-k2.6 (Zen)",
-          "modelId": "zen/kimi-k2.6",
-          "vendor": "moonshot",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+        "zen/deepseek-v4-flash": {
+          "name": "zen/deepseek-v4-flash",
+          "displayName": "deepseek-v4-flash (Zen)",
+          "modelId": "zen/deepseek-v4-flash",
+          "type": "chat"
         },
-        "zen/mimo-v2.5-free": {
-          "name": "zen/mimo-v2.5-free",
-          "displayName": "mimo-v2.5-free (Zen)",
-          "modelId": "zen/mimo-v2.5-free",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true
-          }
+        "zen/glm-5.1": {
+          "name": "zen/glm-5.1",
+          "displayName": "glm-5.1 (Zen)",
+          "modelId": "zen/glm-5.1",
+          "type": "chat"
         },
-        "zen/minimax-m2.5": {
-          "name": "zen/minimax-m2.5",
-          "displayName": "minimax-m2.5 (Zen)",
-          "modelId": "zen/minimax-m2.5",
-          "vendor": "minimax",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true
-          }
-        },
-        "zen/minimax-m2.5-free": {
-          "name": "zen/minimax-m2.5-free",
-          "displayName": "minimax-m2.5-free (Zen)",
-          "modelId": "zen/minimax-m2.5-free",
-          "vendor": "minimax",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true
-          }
+        "zen/glm-5": {
+          "name": "zen/glm-5",
+          "displayName": "glm-5 (Zen)",
+          "modelId": "zen/glm-5",
+          "type": "chat"
         },
         "zen/minimax-m2.7": {
           "name": "zen/minimax-m2.7",
           "displayName": "minimax-m2.7 (Zen)",
           "modelId": "zen/minimax-m2.7",
-          "vendor": "minimax",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true
-          }
+          "type": "chat"
         },
-        "zen/nemotron-3-super-free": {
-          "name": "zen/nemotron-3-super-free",
-          "displayName": "nemotron-3-super-free (Zen)",
-          "modelId": "zen/nemotron-3-super-free",
-          "vendor": "nvidia",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true
-          }
+        "zen/minimax-m2.5": {
+          "name": "zen/minimax-m2.5",
+          "displayName": "minimax-m2.5 (Zen)",
+          "modelId": "zen/minimax-m2.5",
+          "type": "chat"
         },
-        "zen/qwen3.5-plus": {
-          "name": "zen/qwen3.5-plus",
-          "displayName": "qwen3.5-plus (Zen)",
-          "modelId": "zen/qwen3.5-plus",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+        "zen/kimi-k2.6": {
+          "name": "zen/kimi-k2.6",
+          "displayName": "kimi-k2.6 (Zen)",
+          "modelId": "zen/kimi-k2.6",
+          "type": "chat"
         },
         "zen/qwen3.6-plus": {
           "name": "zen/qwen3.6-plus",
           "displayName": "qwen3.6-plus (Zen)",
           "modelId": "zen/qwen3.6-plus",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+          "type": "chat"
+        },
+        "zen/qwen3.5-plus": {
+          "name": "zen/qwen3.5-plus",
+          "displayName": "qwen3.5-plus (Zen)",
+          "modelId": "zen/qwen3.5-plus",
+          "type": "chat"
+        },
+        "zen/big-pickle": {
+          "name": "zen/big-pickle",
+          "displayName": "big-pickle (Zen)",
+          "modelId": "zen/big-pickle",
+          "type": "chat"
+        },
+        "zen/deepseek-v4-flash-free": {
+          "name": "zen/deepseek-v4-flash-free",
+          "displayName": "deepseek-v4-flash-free (Zen)",
+          "modelId": "zen/deepseek-v4-flash-free",
+          "type": "chat"
+        },
+        "zen/mimo-v2.5-free": {
+          "name": "zen/mimo-v2.5-free",
+          "displayName": "mimo-v2.5-free (Zen)",
+          "modelId": "zen/mimo-v2.5-free",
+          "type": "chat"
         },
         "zen/qwen3.6-plus-free": {
           "name": "zen/qwen3.6-plus-free",
           "displayName": "qwen3.6-plus-free (Zen)",
           "modelId": "zen/qwen3.6-plus-free",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 128000,
-          "capabilities": {
-            "toolCalling": true,
-            "coding": true
-          }
+          "type": "chat"
+        },
+        "zen/minimax-m3-free": {
+          "name": "zen/minimax-m3-free",
+          "displayName": "minimax-m3-free (Zen)",
+          "modelId": "zen/minimax-m3-free",
+          "type": "chat"
+        },
+        "zen/nemotron-3-ultra-free": {
+          "name": "zen/nemotron-3-ultra-free",
+          "displayName": "nemotron-3-ultra-free (Zen)",
+          "modelId": "zen/nemotron-3-ultra-free",
+          "type": "chat"
+        },
+        "zen/north-mini-code-free": {
+          "name": "zen/north-mini-code-free",
+          "displayName": "north-mini-code-free (Zen)",
+          "modelId": "zen/north-mini-code-free",
+          "type": "chat"
         },
         "cachyos-fwd/DeepSeek-Qwen3-8B-GGUF": {
           "name": "cachyos-fwd/DeepSeek-Qwen3-8B-GGUF",
-          "displayName": "DeepSeek-Qwen3-8B (Lemonade)",
+          "displayName": "DeepSeek-Qwen3-8B-GGUF (Lemonade)",
           "modelId": "cachyos-fwd/DeepSeek-Qwen3-8B-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "reasoning": true,
-            "toolCalling": true
-          }
-        },
-        "cachyos-fwd/GLM-4.5-Air-UD-Q4K-XL-GGUF": {
-          "name": "cachyos-fwd/GLM-4.5-Air-UD-Q4K-XL-GGUF",
-          "displayName": "GLM-4.5-Air (Lemonade)",
-          "modelId": "cachyos-fwd/GLM-4.5-Air-UD-Q4K-XL-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "coding": true,
-            "reasoning": true,
-            "toolCalling": true
-          }
-        },
-        "cachyos-fwd/Llama-4-Scout-17B-16E-Instruct-GGUF": {
-          "name": "cachyos-fwd/Llama-4-Scout-17B-16E-Instruct-GGUF",
-          "displayName": "Llama-4-Scout-17B (Lemonade)",
-          "modelId": "cachyos-fwd/Llama-4-Scout-17B-16E-Instruct-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "toolCalling": true
-          }
-        },
-        "cachyos-fwd/Qwen3-4B-Instruct-2507-GGUF": {
-          "name": "cachyos-fwd/Qwen3-4B-Instruct-2507-GGUF",
-          "displayName": "Qwen3-4B-Instruct (Lemonade)",
-          "modelId": "cachyos-fwd/Qwen3-4B-Instruct-2507-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "toolCalling": true
-          }
-        },
-        "cachyos-fwd/gpt-oss-120b-mxfp-GGUF": {
-          "name": "cachyos-fwd/gpt-oss-120b-mxfp-GGUF",
-          "displayName": "gpt-oss-120b (Lemonade)",
-          "modelId": "cachyos-fwd/gpt-oss-120b-mxfp-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "coding": true,
-            "reasoning": true,
-            "toolCalling": true
-          }
-        },
-        "cachyos-fwd/gpt-oss-20b-mxfp4-GGUF": {
-          "name": "cachyos-fwd/gpt-oss-20b-mxfp4-GGUF",
-          "displayName": "gpt-oss-20b (Lemonade)",
-          "modelId": "cachyos-fwd/gpt-oss-20b-mxfp4-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "reasoning": true,
-            "toolCalling": true
-          }
-        },
-        "venice/venice-uncensored-1-2": {
-          "name": "venice/venice-uncensored-1-2",
-          "displayName": "Venice Uncensored 1.2",
-          "modelId": "venice/venice-uncensored-1-2",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 32768,
-          "capabilities": {
-            "toolCalling": true
-          }
-        },
-        "venice/hermes-3-llama-3.1-405b": {
-          "name": "venice/hermes-3-llama-3.1-405b",
-          "displayName": "Hermes-3 Llama 405B (Venice)",
-          "modelId": "venice/hermes-3-llama-3.1-405b",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "toolCalling": true
-          }
-        },
-        "venice/qwen3-coder-480b-a35b-instruct-turbo": {
-          "name": "venice/qwen3-coder-480b-a35b-instruct-turbo",
-          "displayName": "Qwen3-Coder-480B (Venice)",
-          "modelId": "venice/qwen3-coder-480b-a35b-instruct-turbo",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "coding": true,
-            "toolCalling": true
-          }
-        },
-        "venice/deepseek-v4-pro": {
-          "name": "venice/deepseek-v4-pro",
-          "displayName": "DeepSeek V4 Pro (Venice)",
-          "modelId": "venice/deepseek-v4-pro",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "coding": true,
-            "reasoning": true,
-            "toolCalling": true
-          }
-        },
-        "cachyos-fwd/Qwen3.5-122B-A10B-MTP-GGUF": {
-          "name": "cachyos-fwd/Qwen3.5-122B-A10B-MTP-GGUF",
-          "displayName": "Qwen3.5-122B-A10B (Lemonade)",
-          "modelId": "cachyos-fwd/Qwen3.5-122B-A10B-MTP-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "reasoning": true,
-            "toolCalling": true
-          }
-        },
-        "cachyos-fwd/Qwen3-Next-80B-A3B-Instruct-GGUF": {
-          "name": "cachyos-fwd/Qwen3-Next-80B-A3B-Instruct-GGUF",
-          "displayName": "Qwen3-Next-80B (Lemonade)",
-          "modelId": "cachyos-fwd/Qwen3-Next-80B-A3B-Instruct-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "toolCalling": true
-          }
-        },
-        "cachyos-fwd/Qwen2.5-Coder-32B-Instruct-GGUF": {
-          "name": "cachyos-fwd/Qwen2.5-Coder-32B-Instruct-GGUF",
-          "displayName": "Qwen2.5-Coder-32B (Lemonade)",
-          "modelId": "cachyos-fwd/Qwen2.5-Coder-32B-Instruct-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "coding": true,
-            "toolCalling": true
-          }
+          "type": "chat"
         },
         "cachyos-fwd/Devstral-Small-2507-GGUF": {
           "name": "cachyos-fwd/Devstral-Small-2507-GGUF",
-          "displayName": "Devstral-Small (Lemonade)",
+          "displayName": "Devstral-Small-2507-GGUF (Lemonade)",
           "modelId": "cachyos-fwd/Devstral-Small-2507-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "coding": true,
-            "toolCalling": true
-          }
+          "type": "chat"
         },
-        "cachyos-fwd/Qwen3-VL-8B-Instruct-GGUF": {
-          "name": "cachyos-fwd/Qwen3-VL-8B-Instruct-GGUF",
-          "displayName": "Qwen3-VL-8B vision (Lemonade)",
-          "modelId": "cachyos-fwd/Qwen3-VL-8B-Instruct-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "toolCalling": true,
-            "vision": true
-          }
+        "cachyos-fwd/Flux-2-Klein-4B": {
+          "name": "cachyos-fwd/Flux-2-Klein-4B",
+          "displayName": "Flux-2-Klein-4B (Lemonade)",
+          "modelId": "cachyos-fwd/Flux-2-Klein-4B",
+          "type": "chat"
         },
-        "cachyos-fwd/Cogito-v2-llama-109B-MoE-GGUF": {
-          "name": "cachyos-fwd/Cogito-v2-llama-109B-MoE-GGUF",
-          "displayName": "Cogito-v2-109B (Lemonade)",
-          "modelId": "cachyos-fwd/Cogito-v2-llama-109B-MoE-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "reasoning": true,
-            "toolCalling": true
-          }
+        "cachyos-fwd/GLM-4.5-Air-UD-Q4K-XL-GGUF": {
+          "name": "cachyos-fwd/GLM-4.5-Air-UD-Q4K-XL-GGUF",
+          "displayName": "GLM-4.5-Air-UD-Q4K-XL-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/GLM-4.5-Air-UD-Q4K-XL-GGUF",
+          "type": "chat"
+        },
+        "cachyos-fwd/Llama-4-Scout-17B-16E-Instruct-GGUF": {
+          "name": "cachyos-fwd/Llama-4-Scout-17B-16E-Instruct-GGUF",
+          "displayName": "Llama-4-Scout-17B-16E-Instruct-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/Llama-4-Scout-17B-16E-Instruct-GGUF",
+          "type": "chat"
         },
         "cachyos-fwd/Nemotron-3-Nano-30B-A3B-GGUF": {
           "name": "cachyos-fwd/Nemotron-3-Nano-30B-A3B-GGUF",
-          "displayName": "Nemotron-3-Nano-30B (Lemonade)",
+          "displayName": "Nemotron-3-Nano-30B-A3B-GGUF (Lemonade)",
           "modelId": "cachyos-fwd/Nemotron-3-Nano-30B-A3B-GGUF",
-          "vendor": "other",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "reasoning": true,
-            "toolCalling": true
-          }
+          "type": "chat"
         },
-        "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF": {
-          "name": "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
-          "displayName": "Qwen3.6-35B-MTP (Lemonade)",
-          "modelId": "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
-          "vendor": "alibaba",
-          "type": "chat",
-          "contextWindow": 131072,
-          "capabilities": {
-            "toolCalling": true,
-            "reasoning": true,
-            "coding": true
-          }
+        "cachyos-fwd/Qwen2.5-Coder-32B-Instruct-GGUF": {
+          "name": "cachyos-fwd/Qwen2.5-Coder-32B-Instruct-GGUF",
+          "displayName": "Qwen2.5-Coder-32B-Instruct-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen2.5-Coder-32B-Instruct-GGUF",
+          "type": "chat"
+        },
+        "cachyos-fwd/Qwen3-30B-A3B-GGUF": {
+          "name": "cachyos-fwd/Qwen3-30B-A3B-GGUF",
+          "displayName": "Qwen3-30B-A3B-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3-30B-A3B-GGUF",
+          "type": "chat"
+        },
+        "cachyos-fwd/Qwen3-4B-Instruct-2507-GGUF": {
+          "name": "cachyos-fwd/Qwen3-4B-Instruct-2507-GGUF",
+          "displayName": "Qwen3-4B-Instruct-2507-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3-4B-Instruct-2507-GGUF",
+          "type": "chat"
+        },
+        "cachyos-fwd/Qwen3-Coder-30B-A3B-Instruct-GGUF": {
+          "name": "cachyos-fwd/Qwen3-Coder-30B-A3B-Instruct-GGUF",
+          "displayName": "Qwen3-Coder-30B-A3B-Instruct-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3-Coder-30B-A3B-Instruct-GGUF",
+          "type": "chat"
+        },
+        "cachyos-fwd/Qwen3-Coder-Next-GGUF": {
+          "name": "cachyos-fwd/Qwen3-Coder-Next-GGUF",
+          "displayName": "Qwen3-Coder-Next-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3-Coder-Next-GGUF",
+          "type": "chat"
+        },
+        "cachyos-fwd/Qwen3-Embedding-4B-GGUF": {
+          "name": "cachyos-fwd/Qwen3-Embedding-4B-GGUF",
+          "displayName": "Qwen3-Embedding-4B-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3-Embedding-4B-GGUF",
+          "type": "chat"
+        },
+        "cachyos-fwd/Qwen3-VL-8B-Instruct-GGUF": {
+          "name": "cachyos-fwd/Qwen3-VL-8B-Instruct-GGUF",
+          "displayName": "Qwen3-VL-8B-Instruct-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3-VL-8B-Instruct-GGUF",
+          "type": "chat"
+        },
+        "cachyos-fwd/Qwen3.6-35B-A3B-GGUF": {
+          "name": "cachyos-fwd/Qwen3.6-35B-A3B-GGUF",
+          "displayName": "Qwen3.6-35B-A3B-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/Qwen3.6-35B-A3B-GGUF",
+          "type": "chat"
+        },
+        "cachyos-fwd/bge-reranker-v2-m3-GGUF": {
+          "name": "cachyos-fwd/bge-reranker-v2-m3-GGUF",
+          "displayName": "bge-reranker-v2-m3-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/bge-reranker-v2-m3-GGUF",
+          "type": "chat"
+        },
+        "cachyos-fwd/gpt-oss-120b-mxfp-GGUF": {
+          "name": "cachyos-fwd/gpt-oss-120b-mxfp-GGUF",
+          "displayName": "gpt-oss-120b-mxfp-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/gpt-oss-120b-mxfp-GGUF",
+          "type": "chat"
+        },
+        "cachyos-fwd/gpt-oss-20b-mxfp4-GGUF": {
+          "name": "cachyos-fwd/gpt-oss-20b-mxfp4-GGUF",
+          "displayName": "gpt-oss-20b-mxfp4-GGUF (Lemonade)",
+          "modelId": "cachyos-fwd/gpt-oss-20b-mxfp4-GGUF",
+          "type": "chat"
+        },
+        "x870eglacial/qwen3-coder-next-32k:latest": {
+          "name": "x870eglacial/qwen3-coder-next-32k:latest",
+          "displayName": "qwen3-coder-next-32k:latest (Ollama)",
+          "modelId": "x870eglacial/qwen3-coder-next-32k:latest",
+          "type": "chat"
+        },
+        "x870eglacial/qwen2.5-coder:7b": {
+          "name": "x870eglacial/qwen2.5-coder:7b",
+          "displayName": "qwen2.5-coder:7b (Ollama)",
+          "modelId": "x870eglacial/qwen2.5-coder:7b",
+          "type": "chat"
+        },
+        "x870eglacial/qwen3-coder-next:latest": {
+          "name": "x870eglacial/qwen3-coder-next:latest",
+          "displayName": "qwen3-coder-next:latest (Ollama)",
+          "modelId": "x870eglacial/qwen3-coder-next:latest",
+          "type": "chat"
         }
       }
     },

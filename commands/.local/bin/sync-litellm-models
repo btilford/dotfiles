@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""
+sync-litellm-models — single source of truth for LiteLLM model routing.
+
+Fetches the REAL model list from each provider's native /models endpoint and
+syncs it to whichever targets exist on THIS machine:
+
+  * gateway  — reconciles the LiteLLM DB (STORE_MODEL_IN_DB=true) to exactly the
+               real models, removing the openai/* wildcards that pollute
+               GET /v1/models with 600+ junk entries (every OpenAI registry
+               model stamped under each prefix). Fixes Hermes and any client
+               that lists models from the gateway.
+  * pi       — rewrites the catalog in ~/.pi/agent/models.json
+  * opencode — rewrites the picker in
+               ~/dotfiles/opencode/.config/opencode/opencode.json
+
+Not every machine has the same agents installed, so targets are auto-detected
+and (when run interactively without flags) confirmed before any change.
+
+Why explicit ids instead of wildcards: wildcards route any suffix but make
+/v1/models return the whole OpenAI registry per prefix. Registering the real
+ids gives a clean, accurate list everywhere. Trade-off: a brand-new model on a
+provider isn't routable until this re-runs — which is one command.
+
+Secrets come from Infisical (same project as the rest of the homelab).
+
+Examples:
+  sync-litellm-models                 # detect targets, confirm, sync
+  sync-litellm-models --yes           # sync all detected targets, no prompt
+  sync-litellm-models --only gateway  # just reconcile the LiteLLM DB
+  sync-litellm-models --only pi,opencode
+  sync-litellm-models --dry-run       # show planned changes, touch nothing
+"""
+from __future__ import annotations
+import argparse
+import json
+import os
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+INFISICAL_PROJECT = "8126d8e5-926f-407c-a1f7-e88509c3d585"
+INFISICAL_DOMAIN = "https://infisical.example.com"
+GATEWAY = "https://litellm.example.net"
+TIMEOUT = 20
+
+HOME = Path.home()
+PI_MODELS = HOME / ".pi/agent/models.json"
+OPENCODE_JSON = HOME / "dotfiles/opencode/.config/opencode/opencode.json"
+
+
+# --- helpers --------------------------------------------------------------
+
+def infisical(name: str) -> str:
+    out = subprocess.run(
+        ["infisical", "secrets", "get", name,
+         "--projectId", INFISICAL_PROJECT, "--env", "prod",
+         "--domain", INFISICAL_DOMAIN, "--plain", "--silent"],
+        capture_output=True, text=True, timeout=30)
+    val = out.stdout.strip()
+    if not val:
+        raise SystemExit(f"Infisical: could not read {name} "
+                         f"(is `infisical` logged in?)")
+    return val
+
+
+def http_json(url, *, token=None, method="GET", body=None) -> dict:
+    # Some providers (OpenCode Zen) 403 the default Python urllib User-Agent.
+    headers = {"Content-Type": "application/json", "User-Agent": "curl/8"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+        return json.loads(r.read() or "{}")
+
+
+def gateway_reachable(master) -> bool:
+    try:
+        http_json(f"{GATEWAY}/health/readiness")
+        return True
+    except Exception:
+        return False
+
+
+# --- provider definitions -------------------------------------------------
+
+def provider_specs(keys) -> list[dict]:
+    return [
+        {"prefix": "venice", "label": "Venice",
+         "models_url": "https://api.venice.ai/api/v1/models?type=text",
+         "token": keys["VENICE"],
+         "litellm": lambda mid: {"model": f"openai/{mid}",
+                                 "api_base": "https://api.venice.ai/api/v1",
+                                 "api_key": keys["VENICE"]}},
+        {"prefix": "zen", "label": "Zen",
+         "models_url": "https://opencode.ai/zen/v1/models",
+         "token": keys["ZEN"],
+         "litellm": lambda mid: {"model": f"openai/{mid}",
+                                 "api_base": "https://opencode.ai/zen/v1",
+                                 "api_key": keys["ZEN"]}},
+        {"prefix": "cachyos-fwd", "label": "Lemonade",
+         "models_url": "http://192.0.2.11:13305/v1/models", "token": None,
+         "litellm": lambda mid: {"model": f"openai/{mid}",
+                                 "api_base": "http://192.0.2.11:13305/v1",
+                                 "api_key": "none"}},
+        {"prefix": "x870eglacial", "label": "Ollama",
+         "models_url": "http://192.0.2.12:11434/v1/models", "token": None,
+         "litellm": lambda mid: {"model": f"ollama/{mid}",
+                                 "api_base": "http://192.0.2.12:11434",
+                                 "api_key": "none"}},
+    ]
+
+
+def fetch_provider(spec) -> tuple[list[str], bool]:
+    try:
+        data = http_json(spec["models_url"], token=spec["token"])
+    except Exception as e:
+        print(f"  ! {spec['label']} unreachable ({e}) — keeping its entries")
+        return [], False
+    return [m["id"] for m in data.get("data", [])], True
+
+
+# --- gateway reconciliation ----------------------------------------------
+
+def sync_gateway(specs, fetched, master, dry_run):
+    desired = {}
+    for spec in specs:
+        ids, ok = fetched[spec["prefix"]]
+        if ok:
+            for mid in ids:
+                desired[f"{spec['prefix']}/{mid}"] = spec["litellm"](mid)
+
+    def current_map():
+        info = http_json(f"{GATEWAY}/model/info", token=master)
+        return {m.get("model_name"): m.get("model_info", {}).get("id")
+                for m in info.get("data", [])}
+
+    reachable = {s["prefix"] for s in specs if fetched[s["prefix"]][1]}
+    current = current_map()
+
+    # Only touch a provider's entries when that provider was reachable this run,
+    # so an offline provider keeps its existing routes (incl. its wildcard).
+    to_delete = {n: i for n, i in current.items()
+                 if (n[:-2] if n.endswith("/*") else n.split("/", 1)[0]) in reachable
+                 and n not in desired}
+
+    print(f"  gateway: desired {len(desired)}, current {len(current)}, "
+          f"-{len(to_delete)} stale/wildcard")
+    if dry_run:
+        for n in list(to_delete)[:4]:
+            print(f"    - {n}")
+        # adds can't be computed reliably until wildcards are gone (phantoms)
+        print(f"    (+ up to {len(desired)} real models after wildcard removal)")
+        return
+
+    for mid in filter(None, to_delete.values()):
+        try:
+            http_json(f"{GATEWAY}/model/delete", token=master,
+                      method="POST", body={"id": mid})
+        except urllib.error.HTTPError:
+            pass
+
+    # Re-fetch AFTER deleting wildcards so phantom expansions are gone; only
+    # then are the genuinely-registered model_names trustworthy for dedup.
+    current = current_map()
+    to_add = {n: p for n, p in desired.items() if n not in current}
+    for name, params in to_add.items():
+        http_json(f"{GATEWAY}/model/new", token=master, method="POST",
+                  body={"model_name": name, "litellm_params": params})
+    print(f"  gateway reconciled: +{len(to_add)} real models.")
+
+
+# --- client configs -------------------------------------------------------
+
+def catalog(specs, fetched):
+    out = []
+    for spec in specs:
+        ids, ok = fetched[spec["prefix"]]
+        if ok:
+            out += [(f"{spec['prefix']}/{mid}", spec["label"]) for mid in ids]
+    return out
+
+
+def sync_pi(entries, dry_run):
+    cfg = json.loads(PI_MODELS.read_text())
+    cfg["providers"]["litellm"]["models"] = [
+        {"id": mid, "name": f"{mid.split('/', 1)[1]} ({label})"}
+        for mid, label in entries]
+    print(f"  pi: {len(entries)} models -> {PI_MODELS}")
+    if not dry_run:
+        PI_MODELS.write_text(json.dumps(cfg, indent=2) + "\n")
+
+
+def sync_opencode(entries, dry_run):
+    cfg = json.loads(OPENCODE_JSON.read_text())
+    prov = cfg.get("provider", {}).get("litellm")
+    if not prov:
+        print("  opencode: no litellm provider — skip")
+        return
+    prov["models"] = {
+        mid: {"name": mid, "displayName": f"{mid.split('/', 1)[1]} ({label})",
+              "modelId": mid, "type": "chat"}
+        for mid, label in entries}
+    print(f"  opencode: {len(entries)} models -> {OPENCODE_JSON}")
+    if not dry_run:
+        OPENCODE_JSON.write_text(json.dumps(cfg, indent=2) + "\n")
+
+
+# --- target detection + selection ----------------------------------------
+
+def detect_targets(master):
+    t = {}
+    t["gateway"] = gateway_reachable(master)
+    t["pi"] = PI_MODELS.exists()
+    t["opencode"] = OPENCODE_JSON.exists()
+    return t
+
+
+def select_targets(detected, args):
+    avail = [k for k, v in detected.items() if v]
+    if not avail:
+        raise SystemExit("No sync targets detected on this machine.")
+    if args.only:
+        want = [x.strip() for x in args.only.split(",")]
+        bad = [x for x in want if x not in detected]
+        if bad:
+            raise SystemExit(f"Unknown target(s): {bad}. Known: {list(detected)}")
+        missing = [x for x in want if not detected[x]]
+        if missing:
+            print(f"  note: requested but not detected here: {missing}")
+        return [x for x in want if detected[x]]
+    if args.yes or not sys.stdin.isatty():
+        return avail
+    print("Detected targets:", ", ".join(avail))
+    chosen = []
+    for name in avail:
+        ans = input(f"  sync {name}? [Y/n] ").strip().lower()
+        if ans in ("", "y", "yes"):
+            chosen.append(name)
+    return chosen
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Sync real provider models to LiteLLM + agents.")
+    ap.add_argument("--only", help="comma list: gateway,pi,opencode")
+    ap.add_argument("--yes", "-y", action="store_true", help="no prompt; all detected")
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args()
+
+    keys = {"VENICE": infisical("VENICE_API_KEY"), "ZEN": infisical("ZEN_API_KEY")}
+    master = infisical("LITELLM_MASTER_KEY")
+
+    detected = detect_targets(master)
+    targets = select_targets(detected, args)
+    if not targets:
+        print("Nothing selected.")
+        return
+    print("Syncing:", ", ".join(targets))
+
+    specs = provider_specs(keys)
+    print("Fetching provider model lists...")
+    fetched = {}
+    for spec in specs:
+        ids, ok = fetch_provider(spec)
+        fetched[spec["prefix"]] = (ids, ok)
+        if ok:
+            print(f"  {spec['label']}: {len(ids)} models")
+
+    if "gateway" in targets:
+        sync_gateway(specs, fetched, master, args.dry_run)
+    entries = catalog(specs, fetched)
+    if "pi" in targets:
+        sync_pi(entries, args.dry_run)
+    if "opencode" in targets:
+        sync_opencode(entries, args.dry_run)
+
+    print("Dry run — nothing changed." if args.dry_run else "Done.")
+
+
+if __name__ == "__main__":
+    main()
