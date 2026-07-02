@@ -29,11 +29,11 @@ for f in ~/.config/bashrc/*; do
 done
 
 # -----------------------------------------------------
-# Load single customization file (if exists)
+# Load local-only overrides (if exists)
 # -----------------------------------------------------
 
-if [ -f ~/.bashrc_custom ] ;then
-    source ~/.bashrc_custom
+if [ -f ~/.bashrc_local ] ;then
+    source ~/.bashrc_local
 fi
 
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!

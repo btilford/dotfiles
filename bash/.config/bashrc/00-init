@@ -6,4 +6,5 @@
 # Exports
 # -----------------------------------------------------
 export EDITOR=nvim
+export YARN_ENABLE_SCRIPTS=false
 export PATH="${HOME}/.local/bin:/usr/lib/ccache/bin/:${PATH}"
