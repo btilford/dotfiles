@@ -6,8 +6,8 @@ for f in ~/.config/zshrc/*; do
     fi
 done
 
-# Load single customization file (if exists)
-[[ -f ~/.zshrc_custom ]] && source ~/.zshrc_custom
+# Load local-only overrides (if exists)
+[[ -f ~/.zshrc_local ]] && source ~/.zshrc_local
 
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="$HOME/.sdkman"

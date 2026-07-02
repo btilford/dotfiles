@@ -1,6 +1,7 @@
 set -x OS_KERN (uname -s)
 set -gx XDG_CONFIG_HOME $HOME/.config
 set -x EDITOR 'nvim'
+set -x YARN_ENABLE_SCRIPTS false
 set -x VISUAL 'nvim'
 # Homebrew on macOS (Apple Silicon)
 if test "$OS_KERN" = Darwin

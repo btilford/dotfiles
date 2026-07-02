@@ -40,4 +40,3 @@ if test -f ~/.config/fish/local_only.fish
 end
 
 
-
