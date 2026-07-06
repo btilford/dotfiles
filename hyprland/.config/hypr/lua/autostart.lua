@@ -16,20 +16,12 @@ hl.on("hyprland.start", function()
         "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE XDG_RUNTIME_DIR; " ..
         "systemctl --user start hyprland-session.target'")
 
-    -- Per-host rofi DPI: this box drives 4K @ scale 1.5, where rofi auto-DPI (~122) stacks on
-    -- the compositor scale and renders oversized. Other hosts (laptop) get no override.
-    -- Imported by ~/.config/rofi/config.rasi via @import "~/.config/rofi/host-dpi.rasi".
-    do
-        local rofi_dpi = (host == "cachyos-fwd") and "configuration { dpi: 96; }\n" or ""
-        local rf = io.open(os.getenv("HOME") .. "/.config/rofi/host-dpi.rasi", "w")
-        if rf then rf:write(rofi_dpi); rf:close() end
-    end
-
     -- Wallpaper daemon (must come first for other components)
     hl.exec_cmd("awww-daemon")
 
     -- Status bar and notifications
-    hl.exec_cmd("waybar")
+    -- StartBar.sh picks waybar or quickshell based on $HYPR_BAR (see scripts/shell-env.sh).
+    hl.exec_cmd('sh -c "$HOME/.config/hypr/scripts/StartBar.sh"')
     hl.exec_cmd("swaync")
 
     -- System applets

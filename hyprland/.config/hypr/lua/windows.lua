@@ -8,7 +8,9 @@ hl.config({
         float_gaps = 4,
         gaps_workspaces = 4,
         border_size = 1,
-        layout = "dwindle",
+        -- Multi-monitor default. lua/layout-auto.lua switches to "scrolling" on
+        -- single-monitor setups (and back to "master" on 2+) at runtime/hotplug.
+        layout = "master",
         resize_on_border = true,
         extend_border_grab_area = true,
         hover_icon_on_border = true,

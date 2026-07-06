@@ -42,6 +42,11 @@ require("lua.layouts")
 require("lua.workspaces")
 
 -- -----------------------------------------------------
+-- Auto layout by monitor count (after windows + workspaces)
+-- -----------------------------------------------------
+require("lua.layout-auto")
+
+-- -----------------------------------------------------
 -- Misc & ecosystem
 -- -----------------------------------------------------
 require("lua.misc")
