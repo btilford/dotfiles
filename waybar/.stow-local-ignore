@@ -1,0 +1,4 @@
+# Not stowed into $HOME
+CLAUDE\.md
+# Runtime wallust output — never stow/commit
+wallust/colors-waybar\.css

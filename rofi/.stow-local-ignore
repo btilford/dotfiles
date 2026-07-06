@@ -1,0 +1,6 @@
+# Not stowed into $HOME
+CLAUDE\.md
+# Runtime/machine-local state — never stow/commit
+host-dpi\.rasi
+\.current_wallpaper
+wallust/colors-rofi\.rasi
