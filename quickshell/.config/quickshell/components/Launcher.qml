@@ -28,6 +28,8 @@ PanelWindow {
     property string query: ""
     property string folder: Quickshell.env("HOME")
     property var results: []
+    // reactive effective mode (for the UI chip/placeholder); mirrors effectiveMode()
+    readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : mode
 
     // ---- lifecycle ----
     function open(m) {
@@ -216,25 +218,68 @@ PanelWindow {
             anchors.margins: Theme.pad
             spacing: Theme.pad
 
-            Row {
+            Rectangle {
+                id: header
                 width: parent.width
-                spacing: 8
-                Text {
-                    text: {
-                        const m = root.effectiveMode();
-                        return m === "run" ? " " : m === "files" ? " " : " ";
-                    }
+                height: 46
+                color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.5)
+                radius: Theme.radius
+
+                // accent underline
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: 6
+                    anchors.rightMargin: 6
+                    height: 2
+                    radius: 1
                     color: Theme.accent
-                    font.family: Theme.fontMono
-                    font.pixelSize: Theme.fontSize + 2
-                    anchors.verticalCenter: parent.verticalCenter
                 }
+
+                // mode chip
+                Rectangle {
+                    id: chip
+                    anchors.left: parent.left
+                    anchors.leftMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 24
+                    width: chipText.implicitWidth + 16
+                    radius: 4
+                    color: Theme.accent
+                    Text {
+                        id: chipText
+                        anchors.centerIn: parent
+                        text: root.activeMode
+                        color: Theme.bg
+                        font.family: Theme.fontMono
+                        font.pixelSize: Theme.fontSize - 2
+                        font.bold: true
+                    }
+                }
+
+                // result count
+                Text {
+                    id: countText
+                    anchors.right: parent.right
+                    anchors.rightMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.results.length + (root.results.length === 1 ? " result" : " results")
+                    color: Theme.subtext
+                    font.family: Theme.fontMono
+                    font.pixelSize: Theme.fontSize - 2
+                }
+
                 TextField {
                     id: input
-                    width: parent.width - 32
-                    placeholderText: root.effectiveMode() === "files"
+                    anchors.left: chip.right
+                    anchors.right: countText.left
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    placeholderText: root.activeMode === "files"
                         ? root.folder
-                        : "Search apps, > run, / files"
+                        : "Search apps  ·  > run  ·  / files"
                     color: Theme.fg
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize
@@ -269,20 +314,35 @@ PanelWindow {
             ListView {
                 id: list
                 width: parent.width
-                height: parent.height - 48
+                height: parent.height - 58
                 clip: true
                 model: root.results
                 currentIndex: 0
                 delegate: Rectangle {
+                    id: del
+                    readonly property bool current: ListView.isCurrentItem
                     width: list.width
                     height: 44
-                    color: ListView.isCurrentItem ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18) : "transparent"
+                    color: current ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.28) : "transparent"
                     radius: 4
+
+                    // left accent bar on the selected row
+                    Rectangle {
+                        visible: del.current
+                        anchors.left: parent.left
+                        anchors.leftMargin: 3
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 3
+                        height: parent.height - 12
+                        radius: 2
+                        color: Theme.accent
+                    }
+
                     Row {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        anchors.leftMargin: 8
+                        anchors.leftMargin: 14
                         anchors.rightMargin: 8
                         spacing: 10
 
