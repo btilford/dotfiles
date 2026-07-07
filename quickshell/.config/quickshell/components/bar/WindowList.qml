@@ -33,10 +33,11 @@ Item {
         const out = [];
         const tls = Hyprland.toplevels ? Hyprland.toplevels.values : [];
         for (const w of tls) {
-            const o = w.lastIpcObject;
-            if (!o || !o.workspace || o.workspace.id !== root.activeWsId)
+            const ws = w.workspace; // reactive (lastIpcObject lags for new/moved windows)
+            if (!ws || ws.id !== root.activeWsId)
                 continue;
-            out.push({ address: o.address, cls: o.class || "" });
+            const cls = (w.wayland && w.wayland.appId) ? w.wayland.appId : (w.lastIpcObject && w.lastIpcObject.class ? w.lastIpcObject.class : "");
+            out.push({ address: w.address, cls: cls });
         }
         out.sort((a, b) => a.address < b.address ? -1 : 1);
         return out;
@@ -60,10 +61,13 @@ Item {
         }
     }
 
-    // focused window (reactive) → indicator target
+    // focused window (reactive .activated) → indicator target
     readonly property string activeAddr: {
-        const a = Hyprland.activeToplevel;
-        return (a && a.lastIpcObject) ? a.lastIpcObject.address : "";
+        const tls = Hyprland.toplevels ? Hyprland.toplevels.values : [];
+        for (const w of tls)
+            if (w.activated)
+                return w.address;
+        return "";
     }
     readonly property int activeIndex: {
         for (let i = 0; i < winModel.length; i++)
@@ -164,7 +168,8 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: Hyprland.dispatch('hl.dsp.focus({window="address:' + cell.modelData.address + '"})')
+                    // reactive w.address has no 0x prefix; hyprland wants address:0x...
+                    onClicked: Hyprland.dispatch('hl.dsp.focus({window="address:0x' + cell.modelData.address.replace(/^0x/, "") + '"})')
                 }
             }
         }
