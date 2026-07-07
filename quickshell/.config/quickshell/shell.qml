@@ -6,6 +6,8 @@ import Quickshell.Io
 import "components"
 
 ShellRoot {
+    Bar {}
+
     Launcher {
         id: launcher
     }

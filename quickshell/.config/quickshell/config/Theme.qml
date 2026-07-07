@@ -46,6 +46,19 @@ Singleton {
     readonly property int pad: 12
     readonly property int fontSize: 13
 
+    // bar
+    readonly property int barHeightMinimal: 28
+    readonly property int barHeightHub: 40
+    readonly property int barIcon: 18
+    readonly property int barPad: 8
+    readonly property real barOpacity: 0.6
+
+    // animation tokens — reuse everywhere for a consistent feel
+    readonly property int animFast: 120
+    readonly property int animMed: 200
+    readonly property int animSlow: 340
+    readonly property int easing: Easing.OutCubic
+
     function reloadPalette() {
         try {
             const t = colorsFile.text();
