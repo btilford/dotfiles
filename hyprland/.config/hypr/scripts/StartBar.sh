@@ -10,12 +10,9 @@ case "$HYPR_BAR" in
         exec waybar
         ;;
     quickshell|qs)
-        pkill -x qs 2>/dev/null
-        if command -v qs >/dev/null 2>&1; then
-            exec qs
-        else
-            notify-send "StartBar" "quickshell (qs) not found on PATH"
-        fi
+        # The bar is a component of the single qs daemon — ensure it's running rather
+        # than spawning a second qs. (The bar component lands in a later increment.)
+        exec "$HOME/.config/hypr/scripts/StartShell.sh"
         ;;
     *)
         notify-send "StartBar" "Unknown HYPR_BAR='$HYPR_BAR' (expected waybar|quickshell)"

@@ -22,3 +22,6 @@ ghostty.target = '~/.config/ghostty/wallust.conf'
 
 swaync.template = 'colors-swaync.css'
 swaync.target = '~/.config/swaync/wallust/colors-wallust.css'
+
+quickshell.template = 'colors-quickshell.json'
+quickshell.target = '~/.config/quickshell/wallust/colors.json'

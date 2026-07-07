@@ -22,6 +22,8 @@ hl.on("hyprland.start", function()
     -- Status bar and notifications
     -- StartBar.sh picks waybar or quickshell based on $HYPR_BAR (see scripts/shell-env.sh).
     hl.exec_cmd('sh -c "$HOME/.config/hypr/scripts/StartBar.sh"')
+    -- Bring up the quickshell daemon when any component (bar/launcher) selects quickshell.
+    hl.exec_cmd('sh -c "$HOME/.config/hypr/scripts/StartShell.sh --if-selected"')
     hl.exec_cmd("swaync")
 
     -- System applets
