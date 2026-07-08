@@ -19,6 +19,22 @@ Item {
         Hyprland.dispatch('hl.dsp.focus({workspace="' + id + '"})');
     }
 
+    // workspace name → nerd-font glyph (falls back to the name/id when unmapped)
+    function iconFor(name) {
+        const m = {
+            "Main": "\uf015",       // home
+            "CLI1": "\uf120",       // terminal
+            "CLI2": "\uf120",       // terminal
+            "Draw": "\uf1fc",       // paint-brush
+            "RefLeft": "\uf02d",    // book
+            "RefRight": "\uf02d",   // book
+            "Music": "\uf001",      // music
+            "Messaging": "\uf086",  // comments
+            "Other": "\uf141"       // ellipsis
+        };
+        return name && m[name] ? m[name] : "";
+    }
+
     function computeWs() {
         const out = [];
         const all = Hyprland.workspaces ? Hyprland.workspaces.values : [];
@@ -168,7 +184,11 @@ Item {
                 Text {
                     id: label
                     anchors.centerIn: parent
-                    text: (modelData.name && isNaN(modelData.name)) ? modelData.name : modelData.id
+                    // icon where mapped, else the name (or id for numeric-only workspaces)
+                    text: {
+                        const ic = root.iconFor(modelData.name);
+                        return ic ? ic : ((modelData.name && isNaN(modelData.name)) ? modelData.name : modelData.id);
+                    }
                     color: pill.active ? Theme.bg : Theme.fg
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.fontSize - 2
@@ -189,7 +209,9 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onEntered: {
                         root.hoverPill = pill;
-                        root.hoverText = (pill.modelData.name && isNaN(pill.modelData.name)) ? pill.modelData.name : ("Desktop " + pill.modelData.id);
+                        const nm = pill.modelData.name;
+                        const hasName = nm && isNaN(nm);
+                        root.hoverText = pill.modelData.id + (hasName ? " · " + nm : "");
                         tip.open();
                     }
                     onExited: if (root.hoverPill === pill)
