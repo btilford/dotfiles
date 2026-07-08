@@ -69,6 +69,7 @@ Scope {
                     LayoutMode {
                         anchors.verticalCenter: parent.verticalCenter
                         screenName: bar.modelData.name
+                        portrait: bar.portrait
                     }
                     Submap {
                         anchors.verticalCenter: parent.verticalCenter

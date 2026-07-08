@@ -13,6 +13,9 @@ import "../../config"
 Item {
     id: root
     property string screenName: ""
+    // portrait monitors run the vertical (down) scroll; per-ws direction isn't readable from
+    // hyprctl, so the bar uses the monitor orientation to pick the horizontal/vertical arrow glyph.
+    property bool portrait: false
     implicitWidth: icon.implicitWidth + 14
     implicitHeight: Theme.barIcon + 6
 
@@ -85,7 +88,8 @@ Item {
     Text {
         id: icon
         anchors.centerIn: parent
-        text: root.glyphFor(root.layout)
+        // scrolling → horizontal () or vertical () arrows by monitor orientation
+        text: root.layout === "scrolling" ? (root.portrait ? "\uf07d" : "\uf07e") : root.glyphFor(root.layout)
         color: ma.containsMouse ? Theme.accent : Theme.fg
         font.family: Theme.fontUi
         font.pixelSize: Theme.barIcon

@@ -13,11 +13,14 @@ local SINGLE_COLUMN_WIDTH = 1.0
 local MAX_WORKSPACE = 11
 
 -- Per-workspace defaults for the multi-monitor desktop.
---   h100 = scrolling, full-width columns, horizontal
---   h75  = scrolling, 75% columns, horizontal
---   v75  = scrolling, 75% columns, vertical
-local H100 = { column_width = 1.0, direction = "horizontal" }
-local H75 = { column_width = 0.75, direction = "horizontal" }
+-- direction is the scroll AXIS and must be a valid enum value: right/left/up/down (the parser
+-- reads only the first char, so "horizontal"/"vertical" silently fall back to the default → use
+-- right for horizontal scrolling, down for vertical).
+--   h100 = scrolling, full-width columns, horizontal (right)
+--   h75  = scrolling, 75% columns, horizontal (right)
+--   v75  = scrolling, 75% columns, vertical (down)
+local H100 = { column_width = 1.0, direction = "right" }
+local H75 = { column_width = 0.75, direction = "right" }
 local V75 = { column_width = 0.75, direction = "down" }
 
 local WS_LAYOUTS = {
@@ -41,18 +44,21 @@ local function apply_layout()
 
 	if single then
 		hl.config({ general = { layout = SINGLE_LAYOUT } })
-		hl.config({ scrolling = { column_width = SINGLE_COLUMN_WIDTH, direction = "horizontal" } })
+		hl.config({ scrolling = { column_width = SINGLE_COLUMN_WIDTH, direction = "right" } })
 		for i = 1, MAX_WORKSPACE do
 			hl.workspace_rule({
 				workspace = tostring(i),
 				layout = SINGLE_LAYOUT,
-				layout_opts = { column_width = SINGLE_COLUMN_WIDTH, direction = "horizontal" },
+				layout_opts = { column_width = SINGLE_COLUMN_WIDTH, direction = "right" },
 			})
 		end
 		return
 	end
 
-	-- Multi-monitor: default engine for any unlisted/new workspace, then explicit per-ws rules.
+	-- Multi-monitor: master engine for any unlisted/new workspace, then explicit per-ws rules.
+	-- Don't set the GLOBAL scrolling:direction here — changing it re-tiles every scrolling
+	-- workspace to that value and clobbers the per-ws "down" (portrait). Each rule below carries
+	-- its own direction instead.
 	hl.config({ general = { layout = "master" } })
 	for id, spec in pairs(WS_LAYOUTS) do
 		hl.workspace_rule({
@@ -66,3 +72,8 @@ end
 hl.on("hyprland.start", apply_layout)
 hl.on("monitor.added", apply_layout)
 hl.on("monitor.removed", apply_layout)
+-- Hyprland auto-reloads the lua config on save (misc.disable_autoreload). A reload re-registers
+-- the workspace rules but does NOT re-tile existing workspaces to their per-ws direction — they
+-- revert to the global scrolling:direction. config.reloaded fires at runtime afterward, so
+-- re-running apply_layout here re-applies the per-ws layouts (incl. portrait "down") for real.
+hl.on("config.reloaded", apply_layout)
