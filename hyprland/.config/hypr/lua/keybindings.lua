@@ -223,6 +223,9 @@ hl.bind("SUPER + Escape", function()
 	-- quickshell session dialog; fall back to wlogout if the qs daemon isn't running
 	os.execute("qs ipc call session toggle 2>/dev/null || setsid -f wlogout --protocol layer-shell")
 end, { description = "Session/power menu" })
+hl.bind("SUPER + slash", function()
+	os.execute("qs ipc call keymap toggle 2>/dev/null")
+end, { description = "Keymap cheatsheet overlay", submap_universal = true })
 hl.bind("CTRL + ALT + L", hl.dsp.exec_cmd("loginctl lock-session"), { description = "Lock session" })
 
 -- Workspace switching

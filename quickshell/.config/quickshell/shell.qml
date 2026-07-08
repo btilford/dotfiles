@@ -16,6 +16,23 @@ ShellRoot {
     // fullscreen session/power dialog (replaces wlogout); state lives in the Session singleton
     SessionOverlay {}
 
+    // fullscreen keymap cheatsheet; state lives in the Keymap singleton
+    KeymapOverlay {}
+
+    // Driven by SUPER+/ : `qs ipc call keymap toggle`
+    IpcHandler {
+        target: "keymap"
+        function toggle(): void {
+            Keymap.toggle();
+        }
+        function show(): void {
+            Keymap.open();
+        }
+        function hide(): void {
+            Keymap.close();
+        }
+    }
+
     // Driven by SUPER+Escape / bar Power button: `qs ipc call session toggle`
     IpcHandler {
         target: "session"

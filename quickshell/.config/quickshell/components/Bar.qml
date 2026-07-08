@@ -66,6 +66,13 @@ Scope {
                     Power {
                         anchors.verticalCenter: parent.verticalCenter
                     }
+                    LayoutMode {
+                        anchors.verticalCenter: parent.verticalCenter
+                        screenName: bar.modelData.name
+                    }
+                    Submap {
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                     WindowList {
                         anchors.verticalCenter: parent.verticalCenter
                         screenName: bar.modelData.name
