@@ -56,6 +56,15 @@ Item {
     onActiveIndexChanged: if (activeIndex >= 0)
         pulse.restart()
 
+    // shared hover-title tooltip
+    property Item hoverPill: null
+    property string hoverText: ""
+    Tooltip {
+        id: tip
+        anchorItem: root.hoverPill
+        text: root.hoverText
+    }
+
     // indicator geometry reported by the active pill (handles variable widths)
     property real indX: 0
     property real indW: 0
@@ -143,6 +152,19 @@ Item {
                 Component.onCompleted: if (active)
                     root.reportActive(x, width)
 
+                // hover tint (behind the label; suppressed on the active pill, which has the indicator)
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 6
+                    color: Theme.accent
+                    opacity: pillMa.containsMouse && !pill.active ? 0.4 : 0
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.animFast
+                        }
+                    }
+                }
+
                 Text {
                     id: label
                     anchors.centerIn: parent
@@ -151,11 +173,27 @@ Item {
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.fontSize - 2
                     font.bold: pill.active
+                    scale: pillMa.containsMouse ? 1.22 : 1
+                    Behavior on scale {
+                        NumberAnimation {
+                            duration: Theme.animFast
+                            easing.type: Theme.easing
+                        }
+                    }
                 }
 
                 MouseArea {
+                    id: pillMa
                     anchors.fill: parent
+                    hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
+                    onEntered: {
+                        root.hoverPill = pill;
+                        root.hoverText = (pill.modelData.name && isNaN(pill.modelData.name)) ? pill.modelData.name : ("Desktop " + pill.modelData.id);
+                        tip.open();
+                    }
+                    onExited: if (root.hoverPill === pill)
+                        tip.close()
                     onClicked: root.goWorkspace(pill.modelData.id)
                 }
             }

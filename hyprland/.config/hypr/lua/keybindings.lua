@@ -220,8 +220,9 @@ hl.bind("SUPER + CTRL + RETURN", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scri
 hl.bind("SUPER + r", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Launcher.sh"'), { description = "App launcher (rofi/quickshell)" })
 hl.bind("SUPER + SHIFT + B", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/StartBar.sh"'), { description = "Restart status bar (waybar/quickshell)" })
 hl.bind("SUPER + Escape", function()
-	os.execute("setsid -f wlogout --protocol layer-shell")
-end, { description = "Logout menu (wlogout)" })
+	-- quickshell session dialog; fall back to wlogout if the qs daemon isn't running
+	os.execute("qs ipc call session toggle 2>/dev/null || setsid -f wlogout --protocol layer-shell")
+end, { description = "Session/power menu" })
 hl.bind("CTRL + ALT + L", hl.dsp.exec_cmd("loginctl lock-session"), { description = "Lock session" })
 
 -- Workspace switching

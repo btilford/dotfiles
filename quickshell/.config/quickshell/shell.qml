@@ -4,12 +4,30 @@
 import Quickshell
 import Quickshell.Io
 import "components"
+import "config"
 
 ShellRoot {
     Bar {}
 
     Launcher {
         id: launcher
+    }
+
+    // fullscreen session/power dialog (replaces wlogout); state lives in the Session singleton
+    SessionOverlay {}
+
+    // Driven by SUPER+Escape / bar Power button: `qs ipc call session toggle`
+    IpcHandler {
+        target: "session"
+        function toggle(): void {
+            Session.toggle();
+        }
+        function show(): void {
+            Session.open();
+        }
+        function hide(): void {
+            Session.close();
+        }
     }
 
     // Driven by hypr/scripts/Launcher.sh: `qs ipc call launcher toggle [mode]`

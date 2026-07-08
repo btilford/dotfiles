@@ -56,45 +56,61 @@ Scope {
             Item {
                 anchors.fill: parent
 
-                RowLayout {
-                    anchors.fill: parent
-                    spacing: Theme.barPad
-
-                    // left: windows on this monitor's active workspace —  ____/
-                    Section {
-                        barHeight: bar.implicitHeight
-                        slantLeft: false
-                        slantRight: true
-                        Layout.alignment: Qt.AlignVCenter
-                        WindowList {
-                            screenName: bar.modelData.name
-                        }
+                // left: windows on this monitor's active workspace —  ____/
+                Section {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    barHeight: bar.implicitHeight
+                    slantLeft: false
+                    slantRight: true
+                    Power {
+                        anchors.verticalCenter: parent.verticalCenter
                     }
-
-                    Item {
-                        Layout.fillWidth: true
+                    WindowList {
+                        anchors.verticalCenter: parent.verticalCenter
+                        screenName: bar.modelData.name
                     }
+                }
 
-                    // center: this monitor's workspaces —  \____/
-                    Section {
-                        barHeight: bar.implicitHeight
-                        Layout.alignment: Qt.AlignVCenter
-                        Workspaces {
-                            screenName: bar.modelData.name
-                        }
+                // center: this monitor's workspaces — pinned to TRUE screen center —  \____/
+                Section {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.verticalCenter
+                    barHeight: bar.implicitHeight
+                    Workspaces {
+                        screenName: bar.modelData.name
                     }
+                }
 
-                    Item {
-                        Layout.fillWidth: true
+                // right: status cluster + clock —  \____
+                // Audio/Network/Bluetooth are ALWAYS visible (even on minimal landscape bars);
+                // Tray + Battery only on hub bars (Battery also self-hides on desktops).
+                Section {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    barHeight: bar.implicitHeight
+                    slantLeft: true
+                    slantRight: false
+                    Tray {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: bar.isHub
+                        barWindow: bar
                     }
-
-                    // right: clock (status modules join it in phase B) —  \____
-                    Section {
-                        barHeight: bar.implicitHeight
-                        slantLeft: true
-                        slantRight: false
-                        Layout.alignment: Qt.AlignVCenter
-                        Clock {}
+                    Network {
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Bluetooth {
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Audio {
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Battery {
+                        anchors.verticalCenter: parent.verticalCenter
+                        hub: bar.isHub
+                    }
+                    Clock {
+                        anchors.verticalCenter: parent.verticalCenter
                     }
                 }
             }

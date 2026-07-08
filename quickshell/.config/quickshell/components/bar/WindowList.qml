@@ -37,10 +37,19 @@ Item {
             if (!ws || ws.id !== root.activeWsId)
                 continue;
             const cls = (w.wayland && w.wayland.appId) ? w.wayland.appId : (w.lastIpcObject && w.lastIpcObject.class ? w.lastIpcObject.class : "");
-            out.push({ address: w.address, cls: cls });
+            out.push({ address: w.address, cls: cls, title: w.title || cls });
         }
         out.sort((a, b) => a.address < b.address ? -1 : 1);
         return out;
+    }
+
+    // shared hover-title tooltip
+    property Item hoverCell: null
+    property string hoverText: ""
+    Tooltip {
+        id: tip
+        anchorItem: root.hoverCell
+        text: root.hoverText
     }
 
     property var winModel: []
@@ -136,6 +145,19 @@ Item {
                 }
                 readonly property string iconName: entry && entry.icon ? entry.icon : ""
 
+                // hover tint (behind the icon; suppressed on the active cell, which has the indicator)
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 5
+                    color: Theme.accent
+                    opacity: cellMa.containsMouse && !cell.active ? 0.4 : 0
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.animFast
+                        }
+                    }
+                }
+
                 Image {
                     id: icon
                     anchors.centerIn: parent
@@ -148,10 +170,17 @@ Item {
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true
                     smooth: true
-                    opacity: cell.active ? 1 : 0.6
+                    opacity: cell.active ? 1 : (cellMa.containsMouse ? 0.85 : 0.6)
+                    scale: cellMa.containsMouse ? 1.22 : 1
                     Behavior on opacity {
                         NumberAnimation {
                             duration: Theme.animMed
+                            easing.type: Theme.easing
+                        }
+                    }
+                    Behavior on scale {
+                        NumberAnimation {
+                            duration: Theme.animFast
                             easing.type: Theme.easing
                         }
                     }
@@ -166,8 +195,17 @@ Item {
                 }
 
                 MouseArea {
+                    id: cellMa
                     anchors.fill: parent
+                    hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
+                    onEntered: {
+                        root.hoverCell = cell;
+                        root.hoverText = cell.modelData.title || cell.appClass;
+                        tip.open();
+                    }
+                    onExited: if (root.hoverCell === cell)
+                        tip.close()
                     // reactive w.address has no 0x prefix; hyprland wants address:0x...
                     onClicked: Hyprland.dispatch('hl.dsp.focus({window="address:0x' + cell.modelData.address.replace(/^0x/, "") + '"})')
                 }
