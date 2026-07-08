@@ -18,7 +18,7 @@ local MAX_WORKSPACE = 11
 --   v75  = scrolling, 75% columns, vertical
 local H100 = { column_width = 1.0, direction = "horizontal" }
 local H75 = { column_width = 0.75, direction = "horizontal" }
-local V75 = { column_width = 0.75, direction = "vertical" }
+local V75 = { column_width = 0.75, direction = "down" }
 
 local WS_LAYOUTS = {
 	[1] = { layout = "master" },                        -- Main (primary)
