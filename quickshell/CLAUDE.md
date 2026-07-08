@@ -49,6 +49,33 @@ package template `colors-quickshell.json` on every wallpaper switch (`WallustSww
 hot-reloads via `FileView.watchChanges`. Orange `#ff6600` is pinned as accent by default
 (`Theme.pinAccent`); set false to follow the wallpaper.
 
+## Runtime dependencies
+
+The shell shells out to / reads from several system services and apps. All are packages, not
+Hyprland plugins — nothing needs `hyprpm`. Hyprland's lua config + `scrolling` layout are
+**mainline** (this host: `hyprland` 0.55.4), so no fork/plugin is required for LayoutMode.
+
+| Need | Package (Arch) | Used by |
+|------|----------------|---------|
+| `qs` binary | `quickshell` (stable 0.3.0 — **not** `-git`) | everything |
+| Bar glyphs | `ttf-jetbrains-mono-nerd` (JetBrainsMono Nerd Font) | all icons; missing → tofu/blank |
+| Hyprland lua API + `scrolling` layout + `hyprctl` | `hyprland` ≥ 0.55 (mainline) | LayoutMode (`hl.workspace_rule`), Keymap (`hyprctl binds -j`), Workspaces/WindowList dispatch |
+| Audio | `pipewire` (+ `wireplumber`) running | Audio (`Quickshell.Services.Pipewire`) |
+| Network | `networkmanager` running | Network (`Quickshell.Networking`) |
+| Bluetooth | `bluez` + `bluez-utils` running | Bluetooth (`Quickshell.Bluetooth`) |
+| Battery | `upower` running | Battery (laptop only) |
+| Session actions | `systemd` (`systemctl`/`loginctl`) | SessionOverlay |
+
+Right-click "manage" launchers (each a configurable `manageCmd` on the module — swap freely):
+`pavucontrol` (Audio), `nm-connection-editor` from `network-manager-applet` (Network),
+`blueman` → `blueman-manager` (Bluetooth).
+
+Optional: `wlogout` — fallback for `SUPER+Escape` when the qs daemon isn't running (see
+`hyprland` `lua/keybindings.lua`).
+
+Modules degrade gracefully when a daemon is absent (icon hidden / "No adapter" / empty popout);
+they don't hard-fail.
+
 ## Rules
 
 - No absolute paths in QML — use `Quickshell.env("HOME")`.
