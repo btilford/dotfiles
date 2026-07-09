@@ -2,9 +2,9 @@ import QtQuick
 import "../config"
 
 /*!
-    EnergyFill.qml — Flowing plasma fill for active-item highlights (workspace pill, active-window
-    indicator). Drop-in replacement for a solid `color: Theme.accent` Rectangle: gives the highlight
-    animated energy in the accent color while staying bright enough for dark text on top.
+    EnergyFill.qml — Slow bubbly lava fill for active-item highlights (workspace pill, active-window
+    indicator, submap badge). Drop-in replacement for a solid `color: Theme.accent` Rectangle: the
+    highlight becomes rotating molten blobs in the accent color, translucent between blobs.
 
     Qt6: fragment is precompiled. Rebuild after editing the .frag:
         qsb --qt6 -o components/energyfill.frag.qsb components/energyfill.frag
@@ -33,12 +33,13 @@ Item {
         property real u_alpha: root.alpha
         property color u_color: root.color
 
+        // exactly one 2π period — the lava pattern is periodic in t, so the loop is seamless
         NumberAnimation on u_time {
             running: root.visible
             loops: Animation.Infinite
             from: 0
-            to: 62.831853
-            duration: 30000
+            to: 6.2831853
+            duration: 45000
         }
 
         fragmentShader: Qt.resolvedUrl("energyfill.frag.qsb")

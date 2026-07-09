@@ -53,22 +53,22 @@ void main() {
     float sdf = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - u_radius;
     float mask = clamp(0.5 - sdf, 0.0, 1.0);
 
-    // Flowing plasma in aspect-corrected space
+    // Slow bubbly lava: rotating, domain-warped blobby noise. u_time runs 0..2π per loop, and
+    // every drift term is an integer multiple of t, so the pattern is seamless across the loop.
     float aspect = w / h;
-    vec2 pp = uv * vec2(aspect, 1.0);
+    vec2 pp = (uv - 0.5) * vec2(aspect, 1.0);
     float t = u_time;
-    float n1 = fbm(pp * 5.0 + vec2(t * 0.6, t * 0.25));
-    float n2 = fbm(pp * 10.0 - vec2(t * 0.4, t * 0.7) + n1 * 1.5);
-    float plasma = n1 * 0.55 + n2 * 0.45;
+    float c = cos(t), s = sin(t);
+    pp = mat2(c, -s, s, c) * pp; // one full rotation per loop
 
-    // Accent-colored energy; brightness rides the plasma
-    vec3 col = u_color * (0.8 + 0.6 * plasma);
+    float n1 = fbm(pp * 2.5 + vec2(sin(t), cos(t)) * 0.7);
+    float n2 = fbm(pp * 2.5 + n1 * 1.7 + vec2(cos(2.0 * t), sin(3.0 * t)) * 0.5);
+    float blob = smoothstep(0.38, 0.62, n2); // soft-edged lava blobs
 
-    // Occasional hot sparkle streaks
-    float sparkle = pow(hash(pp * 60.0 + floor(t * 8.0)), 10.0);
-    col += u_color * sparkle * 0.7;
+    // Two-tone lava: dim molten base, bright rising blobs
+    vec3 col = u_color * (0.55 + 0.75 * blob);
 
-    // No solid backdrop: alpha is plasma-driven, so low-energy regions stay see-through
-    float a = mask * u_alpha * clamp(0.25 + 0.6 * plasma + sparkle * 0.4, 0.0, 1.0) * qt_Opacity;
+    // No solid backdrop: alpha rides the blobs, gaps stay see-through
+    float a = mask * u_alpha * (0.30 + 0.55 * blob) * qt_Opacity;
     fragColor = vec4(col * a, a); // premultiplied
 }

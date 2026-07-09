@@ -36,6 +36,9 @@ Item {
         color: !root.powered ? Theme.subtext : (root.connectedDevices.length > 0 ? Theme.accent : Theme.fg)
         font.family: Theme.fontUi
         font.pixelSize: Theme.barIcon
+        // active (device connected) \u2192 glyph fills with moving lava instead of flat accent
+        layer.enabled: root.powered && root.connectedDevices.length > 0
+        layer.effect: EnergyGlyph {}
         scale: ma.containsMouse ? 1.15 : 1
         Behavior on scale {
             NumberAnimation {

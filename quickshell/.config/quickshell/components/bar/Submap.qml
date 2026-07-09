@@ -37,7 +37,13 @@ Item {
         width: implicitWidth
         height: Theme.barIcon + 2
         radius: height / 2
-        color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.9)
+        color: "transparent"
+
+        // animated lava fill (replaces the flat accent badge)
+        EnergyFill {
+            anchors.fill: parent
+            radius: parent.radius
+        }
 
         // gentle pulse while a submap is active
         SequentialAnimation on opacity {
@@ -64,14 +70,14 @@ Item {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "\uf11c" // fa-keyboard
-                color: Theme.bg
+                color: Theme.fg  // translucent lava fill behind → light text
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.fontSize - 1
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.submap
-                color: Theme.bg
+                color: Theme.fg  // translucent lava fill behind → light text
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.fontSize - 1
                 font.bold: true

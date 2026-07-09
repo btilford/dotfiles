@@ -335,8 +335,16 @@ PanelWindow {
                     readonly property bool current: ListView.isCurrentItem
                     width: list.width
                     height: 44
-                    color: current ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.28) : "transparent"
+                    color: "transparent"
                     radius: 4
+
+                    // animated lava fill on the selected row (replaces the flat accent tint)
+                    EnergyFill {
+                        visible: del.current
+                        anchors.fill: parent
+                        radius: parent.radius
+                        alpha: 0.55
+                    }
 
                     // left accent bar on the selected row
                     Rectangle {
