@@ -61,14 +61,14 @@ void main() {
     float c = cos(t), s = sin(t);
     pp = mat2(c, -s, s, c) * pp; // one full rotation per loop
 
-    float n1 = fbm(pp * 2.5 + vec2(sin(t), cos(t)) * 0.7);
-    float n2 = fbm(pp * 2.5 + n1 * 1.7 + vec2(cos(2.0 * t), sin(3.0 * t)) * 0.5);
-    float blob = smoothstep(0.38, 0.62, n2); // soft-edged lava blobs
+    float n1 = fbm(pp * 3.2 + vec2(sin(t), cos(t)) * 0.7);
+    float n2 = fbm(pp * 3.2 + n1 * 1.7 + vec2(cos(2.0 * t), sin(3.0 * t)) * 0.5);
+    // mostly-bright lava with small dark bubbles drifting through (reads clearly as "active")
+    float bright = smoothstep(0.28, 0.52, n2);
 
-    // Two-tone lava: dim molten base, bright rising blobs
-    vec3 col = u_color * (0.55 + 0.75 * blob);
+    vec3 col = u_color * (0.7 + 0.55 * bright);
 
-    // No solid backdrop: alpha rides the blobs, gaps stay see-through
-    float a = mask * u_alpha * (0.30 + 0.55 * blob) * qt_Opacity;
+    // high base coverage; dark bubbles dim rather than punch through
+    float a = mask * u_alpha * (0.5 + 0.45 * bright) * qt_Opacity;
     fragColor = vec4(col * a, a); // premultiplied
 }

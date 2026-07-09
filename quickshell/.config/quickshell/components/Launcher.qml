@@ -338,12 +338,13 @@ PanelWindow {
                     color: "transparent"
                     radius: 4
 
-                    // animated lava fill on the selected row (replaces the flat accent tint)
+                    // animated lava fill on the selected row — subtle: it's a selector,
+                    // not a status indicator, so keep it translucent under the row content
                     EnergyFill {
                         visible: del.current
                         anchors.fill: parent
                         radius: parent.radius
-                        alpha: 0.55
+                        alpha: 0.3
                     }
 
                     // left accent bar on the selected row

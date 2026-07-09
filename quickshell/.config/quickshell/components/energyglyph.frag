@@ -52,14 +52,15 @@ void main() {
     pp = mat2(c, -s, s, c) * pp;
 
     // Glyphs are small — scale the lava up so blobs read at icon size
-    float n1 = fbm(pp * 4.0 + vec2(sin(t), cos(t)) * 0.7);
-    float n2 = fbm(pp * 4.0 + n1 * 1.7 + vec2(cos(2.0 * t), sin(3.0 * t)) * 0.5);
-    float blob = smoothstep(0.38, 0.62, n2);
+    float n1 = fbm(pp * 4.5 + vec2(sin(t), cos(t)) * 0.7);
+    float n2 = fbm(pp * 4.5 + n1 * 1.7 + vec2(cos(2.0 * t), sin(3.0 * t)) * 0.5);
+    // mostly-bright with small dark bubbles, matching energyfill.frag
+    float bright = smoothstep(0.28, 0.52, n2);
 
     // Keep the glyph readable: high base brightness, lava adds motion on top
-    vec3 col = u_color * (0.7 + 0.6 * blob);
+    vec3 col = u_color * (0.75 + 0.5 * bright);
 
     float srcA = texture(source, uv).a;
-    float a = srcA * u_alpha * (0.65 + 0.35 * blob) * qt_Opacity;
+    float a = srcA * u_alpha * (0.75 + 0.25 * bright) * qt_Opacity;
     fragColor = vec4(col * a, a); // premultiplied
 }
