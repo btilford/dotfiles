@@ -32,7 +32,7 @@ Item {
     //! Fraction of the source height shown in the reflection
     property real ratio: 0.35
     //! Reflection opacity right at the water line (fades to 0 with depth)
-    property real strength: 0.4
+    property real strength: 0.5
     //! Ripple amplitude in uv units (water choppiness)
     property real amp: 0.006
 

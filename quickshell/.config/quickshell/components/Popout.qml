@@ -22,9 +22,13 @@ PopupWindow {
     property bool dismissable: true
     // Animated energy border around the surface (off for tiny tooltips)
     property bool energyBorder: true
+    // Water-mirror reflection under the surface (off for tooltips). Downward popouts only —
+    // upward (dev-mode) popouts have no room below the surface.
+    property bool reflection: true
     default property alias content: body.data
 
     readonly property bool upward: Shell.barDevMode
+    readonly property int reflH: reflection && !upward ? Math.ceil(surface.implicitHeight * 0.3) + 2 : 0
 
     // open state drives the inner animation; the window stays mapped until the close anim ends
     property bool shown: false
@@ -47,7 +51,7 @@ PopupWindow {
     anchor.gravity: upward ? Edges.Top : Edges.Bottom
 
     implicitWidth: popWidth
-    implicitHeight: surface.implicitHeight + slide + gap
+    implicitHeight: surface.implicitHeight + slide + gap + reflH
     color: "transparent"
     visible: false
 
@@ -111,5 +115,16 @@ PopupWindow {
             anchors.fill: parent
             radius: parent.radius
         }
+    }
+
+    // water-mirror reflection under the surface (slides + fades with it)
+    Reflection {
+        visible: pop.reflection && !pop.upward
+        sourceItem: surface
+        anchors.top: surface.bottom
+        anchors.topMargin: 2
+        anchors.horizontalCenter: surface.horizontalCenter
+        ratio: 0.3
+        opacity: surface.opacity
     }
 }
