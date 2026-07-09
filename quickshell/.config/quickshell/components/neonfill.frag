@@ -37,10 +37,12 @@ void main() {
 
     float t = u_time;
 
-    // mains buzz: slow shallow oscillation + rare brief dips (kept subtle)
+    // mains buzz: slow shallow oscillation + rare brief dips (kept subtle),
+    // riding on a slow breath in the same phase family
+    float breath = 0.93 + 0.07 * sin(2.0 * t);
     float buzz = 0.95 + 0.05 * sin(10.0 * t) * sin(16.0 * t);
     float dip = 1.0 - 0.22 * smoothstep(0.985, 1.0, sin(2.0 * t) * sin(6.0 * t));
-    float I = buzz * dip;
+    float I = breath * buzz * dip;
 
     // flat neon fill — uniform glow across the shape, no edge emphasis
     vec3 col = u_color;
