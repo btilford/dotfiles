@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
+import ".."
 import "../../config"
 
 // Slanted "inverted tab": \____/  with rounded corners. Fill is a closed trapezoid; the border
@@ -14,6 +15,13 @@ Item {
     property int slant: 12
     property int corner: 7
     default property alias content: inner.data
+
+    //! Steady border energy (0..1). Ambient shimmer level; pulse() spikes above it.
+    property real energy: 0.6
+    //! Spike the border glow, then decay back to `energy`.
+    function pulse() {
+        glow.pulse();
+    }
 
     readonly property int contentW: inner.implicitWidth + Theme.barPad * 2
     implicitHeight: barHeight
@@ -89,41 +97,18 @@ Item {
             }
         }
 
-        // border: OPEN stroke, sides + bottom only (starts at top-right corner point, ends at
-        // top-left corner point) — no top edge.
-        ShapePath {
-            fillColor: "transparent"
-            strokeColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.7)
-            strokeWidth: 1
-            joinStyle: ShapePath.RoundJoin
-            capStyle: ShapePath.RoundCap
-            startX: root.trx
-            startY: root.try_
-            PathLine {
-                x: (root.width - root.sr) + root.corner * root.sr / root.rlen
-                y: root.height - root.corner * root.height / root.rlen
-            }
-            PathQuad {
-                controlX: root.width - root.sr
-                controlY: root.height
-                x: (root.width - root.sr) - root.corner
-                y: root.height
-            }
-            PathLine {
-                x: root.sl + root.corner
-                y: root.height
-            }
-            PathQuad {
-                controlX: root.sl
-                controlY: root.height
-                x: root.sl - root.corner * root.sl / root.llen
-                y: root.height - root.corner * root.height / root.llen
-            }
-            PathLine {
-                x: root.tlx
-                y: root.tly
-            }
-        }
+    }
+
+    // border: animated energy shader tracing the tab outline (sides + bottom, no top),
+    // replacing the old solid accent stroke. Ambient shimmer at `energy`, spikes on pulse().
+    EnergyBorder {
+        id: glow
+        anchors.fill: parent
+        thickness: 2.0
+        slantLeft: root.sl
+        slantRight: root.sr
+        skipTop: true
+        energy: root.energy
     }
 
     Row {

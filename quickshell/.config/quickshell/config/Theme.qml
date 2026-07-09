@@ -38,6 +38,10 @@ Singleton {
     readonly property color urgent: palette.color9 ? palette.color9 : fbUrgent
     readonly property color border: accent
 
+    // --- shader / energy-border tokens (warm palette) ---
+    readonly property color energy: accent      // normal energy glow (#ff6600)
+    readonly property color energyActive: urgent // active/high-energy glow (#ffaa00)
+
     // terminal look
     readonly property real surfaceOpacity: 0.85
     readonly property string fontUi: "JetBrainsMono Nerd Font"

@@ -71,8 +71,15 @@ PanelWindow {
         height: Math.min(win.height * 0.75, header.height + list.contentHeight + 3 * Theme.pad + search.height)
         radius: Theme.radius
         color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surfaceOpacity)
-        border.width: 1
-        border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.7)
+
+        // animated energy border tracing the panel (replaces the static stroke)
+        EnergyBorder {
+            anchors.fill: parent
+            radius: parent.radius
+            thickness: 2.0
+            energy: win.visible ? 0.7 : 0.0
+        }
+
         scale: win.visible ? 1 : 0.96
         opacity: win.visible ? 1 : 0
         Behavior on scale {

@@ -97,8 +97,9 @@ PanelWindow {
                     height: 130
                     radius: Theme.radius
                     color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surfaceOpacity)
-                    border.width: card.hot ? 2 : 1
-                    border.color: card.hot ? Theme.accent : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+                    // faint static outline when idle; energy border takes over when hot
+                    border.width: 1
+                    border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, card.hot ? 0 : 0.35)
                     scale: card.hot ? 1.06 : 1
                     // pointer nav follows the mouse too
                     onHotChanged: if (cardMa.containsMouse)
@@ -109,10 +110,13 @@ PanelWindow {
                             easing.type: Theme.easing
                         }
                     }
-                    Behavior on border.color {
-                        ColorAnimation {
-                            duration: Theme.animFast
-                        }
+
+                    // animated energy border on the selected/hovered card
+                    EnergyBorder {
+                        anchors.fill: parent
+                        radius: parent.radius
+                        thickness: 2.5
+                        energy: card.hot ? 0.9 : 0.0
                     }
 
                     Column {

@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import ".."
 import "../../config"
 
 // Per-monitor workspaces. Same visual language as WindowList: a bright accent indicator that
@@ -96,8 +97,14 @@ Item {
         width: root.indW
         height: parent.height
         radius: 6
-        color: Theme.accent
+        color: "transparent"
         opacity: visible ? (root.monFocused ? 1 : 0.7) : 0
+
+        // animated plasma fill in the accent color (replaces the flat orange highlight)
+        EnergyFill {
+            anchors.fill: parent
+            radius: parent.radius
+        }
         Behavior on x {
             NumberAnimation {
                 duration: Theme.animMed

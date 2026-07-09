@@ -20,6 +20,8 @@ PopupWindow {
     property int slide: 10 // travel distance of the slide-in
     property int gap: 6    // space between the surface and the bar edge
     property bool dismissable: true
+    // Animated energy border around the surface (off for tiny tooltips)
+    property bool energyBorder: true
     default property alias content: body.data
 
     readonly property bool upward: Shell.barDevMode
@@ -68,8 +70,18 @@ PopupWindow {
         }
         radius: Theme.radius
         color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surfaceOpacity)
-        border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.7)
-        border.width: 1
+        // static fallback border when the energy border is disabled (tooltips)
+        border.color: pop.energyBorder ? "transparent" : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.7)
+        border.width: pop.energyBorder ? 0 : 1
+
+        // animated energy border tracing the rounded surface
+        EnergyBorder {
+            anchors.fill: parent
+            visible: pop.energyBorder
+            radius: parent.radius
+            thickness: 2.0
+            energy: pop.shown ? 0.7 : 0.0
+        }
 
         opacity: pop.shown ? 1 : 0
         Behavior on y {

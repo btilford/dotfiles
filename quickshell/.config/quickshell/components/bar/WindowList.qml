@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import ".."
 import "../../config"
 
 // Task list: windows on THIS monitor's active workspace. The focused window (Hyprland.activeToplevel,
@@ -94,9 +95,15 @@ Item {
         width: root.cellW
         height: root.height
         radius: 5
-        color: Theme.accent
+        color: "transparent"
         x: root.activeIndex >= 0 ? root.activeIndex * (root.cellW + root.gap) : 0
         opacity: visible ? 1 : 0
+
+        // animated plasma fill in the accent color (replaces the flat orange highlight)
+        EnergyFill {
+            anchors.fill: parent
+            radius: parent.radius
+        }
         Behavior on x {
             NumberAnimation {
                 duration: Theme.animMed

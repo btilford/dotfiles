@@ -53,11 +53,28 @@ Scope {
                 }
             }
 
+            // Pulse every section's energy border on window focus / move / open.
+            Connections {
+                target: Hyprland
+                function onRawEvent(event) {
+                    switch (event.name) {
+                    case "activewindow":
+                    case "movewindow":
+                    case "openwindow":
+                        leftSection.pulse();
+                        centerSection.pulse();
+                        rightSection.pulse();
+                        break;
+                    }
+                }
+            }
+
             Item {
                 anchors.fill: parent
 
                 // left: windows on this monitor's active workspace —  ____/
                 Section {
+                    id: leftSection
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     barHeight: bar.implicitHeight
@@ -82,6 +99,7 @@ Scope {
 
                 // center: this monitor's workspaces — pinned to TRUE screen center —  \____/
                 Section {
+                    id: centerSection
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.verticalCenter: parent.verticalCenter
                     barHeight: bar.implicitHeight
@@ -94,6 +112,7 @@ Scope {
                 // Audio/Network/Bluetooth are ALWAYS visible (even on minimal landscape bars);
                 // Tray + Battery only on hub bars (Battery also self-hides on desktops).
                 Section {
+                    id: rightSection
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     barHeight: bar.implicitHeight

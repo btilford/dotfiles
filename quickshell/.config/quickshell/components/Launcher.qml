@@ -205,8 +205,14 @@ PanelWindow {
         anchors.centerIn: parent
         radius: Theme.radius
         color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, Theme.surfaceOpacity)
-        border.color: Theme.border
-        border.width: 1
+
+        // animated energy border tracing the box (replaces the static stroke)
+        EnergyBorder {
+            anchors.fill: parent
+            radius: parent.radius
+            thickness: 2.0
+            energy: 0.7
+        }
 
         // swallow clicks so click-away doesn't fire inside the box
         MouseArea {
@@ -246,7 +252,12 @@ PanelWindow {
                     height: 24
                     width: chipText.implicitWidth + 16
                     radius: 4
-                    color: Theme.accent
+                    color: "transparent"
+                    // animated plasma fill (replaces the flat accent chip)
+                    EnergyFill {
+                        anchors.fill: parent
+                        radius: parent.radius
+                    }
                     Text {
                         id: chipText
                         anchors.centerIn: parent
