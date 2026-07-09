@@ -83,8 +83,18 @@ PanelWindow {
         }
     }
 
+    // water-mirror reflection under the panel (fades/scales with it)
+    Reflection {
+        sourceItem: panel
+        anchors.top: panel.bottom
+        anchors.topMargin: 2
+        anchors.horizontalCenter: panel.horizontalCenter
+        opacity: panel.opacity
+    }
+
     // panel
     Rectangle {
+        id: panel
         anchors.centerIn: parent
         width: Math.min(760, win.width * 0.7)
         height: Math.min(win.height * 0.75, header.height + tabRow.height + list.contentHeight + 4 * Theme.pad + search.height)

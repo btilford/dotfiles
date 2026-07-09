@@ -197,6 +197,15 @@ PanelWindow {
         onClicked: root.close()
     }
 
+    // water-mirror reflection under the box
+    Reflection {
+        sourceItem: box
+        anchors.top: box.bottom
+        anchors.topMargin: 2
+        anchors.horizontalCenter: box.horizontalCenter
+        z: 1
+    }
+
     // ---- the launcher box ----
     Rectangle {
         id: box

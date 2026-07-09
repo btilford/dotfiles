@@ -68,6 +68,15 @@ PanelWindow {
             event.accepted = true;
         }
 
+        // water-mirror reflection under the card row (fades with it)
+        Reflection {
+            sourceItem: cards
+            anchors.top: cards.bottom
+            anchors.topMargin: 6
+            anchors.horizontalCenter: cards.horizontalCenter
+            opacity: cards.opacity
+        }
+
         Row {
             id: cards
             anchors.centerIn: parent
