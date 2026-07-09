@@ -80,6 +80,12 @@ PanelWindow {
             energy: win.visible ? 0.7 : 0.0
         }
 
+        // cursor-lit glimmer over the panel
+        Shimmer {
+            anchors.fill: parent
+            radius: parent.radius
+        }
+
         scale: win.visible ? 1 : 0.96
         opacity: win.visible ? 1 : 0
         Behavior on scale {

@@ -119,6 +119,12 @@ PanelWindow {
                         energy: card.hot ? 0.9 : 0.0
                     }
 
+                    // cursor-lit glimmer over the card
+                    Shimmer {
+                        anchors.fill: parent
+                        radius: parent.radius
+                    }
+
                     Column {
                         anchors.centerIn: parent
                         spacing: 10

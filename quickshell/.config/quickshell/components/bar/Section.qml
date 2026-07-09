@@ -116,4 +116,11 @@ Item {
         anchors.centerIn: parent
         spacing: Theme.barPad
     }
+
+    // cursor-lit glimmer over the tab surface
+    Shimmer {
+        anchors.fill: parent
+        slantLeft: root.sl
+        slantRight: root.sr
+    }
 }

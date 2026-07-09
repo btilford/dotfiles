@@ -15,6 +15,8 @@ end
 
 hl.config({
     decoration = {
+        -- Subtle time-driven glimmer sweeping across all outputs (see shaders/shimmer.frag).
+        screen_shader = os.getenv("HOME") .. "/.config/hypr/shaders/shimmer.frag",
         rounding = 15,
         rounding_power = 8.0,
         active_opacity = 0.95,

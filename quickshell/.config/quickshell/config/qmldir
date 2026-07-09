@@ -2,3 +2,4 @@ singleton Theme Theme.qml
 singleton Shell Shell.qml
 singleton Session Session.qml
 singleton Keymap Keymap.qml
+singleton Pointer Pointer.qml

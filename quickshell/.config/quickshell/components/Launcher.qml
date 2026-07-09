@@ -214,6 +214,12 @@ PanelWindow {
             energy: 0.7
         }
 
+        // cursor-lit glimmer over the box
+        Shimmer {
+            anchors.fill: parent
+            radius: parent.radius
+        }
+
         // swallow clicks so click-away doesn't fire inside the box
         MouseArea {
             anchors.fill: parent

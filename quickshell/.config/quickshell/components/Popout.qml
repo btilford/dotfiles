@@ -105,5 +105,11 @@ PopupWindow {
             width: parent.width - Theme.pad * 2
             spacing: 8
         }
+
+        // cursor-lit glimmer over the surface
+        Shimmer {
+            anchors.fill: parent
+            radius: parent.radius
+        }
     }
 }
