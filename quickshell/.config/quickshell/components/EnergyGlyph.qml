@@ -20,7 +20,9 @@ import "../config"
 ShaderEffect {
     id: fx
 
-    //! Lava color — defaults to Theme.accent
+    //! Visual variant: "neon" (white-hot core + halo + buzz) or "lava" (molten, kept for later)
+    property string effect: "neon"
+    //! Effect color — defaults to Theme.accent
     property color color: Theme.accent
     //! Overall opacity of the effect
     property real alpha: 1.0
@@ -42,5 +44,5 @@ ShaderEffect {
         duration: 45000
     }
 
-    fragmentShader: Qt.resolvedUrl("energyglyph.frag.qsb")
+    fragmentShader: Qt.resolvedUrl(fx.effect === "lava" ? "energyglyph.frag.qsb" : "neonglyph.frag.qsb")
 }

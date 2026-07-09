@@ -15,6 +15,8 @@ import "../config"
 Item {
     id: root
 
+    //! Visual variant: "neon" (edge tube + glow + buzz) or "lava" (molten blobs, kept for later)
+    property string effect: "neon"
     //! Base color — defaults to Theme.accent (#ff6600)
     property color color: Theme.accent
     //! Corner radius in px
@@ -42,6 +44,6 @@ Item {
             duration: 45000
         }
 
-        fragmentShader: Qt.resolvedUrl("energyfill.frag.qsb")
+        fragmentShader: Qt.resolvedUrl(root.effect === "lava" ? "energyfill.frag.qsb" : "neonfill.frag.qsb")
     }
 }
