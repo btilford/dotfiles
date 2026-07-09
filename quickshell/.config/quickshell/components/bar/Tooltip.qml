@@ -9,7 +9,6 @@ Popout {
     id: tip
     property alias text: lbl.text
     dismissable: false
-    energyBorder: false
     popWidth: Math.min(340, tm.advanceWidth + Theme.pad * 2 + 2)
 
     TextMetrics {
