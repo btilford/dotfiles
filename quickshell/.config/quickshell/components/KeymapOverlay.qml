@@ -5,9 +5,11 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import "../config"
 
-// Fullscreen keymap cheatsheet. Lists binds from `hyprctl binds -j`, defaulting to the active
-// submap (or Global). A search box filters by chord/description live; Tab toggles "all maps".
-// Non-interactive use = just read it; interactive = type to search. Esc / click-backdrop closes.
+// Fullscreen keymap cheatsheet. Lists binds from `hyprctl binds -j` under a tab row with one tab
+// per submap (Global first, All last), defaulting to the active submap. Vim-style modal nav:
+// opens in NAV mode — j/k move, Ctrl-d/u half-page, gg/G top/bottom, Tab/Shift-Tab cycle tabs,
+// "/" or "i" focus the search box, Esc closes. In the search box, typing filters live;
+// Esc/Enter return to NAV mode; Up/Down still move the selection.
 PanelWindow {
     id: win
     visible: Keymap.shown
@@ -25,13 +27,23 @@ PanelWindow {
         right: true
     }
 
-    property bool showAll: false
+    // tab list: Global, each submap seen in the binds (sorted), All
+    readonly property var tabs: {
+        const s = new Set();
+        for (const b of Keymap.binds)
+            if (b.submap && b.submap.length)
+                s.add(b.submap);
+        return ["Global", ...[...s].sort(), "All"];
+    }
+    property int tabIdx: 0
+
     readonly property var filtered: {
         const q = search.text.toLowerCase();
+        const tab = win.tabs[win.tabIdx];
         const out = [];
         for (const b of Keymap.binds) {
             const sm = b.submap || "";
-            if (!win.showAll && sm !== Keymap.filterSubmap)
+            if (tab !== "All" && sm !== (tab === "Global" ? "" : tab))
                 continue;
             const chord = Keymap.chord(b);
             const act = Keymap.action(b);
@@ -41,11 +53,18 @@ PanelWindow {
         }
         return out;
     }
+    onFilteredChanged: list.currentIndex = filtered.length ? 0 : -1
+
+    function cycleTab(dir) {
+        win.tabIdx = (win.tabIdx + dir + win.tabs.length) % win.tabs.length;
+    }
 
     onVisibleChanged: if (visible) {
         search.text = "";
-        win.showAll = false;
-        search.forceActiveFocus();
+        // default to the tab of the submap active when the overlay opened
+        const i = win.tabs.indexOf(Keymap.filterSubmap);
+        win.tabIdx = (Keymap.filterSubmap.length && i >= 0) ? i : 0;
+        navKeys.forceActiveFocus();
     }
 
     // dim backdrop
@@ -68,7 +87,7 @@ PanelWindow {
     Rectangle {
         anchors.centerIn: parent
         width: Math.min(760, win.width * 0.7)
-        height: Math.min(win.height * 0.75, header.height + list.contentHeight + 3 * Theme.pad + search.height)
+        height: Math.min(win.height * 0.75, header.height + tabRow.height + list.contentHeight + 4 * Theme.pad + search.height)
         radius: Theme.radius
         color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surfaceOpacity)
 
@@ -100,12 +119,42 @@ PanelWindow {
             }
         }
 
-        Keys.onPressed: event => {
-            if (event.key === Qt.Key_Escape) {
-                Keymap.close();
-                event.accepted = true;
-            } else if (event.key === Qt.Key_Tab) {
-                win.showAll = !win.showAll;
+        // NAV mode key handling (vim-style). Focused whenever the search box isn't.
+        FocusScope {
+            id: navKeys
+            anchors.fill: parent
+            property bool pendingG: false
+            Keys.onPressed: event => {
+                const n = win.filtered.length;
+                const page = Math.max(1, Math.floor(list.height / 28));
+                let g = false;
+                if (event.key === Qt.Key_Escape) {
+                    Keymap.close();
+                } else if (event.key === Qt.Key_Tab) {
+                    win.cycleTab(1);
+                } else if (event.key === Qt.Key_Backtab) {
+                    win.cycleTab(-1);
+                } else if (event.key === Qt.Key_J || event.key === Qt.Key_Down) {
+                    list.currentIndex = Math.min(list.currentIndex + 1, n - 1);
+                } else if (event.key === Qt.Key_K || event.key === Qt.Key_Up) {
+                    list.currentIndex = Math.max(list.currentIndex - 1, 0);
+                } else if (event.key === Qt.Key_D && (event.modifiers & Qt.ControlModifier)) {
+                    list.currentIndex = Math.min(list.currentIndex + Math.floor(page / 2), n - 1);
+                } else if (event.key === Qt.Key_U && (event.modifiers & Qt.ControlModifier)) {
+                    list.currentIndex = Math.max(list.currentIndex - Math.floor(page / 2), 0);
+                } else if (event.key === Qt.Key_G && (event.modifiers & Qt.ShiftModifier)) {
+                    list.currentIndex = n - 1;
+                } else if (event.key === Qt.Key_G) {
+                    if (navKeys.pendingG)
+                        list.currentIndex = n ? 0 : -1;
+                    else
+                        g = true;
+                } else if (event.key === Qt.Key_Slash || event.key === Qt.Key_I) {
+                    search.forceActiveFocus();
+                } else {
+                    return; // unhandled — don't accept, don't clear pendingG state below
+                }
+                navKeys.pendingG = g;
                 event.accepted = true;
             }
         }
@@ -123,7 +172,7 @@ PanelWindow {
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Keymap — " + (win.showAll ? "all maps" : (Keymap.filterSubmap.length ? Keymap.filterSubmap : "Global"))
+                    text: "Keymap — " + win.tabs[win.tabIdx]
                     color: Theme.fg
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.fontSize + 2
@@ -132,10 +181,49 @@ PanelWindow {
                 Text {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: win.filtered.length + " binds · [Tab] all · [Esc] close"
+                    text: win.filtered.length + " binds · [Tab] map · [j/k] move · [/] search · [Esc] close"
                     color: Theme.subtext
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize - 2
+                }
+            }
+
+            // submap tabs
+            Row {
+                id: tabRow
+                width: parent.width
+                spacing: 6
+                Repeater {
+                    model: win.tabs
+                    delegate: Rectangle {
+                        required property string modelData
+                        required property int index
+                        readonly property bool current: index === win.tabIdx
+                        width: tabText.implicitWidth + 18
+                        height: 24
+                        radius: 4
+                        color: current
+                            ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
+                            : (tabMa.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.08) : "transparent")
+                        border.width: 1
+                        border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, current ? 0.9 : 0.25)
+                        Text {
+                            id: tabText
+                            anchors.centerIn: parent
+                            text: parent.modelData
+                            color: parent.current ? Theme.accent : Theme.subtext
+                            font.family: Theme.fontMono
+                            font.pixelSize: Theme.fontSize - 2
+                            font.bold: parent.current
+                        }
+                        MouseArea {
+                            id: tabMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: win.tabIdx = parent.index
+                        }
+                    }
                 }
             }
 
@@ -157,14 +245,23 @@ PanelWindow {
                     color: Theme.fg
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.fontSize
-                    placeholderText: "Search keybinds…"
+                    placeholderText: "Search keybinds…  [Esc/Enter] back to nav"
                     placeholderTextColor: Theme.subtext
-                    Keys.onEscapePressed: Keymap.close()
                     Keys.onPressed: event => {
-                        if (event.key === Qt.Key_Tab) {
-                            win.showAll = !win.showAll;
-                            event.accepted = true;
+                        if (event.key === Qt.Key_Escape || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                            navKeys.forceActiveFocus();
+                        } else if (event.key === Qt.Key_Tab) {
+                            win.cycleTab(1);
+                        } else if (event.key === Qt.Key_Backtab) {
+                            win.cycleTab(-1);
+                        } else if (event.key === Qt.Key_Down || (event.key === Qt.Key_N && (event.modifiers & Qt.ControlModifier))) {
+                            list.currentIndex = Math.min(list.currentIndex + 1, win.filtered.length - 1);
+                        } else if (event.key === Qt.Key_Up || (event.key === Qt.Key_P && (event.modifiers & Qt.ControlModifier))) {
+                            list.currentIndex = Math.max(list.currentIndex - 1, 0);
+                        } else {
+                            return;
                         }
+                        event.accepted = true;
                     }
                 }
             }
@@ -173,25 +270,44 @@ PanelWindow {
             ListView {
                 id: list
                 width: parent.width
-                height: parent.height - header.height - search.height - parent.spacing * 2
+                height: parent.height - header.height - tabRow.height - search.height - parent.spacing * 3
                 clip: true
                 model: win.filtered
                 spacing: 2
+                currentIndex: 0
+                onCurrentIndexChanged: if (currentIndex >= 0)
+                    positionViewAtIndex(currentIndex, ListView.Contain)
                 delegate: Item {
+                    id: row
                     required property var modelData
+                    required property int index
+                    readonly property bool current: ListView.isCurrentItem
                     width: list.width
                     height: 26
                     Rectangle {
                         anchors.fill: parent
                         radius: 4
-                        color: rowMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12) : "transparent"
+                        color: row.current
+                            ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
+                            : (rowMa.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.06) : "transparent")
+                    }
+                    // left accent bar on the selected row
+                    Rectangle {
+                        visible: row.current
+                        anchors.left: parent.left
+                        anchors.leftMargin: 1
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 3
+                        height: parent.height - 8
+                        radius: 2
+                        color: Theme.accent
                     }
                     Text {
                         anchors.left: parent.left
-                        anchors.leftMargin: 6
+                        anchors.leftMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width * 0.42
-                        text: modelData.chord
+                        text: row.modelData.chord
                         color: Theme.accent
                         font.family: Theme.fontMono
                         font.pixelSize: Theme.fontSize - 1
@@ -203,7 +319,7 @@ PanelWindow {
                         anchors.right: parent.right
                         anchors.rightMargin: 6
                         anchors.verticalCenter: parent.verticalCenter
-                        text: modelData.action
+                        text: row.modelData.action
                         color: Theme.fg
                         font.family: Theme.fontUi
                         font.pixelSize: Theme.fontSize - 1
@@ -213,6 +329,7 @@ PanelWindow {
                         id: rowMa
                         anchors.fill: parent
                         hoverEnabled: true
+                        onClicked: list.currentIndex = row.index
                     }
                 }
                 ScrollBar.vertical: ScrollBar {}
