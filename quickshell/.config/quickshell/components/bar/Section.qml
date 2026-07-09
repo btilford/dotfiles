@@ -3,9 +3,11 @@ import QtQuick.Shapes
 import ".."
 import "../../config"
 
-// Slanted "inverted tab": \____/  with rounded corners. Fill is a closed trapezoid; the border
-// is a SEPARATE open stroke tracing only the sides + bottom (no top edge — it sits at the screen
-// edge on a top bar). slantLeft/slantRight toggle each side (left = ____/ , right = \____ ).
+// Slanted "inverted tab": \____/ . The top edge is always square (it sits at the screen edge on
+// a top bar) and an unslanted side is a square vertical edge flush to the screen edge; only the
+// foot of a slanted side is rounded. The border is a separate energy stroke tracing the slanted
+// sides + bottom (no top edge, no flush edges). slantLeft/slantRight toggle each side
+// (left = ____/ , right = \____ ).
 Item {
     id: root
     property alias spacing: inner.spacing
@@ -32,11 +34,10 @@ Item {
     readonly property real sr: slantRight ? slant : 0
     readonly property real llen: Math.hypot(sl, height)
     readonly property real rlen: Math.hypot(sr, height)
-    // top corner points (where the top edge meets the rounded corners)
-    readonly property real trx: width - corner * sr / rlen
-    readonly property real try_: corner * height / rlen
-    readonly property real tlx: corner * sl / llen
-    readonly property real tly: corner * height / llen
+    // effective corner radius per side: only the foot of a slanted side is rounded —
+    // flush (unslanted) sides stay square so they sit tight against the screen edge
+    readonly property real cl: slantLeft ? corner : 0
+    readonly property real cr: slantRight ? corner : 0
 
     Behavior on implicitWidth {
         NumberAnimation {
@@ -49,50 +50,39 @@ Item {
         anchors.fill: parent
         preferredRendererType: Shape.CurveRenderer
 
-        // fill (closed trapezoid, no stroke)
+        // fill (closed trapezoid, no stroke). Square top corners; rounded feet only where
+        // slanted (cl/cr are 0 on flush sides, degenerating those quads to the corner point).
         ShapePath {
             fillColor: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.55)
             strokeWidth: 0
-            startX: root.corner
+            startX: 0
             startY: 0
             PathLine {
-                x: root.width - root.corner
+                x: root.width
                 y: 0
             }
-            PathQuad {
-                controlX: root.width
-                controlY: 0
-                x: root.trx
-                y: root.try_
-            }
             PathLine {
-                x: (root.width - root.sr) + root.corner * root.sr / root.rlen
-                y: root.height - root.corner * root.height / root.rlen
+                x: (root.width - root.sr) + root.cr * root.sr / root.rlen
+                y: root.height - root.cr * root.height / root.rlen
             }
             PathQuad {
                 controlX: root.width - root.sr
                 controlY: root.height
-                x: (root.width - root.sr) - root.corner
+                x: (root.width - root.sr) - root.cr
                 y: root.height
             }
             PathLine {
-                x: root.sl + root.corner
+                x: root.sl + root.cl
                 y: root.height
             }
             PathQuad {
                 controlX: root.sl
                 controlY: root.height
-                x: root.sl - root.corner * root.sl / root.llen
-                y: root.height - root.corner * root.height / root.llen
+                x: root.sl - root.cl * root.sl / root.llen
+                y: root.height - root.cl * root.height / root.llen
             }
             PathLine {
-                x: root.tlx
-                y: root.tly
-            }
-            PathQuad {
-                controlX: 0
-                controlY: 0
-                x: root.corner
+                x: 0
                 y: 0
             }
         }

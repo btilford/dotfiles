@@ -50,12 +50,14 @@ void main() {
 
     float d;
     if (u_sl + u_sr > 0.5) {
-        // Slanted trapezoid tab: \____/  (sections). Distance to sides + bottom (+ optional top).
+        // Slanted trapezoid tab: \____/  (sections). Distance to slanted sides + bottom
+        // (+ optional top). An unslanted side is flush to the screen edge — no glow there.
         //   left edge : line (0,0)->(sl,h)   right edge : line (w,0)->(w-sr,h)   bottom : y=h
-        float distL = abs(px * h - py * u_sl) / sqrt(h * h + u_sl * u_sl);
-        float distR = abs((px - w) * h + py * u_sr) / sqrt(h * h + u_sr * u_sr);
-        float distB = h - py;
-        d = min(min(distL, distR), distB);
+        d = h - py;
+        if (u_sl > 0.5)
+            d = min(d, abs(px * h - py * u_sl) / sqrt(h * h + u_sl * u_sl));
+        if (u_sr > 0.5)
+            d = min(d, abs((px - w) * h + py * u_sr) / sqrt(h * h + u_sr * u_sr));
         if (u_skipTop < 0.5)
             d = min(d, py);
     } else {
