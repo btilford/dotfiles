@@ -262,7 +262,8 @@ PanelWindow {
                         id: chipText
                         anchors.centerIn: parent
                         text: root.activeMode
-                        color: Theme.bg
+                        // translucent plasma fill behind → light text
+                        color: Theme.fg
                         font.family: Theme.fontMono
                         font.pixelSize: Theme.fontSize - 2
                         font.bold: true

@@ -61,13 +61,14 @@ void main() {
     float n2 = fbm(pp * 10.0 - vec2(t * 0.4, t * 0.7) + n1 * 1.5);
     float plasma = n1 * 0.55 + n2 * 0.45;
 
-    // Modulate brightness of the accent color; keep it bright so dark text on top stays legible
-    vec3 col = u_color * (0.72 + 0.55 * plasma);
+    // Accent-colored energy; brightness rides the plasma
+    vec3 col = u_color * (0.8 + 0.6 * plasma);
 
     // Occasional hot sparkle streaks
     float sparkle = pow(hash(pp * 60.0 + floor(t * 8.0)), 10.0);
-    col += u_color * sparkle * 0.6;
+    col += u_color * sparkle * 0.7;
 
-    float a = mask * u_alpha * qt_Opacity;
+    // No solid backdrop: alpha is plasma-driven, so low-energy regions stay see-through
+    float a = mask * u_alpha * clamp(0.25 + 0.6 * plasma + sparkle * 0.4, 0.0, 1.0) * qt_Opacity;
     fragColor = vec4(col * a, a); // premultiplied
 }

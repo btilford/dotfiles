@@ -196,7 +196,8 @@ Item {
                         const ic = root.iconFor(modelData.name);
                         return ic ? ic : ((modelData.name && isNaN(modelData.name)) ? modelData.name : modelData.id);
                     }
-                    color: pill.active ? Theme.bg : Theme.fg
+                    // fill is translucent plasma now, so active text stays light (not bg-dark)
+                    color: Theme.fg
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.fontSize - 2
                     font.bold: pill.active
