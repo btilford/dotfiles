@@ -76,7 +76,7 @@ PanelWindow {
         EnergyBorder {
             anchors.fill: parent
             radius: parent.radius
-            thickness: 2.0
+            thickness: 2.75
             energy: win.visible ? 0.7 : 0.0
         }
 

@@ -79,7 +79,7 @@ PopupWindow {
             anchors.fill: parent
             visible: pop.energyBorder
             radius: parent.radius
-            thickness: 2.0
+            thickness: 2.75
             energy: pop.shown ? 0.7 : 0.0
         }
 

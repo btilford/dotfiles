@@ -104,7 +104,7 @@ Item {
     EnergyBorder {
         id: glow
         anchors.fill: parent
-        thickness: 2.0
+        thickness: 2.75
         slantLeft: root.sl
         slantRight: root.sr
         skipTop: true

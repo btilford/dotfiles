@@ -115,7 +115,7 @@ PanelWindow {
                     EnergyBorder {
                         anchors.fill: parent
                         radius: parent.radius
-                        thickness: 2.5
+                        thickness: 3.25
                         energy: card.hot ? 0.9 : 0.0
                     }
 
