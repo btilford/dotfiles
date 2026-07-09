@@ -46,14 +46,19 @@ void main() {
 
     float aspect = w / h;
     vec2 pp = uv * vec2(aspect, 1.0);
-    vec2 L = vec2(u_lightX * aspect, u_lightY);
+    float t = u_time;
 
-    // broad soft highlight leaning toward the light (cursor)
+    // light = cursor position + a gentle idle wander (small Lissajous orbit), so the
+    // highlight keeps drifting even when the mouse is still. Integer multiples of t
+    // keep the loop seamless.
+    vec2 wander = vec2(cos(3.0 * t), sin(2.0 * t)) * 0.10;
+    vec2 L = vec2(u_lightX * aspect, u_lightY) + wander;
+
+    // broad soft highlight leaning toward the light, with a slow breathing pulse
     float d = distance(pp, L);
-    float spot = exp(-d * d * 1.8);
+    float spot = exp(-d * d * 1.8) * (0.88 + 0.12 * sin(4.0 * t));
 
     // slow diagonal glimmer band sweeping the surface, brighter near the light
-    float t = u_time;
     float p = dot(uv, vec2(0.8, 0.6));
     float band = pow(max(sin(p * 6.28318 - 2.0 * t), 0.0), 5.0);
 
