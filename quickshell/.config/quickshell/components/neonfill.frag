@@ -37,21 +37,21 @@ void main() {
 
     float t = u_time;
 
-    // mains buzz: fast shallow oscillation + rare brief dips (kept subtle)
-    float buzz = 0.95 + 0.05 * sin(40.0 * t) * sin(64.0 * t);
-    float dip = 1.0 - 0.22 * smoothstep(0.985, 1.0, sin(9.0 * t) * sin(23.0 * t));
+    // mains buzz: slow shallow oscillation + rare brief dips (kept subtle)
+    float buzz = 0.95 + 0.05 * sin(10.0 * t) * sin(16.0 * t);
+    float dip = 1.0 - 0.22 * smoothstep(0.985, 1.0, sin(2.0 * t) * sin(6.0 * t));
     float I = buzz * dip;
 
-    // bright tube line ~1.5px inside the edge
+    // rim line ~1.5px inside the edge — barely brighter than the fill, not a hot outline
     float tube = smoothstep(2.5, 0.5, abs(dIn - 1.5));
-    // colored glow bleeding inward from the tube
+    // colored glow bleeding inward from the edge
     float glow = exp(-dIn / max(min(w, h) * 0.22, 3.0));
 
-    // filled tube: glowing interior, brighter toward the edges, white-hot rim
-    vec3 core = mix(u_color, vec3(1.0), 0.55);
-    vec3 col = core * tube + u_color * (0.85 + 0.3 * glow);
+    // filled tube: glowing interior, gently brighter toward the edges
+    vec3 core = mix(u_color, vec3(1.0), 0.18);
+    vec3 col = core * tube * 0.5 + u_color * (0.85 + 0.3 * glow);
 
-    float a = mask * u_alpha * (0.5 + glow * 0.25 + tube * 0.45) * I * qt_Opacity;
+    float a = mask * u_alpha * (0.5 + glow * 0.25 + tube * 0.18) * I * qt_Opacity;
     a = clamp(a, 0.0, 1.0);
     fragColor = vec4(col * a, a); // premultiplied
 }

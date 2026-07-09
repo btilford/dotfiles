@@ -24,9 +24,9 @@ void main() {
     vec2 uv = qt_TexCoord0;
     float t = u_time;
 
-    // mains buzz + rare dips (matches neonfill.frag)
-    float buzz = 0.94 + 0.06 * sin(40.0 * t) * sin(64.0 * t);
-    float dip = 1.0 - 0.3 * smoothstep(0.985, 1.0, sin(9.0 * t) * sin(23.0 * t));
+    // mains buzz + rare dips (matches neonfill.frag; slow + subtle)
+    float buzz = 0.95 + 0.05 * sin(10.0 * t) * sin(16.0 * t);
+    float dip = 1.0 - 0.22 * smoothstep(0.985, 1.0, sin(2.0 * t) * sin(6.0 * t));
     float I = buzz * dip;
 
     float srcA = texture(source, uv).a;
