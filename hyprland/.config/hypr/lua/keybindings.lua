@@ -2,7 +2,7 @@
 -- Every bind carries a { description = ... } so `hyprctl binds` is readable.
 
 -- Applications (single-string format works)
-hl.bind("SUPER + o", hl.dsp.submap("open-cmd"), { description = "Open-app submap" })
+hl.bind("SUPER + o", hl.dsp.submap("open-cmd"), { description = "Open-app submap [open-cmd]" })
 hl.define_submap("open-cmd", function()
 	hl.bind("b", hl.dsp.exec_cmd("/usr/bin/brave"), { description = "Launch Brave" })
 	hl.bind("t", hl.dsp.exec_cmd("/usr/bin/ghostty"), { description = "Launch Ghostty terminal" })
@@ -70,7 +70,7 @@ hl.bind("SUPER + ALT + j", hl.dsp.window.move({ workspace = 2 }), { description 
 hl.bind("SUPER + ALT + k", hl.dsp.window.move({ workspace = 1 }), { description = "Move window to workspace 1" })
 hl.bind("SUPER + ALT + l", hl.dsp.window.move({ workspace = "+1" }), { description = "Move window to next workspace" })
 
-hl.bind("SUPER + d", hl.dsp.submap("workspace-cmd"), { description = "Workspace submap" })
+hl.bind("SUPER + d", hl.dsp.submap("workspace-cmd"), { description = "Workspace submap [workspace-cmd]" })
 hl.define_submap("workspace-cmd", function()
 	hl.bind("TAB", hl.dsp.workspace.move({ workspace = "+1", monitor = "current" }), { description = "Next workspace (this monitor)" })
 	hl.bind("SHIFT + TAB", hl.dsp.workspace.move({ workspace = "-1", monitor = "current" }), { description = "Previous workspace (this monitor)" })
@@ -103,7 +103,7 @@ hl.define_submap("workspace-cmd", function()
 	hl.bind("l", cycle_workspace_layout, { description = "Cycle workspace layout" })
 	hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
 end)
-hl.bind("SUPER + w", hl.dsp.submap("window-cmd"), { description = "Window submap" })
+hl.bind("SUPER + w", hl.dsp.submap("window-cmd"), { description = "Window submap [window-cmd]" })
 hl.define_submap("window-cmd", function()
 	-- hl.bind("SHIFT + h", hl.dsp.resize({ x = 10, y = 0, relative = true }), { repeating = true })
 	hl.bind("TAB", function()
@@ -152,7 +152,7 @@ hl.define_submap("window-cmd", function()
 	hl.bind("m", hl.dsp.window.fullscreen({ mode = "maximized" }), { description = "Maximize window" })
 	hl.bind("t", hl.dsp.window.float(), { description = "Toggle floating" })
 
-	hl.bind("s", hl.dsp.submap("window-swap"), { description = "Window-swap submap" })
+	hl.bind("s", hl.dsp.submap("window-swap"), { description = "Window-swap submap [window-swap]" })
 	hl.define_submap("window-swap", function()
 		hl.bind("h", hl.dsp.window.swap({ direction = "left" }), { description = "Swap window left" })
 		hl.bind("j", hl.dsp.window.swap({ direction = "down" }), { description = "Swap window down" })
@@ -198,7 +198,7 @@ hl.define_submap("window-cmd", function()
 end)
 
 -- focus submap for focusing specific applications
-hl.bind("SUPER + f", hl.dsp.submap("focus-cmd"), { description = "Focus-app submap" })
+hl.bind("SUPER + f", hl.dsp.submap("focus-cmd"), { description = "Focus-app submap [focus-cmd]" })
 
 hl.define_submap("focus-cmd", function()
 	-- Focus terminal (ghostty)

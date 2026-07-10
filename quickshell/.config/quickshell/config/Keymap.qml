@@ -83,10 +83,23 @@ Singleton {
         parts.push(key);
         return parts.join(" + ");
     }
-    // what the bind does: description if present, else dispatcher + arg
+    // if `b` is a bind that ENTERS a submap, return that submap's name, else "". Matched two
+    // ways: a native `submap` dispatcher with the map as arg, or (lua configs, where every
+    // bind is `__lua`) a description tagged "[name]" by convention — see
+    // hypr/lua/keybindings.lua. The bind's own `submap` field is the map it enters FROM,
+    // which gives the overlay the nesting tree.
+    function submapEntry(b) {
+        if (b.dispatcher === "submap" && b.arg && b.arg !== "reset")
+            return b.arg;
+        const m = (b.description || "").match(/\[([^\]]+)\]$/);
+        return m ? m[1] : "";
+    }
+
+    // what the bind does: description if present (minus any trailing "[submap]" tag),
+    // else dispatcher + arg
     function action(b) {
         if (b.description && b.description.length)
-            return b.description;
+            return b.description.replace(/\s*\[[^\]]+\]$/, "");
         return (b.dispatcher || "") + (b.arg ? " " + b.arg : "");
     }
 }
