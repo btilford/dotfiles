@@ -10,6 +10,20 @@ case "$HYPR_LAUNCHER" in
         if [ "$1" = "emoji" ]; then
             exec rofimoji --action copy
         fi
+        # glyphs mode: rofimoji over the same character sets the quickshell
+        # glyphs.json is generated from (see quickshell scripts/gen-glyph-data.py)
+        if [ "$1" = "glyphs" ]; then
+            exec rofimoji --action copy --files math arrows general_punctuation \
+                currency_symbols letterlike_symbols number_forms box_drawing \
+                geometric_shapes dingbats miscellaneous_symbols \
+                miscellaneous_technical latin-1_supplement \
+                alphabetic_presentation_forms nerd_font
+        fi
+        # icons mode has no rofi equivalent
+        if [ "$1" = "icons" ]; then
+            notify-send "Launcher" "icons mode requires the quickshell backend"
+            exit 1
+        fi
         # Per-host rofi DPI: cachyos-fwd drives 4K @ scale 1.5, where rofi auto-DPI
         # (~122) stacks on the compositor scale and renders oversized. Other hosts get
         # no override. Imported by config.rasi via @import "~/.config/rofi/host-dpi.rasi".
