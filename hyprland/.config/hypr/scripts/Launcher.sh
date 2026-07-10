@@ -6,6 +6,10 @@
 
 case "$HYPR_LAUNCHER" in
     rofi)
+        # emoji mode maps to rofimoji on the rofi backend
+        if [ "$1" = "emoji" ]; then
+            exec rofimoji --action copy
+        fi
         # Per-host rofi DPI: cachyos-fwd drives 4K @ scale 1.5, where rofi auto-DPI
         # (~122) stacks on the compositor scale and renders oversized. Other hosts get
         # no override. Imported by config.rasi via @import "~/.config/rofi/host-dpi.rasi".

@@ -7,8 +7,11 @@ hl.define_submap("open-cmd", function()
 	hl.bind("b", hl.dsp.exec_cmd("/usr/bin/brave"), { description = "Launch Brave" })
 	hl.bind("t", hl.dsp.exec_cmd("/usr/bin/ghostty"), { description = "Launch Ghostty terminal" })
 	hl.bind("c", hl.dsp.exec_cmd("/usr/bin/speedcrunch"), { description = "Launch SpeedCrunch calculator" })
-	-- --action copy: typing would need wtype, which isn't installed; wl-copy is
-	hl.bind("e", hl.dsp.exec_cmd("/usr/bin/rofimoji --action copy"), { description = "Launch rofimoji emoji picker" })
+	hl.bind(
+		"e",
+		hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Launcher.sh emoji"'),
+		{ description = "Emoji picker (launcher emoji mode)" }
+	)
 
 	hl.bind("z", hl.dsp.exec_cmd("missioncenter"), { description = "Launch Mission Center" })
 	hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })

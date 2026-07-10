@@ -7,7 +7,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import "../config"
 
-// Multi-mode launcher (rofi parity): combi (apps + run fallback), drun, run, files.
+// Multi-mode launcher (rofi parity): combi (apps + run fallback), drun, run, files, emoji.
 PanelWindow {
     id: root
     visible: false
@@ -24,12 +24,12 @@ PanelWindow {
         right: true
     }
 
-    property string mode: "combi" // combi | drun | run | files
+    property string mode: "combi" // combi | drun | run | files | emoji
     property string query: ""
     property string folder: Quickshell.env("HOME")
     property var results: []
     // reactive effective mode (for the UI chip/placeholder); mirrors effectiveMode()
-    readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : mode
+    readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : query.startsWith(":") ? "emoji" : mode
 
     // ---- lifecycle ----
     function open(m) {
@@ -53,7 +53,7 @@ PanelWindow {
             open(m);
     }
     function cycleMode() {
-        const order = ["combi", "run", "files"];
+        const order = ["combi", "run", "files", "emoji"];
         mode = order[(order.indexOf(mode) + 1) % order.length];
         refresh();
     }
@@ -72,7 +72,7 @@ PanelWindow {
     // ---- effective query (strip mode prefix) ----
     function effectiveQuery() {
         let q = query;
-        if (q.startsWith(">") || q.startsWith("/") || q.startsWith("~"))
+        if (q.startsWith(">") || q.startsWith("/") || q.startsWith("~") || q.startsWith(":"))
             return q.slice(1).trim();
         return q.trim();
     }
@@ -81,7 +81,29 @@ PanelWindow {
             return "run";
         if (query.startsWith("/") || query.startsWith("~"))
             return "files";
+        if (query.startsWith(":"))
+            return "emoji";
         return mode;
+    }
+
+    // ---- emoji data (config/emoji.json, generated from rofimoji's character data) ----
+    // loaded lazily on first emoji refresh (Qt blocks XMLHttpRequest file reads, so FileView);
+    // entries: { e: char, n: name, k: keywords, g: group }
+    property var emojiData: []
+    FileView {
+        id: emojiFile
+        onLoaded: {
+            try {
+                root.emojiData = JSON.parse(text());
+            } catch (e) {
+                root.emojiData = [];
+            }
+            root.refresh();
+        }
+    }
+    function loadEmoji() {
+        if (!emojiFile.path || !emojiFile.path.toString().length)
+            emojiFile.path = Quickshell.env("HOME") + "/.config/quickshell/config/emoji.json";
     }
 
     // ---- build results ----
@@ -133,6 +155,24 @@ PanelWindow {
         if (m === "files") {
             // handled by FolderListModel below; mirror into results for uniform nav
             out = fileResults();
+        }
+
+        if (m === "emoji") {
+            if (!root.emojiData.length) {
+                loadEmoji(); // async; re-runs refresh when loaded
+            } else {
+                for (const em of root.emojiData) {
+                    if (q.length && (em.n + " " + em.k).toLowerCase().indexOf(q) < 0)
+                        continue;
+                    out.push({
+                        kind: "emoji",
+                        label: em.n,
+                        sub: em.g + (em.k.length ? " · " + em.k : ""),
+                        icon: "",
+                        char: em.e
+                    });
+                }
+            }
         }
 
         root.results = out;
@@ -188,6 +228,9 @@ PanelWindow {
                 Quickshell.execDetached(["xdg-open", item.path]);
                 close();
             }
+        } else if (item.kind === "emoji") {
+            Quickshell.execDetached(["wl-copy", item.char]);
+            close();
         }
     }
 
@@ -306,7 +349,9 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     placeholderText: root.activeMode === "files"
                         ? root.folder
-                        : "Search apps  ·  > run  ·  / files"
+                        : root.activeMode === "emoji"
+                            ? "Search emoji  ·  Enter copies to clipboard"
+                            : "Search apps  ·  > run  ·  / files  ·  : emoji"
                     color: Theme.fg
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize
@@ -403,14 +448,16 @@ PanelWindow {
                             Text {
                                 anchors.centerIn: parent
                                 visible: !appIcon.visible
-                                text: modelData.kind === "run"
+                                text: modelData.kind === "emoji"
+                                    ? modelData.char
+                                    : modelData.kind === "run"
                                     ? "" // terminal
                                     : modelData.kind === "file"
                                         ? (modelData.isDir ? "" : "") // folder / file
                                         : "" // app fallback
                                 color: Theme.accent
                                 font.family: Theme.fontUi
-                                font.pixelSize: 18
+                                font.pixelSize: modelData.kind === "emoji" ? 22 : 18
                             }
                         }
 
