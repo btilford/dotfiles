@@ -303,9 +303,14 @@ PanelWindow {
                             width: tree.width
                             height: 26
                             radius: 4
-                            color: current
-                                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.15)
-                                : (nodeMa.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.06) : "transparent")
+                            color: nodeMa.containsMouse && !current ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.06) : "transparent"
+                            // breathing neon fill on the current tree node
+                            EnergyFill {
+                                visible: node.current
+                                anchors.fill: parent
+                                radius: 4
+                                alpha: 0.3
+                            }
                             Text {
                                 id: nodeName
                                 anchors.left: parent.left
@@ -367,9 +372,14 @@ PanelWindow {
                         Rectangle {
                             anchors.fill: parent
                             radius: 4
-                            color: row.current
-                                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
-                                : (rowMa.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.06) : "transparent")
+                            color: rowMa.containsMouse && !row.current ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.06) : "transparent"
+                        }
+                        // breathing neon fill on the selected row
+                        EnergyFill {
+                            visible: row.current
+                            anchors.fill: parent
+                            radius: 4
+                            alpha: 0.3
                         }
                         // left accent bar on the selected row
                         Rectangle {

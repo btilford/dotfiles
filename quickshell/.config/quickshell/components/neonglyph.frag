@@ -24,9 +24,9 @@ void main() {
     vec2 uv = qt_TexCoord0;
     float t = u_time;
 
-    // mains buzz + rare dips + slow breath (matches neonfill.frag)
-    float breath = 0.93 + 0.07 * sin(2.0 * t);
-    float buzz = 0.95 + 0.05 * sin(10.0 * t) * sin(16.0 * t);
+    // mains buzz + rare dips + visible breath (matches neonfill.frag)
+    float breath = 0.80 + 0.20 * sin(2.0 * t);
+    float buzz = 0.94 + 0.06 * sin(10.0 * t) * sin(16.0 * t);
     float dip = 1.0 - 0.22 * smoothstep(0.985, 1.0, sin(2.0 * t) * sin(6.0 * t));
     float I = breath * buzz * dip;
 

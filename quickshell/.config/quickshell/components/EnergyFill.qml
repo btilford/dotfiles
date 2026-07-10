@@ -35,13 +35,14 @@ Item {
         property real u_alpha: root.alpha
         property color u_color: root.color
 
-        // exactly one 2π period — the lava pattern is periodic in t, so the loop is seamless
+        // exactly one 2π period so the loop is seamless. 9s/loop → the sin(2t) breath term
+        // cycles every 4.5s, slow enough to read as breathing but clearly alive.
         NumberAnimation on u_time {
             running: root.visible
             loops: Animation.Infinite
             from: 0
             to: 6.2831853
-            duration: 45000
+            duration: 9000
         }
 
         fragmentShader: Qt.resolvedUrl(root.effect === "lava" ? "energyfill.frag.qsb" : "neonfill.frag.qsb")

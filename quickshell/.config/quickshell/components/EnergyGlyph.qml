@@ -36,12 +36,13 @@ ShaderEffect {
     property real u_alpha: fx.alpha
     property color u_color: fx.color
 
+    // 9s per 2π loop → 4.5s breath cycle (matches EnergyFill)
     NumberAnimation on u_time {
         running: fx.visible
         loops: Animation.Infinite
         from: 0
         to: 6.2831853
-        duration: 45000
+        duration: 9000
     }
 
     fragmentShader: Qt.resolvedUrl(fx.effect === "lava" ? "energyglyph.frag.qsb" : "neonglyph.frag.qsb")
