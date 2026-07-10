@@ -7,7 +7,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import "../config"
 
-// Multi-mode launcher (rofi parity): combi (apps + run fallback), drun, run, files, emoji.
+// Multi-mode launcher (rofi parity): combi (apps + run fallback), drun, run, files, emoji, glyphs, icons.
 PanelWindow {
     id: root
     visible: false
@@ -24,12 +24,12 @@ PanelWindow {
         right: true
     }
 
-    property string mode: "combi" // combi | drun | run | files | emoji
+    property string mode: "combi" // combi | drun | run | files | emoji | glyphs | icons
     property string query: ""
     property string folder: Quickshell.env("HOME")
     property var results: []
     // reactive effective mode (for the UI chip/placeholder); mirrors effectiveMode()
-    readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : query.startsWith(":") ? "emoji" : mode
+    readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : query.startsWith(":") ? "emoji" : query.startsWith(";") ? "glyphs" : query.startsWith("#") ? "icons" : mode
 
     // ---- lifecycle ----
     function open(m) {
@@ -53,7 +53,7 @@ PanelWindow {
             open(m);
     }
     function cycleMode() {
-        const order = ["combi", "run", "files", "emoji"];
+        const order = ["combi", "run", "files", "emoji", "glyphs", "icons"];
         mode = order[(order.indexOf(mode) + 1) % order.length];
         refresh();
     }
@@ -72,7 +72,7 @@ PanelWindow {
     // ---- effective query (strip mode prefix) ----
     function effectiveQuery() {
         let q = query;
-        if (q.startsWith(">") || q.startsWith("/") || q.startsWith("~") || q.startsWith(":"))
+        if (q.startsWith(">") || q.startsWith("/") || q.startsWith("~") || q.startsWith(":") || q.startsWith(";") || q.startsWith("#"))
             return q.slice(1).trim();
         return q.trim();
     }
@@ -83,6 +83,10 @@ PanelWindow {
             return "files";
         if (query.startsWith(":"))
             return "emoji";
+        if (query.startsWith(";"))
+            return "glyphs";
+        if (query.startsWith("#"))
+            return "icons";
         return mode;
     }
 
@@ -104,6 +108,53 @@ PanelWindow {
     function loadEmoji() {
         if (!emojiFile.path || !emojiFile.path.toString().length)
             emojiFile.path = Quickshell.env("HOME") + "/.config/quickshell/config/emoji.json";
+    }
+
+    // ---- glyph data (config/glyphs.json: curated unicode blocks + nerd-font PUA) ----
+    // same shape and lazy-load pattern as emoji.json (see scripts/gen-glyph-data.py)
+    property var glyphData: []
+    FileView {
+        id: glyphFile
+        onLoaded: {
+            try {
+                root.glyphData = JSON.parse(text());
+            } catch (e) {
+                root.glyphData = [];
+            }
+            root.refresh();
+        }
+    }
+    function loadGlyphs() {
+        if (!glyphFile.path || !glyphFile.path.toString().length)
+            glyphFile.path = Quickshell.env("HOME") + "/.config/quickshell/config/glyphs.json";
+    }
+
+    // ---- icon data (theme icons, scanned by scripts/list-icons.sh) ----
+    // entries: { n: icon name, p: file path }; lazy like the JSON pickers
+    property var iconData: []
+    Process {
+        id: iconProc
+        command: [Quickshell.env("HOME") + "/.config/quickshell/scripts/list-icons.sh"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let out = [];
+                for (const line of this.text.split("\n")) {
+                    const tab = line.indexOf("\t");
+                    if (tab < 1)
+                        continue;
+                    out.push({
+                        n: line.slice(0, tab),
+                        p: line.slice(tab + 1)
+                    });
+                }
+                root.iconData = out;
+                root.refresh();
+            }
+        }
+    }
+    function loadIcons() {
+        if (!root.iconData.length && !iconProc.running)
+            iconProc.running = true;
     }
 
     // ---- build results ----
@@ -175,6 +226,43 @@ PanelWindow {
             }
         }
 
+        if (m === "glyphs") {
+            if (!root.glyphData.length) {
+                loadGlyphs(); // async; re-runs refresh when loaded
+            } else {
+                for (const gl of root.glyphData) {
+                    // group is searchable too ("nerd md", "math", ...)
+                    if (q.length && (gl.n + " " + gl.k + " " + gl.g).toLowerCase().indexOf(q) < 0)
+                        continue;
+                    out.push({
+                        kind: "glyph",
+                        label: gl.n,
+                        sub: gl.g + (gl.k.length ? " · " + gl.k : ""),
+                        icon: "",
+                        char: gl.e
+                    });
+                }
+            }
+        }
+
+        if (m === "icons") {
+            if (!root.iconData.length) {
+                loadIcons(); // async; re-runs refresh when loaded
+            } else {
+                for (const ic of root.iconData) {
+                    if (q.length && ic.n.toLowerCase().indexOf(q) < 0)
+                        continue;
+                    out.push({
+                        kind: "icon",
+                        label: ic.n,
+                        sub: ic.p,
+                        icon: "",
+                        path: ic.p
+                    });
+                }
+            }
+        }
+
         root.results = out;
         list.currentIndex = out.length ? 0 : -1;
     }
@@ -228,8 +316,11 @@ PanelWindow {
                 Quickshell.execDetached(["xdg-open", item.path]);
                 close();
             }
-        } else if (item.kind === "emoji") {
+        } else if (item.kind === "emoji" || item.kind === "glyph") {
             Quickshell.execDetached(["wl-copy", item.char]);
+            close();
+        } else if (item.kind === "icon") {
+            Quickshell.execDetached(["wl-copy", item.label]);
             close();
         }
     }
@@ -351,7 +442,11 @@ PanelWindow {
                         ? root.folder
                         : root.activeMode === "emoji"
                             ? "Search emoji  ·  Enter copies to clipboard"
-                            : "Search apps  ·  > run  ·  / files  ·  : emoji"
+                            : root.activeMode === "glyphs"
+                                ? "Search glyphs  ·  Enter copies to clipboard"
+                                : root.activeMode === "icons"
+                                    ? "Search icons  ·  Enter copies icon name"
+                                    : "Search apps  ·  > run  ·  / files  ·  : emoji  ·  ; glyphs  ·  # icons"
                     color: Theme.fg
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize
@@ -438,7 +533,9 @@ PanelWindow {
                                 visible: source != ""
                                 source: (modelData.kind === "app" && modelData.icon)
                                     ? Quickshell.iconPath(modelData.icon, true)
-                                    : ""
+                                    : modelData.kind === "icon"
+                                        ? "file://" + modelData.path
+                                        : ""
                                 sourceSize.width: 28
                                 sourceSize.height: 28
                                 fillMode: Image.PreserveAspectFit
@@ -448,7 +545,7 @@ PanelWindow {
                             Text {
                                 anchors.centerIn: parent
                                 visible: !appIcon.visible
-                                text: modelData.kind === "emoji"
+                                text: (modelData.kind === "emoji" || modelData.kind === "glyph")
                                     ? modelData.char
                                     : modelData.kind === "run"
                                     ? "" // terminal
@@ -457,7 +554,7 @@ PanelWindow {
                                         : "" // app fallback
                                 color: Theme.accent
                                 font.family: Theme.fontUi
-                                font.pixelSize: modelData.kind === "emoji" ? 22 : 18
+                                font.pixelSize: (modelData.kind === "emoji" || modelData.kind === "glyph") ? 22 : 18
                             }
                         }
 
