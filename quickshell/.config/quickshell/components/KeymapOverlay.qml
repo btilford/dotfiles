@@ -141,7 +141,8 @@ PanelWindow {
         id: panel
         anchors.centerIn: parent
         width: Math.min(880, win.width * 0.75)
-        height: Math.min(win.height * 0.75, header.height + Math.max(tree.implicitHeight, list.contentHeight) + 3 * Theme.pad + search.height)
+        // fixed height — content-driven sizing made the panel jump when switching submaps
+        height: win.height * 0.7
         radius: Theme.radius
         color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surfaceOpacity)
 
