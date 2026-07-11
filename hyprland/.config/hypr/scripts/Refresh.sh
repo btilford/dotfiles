@@ -5,6 +5,10 @@
 SCRIPTSDIR=$HOME/.config/hypr/scripts
 UserScripts=$HOME/.config/hypr/UserScripts
 
+# Which bar this machine runs (waybar|quickshell) — only manage waybar when
+# it's the active bar; the quickshell bar watches its wallust files itself.
+. "$SCRIPTSDIR/shell-env.sh"
+
 # Define file_exists function
 file_exists() {
   if [ -e "$1" ]; then
@@ -15,17 +19,20 @@ file_exists() {
 }
 
 # Kill already running processes
-_ps=(waybar rofi swaync ags)
+_ps=(rofi swaync ags)
+[ "$HYPR_BAR" = "waybar" ] && _ps+=(waybar)
 for _prs in "${_ps[@]}"; do
   if pidof "${_prs}" >/dev/null; then
     pkill "${_prs}"
   fi
 done
 
-# added since wallust sometimes not applying
-killall -SIGUSR2 waybar
-# Added sleep for GameMode causing multiple waybar
-sleep 0.1
+if [ "$HYPR_BAR" = "waybar" ]; then
+  # added since wallust sometimes not applying
+  killall -SIGUSR2 waybar
+  # Added sleep for GameMode causing multiple waybar
+  sleep 0.1
+fi
 
 # quit ags & relaunch ags
 #ags -q && ags &
@@ -34,14 +41,16 @@ sleep 0.1
 #pkill qs && qs &
 
 # some process to kill
-for pid in $(pidof waybar rofi swaync ags swaybg); do
+for pid in $(pidof rofi swaync ags swaybg); do
   kill -SIGUSR1 "$pid"
   sleep 0.1
 done
 
-#Restart waybar
-sleep 0.1
-waybar &
+# Restart waybar only when it's the active bar
+if [ "$HYPR_BAR" = "waybar" ]; then
+  sleep 0.1
+  waybar &
+fi
 
 # relaunch swaync
 sleep 0.3
