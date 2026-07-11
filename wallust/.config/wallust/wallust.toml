@@ -25,3 +25,6 @@ swaync.target = '~/.config/swaync/wallust/colors-wallust.css'
 
 quickshell.template = 'colors-quickshell.json'
 quickshell.target = '~/.config/quickshell/wallust/colors.json'
+
+clipvault.template = 'colors-quickshell.json'
+clipvault.target = '~/.config/clipvault/colors.json'
