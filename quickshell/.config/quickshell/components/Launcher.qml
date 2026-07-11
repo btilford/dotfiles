@@ -159,83 +159,118 @@ PanelWindow {
             iconProc.running = true;
     }
 
-    // ---- clip data (clipvault clipboard history, via `clipvault list --json`) ----
-    // debounced (120ms) so fast typing doesn't spawn a process per keystroke;
-    // filtering happens server-side (FTS5) since clipvault owns the search index
+    // ---- clip data (clipvault clipboard history, via the daemon's ipc socket) ----
+    // Two persistent Unix-socket connections instead of spawning a `clipvault`
+    // process per query: `clipSocket` is a request/response channel (one
+    // in-flight request at a time, responses arrive in request order so a
+    // simple FIFO queue of "what kind of request is this" correlates them);
+    // `clipEventsSocket` subscribes once and gets a push line every time the
+    // daemon's db changes, so the list refreshes on new captures without
+    // polling. Falls back to nothing gracefully if the daemon/socket isn't
+    // up — clip mode just stays empty rather than erroring.
+    property string clipSocketPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/clipvault.sock"
     property var clipData: []
+    property var clipReqQueue: []
     Timer {
         id: clipDebounce
         interval: 120
         repeat: false
         onTriggered: root.runClipQuery()
     }
-    Process {
-        id: clipProc
-        stdout: StdioCollector {
-            onStreamFinished: {
+    Socket {
+        id: clipSocket
+        path: root.clipSocketPath
+        connected: true
+        onError: error => console.log("clipvault: ipc socket error (is the daemon running?)", error)
+        parser: SplitParser {
+            splitMarker: "\n"
+            onRead: function (line) {
+                const kind = root.clipReqQueue.length ? root.clipReqQueue.shift() : "";
+                let msg;
                 try {
-                    root.clipData = JSON.parse(this.text);
+                    msg = JSON.parse(line);
                 } catch (e) {
-                    root.clipData = [];
+                    return;
                 }
-                root.refresh();
+                if (kind === "list") {
+                    root.clipData = msg.entries || [];
+                    root.refresh();
+                } else if (kind === "actions") {
+                    root.clipActionsList = msg.actions || [];
+                    root.clipActionsIndex = 0;
+                    root.clipActionsOpen = root.clipActionsList.length > 0;
+                }
+                // act/pin/delete/copy: fire-and-forget acks; clipEventsSocket
+                // triggers the requery once the mutation actually lands
             }
         }
     }
+    function clipSend(kind, req) {
+        root.clipReqQueue.push(kind);
+        clipSocket.write(JSON.stringify(req) + "\n");
+        clipSocket.flush();
+    }
     function runClipQuery() {
-        if (clipProc.running) {
-            clipDebounce.restart();
-            return;
-        }
         const q = effectiveQuery();
-        let cmd = ["clipvault", "list", "--json", "--limit", "100"];
-        if (q.length)
-            cmd = cmd.concat(["-q", q]);
-        clipProc.command = cmd;
-        clipProc.running = true;
+        clipSend("list", {
+            op: "list",
+            query: q.length ? q : undefined,
+            limit: 100
+        });
     }
-    // fire-and-wait action (delete/pin) that reloads the list once it exits
-    Process {
-        id: clipActionProc
-        onExited: root.runClipQuery()
+    function clipAction(req) {
+        clipSend(req.op, req);
     }
-    function clipAction(args) {
-        clipActionProc.command = args;
-        clipActionProc.running = true;
+
+    Socket {
+        id: clipEventsSocket
+        path: root.clipSocketPath
+        connected: true
+        onError: error => console.log("clipvault: ipc events socket error", error)
+        parser: SplitParser {
+            splitMarker: "\n"
+            onRead: function (line) {
+                // every line on this socket (the subscribe ack, and every
+                // subsequent "changed" push) is a cue to requery if clip
+                // mode is on screen
+                if (root.visible && root.activeMode === "clip")
+                    root.runClipQuery();
+            }
+        }
+        onConnectedChanged: {
+            if (connected) {
+                write(JSON.stringify({
+                    op: "subscribe"
+                }) + "\n");
+                flush();
+            }
+        }
     }
 
     // ---- clip action sub-list (open in browser, edit, tmux, curl, ...) ----
-    // `clipvault actions <id> --json` -> [{id, label}]; picking one runs
-    // `clipvault act <id> <action-id>` and closes the launcher, same as Enter.
+    // `{"op":"actions","id":N}` -> [{id, label}]; picking one sends
+    // `{"op":"act","id":N,"action":"..."}` and closes the launcher, same as Enter.
     property var clipActionsList: []
     property int clipActionsIndex: 0
     property bool clipActionsOpen: false
     property int clipActionsForId: -1
-    Process {
-        id: clipActionsProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    root.clipActionsList = JSON.parse(this.text);
-                } catch (e) {
-                    root.clipActionsList = [];
-                }
-                root.clipActionsIndex = 0;
-                root.clipActionsOpen = root.clipActionsList.length > 0;
-            }
-        }
-    }
     function openClipActions(id) {
         clipActionsForId = id;
-        clipActionsProc.command = ["clipvault", "actions", String(id), "--json"];
-        clipActionsProc.running = true;
+        clipSend("actions", {
+            op: "actions",
+            id: id
+        });
     }
     function closeClipActions() {
         clipActionsOpen = false;
         clipActionsList = [];
     }
     function runClipAction(actionId) {
-        Quickshell.execDetached(["clipvault", "act", String(clipActionsForId), actionId]);
+        root.clipAction({
+            op: "act",
+            id: clipActionsForId,
+            action: actionId
+        });
         closeClipActions();
         root.close();
     }
@@ -463,7 +498,10 @@ PanelWindow {
             Quickshell.execDetached(["wl-copy", item.label]);
             close();
         } else if (item.kind === "clip") {
-            Quickshell.execDetached(["clipvault", "copy", String(item.id)]);
+            root.clipAction({
+                op: "copy",
+                id: item.id
+            });
             close();
         }
     }
@@ -638,19 +676,29 @@ PanelWindow {
                             // Ctrl+Shift+D: delete all entries from this item's app
                             const item = root.results[list.currentIndex];
                             if (item && item.kind === "clip" && item.app_class)
-                                root.clipAction(["clipvault", "delete", "--app", item.app_class, "--yes"]);
+                                root.clipAction({
+                                    op: "delete",
+                                    app: item.app_class
+                                });
                             e.accepted = true;
                         } else if (root.activeMode === "clip" && e.key === Qt.Key_D && (e.modifiers & Qt.ControlModifier)) {
                             // Ctrl+D: delete this entry
                             const item = root.results[list.currentIndex];
                             if (item && item.kind === "clip")
-                                root.clipAction(["clipvault", "delete", "--id", String(item.id), "--yes"]);
+                                root.clipAction({
+                                    op: "delete",
+                                    id: item.id
+                                });
                             e.accepted = true;
                         } else if (root.activeMode === "clip" && e.key === Qt.Key_P && (e.modifiers & Qt.AltModifier)) {
                             // Alt+P: toggle pin
                             const item = root.results[list.currentIndex];
                             if (item && item.kind === "clip")
-                                root.clipAction(["clipvault", item.pinned ? "unpin" : "pin", String(item.id)]);
+                                root.clipAction({
+                                    op: "pin",
+                                    id: item.id,
+                                    pinned: !item.pinned
+                                });
                             e.accepted = true;
                         } else if (root.activeMode === "clip" && e.key === Qt.Key_A && (e.modifiers & Qt.ControlModifier)) {
                             // Ctrl+A: open the action sub-list (open in browser, edit, tmux, ...)
