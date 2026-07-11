@@ -126,3 +126,8 @@ if command -v waybar-msg >/dev/null 2>&1; then
 elif pidof waybar >/dev/null; then
   killall -SIGUSR2 waybar 2>/dev/null || true
 fi
+
+# Apply new colors to the live Hyprland session (no reload; keeps layout state)
+if [ -x "$HOME/.config/hypr/scripts/ApplyHyprColors.sh" ]; then
+  "$HOME/.config/hypr/scripts/ApplyHyprColors.sh" >/dev/null 2>&1 || true
+fi

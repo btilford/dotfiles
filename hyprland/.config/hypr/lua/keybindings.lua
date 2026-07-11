@@ -120,6 +120,12 @@ hl.define_submap("workspace-cmd", function()
 	hl.bind("9", hl.dsp.focus({ workspace = "9" }), { description = "Focus workspace 9" })
 	hl.bind("0", hl.dsp.focus({ workspace = "10" }), { description = "Focus workspace 10" })
 	hl.bind("l", cycle_workspace_layout, { description = "Cycle workspace layout" })
+
+	-- Desktop appearance
+	hl.bind("w", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/WallpaperSelect.sh"'), { description = "Wallpaper chooser" })
+	hl.bind("SHIFT + w", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/WallpaperRandom.sh"'), { description = "Random wallpaper" })
+	hl.bind("t", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/ThemeChanger.sh"'), { description = "Theme chooser" })
+
 	hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
 end)
 hl.bind("SUPER + w", hl.dsp.submap("window-cmd"), { description = "Window submap [window-cmd]" })
@@ -238,6 +244,9 @@ end)
 hl.bind("SUPER + CTRL + RETURN", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Launcher.sh"'), { description = "App launcher (rofi/quickshell)" })
 hl.bind("SUPER + r", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Launcher.sh"'), { description = "App launcher (rofi/quickshell)" })
 hl.bind("SUPER + SHIFT + B", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/StartBar.sh"'), { description = "Restart status bar (waybar/quickshell)" })
+-- Escape hatch: full config reload. Resets runtime workspace/layout state;
+-- theme colors normally arrive via scripts/ApplyHyprColors.sh without this.
+hl.bind("SUPER + SHIFT + R", hl.dsp.exec_cmd("hyprctl reload"), { description = "Reload Hyprland config (resets runtime layout state)" })
 hl.bind("SUPER + Escape", function()
 	-- quickshell session dialog; fall back to wlogout if the qs daemon isn't running
 	os.execute("qs ipc call session toggle 2>/dev/null || setsid -f wlogout --protocol layer-shell")
@@ -305,8 +314,8 @@ hl.bind("code:237", hl.dsp.exec_cmd("brightnessctl -d smc::kbd_backlight s 10-")
 -- Clipboard and file manager
 hl.bind(
 	"CTRL + ALT + V",
-	hl.dsp.exec_cmd("ghostty --class=app.clipse --window-padding-x=10,10 --confirm-close-surface=false -e clipse"),
-	{ description = "Clipboard history (clipse)" }
+	hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Launcher.sh clip"'),
+	{ description = "Clipboard history (launcher clip mode)" }
 )
 hl.bind(
 	"SUPER + E",

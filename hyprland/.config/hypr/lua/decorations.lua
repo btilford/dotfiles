@@ -1,6 +1,11 @@
 -- General window decoration
 -- name: "Default"
 -- Glow effect using wallust colors (dynamic with theme)
+--
+-- NOTE: scripts/ApplyHyprColors.sh re-applies these colors at runtime via
+-- `hyprctl keyword` on theme/wallpaper change (avoids a full reload). When
+-- making a color here dynamic or changing a hardcoded value, update the
+-- matching keyword there in lockstep.
 
 -- Import wallust colors for dynamic glow
 local colors = require("lua.colors")
