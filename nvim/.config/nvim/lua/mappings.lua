@@ -61,6 +61,48 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 	end,
 })
 
+-- Send yanks to clipvault with filetype/file/register metadata, so entries
+-- captured this way carry richer attribution than the raw Wayland clipboard
+-- offer. Registers ""/+/* only ("" = unnamed default register, the common
+-- case for plain `y`; named/macro registers are usually scratch, not copy
+-- intent). Server-side dedup in clipvault merges this with the plain
+-- clipboard capture from unnamedplus when both fire for the same yank.
+vim.api.nvim_create_autocmd("TextYankPost", {
+	desc = "Send yanks to clipvault",
+	group = vim.api.nvim_create_augroup("clipvault-yank", { clear = true }),
+	callback = function()
+		if vim.fn.executable("clipvault") == 0 then
+			return
+		end
+		local event = vim.v.event
+		if event.operator ~= "y" or not vim.tbl_contains({ "", '"', "+", "*" }, event.regname) then
+			return
+		end
+		local content = table.concat(event.regcontents, "\n")
+		if content == "" or #content > 1048576 then
+			return
+		end
+		local file = vim.api.nvim_buf_get_name(0)
+		local ft = vim.bo.filetype
+		local start_line = vim.fn.getpos("'[")[2]
+		local end_line = vim.fn.getpos("']")[2]
+		vim.system({
+			"clipvault",
+			"insert",
+			"--source",
+			"nvim",
+			"--file-path",
+			file,
+			"--filetype",
+			ft,
+			"--line-range",
+			string.format("%d-%d", start_line, end_line),
+			"--register",
+			event.regname,
+		}, { stdin = content })
+	end,
+})
+
 vim.keymap.set("n", ",p", '"0p', { desc = "Paste from the default register" })
 vim.keymap.set("x", ",p", '"0p', { desc = "Paste from the default register" })
 
