@@ -33,10 +33,10 @@ hl.window_rule({
     xray = true,
 })
 
--- Clipse (clipboard)
+-- Clipvault (clipboard)
 hl.window_rule({
-    name = "clipse",
-    match = { class = "^(app.clipse)$" },
+    name = "clipvault",
+    match = { class = "^(app.clipvault)$" },
     float = true,
     center = true,
     size = "1200 80%",

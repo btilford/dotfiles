@@ -30,21 +30,13 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("nm-applet")
     hl.exec_cmd("blueman-applet")
 
-    -- Clipboard manager
-    hl.exec_cmd("wl-paste --type text --watch cliphist store")
-    hl.exec_cmd("wl-paste --type image --watch cliphist store")
-
-    -- clipvault: candidate cliphist/clipse replacement, still under validation.
-    -- Coexists with cliphist/clipse above; remove those once clipvault is signed off.
+    -- Clipboard manager (clipvault; replaced cliphist/clipse)
     hl.exec_cmd('sh -c "command -v clipvault >/dev/null && exec clipvault daemon"')
 
     -- Idle/lock daemon — per-host config: hosts in nosuspend_hosts never call systemctl suspend.
     local nosuspend_hosts = { ["cachyos-fwd"] = true }
     local hypridle_cfg = nosuspend_hosts[host] and "hypridle.nosuspend.conf" or "hypridle.conf"
     hl.exec_cmd("hypridle -c " .. os.getenv("HOME") .. "/.config/hypr/" .. hypridle_cfg)
-
-    -- App launcher helpers
-    hl.exec_cmd("clipse")
 
     -- VPN
     hl.exec_cmd("mullvad-vpn")
