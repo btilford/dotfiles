@@ -34,6 +34,10 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("wl-paste --type text --watch cliphist store")
     hl.exec_cmd("wl-paste --type image --watch cliphist store")
 
+    -- clipvault: candidate cliphist/clipse replacement, still under validation.
+    -- Coexists with cliphist/clipse above; remove those once clipvault is signed off.
+    hl.exec_cmd('sh -c "command -v clipvault >/dev/null && exec clipvault daemon"')
+
     -- Idle/lock daemon — per-host config: hosts in nosuspend_hosts never call systemctl suspend.
     local nosuspend_hosts = { ["cachyos-fwd"] = true }
     local hypridle_cfg = nosuspend_hosts[host] and "hypridle.nosuspend.conf" or "hypridle.conf"

@@ -22,6 +22,11 @@ hl.define_submap("open-cmd", function()
 		hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Launcher.sh icons"'),
 		{ description = "Icon browser (launcher icons mode)" }
 	)
+	hl.bind(
+		"v",
+		hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Launcher.sh clip"'),
+		{ description = "Clipboard history (launcher clip mode)" }
+	)
 
 	hl.bind("z", hl.dsp.exec_cmd("missioncenter"), { description = "Launch Mission Center" })
 	hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })

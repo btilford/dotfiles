@@ -24,12 +24,12 @@ PanelWindow {
         right: true
     }
 
-    property string mode: "combi" // combi | drun | run | files | emoji | glyphs | icons
+    property string mode: "combi" // combi | drun | run | files | emoji | glyphs | icons | clip
     property string query: ""
     property string folder: Quickshell.env("HOME")
     property var results: []
     // reactive effective mode (for the UI chip/placeholder); mirrors effectiveMode()
-    readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : query.startsWith(":") ? "emoji" : query.startsWith(";") ? "glyphs" : query.startsWith("#") ? "icons" : mode
+    readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : query.startsWith(":") ? "emoji" : query.startsWith(";") ? "glyphs" : query.startsWith("#") ? "icons" : query.startsWith(",") ? "clip" : mode
 
     // ---- lifecycle ----
     function open(m) {
@@ -53,7 +53,7 @@ PanelWindow {
             open(m);
     }
     function cycleMode() {
-        const order = ["combi", "run", "files", "emoji", "glyphs", "icons"];
+        const order = ["combi", "run", "files", "clip", "emoji", "glyphs", "icons"];
         mode = order[(order.indexOf(mode) + 1) % order.length];
         refresh();
     }
@@ -72,7 +72,7 @@ PanelWindow {
     // ---- effective query (strip mode prefix) ----
     function effectiveQuery() {
         let q = query;
-        if (q.startsWith(">") || q.startsWith("/") || q.startsWith("~") || q.startsWith(":") || q.startsWith(";") || q.startsWith("#"))
+        if (q.startsWith(">") || q.startsWith("/") || q.startsWith("~") || q.startsWith(":") || q.startsWith(";") || q.startsWith("#") || q.startsWith(","))
             return q.slice(1).trim();
         return q.trim();
     }
@@ -87,6 +87,8 @@ PanelWindow {
             return "glyphs";
         if (query.startsWith("#"))
             return "icons";
+        if (query.startsWith(","))
+            return "clip";
         return mode;
     }
 
@@ -155,6 +157,51 @@ PanelWindow {
     function loadIcons() {
         if (!root.iconData.length && !iconProc.running)
             iconProc.running = true;
+    }
+
+    // ---- clip data (clipvault clipboard history, via `clipvault list --json`) ----
+    // debounced (120ms) so fast typing doesn't spawn a process per keystroke;
+    // filtering happens server-side (FTS5) since clipvault owns the search index
+    property var clipData: []
+    Timer {
+        id: clipDebounce
+        interval: 120
+        repeat: false
+        onTriggered: root.runClipQuery()
+    }
+    Process {
+        id: clipProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.clipData = JSON.parse(this.text);
+                } catch (e) {
+                    root.clipData = [];
+                }
+                root.refresh();
+            }
+        }
+    }
+    function runClipQuery() {
+        if (clipProc.running) {
+            clipDebounce.restart();
+            return;
+        }
+        const q = effectiveQuery();
+        let cmd = ["clipvault", "list", "--json", "--limit", "100"];
+        if (q.length)
+            cmd = cmd.concat(["-q", q]);
+        clipProc.command = cmd;
+        clipProc.running = true;
+    }
+    // fire-and-wait action (delete/pin) that reloads the list once it exits
+    Process {
+        id: clipActionProc
+        onExited: root.runClipQuery()
+    }
+    function clipAction(args) {
+        clipActionProc.command = args;
+        clipActionProc.running = true;
     }
 
     // ---- build results ----
@@ -245,6 +292,36 @@ PanelWindow {
             }
         }
 
+        if (m === "clip") {
+            clipDebounce.restart(); // (re)query server-side on every keystroke, debounced
+            let prevGroup = null;
+            for (const c of root.clipData) {
+                const group = (c.app_class || "") + " " + (c.window_title || "");
+                if (group !== prevGroup) {
+                    const header = c.app_class ? c.app_class : "(unknown app)";
+                    out.push({
+                        kind: "clip-header",
+                        label: header,
+                        sub: c.window_title || "",
+                        icon: ""
+                    });
+                    prevGroup = group;
+                }
+                out.push({
+                    kind: "clip",
+                    id: c.id,
+                    label: c.preview,
+                    sub: c.category + (c.pinned ? "  ·  pinned" : ""),
+                    icon: "",
+                    ckind: c.kind,
+                    category: c.category,
+                    pinned: c.pinned,
+                    app_class: c.app_class,
+                    image_path: c.image_path
+                });
+            }
+        }
+
         if (m === "icons") {
             if (!root.iconData.length) {
                 loadIcons(); // async; re-runs refresh when loaded
@@ -264,7 +341,18 @@ PanelWindow {
         }
 
         root.results = out;
-        list.currentIndex = out.length ? 0 : -1;
+        list.currentIndex = out.length ? root.nextSelectable(-1, 1) : -1;
+    }
+
+    // skip non-selectable rows (clip-mode group headers) when navigating
+    function nextSelectable(idx, dir) {
+        let i = idx;
+        for (let n = 0; n < root.results.length; n++) {
+            i = Math.min(Math.max(i + dir, 0), root.results.length - 1);
+            if (!root.results[i] || root.results[i].kind !== "clip-header")
+                return i;
+        }
+        return idx;
     }
 
     // ---- files mode ----
@@ -296,6 +384,22 @@ PanelWindow {
         return out;
     }
 
+    // ---- clip mode helpers ----
+    function clipGlyph(category, pinned) {
+        if (pinned)
+            return ""; // pin
+        switch (category) {
+        case "url": return "";
+        case "color": return "";
+        case "email": return "";
+        case "file-path": return "";
+        case "code": return "";
+        case "files": return "";
+        case "image": return "";
+        default: return "";
+        }
+    }
+
     // ---- activation ----
     function activate(item) {
         if (!item)
@@ -321,6 +425,9 @@ PanelWindow {
             close();
         } else if (item.kind === "icon") {
             Quickshell.execDetached(["wl-copy", item.label]);
+            close();
+        } else if (item.kind === "clip") {
+            Quickshell.execDetached(["clipvault", "copy", String(item.id)]);
             close();
         }
     }
@@ -446,7 +553,9 @@ PanelWindow {
                                 ? "Search glyphs  ·  Enter copies to clipboard"
                                 : root.activeMode === "icons"
                                     ? "Search icons  ·  Enter copies icon name"
-                                    : "Search apps  ·  > run  ·  / files  ·  : emoji  ·  ; glyphs  ·  # icons"
+                                    : root.activeMode === "clip"
+                                        ? "Search clipboard history  ·  Enter copies  ·  Ctrl+D delete  ·  Ctrl+Shift+D delete app  ·  Alt+P pin"
+                                        : "Search apps  ·  > run  ·  / files  ·  : emoji  ·  ; glyphs  ·  # icons  ·  , clipboard"
                     color: Theme.fg
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize
@@ -462,16 +571,34 @@ PanelWindow {
                             root.close();
                             e.accepted = true;
                         } else if (e.key === Qt.Key_Down || (e.key === Qt.Key_N && (e.modifiers & Qt.ControlModifier))) {
-                            list.currentIndex = Math.min(list.currentIndex + 1, root.results.length - 1);
+                            list.currentIndex = root.nextSelectable(list.currentIndex, 1);
                             e.accepted = true;
-                        } else if (e.key === Qt.Key_Up || (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier))) {
-                            list.currentIndex = Math.max(list.currentIndex - 1, 0);
+                        } else if (e.key === Qt.Key_Up || (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier) && !(e.modifiers & Qt.AltModifier))) {
+                            list.currentIndex = root.nextSelectable(list.currentIndex, -1);
                             e.accepted = true;
                         } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
                             root.activate(root.results[list.currentIndex]);
                             e.accepted = true;
                         } else if (e.key === Qt.Key_Tab) {
                             root.cycleMode();
+                            e.accepted = true;
+                        } else if (root.activeMode === "clip" && e.key === Qt.Key_D && (e.modifiers & Qt.ControlModifier) && (e.modifiers & Qt.ShiftModifier)) {
+                            // Ctrl+Shift+D: delete all entries from this item's app
+                            const item = root.results[list.currentIndex];
+                            if (item && item.kind === "clip" && item.app_class)
+                                root.clipAction(["clipvault", "delete", "--app", item.app_class, "--yes"]);
+                            e.accepted = true;
+                        } else if (root.activeMode === "clip" && e.key === Qt.Key_D && (e.modifiers & Qt.ControlModifier)) {
+                            // Ctrl+D: delete this entry
+                            const item = root.results[list.currentIndex];
+                            if (item && item.kind === "clip")
+                                root.clipAction(["clipvault", "delete", "--id", String(item.id), "--yes"]);
+                            e.accepted = true;
+                        } else if (root.activeMode === "clip" && e.key === Qt.Key_P && (e.modifiers & Qt.AltModifier)) {
+                            // Alt+P: toggle pin
+                            const item = root.results[list.currentIndex];
+                            if (item && item.kind === "clip")
+                                root.clipAction(["clipvault", item.pinned ? "unpin" : "pin", String(item.id)]);
                             e.accepted = true;
                         }
                     }
@@ -487,11 +614,27 @@ PanelWindow {
                 currentIndex: 0
                 delegate: Rectangle {
                     id: del
-                    readonly property bool current: ListView.isCurrentItem
+                    readonly property bool isHeader: modelData.kind === "clip-header"
+                    readonly property bool current: ListView.isCurrentItem && !isHeader
                     width: list.width
-                    height: 44
+                    height: isHeader ? 26 : 44
                     color: "transparent"
                     radius: 4
+
+                    // group header (clip mode): app/window separator, not selectable
+                    Text {
+                        visible: del.isHeader
+                        anchors.left: parent.left
+                        anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.label + (modelData.sub.length ? "  —  " + modelData.sub : "")
+                        color: Theme.subtext
+                        font.family: Theme.fontMono
+                        font.pixelSize: Theme.fontSize - 3
+                        font.bold: true
+                        elide: Text.ElideRight
+                        width: parent.width - 28
+                    }
 
                     // animated lava fill on the selected row — subtle: it's a selector,
                     // not a status indicator, so keep it translucent under the row content
@@ -515,6 +658,7 @@ PanelWindow {
                     }
 
                     Row {
+                        visible: !del.isHeader
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left
                         anchors.right: parent.right
@@ -535,7 +679,9 @@ PanelWindow {
                                     ? Quickshell.iconPath(modelData.icon, true)
                                     : modelData.kind === "icon"
                                         ? "file://" + modelData.path
-                                        : ""
+                                        : (modelData.kind === "clip" && modelData.ckind === "image" && modelData.image_path)
+                                            ? "file://" + modelData.image_path
+                                            : ""
                                 sourceSize.width: 28
                                 sourceSize.height: 28
                                 fillMode: Image.PreserveAspectFit
@@ -551,7 +697,9 @@ PanelWindow {
                                     ? "" // terminal
                                     : modelData.kind === "file"
                                         ? (modelData.isDir ? "" : "") // folder / file
-                                        : "" // app fallback
+                                        : modelData.kind === "clip"
+                                            ? root.clipGlyph(modelData.category, modelData.pinned)
+                                            : "" // app fallback
                                 color: Theme.accent
                                 font.family: Theme.fontUi
                                 font.pixelSize: (modelData.kind === "emoji" || modelData.kind === "glyph") ? 22 : 18
@@ -582,6 +730,7 @@ PanelWindow {
                     }
                     MouseArea {
                         anchors.fill: parent
+                        enabled: !del.isHeader
                         onClicked: {
                             list.currentIndex = index;
                             root.activate(modelData);

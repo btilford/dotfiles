@@ -24,6 +24,14 @@ case "$HYPR_LAUNCHER" in
             notify-send "Launcher" "icons mode requires the quickshell backend"
             exit 1
         fi
+        # clip mode: no rofi equivalent, fall back to the clipvault TUI in a terminal
+        if [ "$1" = "clip" ]; then
+            if ! command -v clipvault >/dev/null 2>&1; then
+                notify-send "Launcher" "clipvault not found on PATH"
+                exit 1
+            fi
+            exec ghostty --class=app.clipvault -e clipvault tui
+        fi
         # Per-host rofi DPI: cachyos-fwd drives 4K @ scale 1.5, where rofi auto-DPI
         # (~122) stacks on the compositor scale and renders oversized. Other hosts get
         # no override. Imported by config.rasi via @import "~/.config/rofi/host-dpi.rasi".
