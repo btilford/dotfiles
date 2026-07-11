@@ -20,12 +20,6 @@ DURATION=2
 BEZIER=".43,1.19,1,.4"
 SWWW_PARAMS="--transition-fps $FPS --transition-type $TYPE --transition-duration $DURATION --transition-bezier $BEZIER"
 
-# Check if package bc exists
-if ! command -v bc &>/dev/null; then
-  notify-send -i "$iDIR/error.png" "bc missing" "Install package bc first"
-  exit 1
-fi
-
 # Variables
 rofi_theme="$HOME/.config/rofi/config-wallpaper.rasi"
 focused_monitor=$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name')
@@ -40,8 +34,8 @@ fi
 scale_factor=$(hyprctl monitors -j | jq -r --arg mon "$focused_monitor" '.[] | select(.name == $mon) | .scale')
 monitor_height=$(hyprctl monitors -j | jq -r --arg mon "$focused_monitor" '.[] | select(.name == $mon) | .height')
 
-icon_size=$(echo "scale=1; ($monitor_height * 3) / ($scale_factor * 150)" | bc)
-adjusted_icon_size=$(echo "$icon_size" | awk '{if ($1 < 15) $1 = 20; if ($1 > 25) $1 = 25; print $1}')
+adjusted_icon_size=$(awk -v h="$monitor_height" -v s="$scale_factor" \
+  'BEGIN { v = (h * 3) / (s * 150); if (v < 15) v = 20; if (v > 25) v = 25; printf "%.1f", v }')
 rofi_override="element-icon{size:${adjusted_icon_size}%;}"
 
 # Kill existing wallpaper daemons for video
@@ -136,7 +130,8 @@ apply_image_wallpaper() {
     awww-daemon &
   fi
 
-  awww img -o "$focused_monitor" "$image_path" $SWWW_PARAMS
+  # No -o: apply to all outputs so every monitor/workspace shares the wallpaper
+  awww img "$image_path" $SWWW_PARAMS
 
   # Run additional scripts (pass the image path to avoid cache race conditions)
   "$SCRIPTSDIR/WallustSwww.sh" "$image_path"
