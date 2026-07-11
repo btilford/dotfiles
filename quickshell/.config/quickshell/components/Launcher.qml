@@ -204,6 +204,42 @@ PanelWindow {
         clipActionProc.running = true;
     }
 
+    // ---- clip action sub-list (open in browser, edit, tmux, curl, ...) ----
+    // `clipvault actions <id> --json` -> [{id, label}]; picking one runs
+    // `clipvault act <id> <action-id>` and closes the launcher, same as Enter.
+    property var clipActionsList: []
+    property int clipActionsIndex: 0
+    property bool clipActionsOpen: false
+    property int clipActionsForId: -1
+    Process {
+        id: clipActionsProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.clipActionsList = JSON.parse(this.text);
+                } catch (e) {
+                    root.clipActionsList = [];
+                }
+                root.clipActionsIndex = 0;
+                root.clipActionsOpen = root.clipActionsList.length > 0;
+            }
+        }
+    }
+    function openClipActions(id) {
+        clipActionsForId = id;
+        clipActionsProc.command = ["clipvault", "actions", String(id), "--json"];
+        clipActionsProc.running = true;
+    }
+    function closeClipActions() {
+        clipActionsOpen = false;
+        clipActionsList = [];
+    }
+    function runClipAction(actionId) {
+        Quickshell.execDetached(["clipvault", "act", String(clipActionsForId), actionId]);
+        closeClipActions();
+        root.close();
+    }
+
     // ---- build results ----
     function refresh() {
         const m = effectiveMode();
@@ -554,7 +590,7 @@ PanelWindow {
                                 : root.activeMode === "icons"
                                     ? "Search icons  ·  Enter copies icon name"
                                     : root.activeMode === "clip"
-                                        ? "Search clipboard history  ·  Enter copies  ·  Ctrl+D delete  ·  Ctrl+Shift+D delete app  ·  Alt+P pin"
+                                        ? "Search clipboard history  ·  Enter copies  ·  Ctrl+A actions  ·  Ctrl+D delete  ·  Ctrl+Shift+D delete app  ·  Alt+P pin"
                                         : "Search apps  ·  > run  ·  / files  ·  : emoji  ·  ; glyphs  ·  # icons  ·  , clipboard"
                     color: Theme.fg
                     font.family: Theme.fontMono
@@ -567,6 +603,22 @@ PanelWindow {
                         root.refresh();
                     }
                     Keys.onPressed: function (e) {
+                        if (root.clipActionsOpen) {
+                            // action sub-list steals all input until closed
+                            if (e.key === Qt.Key_Escape) {
+                                root.closeClipActions();
+                            } else if (e.key === Qt.Key_Down || (e.key === Qt.Key_N && (e.modifiers & Qt.ControlModifier))) {
+                                root.clipActionsIndex = Math.min(root.clipActionsIndex + 1, root.clipActionsList.length - 1);
+                            } else if (e.key === Qt.Key_Up || (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier))) {
+                                root.clipActionsIndex = Math.max(root.clipActionsIndex - 1, 0);
+                            } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                                const act = root.clipActionsList[root.clipActionsIndex];
+                                if (act)
+                                    root.runClipAction(act.id);
+                            }
+                            e.accepted = true;
+                            return;
+                        }
                         if (e.key === Qt.Key_Escape) {
                             root.close();
                             e.accepted = true;
@@ -599,6 +651,12 @@ PanelWindow {
                             const item = root.results[list.currentIndex];
                             if (item && item.kind === "clip")
                                 root.clipAction(["clipvault", item.pinned ? "unpin" : "pin", String(item.id)]);
+                            e.accepted = true;
+                        } else if (root.activeMode === "clip" && e.key === Qt.Key_A && (e.modifiers & Qt.ControlModifier)) {
+                            // Ctrl+A: open the action sub-list (open in browser, edit, tmux, ...)
+                            const item = root.results[list.currentIndex];
+                            if (item && item.kind === "clip")
+                                root.openClipActions(item.id);
                             e.accepted = true;
                         }
                     }
@@ -735,6 +793,57 @@ PanelWindow {
                             list.currentIndex = index;
                             root.activate(modelData);
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- clip action sub-list overlay ----
+    Rectangle {
+        id: actionsPopup
+        visible: root.clipActionsOpen
+        z: 10
+        anchors.centerIn: parent
+        width: 340
+        height: Math.min(root.clipActionsList.length, 8) * 32 + Theme.pad * 2 + 28
+        radius: Theme.radius
+        color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.97)
+        border.color: Theme.accent
+        border.width: 1.5
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: Theme.pad
+            spacing: 4
+
+            Text {
+                text: "actions  ·  j/k, Enter, Esc"
+                color: Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 3
+            }
+
+            Repeater {
+                model: root.clipActionsList
+                delegate: Rectangle {
+                    readonly property bool current: index === root.clipActionsIndex
+                    width: actionsPopup.width - Theme.pad * 2
+                    height: 28
+                    radius: 4
+                    color: current ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.25) : "transparent"
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.leftMargin: 8
+                        text: modelData.label
+                        color: Theme.fg
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.runClipAction(modelData.id)
                     }
                 }
             }
