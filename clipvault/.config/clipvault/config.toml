@@ -31,6 +31,10 @@ title_regex = []
 default_harness = "claude"
 copy_result = true
 insert_result = true
+# tmux = true defaults every prompt to an interactive detached tmux session
+# (no output capture); per-prompt `tmux = true/false` overrides, `t` in the
+# TUI picker forces it for one run.
+tmux = false
 timeout_secs = 120
 
 [[llm.prompts]]
