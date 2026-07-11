@@ -1,0 +1,25 @@
+# clipvault config — see https://github.com/btilford/clipvault for full docs.
+# All keys are optional; commented values below are the built-in defaults.
+
+[storage]
+# db_path = "~/.local/share/clipvault/db.sqlite3"
+# image_dir = "~/.local/share/clipvault/images"
+max_text_bytes = 1048576
+
+[retention]
+max_text_entries = 5000
+max_image_entries = 10
+max_file_entries = 10
+
+[capture]
+dedup_window_secs = 5
+
+[filters]
+# Block saving to history entirely. app_id/class match is case-insensitive
+# exact match; content/title are regex, checked against the copied text /
+# window title respectively. Clipboard offers tagged
+# x-kde-passwordManagerHint (KeePassXC and similar) are always skipped
+# regardless of these filters.
+apps = []
+content_regex = []
+title_regex = []
