@@ -23,3 +23,24 @@ dedup_window_secs = 5
 apps = []
 content_regex = []
 title_regex = []
+
+[llm]
+# Pipe an entry through an LLM harness; output becomes a new entry + clipboard.
+# Harnesses "claude" (claude -p, stdin) and "opencode" (opencode run {prompt})
+# are built in. Prompt files live in ~/.config/clipvault/prompts/.
+default_harness = "claude"
+copy_result = true
+insert_result = true
+timeout_secs = 120
+
+[[llm.prompts]]
+id = "summarize"
+label = "Summarize"
+file = "prompts/summarize.md"
+categories = []
+
+[[llm.prompts]]
+id = "explain-code"
+label = "Explain this code"
+file = "prompts/explain-code.md"
+categories = ["code"]
