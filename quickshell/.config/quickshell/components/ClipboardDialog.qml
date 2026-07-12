@@ -25,8 +25,10 @@ PanelWindow {
     // window's content tree so the layer surface never gained keyboard activation — Window.active
     // stayed false, every key (incl. Escape) was dropped, and the Exclusive grab held the physical
     // keyboard with nothing able to release it = system-wide lockout. Fixed by renaming that
-    // property to clipData. The Shortcut + activeFocusOnPress below are kept as cheap belt-and-
-    // suspenders, but they are no longer load-bearing now that the window activates correctly.
+    // property to clipData; the window now activates and `input` receives keys, so Escape (and
+    // per-sub-mode Escape) is handled entirely in input's Keys.onPressed. An earlier window-scope
+    // Escape Shortcut was removed — it hijacked Escape globally and closed the whole dialog even
+    // when a sub-mode popup should have caught it.
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     WlrLayershell.namespace: "quickshell-clipboard"
 
@@ -35,15 +37,6 @@ PanelWindow {
         bottom: true
         left: true
         right: true
-    }
-
-    // Backstop dismiss: fires only when no focused item consumed Escape. In normal use `input`
-    // accepts Escape (main handler + every sub-mode), so this never double-fires and sub-mode
-    // Escape still cancels just the popup. Kept as defense-in-depth against any future focus slip.
-    Shortcut {
-        sequences: [StandardKey.Cancel]
-        context: Qt.WindowShortcut
-        onActivated: Clipboard.close()
     }
 
     property string query: ""
