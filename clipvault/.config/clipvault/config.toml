@@ -31,10 +31,11 @@ title_regex = []
 default_harness = "claude"
 copy_result = false
 insert_result = false
-# tmux = true defaults every prompt to an interactive detached tmux session
-# (no output capture); per-prompt `tmux = true/false` overrides, `t` in the
-# TUI picker forces it for one run.
-tmux = true
+# mode = "tmux" defaults every prompt to an interactive detached tmux session
+# (no output capture); mode = "capture" grabs stdout and routes it per
+# copy_result/insert_result. A per-prompt `mode` pins that prompt — `t` in
+# the TUI picker can't push a capture-pinned prompt into tmux.
+mode = "tmux"
 timeout_secs = 120
 
 [[llm.prompts]]
@@ -45,7 +46,7 @@ categories = ["code", "file-path", "url", "files"]
 
 insert_result = true
 copy_result = true
-tmux = false
+mode = "capture"
 
 [[llm.prompts]]
 id = "explain-code"
