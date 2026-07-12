@@ -15,6 +15,7 @@ with no `-c` flag).
 |------|---------|
 | `shell.qml` | Root `ShellRoot`. Instantiates components + the `launcher` `IpcHandler`. |
 | `components/Launcher.qml` | Multi-mode launcher (combi/drun/run/files), replaces rofi. |
+| `components/ClipboardDialog.qml` | Standalone clipvault clipboard-history dialog (search/tree/preview/actions/pin/delete). State in the `Clipboard` singleton; IPC `qs ipc call clipboard toggle`; bound to `SUPER+V`. |
 | `config/Theme.qml` + `config/qmldir` | `Theme` singleton: terminal-flavored tokens; reads the wallust palette. |
 | `wallust/.gitkeep` | Runtime `colors.json` lands here (generated, gitignored). |
 
@@ -33,6 +34,29 @@ clock on the vertical monitors).
 - Prefixes: `>` run, `/` or `~` files. `Tab` cycles modes.
 - Shown/hidden via IPC: `qs ipc call launcher toggle [mode]` (from `hypr/scripts/Launcher.sh`).
 - Placed on `Hyprland.focusedMonitor`.
+
+## ClipboardDialog
+
+Standalone clipvault history dialog (clipvault daemon over `$XDG_RUNTIME_DIR/clipvault.sock`).
+Search + flat/tree list + preview pane + actions/pin/delete/bulk-delete, ported from the old
+Launcher clip mode. State lives in the `Clipboard` singleton (`config/Clipboard.qml`).
+
+- Toggle: `qs ipc call clipboard toggle` — bound to **SUPER+V** (`hyprland` `lua/keybindings.lua`).
+  The old **CTRL+ALT+V** (Launcher clip mode) is kept as a fallback until the dialog is fully
+  proven; only strip it once confirmed stable on a live multi-monitor session.
+- Fullscreen `WlrLayer.Overlay` on `Hyprland.focusedMonitor`, `WlrKeyboardFocus.Exclusive`.
+- **Exclusive-grab safety (load-bearing):** an Exclusive keyboard grab is a system-wide lock —
+  if the only dismiss path can lose keyboard focus, the grab becomes undismissable and locks out
+  all input (needs killall/logout). This bit us twice. Guards, keep them:
+  1. window-scope `Shortcut { StandardKey.Cancel → Clipboard.close() }` — guaranteed dismiss that
+     fires only when no focused item consumed Escape (so sub-mode Escape still works, no double-close);
+  2. `activeFocusOnPress: false` on the preview `TextEdit` so a click can't steal nav focus from
+     the search `input` (the original focus-steal that killed the sole Escape handler);
+  3. click-away backdrop `MouseArea` as a pointer-based escape hatch.
+  Note: `hyprctl … send_shortcut` is window-scoped and CANNOT deliver keys to a layer surface, so
+  Escape-on-the-dialog can only be tested with a real keypress or a virtual-keyboard tool (wtype).
+  Diagnose hangs with a throwaway `qs -p harness.qml` using `WlrKeyboardFocus.None` (never grabs)
+  — see the `quickshell-exclusive-grab-lockout` memory.
 
 ## Daemon lifecycle
 
