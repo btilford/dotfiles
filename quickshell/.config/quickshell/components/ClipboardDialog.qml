@@ -98,7 +98,10 @@ PanelWindow {
     Socket {
         id: socket
         path: root.socketPath
-        connected: root.visible
+        // always-on, like Launcher's clip* sockets — toggling `connected` off on hide (tried
+        // earlier) cycles the unix socket on every open/close and can race a pending debounce
+        // timer's write against the disconnect, which is a real hang vector.
+        connected: true
         onError: error => console.log("clipvault: ipc socket error (is the daemon running?)", error)
         parser: SplitParser {
             splitMarker: "\n"
@@ -195,7 +198,8 @@ PanelWindow {
     Socket {
         id: eventsSocket
         path: root.socketPath
-        connected: root.visible
+        // always-on, matching Launcher's clipEventsSocket — see the note on `socket` above.
+        connected: true
         onError: error => console.log("clipvault: ipc events socket error", error)
         parser: SplitParser {
             splitMarker: "\n"
@@ -422,8 +426,8 @@ PanelWindow {
 
     Rectangle {
         id: box
-        width: parent.width * 0.72
-        height: parent.height * 0.78
+        width: root.width * 0.72
+        height: root.height * 0.78
         anchors.centerIn: parent
         radius: Theme.radius
         color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, Theme.surfaceOpacity)
