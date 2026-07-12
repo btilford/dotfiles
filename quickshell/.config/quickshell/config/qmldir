@@ -3,3 +3,4 @@ singleton Shell Shell.qml
 singleton Session Session.qml
 singleton Keymap Keymap.qml
 singleton Pointer Pointer.qml
+singleton Clipboard Clipboard.qml

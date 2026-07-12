@@ -19,6 +19,9 @@ ShellRoot {
     // fullscreen keymap cheatsheet; state lives in the Keymap singleton
     KeymapOverlay {}
 
+    // fullscreen clipboard-history dialog (clipvault); state lives in the Clipboard singleton
+    ClipboardDialog {}
+
     // Driven by SUPER+/ : `qs ipc call keymap toggle`
     IpcHandler {
         target: "keymap"
@@ -44,6 +47,20 @@ ShellRoot {
         }
         function hide(): void {
             Session.close();
+        }
+    }
+
+    // Driven by SUPER+V (future): `qs ipc call clipboard toggle`
+    IpcHandler {
+        target: "clipboard"
+        function toggle(): void {
+            Clipboard.toggle();
+        }
+        function show(): void {
+            Clipboard.open();
+        }
+        function hide(): void {
+            Clipboard.close();
         }
     }
 
