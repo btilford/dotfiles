@@ -9,9 +9,9 @@ import "../config"
 // Standalone clipboard-history dialog (clipvault), parity target for the old
 // Launcher clip mode. Fullscreen overlay on the focused monitor, own IPC socket
 // connections (list/search + live-update subscribe), driven by the Clipboard
-// singleton. v2 (this pass): search + flat list + preview pane (get on
-// selection change, id-tagged against late responses) + Enter-to-copy. Tree
-// mode, actions/pin/delete parity, Launcher strip land in later passes.
+// singleton. v3 (this pass): search + flat/tree list + preview pane + actions
+// popup + pin picker + delete + bulk delete, all ported from Launcher's clip
+// mode (prefix dropped). Launcher strip + hyprland rebind land in later passes.
 PanelWindow {
     id: root
     visible: Clipboard.shown
@@ -32,10 +32,48 @@ PanelWindow {
     property string query: ""
     property var results: []
 
+    // Tree mode (app -> window -> item, Ctrl+T toggles): server-side group_by:"app"
+    // clusters entries so headers are built in one pass; fold state is a plain JS
+    // object keyed by app_class ("") or "app_class|||window_title" (window).
+    property bool treeMode: false
+    property var collapsed: ({})
+    // Bulk-delete submode (Ctrl+Shift+X): freezes text input, Space toggles
+    // selection, Enter opens a confirm popup before the actual delete.
+    property bool bulkMode: false
+    property var bulkSelected: ({})
+    property bool bulkConfirmOpen: false
+    property var bulkConfirmIds: []
+    // Pin-mode picker (Alt+P): none/session/until/forever; "until" chains into a
+    // duration-entry overlay instead of firing immediately.
+    readonly property var pinModes: ["none", "session", "until", "forever"]
+    property bool pinPickerOpen: false
+    property int pinPickerIndex: 0
+    property var pinPickerFor: null
+    property bool pinDurationOpen: false
+    property int pinDurationFor: -1
+    property string pinDurationBuf: ""
+    // Action sub-list (open in browser, edit, tmux, curl, ...)
+    property var actionsList: []
+    property int actionsIndex: 0
+    property bool actionsOpen: false
+    property int actionsForId: -1
+    // Tab toggles which pane j/k-style keys drive; list-mutating keys (delete,
+    // pin, actions, bulk) only fire when the list has focus.
+    property bool previewFocused: false
+
     onVisibleChanged: if (visible) {
         query = "";
         input.text = "";
         results = [];
+        treeMode = false;
+        collapsed = ({});
+        bulkMode = false;
+        bulkSelected = ({});
+        bulkConfirmOpen = false;
+        pinPickerOpen = false;
+        pinDurationOpen = false;
+        actionsOpen = false;
+        previewFocused = false;
         input.forceActiveFocus();
         runQuery();
     }
@@ -83,6 +121,10 @@ PanelWindow {
                         return;
                     root.previewEntry = msg.entry || null;
                     root.previewForId = desc.id;
+                } else if (desc.kind === "actions") {
+                    root.actionsList = msg.actions || [];
+                    root.actionsIndex = 0;
+                    root.actionsOpen = root.actionsList.length > 0;
                 }
                 // act/pin/delete/copy: fire-and-forget acks; eventsSocket triggers
                 // the requery once the mutation actually lands
@@ -101,7 +143,8 @@ PanelWindow {
         }, {
             op: "list",
             query: q.length ? q : undefined,
-            limit: 100
+            limit: 100,
+            group_by: root.treeMode ? "app" : undefined
         });
     }
     function action(req) {
@@ -113,7 +156,7 @@ PanelWindow {
     // ---- preview pane: debounced `get` on selection change, id-tagged against
     // late responses (a slow response for a since-abandoned selection is dropped
     // in the socket handler above rather than flashing the wrong content). ----
-    readonly property int selectedId: (list.currentIndex >= 0 && root.results[list.currentIndex]) ? root.results[list.currentIndex].id : -1
+    readonly property int selectedId: (list.currentIndex >= 0 && root.results[list.currentIndex] && root.results[list.currentIndex].kind === "clip") ? root.results[list.currentIndex].id : -1
     property var previewEntry: null
     property int previewForId: -1
     onSelectedIdChanged: previewDebounce.restart()
@@ -171,7 +214,31 @@ PanelWindow {
         }
     }
 
-    // ---- row shaping + selection preservation across a requery ----
+    // ---- action sub-list (open in browser, edit, tmux, curl, ...) ----
+    function openActions(id) {
+        actionsForId = id;
+        sendReq({
+            kind: "actions"
+        }, {
+            op: "actions",
+            id: id
+        });
+    }
+    function closeActions() {
+        actionsOpen = false;
+        actionsList = [];
+    }
+    function runAction(actionId) {
+        root.action({
+            op: "act",
+            id: actionsForId,
+            action: actionId
+        });
+        closeActions();
+        Clipboard.close();
+    }
+
+    // ---- row shaping + tree building + selection preservation across a requery ----
     function pinBadge(pinMode) {
         switch (pinMode) {
         case "forever": return "📌";
@@ -180,22 +247,153 @@ PanelWindow {
         default: return "";
         }
     }
+    function glyph(category) {
+        switch (category) {
+        case "url": return "";
+        case "color": return "";
+        case "email": return "";
+        case "file-path": return "";
+        case "code": return "";
+        case "files": return "";
+        case "image": return "";
+        default: return "";
+        }
+    }
     function itemRow(c) {
         const pinMode = c.pin_mode || "none";
         const badge = root.pinBadge(pinMode);
         return {
+            kind: "clip",
             id: c.id,
             label: c.preview,
             sub: (badge.length ? badge + "  " : "") + c.category + (c.use_count > 1 ? "  ·  x" + c.use_count : ""),
-            category: c.category
+            category: c.category,
+            pin_mode: pinMode,
+            app_class: c.app_class || "",
+            window_title: c.window_title || "",
+            ckind: c.kind,
+            image_path: c.image_path
         };
     }
+    // Flat mode has no headers; tree mode's headers are real, selectable rows
+    // (so hjkl-equivalents can collapse/expand "the node at the cursor").
+    function nextSelectable(idx, dir) {
+        if (!root.results.length)
+            return idx;
+        return Math.min(Math.max(idx + dir, 0), root.results.length - 1);
+    }
     function rebuild() {
-        const prevId = root.results[list.currentIndex] ? root.results[list.currentIndex].id : -1;
-        const out = root.data.map(root.itemRow);
+        const prevItem = root.results[list.currentIndex];
+        let out = [];
+        if (root.treeMode) {
+            let prevApp = null;
+            let prevWin = null;
+            for (const c of root.data) {
+                const appKey = c.app_class || "";
+                if (appKey !== prevApp) {
+                    out.push({
+                        kind: "header-app",
+                        key: appKey,
+                        label: c.app_class ? c.app_class : "(unknown app)",
+                        collapsed: !!root.collapsed[appKey]
+                    });
+                    prevApp = appKey;
+                    prevWin = null;
+                }
+                if (root.collapsed[appKey])
+                    continue;
+                const winKey = appKey + "|||" + (c.window_title || "");
+                if (winKey !== prevWin) {
+                    out.push({
+                        kind: "header-window",
+                        key: winKey,
+                        label: c.window_title ? c.window_title : "(no title)",
+                        collapsed: !!root.collapsed[winKey]
+                    });
+                    prevWin = winKey;
+                }
+                if (root.collapsed[winKey])
+                    continue;
+                out.push(root.itemRow(c));
+            }
+        } else {
+            for (const c of root.data)
+                out.push(root.itemRow(c));
+        }
         root.results = out;
-        const idx = prevId >= 0 ? out.findIndex(r => r.id === prevId) : -1;
-        list.currentIndex = idx >= 0 ? idx : (out.length ? 0 : -1);
+        const key = prevItem ? (prevItem.kind === "clip" ? "id:" + prevItem.id : "key:" + prevItem.key) : null;
+        const idx = key ? out.findIndex(r => (r.kind === "clip" ? "id:" + r.id : "key:" + r.key) === key) : -1;
+        list.currentIndex = idx >= 0 ? idx : (out.length ? root.nextSelectable(-1, 1) : -1);
+    }
+
+    // "24h" / "30m" / "90s" -> seconds, or null if unparseable.
+    function parseDurationSecs(s) {
+        const m = /^([0-9]+)([smhdw])$/.exec((s || "").trim());
+        if (!m)
+            return null;
+        const mult = {
+            s: 1,
+            m: 60,
+            h: 3600,
+            d: 86400,
+            w: 604800
+        }[m[2]];
+        return parseInt(m[1], 10) * mult;
+    }
+
+    // ---- tree mode: collapse/expand at cursor (Alt+H/Alt+L), all (Alt+M/Alt+R) ----
+    function collapseOrUp() {
+        const item = root.results[list.currentIndex];
+        if (!item)
+            return;
+        if (item.kind === "header-app" || item.kind === "header-window") {
+            if (!item.collapsed) {
+                root.collapsed[item.key] = true;
+                root.rebuild();
+                const idx = root.results.findIndex(r => r.key === item.key);
+                if (idx >= 0)
+                    list.currentIndex = idx;
+                return;
+            }
+            if (item.kind === "header-window") {
+                const appKey = item.key.split("|||")[0];
+                const idx = root.results.findIndex(r => r.kind === "header-app" && r.key === appKey);
+                if (idx >= 0)
+                    list.currentIndex = idx;
+            }
+        } else if (item.kind === "clip") {
+            const wKey = item.app_class + "|||" + item.window_title;
+            const idx = root.results.findIndex(r => r.kind === "header-window" && r.key === wKey);
+            if (idx >= 0)
+                list.currentIndex = idx;
+        }
+    }
+    function expandOrInto() {
+        const item = root.results[list.currentIndex];
+        if (!item)
+            return;
+        if (item.kind === "header-app" || item.kind === "header-window") {
+            if (item.collapsed) {
+                delete root.collapsed[item.key];
+                root.rebuild();
+                const idx = root.results.findIndex(r => r.key === item.key);
+                if (idx >= 0)
+                    list.currentIndex = idx;
+            } else {
+                list.currentIndex = root.nextSelectable(list.currentIndex, 1);
+            }
+        }
+    }
+    function expandAll() {
+        root.collapsed = {};
+        root.rebuild();
+    }
+    function collapseAll() {
+        const c = {};
+        for (const e of root.data)
+            c[e.app_class || ""] = true;
+        root.collapsed = c;
+        root.rebuild();
     }
 
     // ---- click-away to close ----
@@ -288,7 +486,9 @@ PanelWindow {
                     anchors.leftMargin: 14
                     anchors.rightMargin: 10
                     anchors.verticalCenter: parent.verticalCenter
-                    placeholderText: "Search clipboard history  ·  Enter copies  ·  Esc closes"
+                    placeholderText: root.treeMode
+                        ? "Clipboard (tree)  ·  Alt+H/L fold  ·  Alt+R/M all  ·  Ctrl+T flat  ·  Ctrl+Shift+X bulk delete"
+                        : "Search clipboard history  ·  Enter copies  ·  Ctrl+A actions  ·  Ctrl+D delete  ·  Ctrl+T tree  ·  Alt+P pin  ·  Tab preview"
                     color: Theme.fg
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize
@@ -300,24 +500,206 @@ PanelWindow {
                         debounce.restart();
                     }
                     Keys.onPressed: function (e) {
+                        if (root.actionsOpen) {
+                            // action sub-list steals all input until closed
+                            if (e.key === Qt.Key_Escape) {
+                                root.closeActions();
+                            } else if (e.key === Qt.Key_Down || (e.key === Qt.Key_N && (e.modifiers & Qt.ControlModifier))) {
+                                root.actionsIndex = Math.min(root.actionsIndex + 1, root.actionsList.length - 1);
+                            } else if (e.key === Qt.Key_Up || (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier))) {
+                                root.actionsIndex = Math.max(root.actionsIndex - 1, 0);
+                            } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                                const act = root.actionsList[root.actionsIndex];
+                                if (act)
+                                    root.runAction(act.id);
+                            }
+                            e.accepted = true;
+                            return;
+                        }
+                        if (root.pinDurationOpen) {
+                            if (e.key === Qt.Key_Escape) {
+                                root.pinDurationOpen = false;
+                            } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                                const secs = root.parseDurationSecs(root.pinDurationBuf);
+                                if (secs !== null) {
+                                    root.action({
+                                        op: "pin",
+                                        id: root.pinDurationFor,
+                                        pin_mode: "until",
+                                        expires_at: Math.floor(Date.now() / 1000) + secs
+                                    });
+                                    root.pinDurationOpen = false;
+                                }
+                            } else if (e.key === Qt.Key_Backspace) {
+                                root.pinDurationBuf = root.pinDurationBuf.slice(0, -1);
+                            } else if (e.text && e.text.length) {
+                                root.pinDurationBuf += e.text;
+                            }
+                            e.accepted = true;
+                            return;
+                        }
+                        if (root.pinPickerOpen) {
+                            if (e.key === Qt.Key_Escape) {
+                                root.pinPickerOpen = false;
+                            } else if (e.key === Qt.Key_Down || e.key === Qt.Key_J) {
+                                root.pinPickerIndex = Math.min(root.pinPickerIndex + 1, root.pinModes.length - 1);
+                            } else if (e.key === Qt.Key_Up || e.key === Qt.Key_K) {
+                                root.pinPickerIndex = Math.max(root.pinPickerIndex - 1, 0);
+                            } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                                const mode = root.pinModes[root.pinPickerIndex];
+                                root.pinPickerOpen = false;
+                                if (mode === "until") {
+                                    root.pinDurationFor = root.pinPickerFor.id;
+                                    root.pinDurationBuf = "";
+                                    root.pinDurationOpen = true;
+                                } else {
+                                    root.action({
+                                        op: "pin",
+                                        id: root.pinPickerFor.id,
+                                        pin_mode: mode
+                                    });
+                                }
+                            }
+                            e.accepted = true;
+                            return;
+                        }
+                        if (root.bulkConfirmOpen) {
+                            if (e.key === Qt.Key_Y || e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                                root.action({
+                                    op: "delete",
+                                    ids: root.bulkConfirmIds
+                                });
+                                root.bulkMode = false;
+                                root.bulkSelected = {};
+                            }
+                            root.bulkConfirmOpen = false;
+                            e.accepted = true;
+                            return;
+                        }
+                        if (root.bulkMode) {
+                            if (e.key === Qt.Key_Escape) {
+                                root.bulkMode = false;
+                                root.bulkSelected = {};
+                            } else if (e.key === Qt.Key_Space) {
+                                const item = root.results[list.currentIndex];
+                                if (item && item.kind === "clip") {
+                                    const sel = Object.assign({}, root.bulkSelected);
+                                    if (sel[item.id])
+                                        delete sel[item.id];
+                                    else
+                                        sel[item.id] = true;
+                                    root.bulkSelected = sel;
+                                }
+                            } else if (e.key === Qt.Key_A && (e.modifiers & Qt.ShiftModifier)) {
+                                root.bulkSelected = {};
+                            } else if (e.key === Qt.Key_A) {
+                                const sel = {};
+                                for (const r of root.results)
+                                    if (r.kind === "clip")
+                                        sel[r.id] = true;
+                                root.bulkSelected = sel;
+                            } else if (e.key === Qt.Key_Down || e.key === Qt.Key_Up) {
+                                list.currentIndex = root.nextSelectable(list.currentIndex, e.key === Qt.Key_Down ? 1 : -1);
+                            } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                                const ids = Object.keys(root.bulkSelected).map(Number);
+                                if (ids.length) {
+                                    root.bulkConfirmIds = ids;
+                                    root.bulkConfirmOpen = true;
+                                }
+                            }
+                            e.accepted = true;
+                            return;
+                        }
                         if (e.key === Qt.Key_Escape) {
                             Clipboard.close();
                             e.accepted = true;
-                        } else if (e.key === Qt.Key_Down || (e.key === Qt.Key_N && (e.modifiers & Qt.ControlModifier))) {
-                            list.currentIndex = Math.min(list.currentIndex + 1, root.results.length - 1);
+                        } else if (e.key === Qt.Key_Tab) {
+                            root.previewFocused = !root.previewFocused;
                             e.accepted = true;
-                        } else if (e.key === Qt.Key_Up || (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier))) {
-                            list.currentIndex = Math.max(list.currentIndex - 1, 0);
+                        } else if (root.previewFocused) {
+                            // preview has focus: j/k/PgUp/PgDn/^d/^u scroll the flickable
+                            const fl = previewFlick;
+                            const page = fl.height * 0.9;
+                            if (e.key === Qt.Key_J || e.key === Qt.Key_Down) {
+                                fl.contentY = Math.min(fl.contentY + 40, Math.max(0, fl.contentHeight - fl.height));
+                            } else if (e.key === Qt.Key_K || e.key === Qt.Key_Up) {
+                                fl.contentY = Math.max(fl.contentY - 40, 0);
+                            } else if (e.key === Qt.Key_PageDown || (e.key === Qt.Key_D && (e.modifiers & Qt.ControlModifier))) {
+                                fl.contentY = Math.min(fl.contentY + page, Math.max(0, fl.contentHeight - fl.height));
+                            } else if (e.key === Qt.Key_PageUp || (e.key === Qt.Key_U && (e.modifiers & Qt.ControlModifier))) {
+                                fl.contentY = Math.max(fl.contentY - page, 0);
+                            } else if (e.key === Qt.Key_G && (e.modifiers & Qt.ShiftModifier)) {
+                                fl.contentY = Math.max(0, fl.contentHeight - fl.height);
+                            } else if (e.key === Qt.Key_G) {
+                                fl.contentY = 0;
+                            }
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_Down || (e.key === Qt.Key_N && (e.modifiers & Qt.ControlModifier))) {
+                            list.currentIndex = root.nextSelectable(list.currentIndex, 1);
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_Up || (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier) && !(e.modifiers & Qt.AltModifier))) {
+                            list.currentIndex = root.nextSelectable(list.currentIndex, -1);
                             e.accepted = true;
                         } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
                             const item = root.results[list.currentIndex];
-                            if (item) {
+                            if (item && item.kind === "clip") {
                                 root.action({
                                     op: "copy",
                                     id: item.id
                                 });
                                 Clipboard.close();
                             }
+                            e.accepted = true;
+                        } else if (root.treeMode && e.key === Qt.Key_H && (e.modifiers & Qt.AltModifier)) {
+                            root.collapseOrUp();
+                            e.accepted = true;
+                        } else if (root.treeMode && e.key === Qt.Key_L && (e.modifiers & Qt.AltModifier)) {
+                            root.expandOrInto();
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_R && (e.modifiers & Qt.AltModifier)) {
+                            root.expandAll();
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_M && (e.modifiers & Qt.AltModifier)) {
+                            root.collapseAll();
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_T && (e.modifiers & Qt.ControlModifier)) {
+                            root.treeMode = !root.treeMode;
+                            root.collapsed = {};
+                            debounce.restart();
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_X && (e.modifiers & Qt.ControlModifier) && (e.modifiers & Qt.ShiftModifier)) {
+                            root.bulkMode = !root.bulkMode;
+                            if (!root.bulkMode)
+                                root.bulkSelected = {};
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_D && (e.modifiers & Qt.ControlModifier) && (e.modifiers & Qt.ShiftModifier)) {
+                            const item = root.results[list.currentIndex];
+                            if (item && item.kind === "clip" && item.app_class)
+                                root.action({
+                                    op: "delete",
+                                    app: item.app_class
+                                });
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_D && (e.modifiers & Qt.ControlModifier)) {
+                            const item = root.results[list.currentIndex];
+                            if (item && item.kind === "clip")
+                                root.action({
+                                    op: "delete",
+                                    id: item.id
+                                });
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_P && (e.modifiers & Qt.AltModifier)) {
+                            const item = root.results[list.currentIndex];
+                            if (item && item.kind === "clip") {
+                                root.pinPickerFor = item;
+                                root.pinPickerIndex = Math.max(0, root.pinModes.indexOf(item.pin_mode || "none"));
+                                root.pinPickerOpen = true;
+                            }
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_A && (e.modifiers & Qt.ControlModifier)) {
+                            const item = root.results[list.currentIndex];
+                            if (item && item.kind === "clip")
+                                root.openActions(item.id);
                             e.accepted = true;
                         }
                     }
@@ -338,11 +720,27 @@ PanelWindow {
                     currentIndex: 0
                     delegate: Rectangle {
                         id: del
+                        readonly property bool isHeader: modelData.kind === "header-app" || modelData.kind === "header-window"
                         readonly property bool current: ListView.isCurrentItem
                         width: list.width
-                        height: 44
+                        height: isHeader ? (modelData.kind === "header-app" ? 26 : 22) : 44
                         color: "transparent"
                         radius: 4
+
+                        // app/window tree headers: fold arrow + label
+                        Text {
+                            visible: del.isHeader
+                            anchors.left: parent.left
+                            anchors.leftMargin: modelData.kind === "header-window" ? 26 : 14
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: (modelData.collapsed ? "▸ " : "▾ ") + modelData.label
+                            color: Theme.subtext
+                            font.family: Theme.fontMono
+                            font.pixelSize: Theme.fontSize - 3
+                            font.bold: modelData.kind === "header-app"
+                            elide: Text.ElideRight
+                            width: parent.width - 28
+                        }
 
                         EnergyFill {
                             visible: del.current
@@ -362,28 +760,68 @@ PanelWindow {
                             color: Theme.accent
                         }
 
-                        Column {
+                        Row {
+                            visible: !del.isHeader
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
                             anchors.right: parent.right
-                            anchors.leftMargin: 14
+                            anchors.leftMargin: (modelData.kind === "clip" && root.treeMode) ? 28 : 14
                             anchors.rightMargin: 8
+                            spacing: 10
+
                             Text {
-                                text: modelData.label
-                                color: Theme.fg
-                                font.family: Theme.fontUi
+                                visible: root.bulkMode && modelData.kind === "clip"
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: root.bulkSelected[modelData.id] ? "☑" : "☐"
+                                color: Theme.accent
                                 font.pixelSize: Theme.fontSize
-                                elide: Text.ElideRight
-                                width: parent.width
                             }
-                            Text {
-                                text: modelData.sub
-                                visible: modelData.sub.length > 0
-                                color: Theme.subtext
-                                font.family: Theme.fontUi
-                                font.pixelSize: Theme.fontSize - 2
-                                elide: Text.ElideRight
-                                width: parent.width
+
+                            Item {
+                                width: 24
+                                height: 24
+                                anchors.verticalCenter: parent.verticalCenter
+                                Image {
+                                    id: thumb
+                                    anchors.fill: parent
+                                    visible: source != ""
+                                    source: (modelData.kind === "clip" && modelData.ckind === "image" && modelData.image_path) ? "file://" + modelData.image_path : ""
+                                    sourceSize.width: 24
+                                    sourceSize.height: 24
+                                    fillMode: Image.PreserveAspectFit
+                                    asynchronous: true
+                                    smooth: true
+                                }
+                                Text {
+                                    anchors.centerIn: parent
+                                    visible: !thumb.visible
+                                    text: modelData.kind === "clip" ? root.glyph(modelData.category) : ""
+                                    color: Theme.accent
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: 16
+                                }
+                            }
+
+                            Column {
+                                width: parent.width - 38
+                                anchors.verticalCenter: parent.verticalCenter
+                                Text {
+                                    text: modelData.label
+                                    color: Theme.fg
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.fontSize
+                                    elide: Text.ElideRight
+                                    width: parent.width
+                                }
+                                Text {
+                                    text: modelData.sub
+                                    visible: modelData.sub.length > 0
+                                    color: Theme.subtext
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.fontSize - 2
+                                    elide: Text.ElideRight
+                                    width: parent.width
+                                }
                             }
                         }
 
@@ -391,11 +829,18 @@ PanelWindow {
                             anchors.fill: parent
                             onClicked: {
                                 list.currentIndex = index;
-                                root.action({
-                                    op: "copy",
-                                    id: modelData.id
-                                });
-                                Clipboard.close();
+                                if (modelData.kind === "header-app" || modelData.kind === "header-window") {
+                                    if (modelData.collapsed)
+                                        root.expandOrInto();
+                                    else
+                                        root.collapseOrUp();
+                                } else if (modelData.kind === "clip") {
+                                    root.action({
+                                        op: "copy",
+                                        id: modelData.id
+                                    });
+                                    Clipboard.close();
+                                }
                             }
                         }
                     }
@@ -409,6 +854,8 @@ PanelWindow {
                     radius: Theme.radius
                     color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.4)
                     clip: true
+                    border.width: root.previewFocused ? 1 : 0
+                    border.color: Theme.accent
 
                     readonly property var entry: (root.previewEntry && root.previewForId === root.selectedId) ? root.previewEntry : null
                     readonly property bool isImage: previewPane.entry && previewPane.entry.kind === "image"
@@ -504,6 +951,7 @@ PanelWindow {
                         // choke QML's text layout, so this trims rather than trying to
                         // render the whole thing. No syntax highlighting v1.
                         Flickable {
+                            id: previewFlick
                             visible: !previewPane.isImage
                             width: parent.width
                             height: parent.height - y
@@ -530,6 +978,172 @@ PanelWindow {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // ---- action sub-list overlay ----
+    Rectangle {
+        id: actionsPopup
+        visible: root.actionsOpen
+        z: 10
+        anchors.centerIn: parent
+        width: 340
+        height: Math.min(root.actionsList.length, 8) * 32 + Theme.pad * 2 + 28
+        radius: Theme.radius
+        color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.97)
+        border.color: Theme.accent
+        border.width: 1.5
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: Theme.pad
+            spacing: 4
+
+            Text {
+                text: "actions  ·  j/k, Enter, Esc"
+                color: Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 3
+            }
+
+            Repeater {
+                model: root.actionsList
+                delegate: Rectangle {
+                    readonly property bool current: index === root.actionsIndex
+                    width: actionsPopup.width - Theme.pad * 2
+                    height: 28
+                    radius: 4
+                    color: current ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.25) : "transparent"
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.leftMargin: 8
+                        text: modelData.label
+                        color: Theme.fg
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.runAction(modelData.id)
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- pin-mode picker overlay (Alt+P) ----
+    Rectangle {
+        id: pinPickerPopup
+        visible: root.pinPickerOpen
+        z: 10
+        anchors.centerIn: parent
+        width: 260
+        height: root.pinModes.length * 30 + Theme.pad * 2 + 24
+        radius: Theme.radius
+        color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.97)
+        border.color: Theme.accent
+        border.width: 1.5
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: Theme.pad
+            spacing: 4
+
+            Text {
+                text: "pin mode  ·  j/k, Enter, Esc"
+                color: Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 3
+            }
+
+            Repeater {
+                model: root.pinModes
+                delegate: Rectangle {
+                    readonly property bool current: index === root.pinPickerIndex
+                    width: pinPickerPopup.width - Theme.pad * 2
+                    height: 28
+                    radius: 4
+                    color: current ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.25) : "transparent"
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.leftMargin: 8
+                        text: root.pinBadge(modelData) + "  " + modelData
+                        color: Theme.fg
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.pinPickerIndex = index
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- pin-until duration entry overlay ----
+    Rectangle {
+        id: pinDurationPopup
+        visible: root.pinDurationOpen
+        z: 10
+        anchors.centerIn: parent
+        width: 300
+        height: 70
+        radius: Theme.radius
+        color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.97)
+        border.color: Theme.accent
+        border.width: 1.5
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: Theme.pad
+            spacing: 8
+            Text {
+                text: "pin until (e.g. 24h, 30m)  ·  Enter, Esc"
+                color: Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 3
+            }
+            Text {
+                text: root.pinDurationBuf.length ? root.pinDurationBuf : " "
+                color: Theme.fg
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize
+            }
+        }
+    }
+
+    // ---- bulk-delete confirm overlay ----
+    Rectangle {
+        id: bulkConfirmPopup
+        visible: root.bulkConfirmOpen
+        z: 10
+        anchors.centerIn: parent
+        width: 340
+        height: 70
+        radius: Theme.radius
+        color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.97)
+        border.color: Theme.accent
+        border.width: 1.5
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: Theme.pad
+            spacing: 8
+            Text {
+                text: "delete " + root.bulkConfirmIds.length + " selected entries?"
+                color: Theme.fg
+                font.family: Theme.fontUi
+                font.pixelSize: Theme.fontSize
+            }
+            Text {
+                text: "y / Enter to confirm  ·  any other key cancels"
+                color: Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 3
             }
         }
     }
