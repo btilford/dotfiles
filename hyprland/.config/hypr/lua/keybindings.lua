@@ -312,6 +312,13 @@ hl.bind("code:238", hl.dsp.exec_cmd("brightnessctl -d smc::kbd_backlight s +10")
 hl.bind("code:237", hl.dsp.exec_cmd("brightnessctl -d smc::kbd_backlight s 10-"), { description = "Keyboard backlight -" })
 
 -- Clipboard and file manager
+-- New standalone quickshell ClipboardDialog (clipvault). CTRL+ALT+V below is kept
+-- as a fallback (old Launcher clip mode) until the dialog is confirmed stable.
+hl.bind(
+	"SUPER + V",
+	hl.dsp.exec_cmd("qs ipc call clipboard toggle"),
+	{ description = "Clipboard history (quickshell dialog)" }
+)
 hl.bind(
 	"CTRL + ALT + V",
 	hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Launcher.sh clip"'),
