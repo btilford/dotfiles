@@ -68,21 +68,34 @@ PanelWindow {
     property bool actionsOpen: false
     property int actionsForId: -1
     // LLM prompt sub-list (Ctrl+L): clipvault's `[llm]` prompts matched to the
-    // selected entry's category. Running one fires the `llm` op (mode omitted =
-    // the `[llm]` config/prompt default; capture inserts the result as a new entry).
+    // selected entry's category. Enter runs one in its configured mode, `t` forces
+    // a background tmux session, `h` overrides the harness for this run only.
+    // (clipvault's third mode, `foreground`, exec-replaces the process with the
+    // harness — it needs a terminal, so the daemon rejects it over IPC.)
     property var llmList: []
     property int llmIndex: 0
     property bool llmOpen: false
     property int llmForId: -1
-    // Result view for capture-mode prompts. The `llm` op never returns the harness
-    // text — only entry_id (when insert_result puts it in the db) / tmux_session — so
-    // "display the answer" means: run -> get entry_id back -> `get` that entry -> show
-    // its content here. tmux-mode prompts are interactive/background and just notify.
+    // Harness override sub-list (`h`), mirroring the TUI's `h` key. `llmPending*`
+    // holds the run the picker will fire once a harness is chosen.
+    property var llmHarnessList: []
+    property int llmHarnessIndex: 0
+    property bool llmHarnessOpen: false
+    property string llmHarnessDefault: ""
+    property string llmPendingPrompt: ""
+    property string llmPendingLabel: ""
+    property string llmPendingMode: ""
+    // Result view for capture-mode prompts: the `llm` op returns the harness text
+    // as `output`, so the answer is shown here whether or not it was stored.
+    // `insert_result` defaults to false in clipvault — `i` stores it, `c` copies it,
+    // Esc throws it away. `llmResultEntryId` is set only when it did land in the db
+    // (an `insert_result = true` prompt, or after `i`), and then guards a re-insert.
     property bool llmRunning: false
     property string llmRunLabel: ""
     property bool llmResultOpen: false
     property string llmResultBody: ""
     property int llmResultEntryId: -1
+    property bool llmResultCopied: false
     // Tab toggles which pane j/k-style keys drive; list-mutating keys (delete,
     // pin, actions, bulk) only fire when the list has focus.
     property bool previewFocused: false
@@ -100,6 +113,7 @@ PanelWindow {
         pinDurationOpen = false;
         actionsOpen = false;
         llmOpen = false;
+        closeLlmHarness();
         closeLlmResult();
         previewFocused = false;
         input.forceActiveFocus();
@@ -127,46 +141,44 @@ PanelWindow {
         onTriggered: root.runQuery()
     }
 
-    // Quickshell's Socket does NOT auto-reconnect: `connected: true` is a one-way
-    // binding, so once the daemon goes away (config reload, upgrade, crash) the
-    // property flips false and stays there — leaving the dialog silently empty
-    // with no error until qs itself is restarted. Re-assert the connection while
-    // any of the three sockets is down.
-    Timer {
-        id: socketRetry
-        interval: 2000
-        repeat: true
-        running: !socket.connected || !eventsSocket.connected || !llmSocket.connected
-        onTriggered: {
-            if (!socket.connected)
-                socket.connected = true;
-            if (!eventsSocket.connected)
-                eventsSocket.connected = true;
-            if (!llmSocket.connected)
-                llmSocket.connected = true;
-        }
+    // A quickshell 0.3.0 Socket is single-use: once the daemon goes away the peer
+    // close is reported via onError, and from then on the object is dead — writes
+    // are dropped ("QIODevice::write: device not open") and it never re-dials. Not
+    // by re-asserting `connected = true`, not by re-setting `path` (both verified
+    // against a real daemon restart; the earlier retry-timer approach silently did
+    // nothing). The only thing that reconnects is building a NEW Socket, so each
+    // one lives in a Loader and a dead socket is respawned by cycling `active`.
+    // Symptom this fixes: restart clipvault, and the dialog opens empty (0 results)
+    // forever, until qs itself is restarted.
+    property int socketRespawnMs: 1500
+    readonly property var socket: socketLoader.item
+    readonly property var eventsSocket: eventsLoader.item
+    readonly property var llmSocket: llmLoader.item
+    function respawn(loader) {
+        loader.active = false;
+        loader.active = true;
     }
 
-    Socket {
-        id: socket
-        path: root.socketPath
-        // always-on, like Launcher's clip* sockets — toggling `connected` off on hide (tried
-        // earlier) cycles the unix socket on every open/close and can race a pending debounce
-        // timer's write against the disconnect, which is a real hang vector.
-        connected: true
-        onError: error => console.log("clipvault: ipc socket error (is the daemon running?)", error)
-        onConnectedChanged: {
-            if (!connected) {
-                // responses for in-flight requests will never arrive; keeping their
-                // descriptors would mis-correlate every reply after a reconnect.
+    Loader {
+        id: socketLoader
+        active: true
+        sourceComponent: Socket {
+            path: root.socketPath
+            // always-on, like Launcher's clip* sockets — toggling `connected` off on hide (tried
+            // earlier) cycles the unix socket on every open/close and can race a pending debounce
+            // timer's write against the disconnect, which is a real hang vector.
+            connected: true
+            onError: error => {
+                console.log("clipvault: ipc socket error (is the daemon running?)", error);
+                // in-flight responses will never arrive; their descriptors would
+                // mis-correlate every reply after the respawn
                 root.reqQueue = [];
-            } else if (root.visible) {
-                root.runQuery();
+                socketRespawn.restart();
             }
-        }
-        parser: SplitParser {
-            splitMarker: "\n"
-            onRead: function (line) {
+            onConnectedChanged: if (connected && root.visible) root.runQuery()
+            parser: SplitParser {
+                splitMarker: "\n"
+                onRead: function (line) {
                 const desc = root.reqQueue.length ? root.reqQueue.shift() : {
                     kind: ""
                 };
@@ -193,20 +205,36 @@ PanelWindow {
                     root.llmList = msg.prompts || [];
                     root.llmIndex = 0;
                     root.llmOpen = root.llmList.length > 0;
-                } else if (desc.kind === "llm_result") {
-                    // the entry the harness output was inserted as — show its content
-                    root.llmRunning = false;
-                    root.llmResultBody = (msg.entry && msg.entry.content) ? msg.entry.content : "(empty result)";
+                } else if (desc.kind === "llm_harnesses") {
+                    root.llmHarnessList = msg.harnesses || [];
+                    root.llmHarnessDefault = msg.default_id || "";
+                    const at = root.llmHarnessList.findIndex(h => h.id === root.llmHarnessDefault);
+                    root.llmHarnessIndex = at < 0 ? 0 : at;
+                    root.llmHarnessOpen = root.llmHarnessList.length > 0;
+                    root.llmOpen = false;
+                } else if (desc.kind === "llm_insert") {
+                    // `i` in the result view stored the answer — hold the id so the
+                    // view can say so and refuse a second insert
+                    root.llmResultEntryId = msg.entry_id || -1;
                 }
-                // act/pin/delete/copy: fire-and-forget acks; eventsSocket triggers
-                // the requery once the mutation actually lands
+                    // act/pin/delete/copy: fire-and-forget acks; eventsSocket triggers
+                    // the requery once the mutation actually lands
+                }
             }
         }
     }
+    Timer {
+        id: socketRespawn
+        interval: root.socketRespawnMs
+        onTriggered: root.respawn(socketLoader)
+    }
+
     function sendReq(desc, req) {
+        if (!root.socket || !root.socket.connected)
+            return; // socket is down/respawning; the reconnect re-queries
         root.reqQueue.push(desc);
-        socket.write(JSON.stringify(req) + "\n");
-        socket.flush();
+        root.socket.write(JSON.stringify(req) + "\n");
+        root.socket.flush();
     }
     function runQuery() {
         const q = root.query.trim();
@@ -264,27 +292,39 @@ PanelWindow {
         return e.pin_mode || "none";
     }
 
-    Socket {
-        id: eventsSocket
-        path: root.socketPath
-        // always-on, matching Launcher's clipEventsSocket — see the note on `socket` above.
-        connected: true
-        onError: error => console.log("clipvault: ipc events socket error", error)
-        parser: SplitParser {
-            splitMarker: "\n"
-            onRead: function (line) {
-                if (root.visible)
-                    root.runQuery();
+    Loader {
+        id: eventsLoader
+        active: true
+        sourceComponent: Socket {
+            path: root.socketPath
+            // always-on, matching Launcher's clipEventsSocket — see the note on `socket` above.
+            connected: true
+            onError: error => {
+                console.log("clipvault: ipc events socket error", error);
+                eventsRespawn.restart();
+            }
+            parser: SplitParser {
+                splitMarker: "\n"
+                onRead: function (line) {
+                    if (root.visible)
+                        root.runQuery();
+                }
+            }
+            // the subscription dies with the socket, so a respawned one re-subscribes
+            onConnectedChanged: {
+                if (connected) {
+                    write(JSON.stringify({
+                        op: "subscribe"
+                    }) + "\n");
+                    flush();
+                }
             }
         }
-        onConnectedChanged: {
-            if (connected) {
-                write(JSON.stringify({
-                    op: "subscribe"
-                }) + "\n");
-                flush();
-            }
-        }
+    }
+    Timer {
+        id: eventsRespawn
+        interval: root.socketRespawnMs
+        onTriggered: root.respawn(eventsLoader)
     }
 
     // ---- action sub-list (open in browser, edit, tmux, curl, ...) ----
@@ -325,73 +365,134 @@ PanelWindow {
         llmOpen = false;
         llmList = [];
     }
-    function runLlm(promptId, label) {
+    // `h` on a prompt: ask the daemon which harnesses exist and which one this
+    // prompt would resolve to, then let the user pick a different one for this run.
+    function openLlmHarness(promptId, label, mode) {
+        llmPendingPrompt = promptId;
+        llmPendingLabel = label || promptId;
+        llmPendingMode = mode || "";
+        sendReq({
+            kind: "llm_harnesses"
+        }, {
+            op: "llm_harnesses",
+            prompt: promptId
+        });
+    }
+    function closeLlmHarness() {
+        llmHarnessOpen = false;
+        llmHarnessList = [];
+    }
+    function runLlm(promptId, label, mode, harness) {
         // Fired on the dedicated llmSocket, not `socket`: the `llm` op runs the
         // harness synchronously and blocks its connection until done, which would
         // stall list/get/actions if it shared the main socket.
-        root.llmRunLabel = label || promptId;
-        root.llmResultBody = "";
-        root.llmResultEntryId = -1;
-        root.llmRunning = true;
-        closeLlm();
-        root.llmResultOpen = true; // stay open and show progress, then the answer
-        llmSocket.write(JSON.stringify({
+        const req = {
             op: "llm",
             id: root.llmForId,
             prompt: promptId
-        }) + "\n");
-        llmSocket.flush();
+        };
+        if (mode)
+            req.mode = mode;
+        if (harness)
+            req.harness = harness;
+        root.llmRunLabel = (label || promptId) + (harness ? "  ·  " + harness : "") + (mode === "tmux" ? "  ·  tmux" : "");
+        root.llmResultBody = "";
+        root.llmResultEntryId = -1;
+        root.llmResultCopied = false;
+        root.llmRunning = true;
+        closeLlm();
+        closeLlmHarness();
+        if (!root.llmSocket || !root.llmSocket.connected) {
+            root.llmRunning = false;
+            root.llmResultBody = "the clipvault daemon isn't reachable";
+            root.llmResultOpen = true;
+            return;
+        }
+        root.llmResultOpen = true; // stay open and show progress, then the answer
+        root.llmSocket.write(JSON.stringify(req) + "\n");
+        root.llmSocket.flush();
+    }
+    // `i` in the result view — the answer only lives in this dialog until it's
+    // stored (clipvault's insert_result defaults to false).
+    function insertLlmResult() {
+        if (root.llmResultEntryId > 0 || !root.llmResultBody)
+            return;
+        sendReq({
+            kind: "llm_insert"
+        }, {
+            op: "llm_insert",
+            text: root.llmResultBody
+        });
+    }
+    function copyLlmResult() {
+        if (!root.llmResultBody)
+            return;
+        Quickshell.execDetached(["wl-copy", "--", root.llmResultBody]);
+        root.llmResultCopied = true;
     }
     function closeLlmResult() {
         llmResultOpen = false;
         llmRunning = false;
         llmResultBody = "";
         llmResultEntryId = -1;
+        llmResultCopied = false;
     }
 
     // Dedicated channel for the blocking `llm` op, and where its outcome comes back.
-    Socket {
-        id: llmSocket
-        path: root.socketPath
-        connected: true
-        onError: error => console.log("clipvault: llm socket error", error)
-        parser: SplitParser {
-            splitMarker: "\n"
-            onRead: function (line) {
-                let msg;
-                try {
-                    msg = JSON.parse(line);
-                } catch (e) {
-                    return;
-                }
-                if (msg.error) {
+    Loader {
+        id: llmLoader
+        active: true
+        sourceComponent: Socket {
+            path: root.socketPath
+            connected: true
+            onError: error => {
+                console.log("clipvault: llm socket error", error);
+                // if this fires mid-run the harness's answer is gone with the socket —
+                // say so rather than leaving the spinner up forever
+                if (root.llmRunning) {
                     root.llmRunning = false;
-                    root.llmResultBody = "error: " + msg.error;
+                    root.llmResultBody = "the clipvault daemon went away while the harness was running";
                     root.llmResultOpen = true;
-                } else if (msg.tmux_session) {
-                    // interactive/background mode — nothing to display here; point the
-                    // user at the session instead of silently stranding it.
-                    root.closeLlmResult();
-                    Quickshell.execDetached(["notify-send", "-a", "clipvault", "LLM running in tmux", "tmux attach -t " + msg.tmux_session]);
-                    Clipboard.close();
-                } else if (msg.entry_id) {
-                    // capture + insert_result: fetch the stored output and display it
-                    root.llmResultEntryId = msg.entry_id;
-                    root.sendReq({
-                        kind: "llm_result",
-                        id: msg.entry_id
-                    }, {
-                        op: "get",
-                        id: msg.entry_id
-                    });
-                } else {
-                    // capture ran but both insert_result and copy_result are false, so
-                    // clipvault threw the output away — there is nothing to show.
-                    root.llmRunning = false;
-                    root.llmResultBody = "The harness ran, but this prompt has insert_result = false and copy_result = false, so clipvault discarded the output.\n\nSet insert_result = true for it in clipvault's config.toml to keep (and display) the result.";
+                }
+                llmRespawn.restart();
+            }
+            parser: SplitParser {
+                splitMarker: "\n"
+                onRead: function (line) {
+                    let msg;
+                    try {
+                        msg = JSON.parse(line);
+                    } catch (e) {
+                        return;
+                    }
+                    if (msg.error) {
+                        root.llmRunning = false;
+                        root.llmResultBody = "error: " + msg.error;
+                        root.llmResultOpen = true;
+                    } else if (msg.tmux_session) {
+                        // background mode — nothing to display here; point the user at the
+                        // session instead of silently stranding it.
+                        root.closeLlmResult();
+                        Quickshell.execDetached(["notify-send", "-a", "clipvault", "LLM running in tmux", "tmux attach -t " + msg.tmux_session]);
+                        Clipboard.close();
+                    } else {
+                        // capture mode: the op carries the harness text, so the answer is
+                        // shown whether or not clipvault stored it. entry_id is set only
+                        // when an `insert_result = true` prompt auto-inserted it.
+                        root.llmRunning = false;
+                        root.llmResultBody = msg.output || "(empty result)";
+                        root.llmResultEntryId = msg.entry_id || -1;
+                        root.llmResultCopied = !!msg.copied;
+                        root.llmResultOpen = true;
+                    }
                 }
             }
         }
+    }
+    Timer {
+        id: llmRespawn
+        interval: root.socketRespawnMs
+        onTriggered: root.respawn(llmLoader)
     }
 
     // ---- row shaping + tree building + selection preservation across a requery ----
@@ -673,16 +774,17 @@ PanelWindow {
                             return;
                         }
                         if (root.llmResultOpen) {
-                            // llm result view: Enter copies the answer, Esc dismisses,
-                            // j/k (and arrows) scroll it.
+                            // llm result view: c/Enter copies the answer, i stores it as
+                            // an entry, Esc dismisses (and drops it), j/k scroll.
                             const rf = llmResultFlick;
                             if (e.key === Qt.Key_Escape) {
                                 root.closeLlmResult();
-                            } else if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && root.llmResultEntryId > 0) {
-                                root.action({
-                                    op: "copy",
-                                    id: root.llmResultEntryId
-                                });
+                            } else if (e.key === Qt.Key_C || e.key === Qt.Key_Y) {
+                                root.copyLlmResult();
+                            } else if (e.key === Qt.Key_I) {
+                                root.insertLlmResult();
+                            } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                                root.copyLlmResult();
                                 root.closeLlmResult();
                                 Clipboard.close();
                             } else if (e.key === Qt.Key_J || e.key === Qt.Key_Down) {
@@ -697,8 +799,25 @@ PanelWindow {
                             e.accepted = true;
                             return;
                         }
+                        if (root.llmHarnessOpen) {
+                            // harness override sub-list — Enter fires the pending run
+                            if (e.key === Qt.Key_Escape) {
+                                root.closeLlmHarness();
+                            } else if (e.key === Qt.Key_Down || e.key === Qt.Key_J || (e.key === Qt.Key_N && (e.modifiers & Qt.ControlModifier))) {
+                                root.llmHarnessIndex = Math.min(root.llmHarnessIndex + 1, root.llmHarnessList.length - 1);
+                            } else if (e.key === Qt.Key_Up || e.key === Qt.Key_K || (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier))) {
+                                root.llmHarnessIndex = Math.max(root.llmHarnessIndex - 1, 0);
+                            } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                                const h = root.llmHarnessList[root.llmHarnessIndex];
+                                if (h)
+                                    root.runLlm(root.llmPendingPrompt, root.llmPendingLabel, root.llmPendingMode, h.id);
+                            }
+                            e.accepted = true;
+                            return;
+                        }
                         if (root.llmOpen) {
                             // llm prompt sub-list steals all input until closed
+                            const p = root.llmList[root.llmIndex];
                             if (e.key === Qt.Key_Escape) {
                                 root.closeLlm();
                             } else if (e.key === Qt.Key_Down || (e.key === Qt.Key_N && (e.modifiers & Qt.ControlModifier))) {
@@ -706,9 +825,16 @@ PanelWindow {
                             } else if (e.key === Qt.Key_Up || (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier))) {
                                 root.llmIndex = Math.max(root.llmIndex - 1, 0);
                             } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
-                                const p = root.llmList[root.llmIndex];
                                 if (p)
-                                    root.runLlm(p.id, p.label);
+                                    root.runLlm(p.id, p.label, "", "");
+                            } else if (e.key === Qt.Key_T) {
+                                // background tmux session — the answer lands in the
+                                // session, not here
+                                if (p)
+                                    root.runLlm(p.id, p.label, "tmux", "");
+                            } else if (e.key === Qt.Key_H) {
+                                if (p)
+                                    root.openLlmHarness(p.id, p.label, "");
                             }
                             e.accepted = true;
                             return;
@@ -1260,7 +1386,7 @@ PanelWindow {
             spacing: 4
 
             Text {
-                text: "llm prompts  ·  j/k, Enter, Esc"
+                text: "llm  ·  Enter run  ·  t tmux (background)  ·  h harness  ·  Esc"
                 color: Theme.subtext
                 font.family: Theme.fontMono
                 font.pixelSize: Theme.fontSize - 3
@@ -1292,6 +1418,57 @@ PanelWindow {
         }
     }
 
+    // ---- llm harness override (`h` on a prompt) ----
+    Rectangle {
+        id: llmHarnessPopup
+        visible: root.llmHarnessOpen
+        z: 11
+        anchors.centerIn: parent
+        width: 340
+        height: Math.min(root.llmHarnessList.length, 8) * 32 + Theme.pad * 2 + 28
+        radius: Theme.radius
+        color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.97)
+        border.color: Theme.accent
+        border.width: 1.5
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: Theme.pad
+            spacing: 4
+
+            Text {
+                text: "harness for this run  ·  j/k, Enter, Esc"
+                color: Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 3
+            }
+
+            Repeater {
+                model: root.llmHarnessList
+                delegate: Rectangle {
+                    readonly property bool current: index === root.llmHarnessIndex
+                    width: llmHarnessPopup.width - Theme.pad * 2
+                    height: 28
+                    radius: 4
+                    color: current ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.25) : "transparent"
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.leftMargin: 8
+                        text: modelData.label + (modelData.id === root.llmHarnessDefault ? "  (default)" : "")
+                        color: Theme.fg
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.runLlm(root.llmPendingPrompt, root.llmPendingLabel, root.llmPendingMode, modelData.id)
+                    }
+                }
+            }
+        }
+    }
+
     // ---- llm result view (capture-mode prompts: summarize / explain) ----
     Rectangle {
         id: llmResultPopup
@@ -1317,9 +1494,14 @@ PanelWindow {
 
             Text {
                 width: parent.width
-                text: root.llmRunning
-                    ? ("running  ·  " + root.llmRunLabel + "  …")
-                    : (root.llmRunLabel + "  ·  Enter copies  ·  j/k scroll  ·  Esc closes")
+                text: {
+                    if (root.llmRunning)
+                        return "running  ·  " + root.llmRunLabel + "  …";
+                    const state = root.llmResultEntryId > 0
+                        ? ("saved as #" + root.llmResultEntryId + (root.llmResultCopied ? ", copied" : ""))
+                        : (root.llmResultCopied ? "copied, not saved" : "not saved");
+                    return root.llmRunLabel + "  ·  " + state + "  ·  c copy  ·  i save  ·  j/k scroll  ·  Esc discards";
+                }
                 color: Theme.subtext
                 font.family: Theme.fontMono
                 font.pixelSize: Theme.fontSize - 3

@@ -42,22 +42,34 @@ Search + flat/tree list + preview pane + actions/llm/pin/delete/bulk-delete. Sta
 `Clipboard` singleton (`config/Clipboard.qml`).
 
 - **Actions vs LLM are separate clipvault concepts.** `actions` (`Ctrl+A`) are fire-and-forget
-  spawns (`act` op). `[llm]` prompts (`Ctrl+L`) are a different op pair: `llm_prompts` lists the
-  prompts whose categories match the entry, `llm` runs one (`{id, prompt, harness?, mode?}`;
+  spawns (`act` op). `[llm]` prompts (`Ctrl+L`) are a different op family: `llm_prompts` lists the
+  prompts whose categories match the entry, `llm_harnesses` lists the harnesses plus the one this
+  prompt resolves to (the `h` key's override list), `llm` runs one (`{id, prompt, harness?, mode?}`;
   omit `mode` to honour the `[llm]`/per-prompt default — `foreground` is rejected over IPC since
-  it needs a terminal). The `llm` op runs the harness **synchronously and blocks its connection**,
-  so it is fired on a dedicated `llmSocket`, never the main list/get socket.
+  it needs a terminal), and `llm_insert` stores a result after the fact. The `llm` op runs the
+  harness **synchronously and blocks its connection**, so it is fired on a dedicated `llmSocket`,
+  never the main list/get socket.
+- **Keep this dialog in sync with the clipvault TUI.** They are two front-ends over the same IPC;
+  a feature landing in one belongs in the other. Current llm parity: `Enter` run, `t` background
+  tmux, `h` harness override, result view with `c` copy / `i` store / Esc discard. (`T`/foreground
+  is TUI+CLI only — exec-replace needs a terminal.)
 
 - Toggle: `qs ipc call clipboard toggle` — bound to **SUPER+V** (and `SUPER+o` `v` in the
   `open-cmd` submap), both with a `|| clipvault tui` fallback for hosts with no qs daemon.
   Launcher's clip mode (the `,` prefix, its clipvault sockets, tree/pin/bulk UI and popups) is
   **removed** — this dialog is the only clipboard UI. Don't re-add clip mode to Launcher.
-- **LLM results are displayed, not lost.** The `llm` op never returns the harness text — only
-  `entry_id` (present only when `insert_result` stores it) and `tmux_session`. So the dialog does
-  run → `entry_id` → `get` that entry → render it in a scrollable result view. tmux-mode prompts
-  are background: it notify-sends `tmux attach -t <session>` rather than stranding them. A prompt
-  with `insert_result = false` **and** `copy_result = false` has its output discarded by clipvault
-  — there is nothing to show, so display-intent prompts must set `insert_result = true`.
+- **LLM results are displayed, not lost.** The `llm` reply carries the harness text as `output`
+  (clipvault ≥ the llm-v2 work), so the result view renders it directly — no `get` round-trip, and
+  it works with `insert_result = false` (now clipvault's default: nothing is stored unless the user
+  presses `i`, which fires `llm_insert`). `entry_id` in the reply is set only when an
+  `insert_result = true` prompt auto-inserted it. tmux-mode prompts are background: it notify-sends
+  `tmux attach -t <session>` rather than stranding them.
+- **A dead quickshell Socket never re-dials.** When clipvault restarts, the peer close surfaces via
+  `onError` but `connected` stays true; writes then vanish ("QIODevice::write: device not open") and
+  the dialog opens empty (0 results) until `qs` itself restarts. Re-asserting `connected = true` and
+  re-setting `path` both do nothing (verified against a real daemon restart). The fix: each Socket
+  lives in a `Loader`, and `onError` schedules a respawn that cycles `Loader.active` to build a NEW
+  Socket. Don't "simplify" the Loaders away.
 - URL prompts need a fetch-capable harness: plain `claude -p` has no tool grants and just refuses.
   `claude-web` (`claude -p --allowedTools WebFetch`) exists for that; `summarize-url` uses it,
   while plain `summarize` is scoped to local content (code/file-path/files).
