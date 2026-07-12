@@ -49,8 +49,9 @@ Search + flat/tree list + preview pane + actions/llm/pin/delete/bulk-delete. Sta
   so it is fired on a dedicated `llmSocket`, never the main list/get socket.
 
 - Toggle: `qs ipc call clipboard toggle` — bound to **SUPER+V** (and `SUPER+o` `v` in the
-  `open-cmd` submap). The old CTRL+ALT+V Launcher clip-mode binding is gone; no keybind reaches
-  `Launcher.sh clip` any more, so Launcher's clip mode is dead code awaiting removal.
+  `open-cmd` submap), both with a `|| clipvault tui` fallback for hosts with no qs daemon.
+  Launcher's clip mode (the `,` prefix, its clipvault sockets, tree/pin/bulk UI and popups) is
+  **removed** — this dialog is the only clipboard UI. Don't re-add clip mode to Launcher.
 - **LLM results are displayed, not lost.** The `llm` op never returns the harness text — only
   `entry_id` (present only when `insert_result` stores it) and `tmux_session`. So the dialog does
   run → `entry_id` → `get` that entry → render it in a scrollable result view. tmux-mode prompts
