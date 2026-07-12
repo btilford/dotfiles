@@ -20,13 +20,13 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Overlay
     // Exclusive, matching the other overlays (Session/Keymap/Launcher). Two earlier live tests
-    // hung the whole session needing killall/logout — root cause was NOT the grab itself but
-    // that the ONLY key handler (incl. Escape) lived on `input`, and the preview pane's
-    // selectByMouse TextEdit could steal active focus from it: once `input` lost focus nothing
-    // could dismiss the Exclusive keyboard grab. Fixed by (a) the window-scope Escape Shortcut
-    // below, which fires whenever the focused item didn't already accept Escape — i.e. exactly
-    // the focus-lost case — guaranteeing the grab is always releasable, and (b) activeFocusOnPress
-    // false on the preview TextEdit so it can't steal the nav focus in the first place.
+    // hung the whole session needing killall/logout. Real root cause (found the hard way): a
+    // `property var data` below shadowed Item's built-in `data` default property, corrupting the
+    // window's content tree so the layer surface never gained keyboard activation — Window.active
+    // stayed false, every key (incl. Escape) was dropped, and the Exclusive grab held the physical
+    // keyboard with nothing able to release it = system-wide lockout. Fixed by renaming that
+    // property to clipData. The Shortcut + activeFocusOnPress below are kept as cheap belt-and-
+    // suspenders, but they are no longer load-bearing now that the window activates correctly.
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     WlrLayershell.namespace: "quickshell-clipboard"
 
@@ -37,10 +37,9 @@ PanelWindow {
         right: true
     }
 
-    // Guaranteed dismiss: fires only when no focused item consumed Escape. In normal use
-    // `input` accepts Escape (main handler + every sub-mode), so this never double-fires and
-    // sub-mode Escape still cancels just the popup. It only kicks in when `input` has lost
-    // active focus — the exact condition that used to wedge the Exclusive grab.
+    // Backstop dismiss: fires only when no focused item consumed Escape. In normal use `input`
+    // accepts Escape (main handler + every sub-mode), so this never double-fires and sub-mode
+    // Escape still cancels just the popup. Kept as defense-in-depth against any future focus slip.
     Shortcut {
         sequences: [StandardKey.Cancel]
         context: Qt.WindowShortcut
@@ -101,7 +100,11 @@ PanelWindow {
     // "what kind of request is this" correlates responses (they arrive in request order).
     // eventsSocket: subscribes once, gets a push line on every daemon db change -> requery.
     property string socketPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/clipvault.sock"
-    property var data: []
+    // NB: named clipData, NOT `data` — `data` is Item's built-in default property (children +
+    // resources). Shadowing it with a plain var corrupts the window's content tree so the layer
+    // surface never gains keyboard activation (Window.active stays false), which silently killed
+    // all key input incl. Escape and, under the Exclusive grab, locked out the whole session.
+    property var clipData: []
     // FIFO of {kind, id?} descriptors — responses arrive in request order, so this
     // correlates them; "get" descriptors carry the requested id for stale-drop below.
     property var reqQueue: []
@@ -134,7 +137,7 @@ PanelWindow {
                     return;
                 }
                 if (desc.kind === "list") {
-                    root.data = msg.entries || [];
+                    root.clipData = msg.entries || [];
                     root.rebuild();
                 } else if (desc.kind === "get") {
                     // late response after selection moved on — drop it
@@ -310,7 +313,7 @@ PanelWindow {
         if (root.treeMode) {
             let prevApp = null;
             let prevWin = null;
-            for (const c of root.data) {
+            for (const c of root.clipData) {
                 const appKey = c.app_class || "";
                 if (appKey !== prevApp) {
                     out.push({
@@ -339,7 +342,7 @@ PanelWindow {
                 out.push(root.itemRow(c));
             }
         } else {
-            for (const c of root.data)
+            for (const c of root.clipData)
                 out.push(root.itemRow(c));
         }
         root.results = out;
@@ -412,7 +415,7 @@ PanelWindow {
     }
     function collapseAll() {
         const c = {};
-        for (const e of root.data)
+        for (const e of root.clipData)
             c[e.app_class || ""] = true;
         root.collapsed = c;
         root.rebuild();
