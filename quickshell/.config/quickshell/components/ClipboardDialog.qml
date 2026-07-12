@@ -127,6 +127,26 @@ PanelWindow {
         onTriggered: root.runQuery()
     }
 
+    // Quickshell's Socket does NOT auto-reconnect: `connected: true` is a one-way
+    // binding, so once the daemon goes away (config reload, upgrade, crash) the
+    // property flips false and stays there — leaving the dialog silently empty
+    // with no error until qs itself is restarted. Re-assert the connection while
+    // any of the three sockets is down.
+    Timer {
+        id: socketRetry
+        interval: 2000
+        repeat: true
+        running: !socket.connected || !eventsSocket.connected || !llmSocket.connected
+        onTriggered: {
+            if (!socket.connected)
+                socket.connected = true;
+            if (!eventsSocket.connected)
+                eventsSocket.connected = true;
+            if (!llmSocket.connected)
+                llmSocket.connected = true;
+        }
+    }
+
     Socket {
         id: socket
         path: root.socketPath
@@ -135,6 +155,15 @@ PanelWindow {
         // timer's write against the disconnect, which is a real hang vector.
         connected: true
         onError: error => console.log("clipvault: ipc socket error (is the daemon running?)", error)
+        onConnectedChanged: {
+            if (!connected) {
+                // responses for in-flight requests will never arrive; keeping their
+                // descriptors would mis-correlate every reply after a reconnect.
+                root.reqQueue = [];
+            } else if (root.visible) {
+                root.runQuery();
+            }
+        }
         parser: SplitParser {
             splitMarker: "\n"
             onRead: function (line) {
