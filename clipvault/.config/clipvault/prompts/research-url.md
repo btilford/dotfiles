@@ -1,4 +1,8 @@
-Research the url.
+Research the URL below.
 
-Prompt the user for what they are looking for and if/where to save the research when done.
+Fetch and read it first. Then ask the user what they are looking for — a
+summary, an evaluation, follow-up sources, comparison with alternatives — and
+where to save the research when done. The Obsidian vault's Clippings/ folder
+at ~/Documents/personal-notes/notes/ is the usual destination.
 
+Cite the source URL in whatever you save.

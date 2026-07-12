@@ -1,4 +1,9 @@
-Take this plan and begin implementing it.
+Take the plan below and begin implementing it.
 
-Read the plan and if anything is missing prompt the user for additional instructions or context.
-When ready use worktrunk to create a new worktree and begin implementation.
+If it is a file path, read the plan file first. Work out which repository the
+plan targets — from the plan's own references or its location — and cd there
+before touching anything.
+
+If anything is missing or ambiguous, ask the user for additional instructions
+or context before starting. When ready, use worktrunk to create a new
+worktree and implement the plan there, verifying each step as you go.
