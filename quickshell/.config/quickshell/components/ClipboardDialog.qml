@@ -19,6 +19,14 @@ PanelWindow {
     screen: Hyprland.focusedMonitor && Hyprland.focusedMonitor.screen ? Hyprland.focusedMonitor.screen : null
 
     WlrLayershell.layer: WlrLayer.Overlay
+    // Exclusive, matching the other overlays (Session/Keymap/Launcher). Two earlier live tests
+    // hung the whole session needing killall/logout — root cause was NOT the grab itself but
+    // that the ONLY key handler (incl. Escape) lived on `input`, and the preview pane's
+    // selectByMouse TextEdit could steal active focus from it: once `input` lost focus nothing
+    // could dismiss the Exclusive keyboard grab. Fixed by (a) the window-scope Escape Shortcut
+    // below, which fires whenever the focused item didn't already accept Escape — i.e. exactly
+    // the focus-lost case — guaranteeing the grab is always releasable, and (b) activeFocusOnPress
+    // false on the preview TextEdit so it can't steal the nav focus in the first place.
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     WlrLayershell.namespace: "quickshell-clipboard"
 
@@ -27,6 +35,16 @@ PanelWindow {
         bottom: true
         left: true
         right: true
+    }
+
+    // Guaranteed dismiss: fires only when no focused item consumed Escape. In normal use
+    // `input` accepts Escape (main handler + every sub-mode), so this never double-fires and
+    // sub-mode Escape still cancels just the popup. It only kicks in when `input` has lost
+    // active focus — the exact condition that used to wedge the Exclusive grab.
+    Shortcut {
+        sequences: [StandardKey.Cancel]
+        context: Qt.WindowShortcut
+        onActivated: Clipboard.close()
     }
 
     property string query: ""
@@ -967,6 +985,12 @@ PanelWindow {
                                 width: parent.width
                                 readOnly: true
                                 selectByMouse: true
+                                // don't steal key/nav focus from `input` on click — a focus
+                                // steal here used to kill the only Escape handler and wedge the
+                                // Exclusive keyboard grab (see keyboardFocus note above). Mouse
+                                // drag-select still works; the window Escape Shortcut is the
+                                // backstop if focus ever does land here anyway.
+                                activeFocusOnPress: false
                                 wrapMode: TextEdit.WrapAnywhere
                                 color: Theme.fg
                                 font.family: Theme.fontMono
