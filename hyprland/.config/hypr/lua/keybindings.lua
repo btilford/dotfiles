@@ -24,8 +24,8 @@ hl.define_submap("open-cmd", function()
 	)
 	hl.bind(
 		"v",
-		hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Launcher.sh clip"'),
-		{ description = "Clipboard history (launcher clip mode)" }
+		hl.dsp.exec_cmd("qs ipc call clipboard toggle"),
+		{ description = "Clipboard history (quickshell dialog)" }
 	)
 
 	hl.bind("z", hl.dsp.exec_cmd("missioncenter"), { description = "Launch Mission Center" })
@@ -312,17 +312,12 @@ hl.bind("code:238", hl.dsp.exec_cmd("brightnessctl -d smc::kbd_backlight s +10")
 hl.bind("code:237", hl.dsp.exec_cmd("brightnessctl -d smc::kbd_backlight s 10-"), { description = "Keyboard backlight -" })
 
 -- Clipboard and file manager
--- New standalone quickshell ClipboardDialog (clipvault). CTRL+ALT+V below is kept
--- as a fallback (old Launcher clip mode) until the dialog is confirmed stable.
+-- Standalone quickshell ClipboardDialog (clipvault). The old CTRL+ALT+V Launcher
+-- clip-mode fallback is gone now that the dialog is confirmed working.
 hl.bind(
 	"SUPER + V",
 	hl.dsp.exec_cmd("qs ipc call clipboard toggle"),
 	{ description = "Clipboard history (quickshell dialog)" }
-)
-hl.bind(
-	"CTRL + ALT + V",
-	hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Launcher.sh clip"'),
-	{ description = "Clipboard history (launcher clip mode)" }
 )
 hl.bind(
 	"SUPER + E",

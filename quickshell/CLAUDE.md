@@ -48,9 +48,18 @@ Search + flat/tree list + preview pane + actions/llm/pin/delete/bulk-delete. Sta
   it needs a terminal). The `llm` op runs the harness **synchronously and blocks its connection**,
   so it is fired on a dedicated `llmSocket`, never the main list/get socket.
 
-- Toggle: `qs ipc call clipboard toggle` — bound to **SUPER+V** (`hyprland` `lua/keybindings.lua`).
-  The old **CTRL+ALT+V** (Launcher clip mode) is kept as a fallback until the dialog is fully
-  proven; only strip it once confirmed stable on a live multi-monitor session.
+- Toggle: `qs ipc call clipboard toggle` — bound to **SUPER+V** (and `SUPER+o` `v` in the
+  `open-cmd` submap). The old CTRL+ALT+V Launcher clip-mode binding is gone; no keybind reaches
+  `Launcher.sh clip` any more, so Launcher's clip mode is dead code awaiting removal.
+- **LLM results are displayed, not lost.** The `llm` op never returns the harness text — only
+  `entry_id` (present only when `insert_result` stores it) and `tmux_session`. So the dialog does
+  run → `entry_id` → `get` that entry → render it in a scrollable result view. tmux-mode prompts
+  are background: it notify-sends `tmux attach -t <session>` rather than stranding them. A prompt
+  with `insert_result = false` **and** `copy_result = false` has its output discarded by clipvault
+  — there is nothing to show, so display-intent prompts must set `insert_result = true`.
+- URL prompts need a fetch-capable harness: plain `claude -p` has no tool grants and just refuses.
+  `claude-web` (`claude -p --allowedTools WebFetch`) exists for that; `summarize-url` uses it,
+  while plain `summarize` is scoped to local content (code/file-path/files).
 - Fullscreen `WlrLayer.Overlay` on `Hyprland.focusedMonitor`, `WlrKeyboardFocus.Exclusive`.
 - **Never shadow Item's built-in `data` property (load-bearing lesson):** the dialog once declared
   `property var data` for its socket results. `data` is Item's *default property* (children +

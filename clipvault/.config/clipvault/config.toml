@@ -38,12 +38,36 @@ insert_result = false
 mode = "tmux"
 timeout_secs = 120
 
+# Web-capable variant of the built-in "claude" harness. Plain `claude -p` runs
+# headless with no tool grants, so anything that must fetch a URL just refuses
+# ("WebFetch needs permission"). This grants only WebFetch — scoped, not
+# --dangerously-skip-permissions. argv_tmux stays interactive `claude` so a tmux
+# run can still prompt for anything else it wants.
+[[llm.harnesses]]
+id = "claude-web"
+label = "Claude CLI (WebFetch)"
+argv = ["claude", "-p", "--allowedTools", "WebFetch"]
+argv_tmux = ["claude"]
+
+# Local content only (code / file paths / files). URLs go to summarize-url below,
+# which needs a fetch-capable harness — keeping them split avoids a capture run
+# that silently refuses because it can't reach the network.
 [[llm.prompts]]
 id = "summarize"
 label = "Summarize"
 file = "prompts/summarize.md"
-categories = ["code", "file-path", "url", "files"]
+categories = ["code", "file-path", "files"]
 
+insert_result = true
+copy_result = true
+mode = "capture"
+
+[[llm.prompts]]
+id = "summarize-url"
+label = "Summarize this URL"
+file = "prompts/summarize-url.md"
+categories = ["url"]
+harness = "claude-web"
 insert_result = true
 copy_result = true
 mode = "capture"
