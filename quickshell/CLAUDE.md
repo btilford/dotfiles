@@ -45,18 +45,19 @@ Launcher clip mode. State lives in the `Clipboard` singleton (`config/Clipboard.
   The old **CTRL+ALT+V** (Launcher clip mode) is kept as a fallback until the dialog is fully
   proven; only strip it once confirmed stable on a live multi-monitor session.
 - Fullscreen `WlrLayer.Overlay` on `Hyprland.focusedMonitor`, `WlrKeyboardFocus.Exclusive`.
-- **Exclusive-grab safety (load-bearing):** an Exclusive keyboard grab is a system-wide lock —
-  if the only dismiss path can lose keyboard focus, the grab becomes undismissable and locks out
-  all input (needs killall/logout). This bit us twice. Guards, keep them:
-  1. window-scope `Shortcut { StandardKey.Cancel → Clipboard.close() }` — guaranteed dismiss that
-     fires only when no focused item consumed Escape (so sub-mode Escape still works, no double-close);
-  2. `activeFocusOnPress: false` on the preview `TextEdit` so a click can't steal nav focus from
-     the search `input` (the original focus-steal that killed the sole Escape handler);
-  3. click-away backdrop `MouseArea` as a pointer-based escape hatch.
-  Note: `hyprctl … send_shortcut` is window-scoped and CANNOT deliver keys to a layer surface, so
-  Escape-on-the-dialog can only be tested with a real keypress or a virtual-keyboard tool (wtype).
-  Diagnose hangs with a throwaway `qs -p harness.qml` using `WlrKeyboardFocus.None` (never grabs)
-  — see the `quickshell-exclusive-grab-lockout` memory.
+- **Never shadow Item's built-in `data` property (load-bearing lesson):** the dialog once declared
+  `property var data` for its socket results. `data` is Item's *default property* (children +
+  resources); shadowing it corrupted the window's content tree so the layer surface never gained
+  keyboard activation — `Window.active` stayed false, Qt dropped every key, and under the Exclusive
+  grab the physical keyboard was held with nothing able to release it = whole-session lockout
+  (killall/logout). Mouse kept working (pointer events don't need activation). Fixed by renaming to
+  `clipData`. Avoid `data`/`children`/`resources`/`state`/`visible` as property names.
+  Belt-and-suspenders also kept: window-scope `Shortcut { StandardKey.Cancel → Clipboard.close() }`
+  and `activeFocusOnPress: false` on the preview `TextEdit`, plus the click-away backdrop.
+  Diagnostics: throwaway `qs -p harness.qml` with `WlrKeyboardFocus.None` (never grabs → safe);
+  probe `item.Window.active`; `qs log -f -i <id> -r "*=true"` to see qml debug; `wtype -k Escape`
+  injects real keys into an exclusive layer (`hyprctl send_shortcut` can't). See the
+  `quickshell-exclusive-grab-lockout` memory.
 
 ## Daemon lifecycle
 
