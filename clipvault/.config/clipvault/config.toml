@@ -53,7 +53,12 @@ id = "explain-code"
 label = "Explain this code"
 file = "prompts/explain-code.md"
 categories = ["code", "file-path", "files"]
-
+# capture + insert so the answer is actually kept and can be shown back in the GUI.
+# Without insert_result the harness output is captured and then discarded (the `llm`
+# IPC op only returns entry_id/tmux_session, never the text), so there'd be nothing
+# to display. copy_result stays false: explaining shouldn't clobber the clipboard.
+insert_result = true
+mode = "capture"
 
 [[llm.prompts]]
 id = "research-url"

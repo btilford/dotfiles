@@ -74,6 +74,15 @@ PanelWindow {
     property int llmIndex: 0
     property bool llmOpen: false
     property int llmForId: -1
+    // Result view for capture-mode prompts. The `llm` op never returns the harness
+    // text — only entry_id (when insert_result puts it in the db) / tmux_session — so
+    // "display the answer" means: run -> get entry_id back -> `get` that entry -> show
+    // its content here. tmux-mode prompts are interactive/background and just notify.
+    property bool llmRunning: false
+    property string llmRunLabel: ""
+    property bool llmResultOpen: false
+    property string llmResultBody: ""
+    property int llmResultEntryId: -1
     // Tab toggles which pane j/k-style keys drive; list-mutating keys (delete,
     // pin, actions, bulk) only fire when the list has focus.
     property bool previewFocused: false
@@ -91,6 +100,7 @@ PanelWindow {
         pinDurationOpen = false;
         actionsOpen = false;
         llmOpen = false;
+        closeLlmResult();
         previewFocused = false;
         input.forceActiveFocus();
         runQuery();
@@ -154,6 +164,10 @@ PanelWindow {
                     root.llmList = msg.prompts || [];
                     root.llmIndex = 0;
                     root.llmOpen = root.llmList.length > 0;
+                } else if (desc.kind === "llm_result") {
+                    // the entry the harness output was inserted as — show its content
+                    root.llmRunning = false;
+                    root.llmResultBody = (msg.entry && msg.entry.content) ? msg.entry.content : "(empty result)";
                 }
                 // act/pin/delete/copy: fire-and-forget acks; eventsSocket triggers
                 // the requery once the mutation actually lands
@@ -282,28 +296,73 @@ PanelWindow {
         llmOpen = false;
         llmList = [];
     }
-    function runLlm(promptId) {
+    function runLlm(promptId, label) {
         // Fired on the dedicated llmSocket, not `socket`: the `llm` op runs the
         // harness synchronously and blocks its connection until done, which would
         // stall list/get/actions if it shared the main socket.
+        root.llmRunLabel = label || promptId;
+        root.llmResultBody = "";
+        root.llmResultEntryId = -1;
+        root.llmRunning = true;
+        closeLlm();
+        root.llmResultOpen = true; // stay open and show progress, then the answer
         llmSocket.write(JSON.stringify({
             op: "llm",
             id: root.llmForId,
             prompt: promptId
         }) + "\n");
         llmSocket.flush();
-        closeLlm();
-        Clipboard.close();
+    }
+    function closeLlmResult() {
+        llmResultOpen = false;
+        llmRunning = false;
+        llmResultBody = "";
+        llmResultEntryId = -1;
     }
 
-    // Write-only channel for the blocking `llm` op. The result (capture mode)
-    // lands as a new entry; eventsSocket then triggers the requery, so we ignore
-    // this socket's own responses.
+    // Dedicated channel for the blocking `llm` op, and where its outcome comes back.
     Socket {
         id: llmSocket
         path: root.socketPath
         connected: true
         onError: error => console.log("clipvault: llm socket error", error)
+        parser: SplitParser {
+            splitMarker: "\n"
+            onRead: function (line) {
+                let msg;
+                try {
+                    msg = JSON.parse(line);
+                } catch (e) {
+                    return;
+                }
+                if (msg.error) {
+                    root.llmRunning = false;
+                    root.llmResultBody = "error: " + msg.error;
+                    root.llmResultOpen = true;
+                } else if (msg.tmux_session) {
+                    // interactive/background mode — nothing to display here; point the
+                    // user at the session instead of silently stranding it.
+                    root.closeLlmResult();
+                    Quickshell.execDetached(["notify-send", "-a", "clipvault", "LLM running in tmux", "tmux attach -t " + msg.tmux_session]);
+                    Clipboard.close();
+                } else if (msg.entry_id) {
+                    // capture + insert_result: fetch the stored output and display it
+                    root.llmResultEntryId = msg.entry_id;
+                    root.sendReq({
+                        kind: "llm_result",
+                        id: msg.entry_id
+                    }, {
+                        op: "get",
+                        id: msg.entry_id
+                    });
+                } else {
+                    // capture ran but both insert_result and copy_result are false, so
+                    // clipvault threw the output away — there is nothing to show.
+                    root.llmRunning = false;
+                    root.llmResultBody = "The harness ran, but this prompt has insert_result = false and copy_result = false, so clipvault discarded the output.\n\nSet insert_result = true for it in clipvault's config.toml to keep (and display) the result.";
+                }
+            }
+        }
     }
 
     // ---- row shaping + tree building + selection preservation across a requery ----
@@ -584,6 +643,31 @@ PanelWindow {
                             e.accepted = true;
                             return;
                         }
+                        if (root.llmResultOpen) {
+                            // llm result view: Enter copies the answer, Esc dismisses,
+                            // j/k (and arrows) scroll it.
+                            const rf = llmResultFlick;
+                            if (e.key === Qt.Key_Escape) {
+                                root.closeLlmResult();
+                            } else if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && root.llmResultEntryId > 0) {
+                                root.action({
+                                    op: "copy",
+                                    id: root.llmResultEntryId
+                                });
+                                root.closeLlmResult();
+                                Clipboard.close();
+                            } else if (e.key === Qt.Key_J || e.key === Qt.Key_Down) {
+                                rf.contentY = Math.min(rf.contentY + 40, Math.max(0, rf.contentHeight - rf.height));
+                            } else if (e.key === Qt.Key_K || e.key === Qt.Key_Up) {
+                                rf.contentY = Math.max(rf.contentY - 40, 0);
+                            } else if (e.key === Qt.Key_PageDown || (e.key === Qt.Key_D && (e.modifiers & Qt.ControlModifier))) {
+                                rf.contentY = Math.min(rf.contentY + rf.height * 0.9, Math.max(0, rf.contentHeight - rf.height));
+                            } else if (e.key === Qt.Key_PageUp || (e.key === Qt.Key_U && (e.modifiers & Qt.ControlModifier))) {
+                                rf.contentY = Math.max(rf.contentY - rf.height * 0.9, 0);
+                            }
+                            e.accepted = true;
+                            return;
+                        }
                         if (root.llmOpen) {
                             // llm prompt sub-list steals all input until closed
                             if (e.key === Qt.Key_Escape) {
@@ -595,7 +679,7 @@ PanelWindow {
                             } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
                                 const p = root.llmList[root.llmIndex];
                                 if (p)
-                                    root.runLlm(p.id);
+                                    root.runLlm(p.id, p.label);
                             }
                             e.accepted = true;
                             return;
@@ -1172,8 +1256,71 @@ PanelWindow {
                     }
                     MouseArea {
                         anchors.fill: parent
-                        onClicked: root.runLlm(modelData.id)
+                        onClicked: root.runLlm(modelData.id, modelData.label)
                     }
+                }
+            }
+        }
+    }
+
+    // ---- llm result view (capture-mode prompts: summarize / explain) ----
+    Rectangle {
+        id: llmResultPopup
+        visible: root.llmResultOpen
+        z: 20
+        anchors.centerIn: parent
+        width: root.width * 0.6
+        height: root.height * 0.62
+        radius: Theme.radius
+        color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.98)
+        border.color: Theme.accent
+        border.width: 1.5
+
+        // swallow clicks so the click-away backdrop doesn't close mid-read
+        MouseArea {
+            anchors.fill: parent
+        }
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: Theme.pad
+            spacing: Theme.pad
+
+            Text {
+                width: parent.width
+                text: root.llmRunning
+                    ? ("running  ·  " + root.llmRunLabel + "  …")
+                    : (root.llmRunLabel + "  ·  Enter copies  ·  j/k scroll  ·  Esc closes")
+                color: Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 3
+                elide: Text.ElideRight
+            }
+
+            Rectangle {
+                width: parent.width
+                height: 1
+                color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+            }
+
+            Flickable {
+                id: llmResultFlick
+                width: parent.width
+                height: parent.height - y
+                clip: true
+                contentWidth: width
+                contentHeight: llmResultView.implicitHeight
+                TextEdit {
+                    id: llmResultView
+                    width: parent.width
+                    readOnly: true
+                    selectByMouse: true
+                    activeFocusOnPress: false // never steal focus from `input`
+                    wrapMode: TextEdit.Wrap
+                    color: Theme.fg
+                    font.family: Theme.fontMono
+                    font.pixelSize: Theme.fontSize - 1
+                    text: root.llmRunning ? "…" : root.llmResultBody
                 }
             }
         }
