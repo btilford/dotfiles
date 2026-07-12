@@ -38,8 +38,15 @@ clock on the vertical monitors).
 ## ClipboardDialog
 
 Standalone clipvault history dialog (clipvault daemon over `$XDG_RUNTIME_DIR/clipvault.sock`).
-Search + flat/tree list + preview pane + actions/pin/delete/bulk-delete, ported from the old
-Launcher clip mode. State lives in the `Clipboard` singleton (`config/Clipboard.qml`).
+Search + flat/tree list + preview pane + actions/llm/pin/delete/bulk-delete. State lives in the
+`Clipboard` singleton (`config/Clipboard.qml`).
+
+- **Actions vs LLM are separate clipvault concepts.** `actions` (`Ctrl+A`) are fire-and-forget
+  spawns (`act` op). `[llm]` prompts (`Ctrl+L`) are a different op pair: `llm_prompts` lists the
+  prompts whose categories match the entry, `llm` runs one (`{id, prompt, harness?, mode?}`;
+  omit `mode` to honour the `[llm]`/per-prompt default — `foreground` is rejected over IPC since
+  it needs a terminal). The `llm` op runs the harness **synchronously and blocks its connection**,
+  so it is fired on a dedicated `llmSocket`, never the main list/get socket.
 
 - Toggle: `qs ipc call clipboard toggle` — bound to **SUPER+V** (`hyprland` `lua/keybindings.lua`).
   The old **CTRL+ALT+V** (Launcher clip mode) is kept as a fallback until the dialog is fully

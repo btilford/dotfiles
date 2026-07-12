@@ -67,6 +67,13 @@ PanelWindow {
     property int actionsIndex: 0
     property bool actionsOpen: false
     property int actionsForId: -1
+    // LLM prompt sub-list (Ctrl+L): clipvault's `[llm]` prompts matched to the
+    // selected entry's category. Running one fires the `llm` op (mode omitted =
+    // the `[llm]` config/prompt default; capture inserts the result as a new entry).
+    property var llmList: []
+    property int llmIndex: 0
+    property bool llmOpen: false
+    property int llmForId: -1
     // Tab toggles which pane j/k-style keys drive; list-mutating keys (delete,
     // pin, actions, bulk) only fire when the list has focus.
     property bool previewFocused: false
@@ -83,6 +90,7 @@ PanelWindow {
         pinPickerOpen = false;
         pinDurationOpen = false;
         actionsOpen = false;
+        llmOpen = false;
         previewFocused = false;
         input.forceActiveFocus();
         runQuery();
@@ -142,6 +150,10 @@ PanelWindow {
                     root.actionsList = msg.actions || [];
                     root.actionsIndex = 0;
                     root.actionsOpen = root.actionsList.length > 0;
+                } else if (desc.kind === "llm_prompts") {
+                    root.llmList = msg.prompts || [];
+                    root.llmIndex = 0;
+                    root.llmOpen = root.llmList.length > 0;
                 }
                 // act/pin/delete/copy: fire-and-forget acks; eventsSocket triggers
                 // the requery once the mutation actually lands
@@ -254,6 +266,44 @@ PanelWindow {
         });
         closeActions();
         Clipboard.close();
+    }
+
+    // ---- llm prompt sub-list (Ctrl+L) ----
+    function openLlm(id) {
+        llmForId = id;
+        sendReq({
+            kind: "llm_prompts"
+        }, {
+            op: "llm_prompts",
+            id: id
+        });
+    }
+    function closeLlm() {
+        llmOpen = false;
+        llmList = [];
+    }
+    function runLlm(promptId) {
+        // Fired on the dedicated llmSocket, not `socket`: the `llm` op runs the
+        // harness synchronously and blocks its connection until done, which would
+        // stall list/get/actions if it shared the main socket.
+        llmSocket.write(JSON.stringify({
+            op: "llm",
+            id: root.llmForId,
+            prompt: promptId
+        }) + "\n");
+        llmSocket.flush();
+        closeLlm();
+        Clipboard.close();
+    }
+
+    // Write-only channel for the blocking `llm` op. The result (capture mode)
+    // lands as a new entry; eventsSocket then triggers the requery, so we ignore
+    // this socket's own responses.
+    Socket {
+        id: llmSocket
+        path: root.socketPath
+        connected: true
+        onError: error => console.log("clipvault: llm socket error", error)
     }
 
     // ---- row shaping + tree building + selection preservation across a requery ----
@@ -506,7 +556,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     placeholderText: root.treeMode
                         ? "Clipboard (tree)  ·  Alt+H/L fold  ·  Alt+R/M all  ·  Ctrl+T flat  ·  Ctrl+Shift+X bulk delete"
-                        : "Search clipboard history  ·  Enter copies  ·  Ctrl+A actions  ·  Ctrl+D delete  ·  Ctrl+T tree  ·  Alt+P pin  ·  Tab preview"
+                        : "Search  ·  Enter copies  ·  Ctrl+A actions  ·  Ctrl+L llm  ·  Ctrl+D delete  ·  Ctrl+T tree  ·  Alt+P pin  ·  Tab preview"
                     color: Theme.fg
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize
@@ -530,6 +580,22 @@ PanelWindow {
                                 const act = root.actionsList[root.actionsIndex];
                                 if (act)
                                     root.runAction(act.id);
+                            }
+                            e.accepted = true;
+                            return;
+                        }
+                        if (root.llmOpen) {
+                            // llm prompt sub-list steals all input until closed
+                            if (e.key === Qt.Key_Escape) {
+                                root.closeLlm();
+                            } else if (e.key === Qt.Key_Down || (e.key === Qt.Key_N && (e.modifiers & Qt.ControlModifier))) {
+                                root.llmIndex = Math.min(root.llmIndex + 1, root.llmList.length - 1);
+                            } else if (e.key === Qt.Key_Up || (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier))) {
+                                root.llmIndex = Math.max(root.llmIndex - 1, 0);
+                            } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                                const p = root.llmList[root.llmIndex];
+                                if (p)
+                                    root.runLlm(p.id);
                             }
                             e.accepted = true;
                             return;
@@ -718,6 +784,11 @@ PanelWindow {
                             const item = root.results[list.currentIndex];
                             if (item && item.kind === "clip")
                                 root.openActions(item.id);
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_L && (e.modifiers & Qt.ControlModifier)) {
+                            const item = root.results[list.currentIndex];
+                            if (item && item.kind === "clip")
+                                root.openLlm(item.id);
                             e.accepted = true;
                         }
                     }
@@ -1051,6 +1122,57 @@ PanelWindow {
                     MouseArea {
                         anchors.fill: parent
                         onClicked: root.runAction(modelData.id)
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- llm prompt sub-list overlay (Ctrl+L) ----
+    Rectangle {
+        id: llmPopup
+        visible: root.llmOpen
+        z: 10
+        anchors.centerIn: parent
+        width: 340
+        height: Math.min(root.llmList.length, 8) * 32 + Theme.pad * 2 + 28
+        radius: Theme.radius
+        color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.97)
+        border.color: Theme.accent
+        border.width: 1.5
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: Theme.pad
+            spacing: 4
+
+            Text {
+                text: "llm prompts  ·  j/k, Enter, Esc"
+                color: Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 3
+            }
+
+            Repeater {
+                model: root.llmList
+                delegate: Rectangle {
+                    readonly property bool current: index === root.llmIndex
+                    width: llmPopup.width - Theme.pad * 2
+                    height: 28
+                    radius: 4
+                    color: current ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.25) : "transparent"
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.leftMargin: 8
+                        text: modelData.label
+                        color: Theme.fg
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.runLlm(modelData.id)
                     }
                 }
             }
