@@ -29,22 +29,52 @@ title_regex = []
 # Harnesses "claude" (claude -p, stdin) and "opencode" (opencode run {prompt})
 # are built in. Prompt files live in ~/.config/clipvault/prompts/.
 default_harness = "claude"
-copy_result = true
-insert_result = true
+copy_result = false
+insert_result = false
 # tmux = true defaults every prompt to an interactive detached tmux session
 # (no output capture); per-prompt `tmux = true/false` overrides, `t` in the
 # TUI picker forces it for one run.
-tmux = false
+tmux = true
 timeout_secs = 120
 
 [[llm.prompts]]
 id = "summarize"
 label = "Summarize"
 file = "prompts/summarize.md"
-categories = []
+categories = ["code", "file-path", "url", "files"]
+
+insert_result = true
+copy_result = true
+tmux = false
 
 [[llm.prompts]]
 id = "explain-code"
 label = "Explain this code"
 file = "prompts/explain-code.md"
-categories = ["code"]
+categories = ["code", "file-path", "files"]
+
+
+[[llm.prompts]]
+id = "research-url"
+label = "Research this URL"
+file = "prompts/research-url.md"
+categories = ["url"]
+
+
+[[llm.prompts]]
+id = "implement-plan"
+label = "Implement this plan"
+file = "prompts/implement-plan.md"
+categories = ["file-path", "text", "code", "files"]
+
+[[llm.prompts]]
+id = "execute-task"
+label = "Execute this task"
+file = "prompts/execute-task.md"
+categories = ["file-path", "text", "code", "files"]
+
+[[llm.prompts]]
+id = "vault-ingest"
+label = "Ingest to vault"
+file = "prompts/vault-ingest.md"
+categories = ["file-path", "text", "code", "url", "files"]
