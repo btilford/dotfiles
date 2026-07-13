@@ -1,5 +1,16 @@
 # clipborg config — see https://gitlab.example.com/btilford/clipborg for full docs.
 # All keys are optional; commented values below are the built-in defaults.
+#
+# This is the BASE layer, stowed from ~/dotfiles/clipborg. clipborg reads
+# ~/.config/clipborg/config.local.toml on top of it — that file is a real file, never
+# stowed and never committed, and it is where API keys and per-machine paths belong.
+# Nothing secret goes in this file.
+#
+# The local layer merges rather than replaces: tables merge key by key, and [[actions]] /
+# [[llm.prompts]] / [[llm.harnesses]] merge BY `id`, so a local file can change one
+# prompt's harness without restating the array below. Every other array replaces.
+# Strings may use ${VAR} (env-expanded at load; `$${` is a literal `${`), and an unset
+# variable is a hard error at startup rather than an empty string.
 
 [storage]
 # db_path = "~/.local/share/clipborg/db.sqlite3"
