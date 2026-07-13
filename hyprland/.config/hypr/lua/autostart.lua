@@ -30,8 +30,8 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("nm-applet")
     hl.exec_cmd("blueman-applet")
 
-    -- Clipboard manager (clipvault; replaced cliphist/clipse)
-    hl.exec_cmd('sh -c "command -v clipvault >/dev/null && exec clipvault daemon"')
+    -- Clipboard manager (clipborg; replaced cliphist/clipse)
+    hl.exec_cmd('sh -c "command -v clipborg >/dev/null && exec clipborg daemon"')
 
     -- Idle/lock daemon — per-host config: hosts in nosuspend_hosts never call systemctl suspend.
     local nosuspend_hosts = { ["cachyos-fwd"] = true }

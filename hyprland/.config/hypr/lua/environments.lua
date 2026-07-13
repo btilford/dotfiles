@@ -24,26 +24,26 @@ hl.env("OZONE_PLATFORM", "wayland")
 
 hl.env("wallpaper_path", os.getenv("HOME") .. "/wallpaper")
 
--- Terminal for anything that spawns one from the session (clipvault's terminal-mode
+-- Terminal for anything that spawns one from the session (clipborg's terminal-mode
 -- actions, scripts that honour $TERMINAL). xdg-open does NOT read this — directories
 -- and Terminal=true handlers are governed by the `xdg` package's mimeapps.list.
 hl.env("TERMINAL", "ghostty")
 
--- QML modules that live outside ~/.config/quickshell. The clipvault repo ships the
--- ClipboardDialog as a `Clipvault` QML module; our components/ClipboardDialog.qml is a
+-- QML modules that live outside ~/.config/quickshell. The clipborg repo ships the
+-- ClipboardDialog as a `Clipborg` QML module; our components/ClipboardDialog.qml is a
 -- thin wrapper that imports it, so the qs daemon needs the repo's examples/quickshell
--- dir on the import path. Point CLIPVAULT_QML_PATH at your clone (environment.d/uwsm)
+-- dir on the import path. Point CLIPBORG_QML_PATH at your clone (environment.d/uwsm)
 -- if it isn't in the default location; a missing path is harmless — quickshell loads
 -- the wrapper through a LazyLoader, so the dialog is the only thing that fails.
-local clipvault_qml = os.getenv("CLIPVAULT_QML_PATH")
-    or (os.getenv("HOME") .. "/Projects/public/clipvault/examples/quickshell")
+local clipborg_qml = os.getenv("CLIPBORG_QML_PATH")
+    or (os.getenv("HOME") .. "/Projects/public/clipborg/examples/quickshell")
 local qml_paths = os.getenv("QML_IMPORT_PATH")
 -- `hyprctl reload` re-runs this file with the env we set last time already exported,
 -- so appending unconditionally stacks a duplicate path on every reload.
 if not qml_paths or qml_paths == "" then
-    qml_paths = clipvault_qml
-elseif not string.find(qml_paths, clipvault_qml, 1, true) then
-    qml_paths = qml_paths .. ":" .. clipvault_qml
+    qml_paths = clipborg_qml
+elseif not string.find(qml_paths, clipborg_qml, 1, true) then
+    qml_paths = qml_paths .. ":" .. clipborg_qml
 end
 hl.env("QML_IMPORT_PATH", qml_paths)
 

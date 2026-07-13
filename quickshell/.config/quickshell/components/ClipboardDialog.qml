@@ -1,20 +1,20 @@
 import QtQuick
 import Quickshell.Hyprland
-import Clipvault
+import Clipborg
 import "../config"
 
-// Thin wrapper over the ClipboardDialog shipped by the clipvault repo
-// (examples/quickshell/Clipvault — on QML_IMPORT_PATH via environments.lua).
+// Thin wrapper over the ClipboardDialog shipped by the clipborg repo
+// (examples/quickshell/Clipborg — on QML_IMPORT_PATH via environments.lua).
 // The repo is canonical: the dialog's behaviour, IPC and keys live there and
 // arrive with `git pull`. Everything below is host glue — where it shows, what
 // drives it, and how it's painted.
 //
-// Fix dialog *behaviour* in the clipvault repo, not here. If a change can't be
+// Fix dialog *behaviour* in the clipborg repo, not here. If a change can't be
 // expressed through these seams (shown/closeRequested/targetScreen/theme/effects),
 // widen the seams upstream rather than forking the dialog back into dotfiles.
 //
-// Loaded through a LazyLoader in shell.qml: on a machine with no clipvault clone
-// the `import Clipvault` fails, and the LazyLoader keeps that failure from taking
+// Loaded through a LazyLoader in shell.qml: on a machine with no clipborg clone
+// the `import Clipborg` fails, and the LazyLoader keeps that failure from taking
 // the rest of the shell down with it.
 ClipboardDialog {
     id: dialog

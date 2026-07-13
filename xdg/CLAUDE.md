@@ -17,7 +17,7 @@ emulator gets used when something has to spawn one.
 
 kitty ships `kitty-open.desktop` (`kitty +open`) and it wins `inode/directory` by
 default. Anything that calls `xdg-open` on a path then spawns **kitty**, not the
-session's terminal — this is what made clipvault's `open`-mode actions appear in
+session's terminal — this is what made clipborg's `open`-mode actions appear in
 kitty while its `terminal`-mode actions correctly used ghostty. The two are
 different code paths and no `$TERMINAL` setting fixes the xdg-open one.
 
@@ -29,7 +29,7 @@ place.
 ## Rules
 
 - **Changing `inode/directory` changes the file manager for the whole session**, not
-  just clipvault. Anything that opens a folder (browsers, chat apps, `xdg-open .`)
+  just clipborg. Anything that opens a folder (browsers, chat apps, `xdg-open .`)
   goes through it.
 - After editing `.local/share/applications/`, run
   `update-desktop-database ~/.local/share/applications` or the entry won't resolve.

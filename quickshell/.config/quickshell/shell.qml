@@ -19,9 +19,9 @@ ShellRoot {
     // fullscreen keymap cheatsheet; state lives in the Keymap singleton
     KeymapOverlay {}
 
-    // fullscreen clipboard-history dialog (clipvault); state lives in the Clipboard singleton.
-    // Via LazyLoader, not inline: components/ClipboardDialog.qml imports the `Clipvault` QML
-    // module out of the clipvault repo (QML_IMPORT_PATH, see hypr/lua/environments.lua). A
+    // fullscreen clipboard-history dialog (clipborg); state lives in the Clipboard singleton.
+    // Via LazyLoader, not inline: components/ClipboardDialog.qml imports the `Clipborg` QML
+    // module out of the clipborg repo (QML_IMPORT_PATH, see hypr/lua/environments.lua). A
     // failed import inside a LazyLoader costs us the dialog; inline it would abort the whole
     // shell on any machine without the clone.
     LazyLoader {

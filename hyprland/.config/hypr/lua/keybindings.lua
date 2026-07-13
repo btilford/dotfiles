@@ -25,7 +25,7 @@ hl.define_submap("open-cmd", function()
 	hl.bind(
 		"v",
 		hl.dsp.exec_cmd(
-			'sh -c "qs ipc call clipboard toggle 2>/dev/null || ghostty --class=app.clipvault -e clipvault tui"'
+			'sh -c "qs ipc call clipboard toggle 2>/dev/null || ghostty --class=app.clipborg -e clipborg tui"'
 		),
 		{ description = "Clipboard history (quickshell dialog)" }
 	)
@@ -314,13 +314,13 @@ hl.bind("code:238", hl.dsp.exec_cmd("brightnessctl -d smc::kbd_backlight s +10")
 hl.bind("code:237", hl.dsp.exec_cmd("brightnessctl -d smc::kbd_backlight s 10-"), { description = "Keyboard backlight -" })
 
 -- Clipboard and file manager
--- Standalone quickshell ClipboardDialog (clipvault). Launcher's clip mode is gone.
--- Falls back to the clipvault TUI when there's no qs daemon (e.g. a rofi-backend
+-- Standalone quickshell ClipboardDialog (clipborg). Launcher's clip mode is gone.
+-- Falls back to the clipborg TUI when there's no qs daemon (e.g. a rofi-backend
 -- host), which is what the old Launcher.sh clip branch used to provide.
 hl.bind(
 	"SUPER + V",
 	hl.dsp.exec_cmd(
-		'sh -c "qs ipc call clipboard toggle 2>/dev/null || ghostty --class=app.clipvault -e clipvault tui"'
+		'sh -c "qs ipc call clipboard toggle 2>/dev/null || ghostty --class=app.clipborg -e clipborg tui"'
 	),
 	{ description = "Clipboard history (quickshell dialog)" }
 )

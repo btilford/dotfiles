@@ -61,17 +61,17 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 	end,
 })
 
--- Send yanks to clipvault with filetype/file/register metadata, so entries
+-- Send yanks to clipborg with filetype/file/register metadata, so entries
 -- captured this way carry richer attribution than the raw Wayland clipboard
 -- offer. Registers ""/+/* only ("" = unnamed default register, the common
 -- case for plain `y`; named/macro registers are usually scratch, not copy
--- intent). Server-side dedup in clipvault merges this with the plain
+-- intent). Server-side dedup in clipborg merges this with the plain
 -- clipboard capture from unnamedplus when both fire for the same yank.
 vim.api.nvim_create_autocmd("TextYankPost", {
-	desc = "Send yanks to clipvault",
-	group = vim.api.nvim_create_augroup("clipvault-yank", { clear = true }),
+	desc = "Send yanks to clipborg",
+	group = vim.api.nvim_create_augroup("clipborg-yank", { clear = true }),
 	callback = function()
-		if vim.fn.executable("clipvault") == 0 then
+		if vim.fn.executable("clipborg") == 0 then
 			return
 		end
 		local event = vim.v.event
@@ -87,7 +87,7 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 		local start_line = vim.fn.getpos("'[")[2]
 		local end_line = vim.fn.getpos("']")[2]
 		vim.system({
-			"clipvault",
+			"clipborg",
 			"insert",
 			"--source",
 			"nvim",

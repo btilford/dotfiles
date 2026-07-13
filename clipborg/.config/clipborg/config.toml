@@ -1,9 +1,9 @@
-# clipvault config — see https://github.com/btilford/clipvault for full docs.
+# clipborg config — see https://gitlab.example.com/btilford/clipborg for full docs.
 # All keys are optional; commented values below are the built-in defaults.
 
 [storage]
-# db_path = "~/.local/share/clipvault/db.sqlite3"
-# image_dir = "~/.local/share/clipvault/images"
+# db_path = "~/.local/share/clipborg/db.sqlite3"
+# image_dir = "~/.local/share/clipborg/images"
 max_text_bytes = 1048576
 
 [retention]
@@ -27,7 +27,7 @@ title_regex = []
 [llm]
 # Pipe an entry through an LLM harness; output becomes a new entry + clipboard.
 # Harnesses "claude" (claude -p, stdin) and "opencode" (opencode run {prompt})
-# are built in. Prompt files live in ~/.config/clipvault/prompts/.
+# are built in. Prompt files live in ~/.config/clipborg/prompts/.
 default_harness = "claude"
 copy_result = false
 insert_result = false

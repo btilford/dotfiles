@@ -25,7 +25,7 @@ case "$HYPR_LAUNCHER" in
             exit 1
         fi
         # (clip mode is gone: the clipboard is the standalone quickshell
-        # ClipboardDialog now, bound directly to SUPER+V with its own clipvault TUI
+        # ClipboardDialog now, bound directly to SUPER+V with its own clipborg TUI
         # fallback — it no longer routes through this script.)
         # Per-host rofi DPI: cachyos-fwd drives 4K @ scale 1.5, where rofi auto-DPI
         # (~122) stacks on the compositor scale and renders oversized. Other hosts get

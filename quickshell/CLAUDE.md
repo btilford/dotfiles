@@ -15,7 +15,7 @@ with no `-c` flag).
 |------|---------|
 | `shell.qml` | Root `ShellRoot`. Instantiates components + the `launcher` `IpcHandler`. |
 | `components/Launcher.qml` | Multi-mode launcher (combi/drun/run/files), replaces rofi. |
-| `components/ClipboardDialog.qml` | **Thin wrapper** over the dialog shipped by the clipvault repo (`examples/quickshell/Clipvault`). Host glue only. State in the `Clipboard` singleton; IPC `qs ipc call clipboard toggle`; bound to `SUPER+V`. |
+| `components/ClipboardDialog.qml` | **Thin wrapper** over the dialog shipped by the clipborg repo (`examples/quickshell/Clipborg`). Host glue only. State in the `Clipboard` singleton; IPC `qs ipc call clipboard toggle`; bound to `SUPER+V`. |
 | `config/Theme.qml` + `config/qmldir` | `Theme` singleton: terminal-flavored tokens; reads the wallust palette. |
 | `wallust/.gitkeep` | Runtime `colors.json` lands here (generated, gitignored). |
 
@@ -37,25 +37,25 @@ clock on the vertical monitors).
 
 ## ClipboardDialog
 
-clipvault history dialog (clipvault daemon over `$XDG_RUNTIME_DIR/clipvault.sock`).
+clipborg history dialog (clipborg daemon over `$XDG_RUNTIME_DIR/clipborg.sock`).
 Search + flat/tree list + preview pane + actions/llm/pin/delete/bulk-delete. State lives in the
 `Clipboard` singleton (`config/Clipboard.qml`).
 
-- **The clipvault repo is canonical; this package holds a wrapper.** The dialog lives at
-  `<clipvault>/examples/quickshell/Clipvault/ClipboardDialog.qml` as a `Clipvault` QML module.
+- **The clipborg repo is canonical; this package holds a wrapper.** The dialog lives at
+  `<clipborg>/examples/quickshell/Clipborg/ClipboardDialog.qml` as a `Clipborg` QML module.
   `components/ClipboardDialog.qml` subclasses it and supplies host glue only: `shown` /
   `closeRequested` (the `Clipboard` singleton), `targetScreen` (`Hyprland.focusedMonitor`),
   `theme` (the wallust `Theme` singleton), and the shader decorations
   (`boxEffect`/`boxUnderlay`/`highlightEffect` → EnergyBorder/Shimmer/Reflection/EnergyFill).
-  **Fix dialog behaviour upstream in clipvault, not here** — if a change doesn't fit those
+  **Fix dialog behaviour upstream in clipborg, not here** — if a change doesn't fit those
   seams, widen the seams upstream rather than forking the QML back into dotfiles.
 - **How the module is found:** `QML_IMPORT_PATH` in `hypr/lua/environments.lua`, defaulting to
-  `~/Projects/public/clipvault/examples/quickshell` and overridable with `CLIPVAULT_QML_PATH`.
-- **Why `shell.qml` loads it through a `LazyLoader`:** `import Clipvault` is fatal if the clone
+  `~/Projects/public/clipborg/examples/quickshell` and overridable with `CLIPBORG_QML_PATH`.
+- **Why `shell.qml` loads it through a `LazyLoader`:** `import Clipborg` is fatal if the clone
   isn't on the machine, and an inline component's failed import aborts the *entire* shell config
   (no bar, no launcher). Inside a LazyLoader the blast radius is just the dialog. Don't inline it.
 
-- **Actions vs LLM are separate clipvault concepts.** `actions` (`Ctrl+A`) are fire-and-forget
+- **Actions vs LLM are separate clipborg concepts.** `actions` (`Ctrl+A`) are fire-and-forget
   spawns (`act` op). `[llm]` prompts (`Ctrl+L`) are a different op family: `llm_prompts` lists the
   prompts whose categories match the entry, `llm_harnesses` lists the harnesses plus the one this
   prompt resolves to (the `h` key's override list), `llm` runs one (`{id, prompt, harness?, mode?}`;
@@ -63,22 +63,22 @@ Search + flat/tree list + preview pane + actions/llm/pin/delete/bulk-delete. Sta
   it needs a terminal), and `llm_insert` stores a result after the fact. The `llm` op runs the
   harness **synchronously and blocks its connection**, so it is fired on a dedicated `llmSocket`,
   never the main list/get socket.
-- **Keep this dialog in sync with the clipvault TUI.** They are two front-ends over the same IPC;
+- **Keep this dialog in sync with the clipborg TUI.** They are two front-ends over the same IPC;
   a feature landing in one belongs in the other. Current llm parity: `Enter` run, `t` background
   tmux, `h` harness override, result view with `c` copy / `i` store / Esc discard. (`T`/foreground
   is TUI+CLI only — exec-replace needs a terminal.)
 
 - Toggle: `qs ipc call clipboard toggle` — bound to **SUPER+V** (and `SUPER+o` `v` in the
-  `open-cmd` submap), both with a `|| clipvault tui` fallback for hosts with no qs daemon.
-  Launcher's clip mode (the `,` prefix, its clipvault sockets, tree/pin/bulk UI and popups) is
+  `open-cmd` submap), both with a `|| clipborg tui` fallback for hosts with no qs daemon.
+  Launcher's clip mode (the `,` prefix, its clipborg sockets, tree/pin/bulk UI and popups) is
   **removed** — this dialog is the only clipboard UI. Don't re-add clip mode to Launcher.
 - **LLM results are displayed, not lost.** The `llm` reply carries the harness text as `output`
-  (clipvault ≥ the llm-v2 work), so the result view renders it directly — no `get` round-trip, and
-  it works with `insert_result = false` (now clipvault's default: nothing is stored unless the user
+  (clipborg ≥ the llm-v2 work), so the result view renders it directly — no `get` round-trip, and
+  it works with `insert_result = false` (now clipborg's default: nothing is stored unless the user
   presses `i`, which fires `llm_insert`). `entry_id` in the reply is set only when an
   `insert_result = true` prompt auto-inserted it. tmux-mode prompts are background: it notify-sends
   `tmux attach -t <session>` rather than stranding them.
-- **A dead quickshell Socket never re-dials.** When clipvault restarts, the peer close surfaces via
+- **A dead quickshell Socket never re-dials.** When clipborg restarts, the peer close surfaces via
   `onError` but `connected` stays true; writes then vanish ("QIODevice::write: device not open") and
   the dialog opens empty (0 results) until `qs` itself restarts. Re-asserting `connected = true` and
   re-setting `path` both do nothing (verified against a real daemon restart). The fix: each Socket
