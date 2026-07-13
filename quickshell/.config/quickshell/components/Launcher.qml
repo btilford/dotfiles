@@ -492,6 +492,11 @@ PanelWindow {
                 clip: true
                 model: root.results
                 currentIndex: 0
+                // Up/Down set `currentIndex` directly, and a ListView only auto-scrolls for keys
+                // it handles itself — without this the selection walks off the viewport and the
+                // visible window never catches up (same fix as KeymapOverlay and ClipboardDialog).
+                onCurrentIndexChanged: if (currentIndex >= 0)
+                    positionViewAtIndex(currentIndex, ListView.Contain)
                 delegate: Rectangle {
                     id: del
                     readonly property bool current: ListView.isCurrentItem

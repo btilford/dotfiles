@@ -1046,10 +1046,38 @@ PanelWindow {
                     clip: true
                     model: root.results
                     currentIndex: 0
+                    // The selection highlight is a ShaderEffect (EnergyFill). One instance,
+                    // owned by the ListView — putting it in the delegate built a shader node
+                    // per row, so every scroll step paid for effects that were never visible.
+                    // (Delegate reuse is deliberately NOT enabled: with a plain-array model the
+                    // recycled delegates see `modelData === undefined` and spam binding errors.)
+                    highlightFollowsCurrentItem: true
+                    highlightMoveDuration: 0
+                    highlightResizeDuration: 0
+                    // j/k set `currentIndex` directly, and a ListView only auto-scrolls for keys
+                    // it handles itself — without this the selection walks off the viewport and
+                    // the visible window never catches up.
+                    onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
+                    highlight: Item {
+                        width: list.width
+                        EnergyFill {
+                            anchors.fill: parent
+                            radius: 4
+                            alpha: 0.3
+                        }
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 3
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 3
+                            height: parent.height - 12
+                            radius: 2
+                            color: Theme.accent
+                        }
+                    }
                     delegate: Rectangle {
                         id: del
                         readonly property bool isHeader: modelData.kind === "header-app" || modelData.kind === "header-window"
-                        readonly property bool current: ListView.isCurrentItem
                         width: list.width
                         height: isHeader ? (modelData.kind === "header-app" ? 26 : 22) : 44
                         color: "transparent"
@@ -1068,24 +1096,6 @@ PanelWindow {
                             font.bold: modelData.kind === "header-app"
                             elide: Text.ElideRight
                             width: parent.width - 28
-                        }
-
-                        EnergyFill {
-                            visible: del.current
-                            anchors.fill: parent
-                            radius: parent.radius
-                            alpha: 0.3
-                        }
-
-                        Rectangle {
-                            visible: del.current
-                            anchors.left: parent.left
-                            anchors.leftMargin: 3
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 3
-                            height: parent.height - 12
-                            radius: 2
-                            color: Theme.accent
                         }
 
                         Row {
@@ -1255,7 +1265,10 @@ PanelWindow {
                             color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
                         }
 
-                        // image content: fall back to the path as text if the file's gone
+                        // image content: fall back to the path as text if the file's gone.
+                        // sourceSize bounds the decode — without it a 4K screenshot is decoded
+                        // and uploaded at full resolution (~33MB RGBA) for a pane a few hundred
+                        // px wide, which is the bulk of the stall on selecting an image.
                         Image {
                             id: previewImage
                             visible: previewPane.isImage && status !== Image.Error
@@ -1263,6 +1276,14 @@ PanelWindow {
                             height: parent.height - y
                             fillMode: Image.PreserveAspectFit
                             asynchronous: true
+                            cache: true
+                            // A fixed box, not the live pane size: sourceSize is part of the
+                            // pixmap cache key, and the pane's height shifts per entry (the
+                            // metadata header grows/shrinks), so binding it to `height` would
+                            // miss the cache on every selection. Raster sources are never
+                            // upscaled to it.
+                            sourceSize.width: 1024
+                            sourceSize.height: 1024
                             source: previewPane.isImage && previewPane.entry.image_path ? ("file://" + previewPane.entry.image_path) : ""
                         }
                         Text {
@@ -1341,8 +1362,17 @@ PanelWindow {
                 font.pixelSize: Theme.fontSize - 3
             }
 
-            Repeater {
+            // ListView, not Repeater-in-Column: the popup is sized for at most 8 rows, so a
+            // longer list has to scroll — a Repeater would render every row unclipped and the
+            // selection could sit outside the popup with no way to bring it into view.
+            ListView {
+                width: actionsPopup.width - Theme.pad * 2
+                height: actionsPopup.height - Theme.pad * 2 - 28
+                clip: true
                 model: root.actionsList
+                currentIndex: root.actionsIndex
+                onCurrentIndexChanged: if (currentIndex >= 0)
+                    positionViewAtIndex(currentIndex, ListView.Contain)
                 delegate: Rectangle {
                     readonly property bool current: index === root.actionsIndex
                     width: actionsPopup.width - Theme.pad * 2
@@ -1392,8 +1422,14 @@ PanelWindow {
                 font.pixelSize: Theme.fontSize - 3
             }
 
-            Repeater {
+            ListView {
+                width: llmPopup.width - Theme.pad * 2
+                height: llmPopup.height - Theme.pad * 2 - 28
+                clip: true
                 model: root.llmList
+                currentIndex: root.llmIndex
+                onCurrentIndexChanged: if (currentIndex >= 0)
+                    positionViewAtIndex(currentIndex, ListView.Contain)
                 delegate: Rectangle {
                     readonly property bool current: index === root.llmIndex
                     width: llmPopup.width - Theme.pad * 2
@@ -1443,8 +1479,14 @@ PanelWindow {
                 font.pixelSize: Theme.fontSize - 3
             }
 
-            Repeater {
+            ListView {
+                width: llmHarnessPopup.width - Theme.pad * 2
+                height: llmHarnessPopup.height - Theme.pad * 2 - 28
+                clip: true
                 model: root.llmHarnessList
+                currentIndex: root.llmHarnessIndex
+                onCurrentIndexChanged: if (currentIndex >= 0)
+                    positionViewAtIndex(currentIndex, ListView.Contain)
                 delegate: Rectangle {
                     readonly property bool current: index === root.llmHarnessIndex
                     width: llmHarnessPopup.width - Theme.pad * 2
