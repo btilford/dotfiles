@@ -1,0 +1,16 @@
+[Added Associations]
+x-scheme-handler/http=brave-browser.desktop;
+x-scheme-handler/https=brave-browser.desktop;
+x-scheme-handler/jetbrains=jetbrains-toolbox.desktop;
+inode/directory=ghostty-yazi.desktop;
+
+[Default Applications]
+x-scheme-handler/http=brave-browser.desktop;
+x-scheme-handler/https=brave-browser.desktop;
+x-scheme-handler/jetbrains=jetbrainsd.desktop
+x-scheme-handler/mailto=brave-browser.desktop
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop
+# Without this, kitty's own association (kitty-open.desktop = `kitty +open`) wins for
+# directories, so every xdg-open on a path — including clipvault's `open`-mode actions —
+# spawns kitty. ghostty-yazi.desktop ships in this package.
+inode/directory=ghostty-yazi.desktop

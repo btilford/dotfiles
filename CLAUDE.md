@@ -13,7 +13,7 @@ Stow-managed dotfiles for btilford. Each top-level directory is a stow package m
 
 - **Cross-platform**: `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`
 - **macOS-only**: `ghostty`, `macos`
-- **Linux-only**: `hyprland`, `rofi`, `konsole`, `konsole`, `kmonad`, `terminator`, `yakuake`, `brave-linux`
+- **Linux-only**: `hyprland`, `rofi`, `konsole`, `konsole`, `kmonad`, `terminator`, `yakuake`, `brave-linux`, `xdg`
 - **Shared base**: `base`
 
 ## Branches

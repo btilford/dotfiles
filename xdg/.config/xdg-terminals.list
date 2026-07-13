@@ -1,0 +1,5 @@
+# Preferred terminal emulators for Terminal=true desktop entries, per the
+# xdg-terminal-exec spec. Consulted by xdg-terminal-exec (not installed here yet)
+# and by newer xdg-open/gio; harmless where nothing reads it. First match wins.
+com.mitchellh.ghostty.desktop
+kitty.desktop

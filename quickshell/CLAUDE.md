@@ -15,7 +15,7 @@ with no `-c` flag).
 |------|---------|
 | `shell.qml` | Root `ShellRoot`. Instantiates components + the `launcher` `IpcHandler`. |
 | `components/Launcher.qml` | Multi-mode launcher (combi/drun/run/files), replaces rofi. |
-| `components/ClipboardDialog.qml` | Standalone clipvault clipboard-history dialog (search/tree/preview/actions/pin/delete). State in the `Clipboard` singleton; IPC `qs ipc call clipboard toggle`; bound to `SUPER+V`. |
+| `components/ClipboardDialog.qml` | **Thin wrapper** over the dialog shipped by the clipvault repo (`examples/quickshell/Clipvault`). Host glue only. State in the `Clipboard` singleton; IPC `qs ipc call clipboard toggle`; bound to `SUPER+V`. |
 | `config/Theme.qml` + `config/qmldir` | `Theme` singleton: terminal-flavored tokens; reads the wallust palette. |
 | `wallust/.gitkeep` | Runtime `colors.json` lands here (generated, gitignored). |
 
@@ -37,9 +37,23 @@ clock on the vertical monitors).
 
 ## ClipboardDialog
 
-Standalone clipvault history dialog (clipvault daemon over `$XDG_RUNTIME_DIR/clipvault.sock`).
+clipvault history dialog (clipvault daemon over `$XDG_RUNTIME_DIR/clipvault.sock`).
 Search + flat/tree list + preview pane + actions/llm/pin/delete/bulk-delete. State lives in the
 `Clipboard` singleton (`config/Clipboard.qml`).
+
+- **The clipvault repo is canonical; this package holds a wrapper.** The dialog lives at
+  `<clipvault>/examples/quickshell/Clipvault/ClipboardDialog.qml` as a `Clipvault` QML module.
+  `components/ClipboardDialog.qml` subclasses it and supplies host glue only: `shown` /
+  `closeRequested` (the `Clipboard` singleton), `targetScreen` (`Hyprland.focusedMonitor`),
+  `theme` (the wallust `Theme` singleton), and the shader decorations
+  (`boxEffect`/`boxUnderlay`/`highlightEffect` → EnergyBorder/Shimmer/Reflection/EnergyFill).
+  **Fix dialog behaviour upstream in clipvault, not here** — if a change doesn't fit those
+  seams, widen the seams upstream rather than forking the QML back into dotfiles.
+- **How the module is found:** `QML_IMPORT_PATH` in `hypr/lua/environments.lua`, defaulting to
+  `~/Projects/public/clipvault/examples/quickshell` and overridable with `CLIPVAULT_QML_PATH`.
+- **Why `shell.qml` loads it through a `LazyLoader`:** `import Clipvault` is fatal if the clone
+  isn't on the machine, and an inline component's failed import aborts the *entire* shell config
+  (no bar, no launcher). Inside a LazyLoader the blast radius is just the dialog. Don't inline it.
 
 - **Actions vs LLM are separate clipvault concepts.** `actions` (`Ctrl+A`) are fire-and-forget
   spawns (`act` op). `[llm]` prompts (`Ctrl+L`) are a different op family: `llm_prompts` lists the

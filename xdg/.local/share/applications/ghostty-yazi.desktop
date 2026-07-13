@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Files (yazi)
+Comment=Browse a directory in yazi, in a ghostty window
+# Terminal=false on purpose: we launch the emulator ourselves. A Terminal=true
+# entry hands the choice of emulator to xdg-open/gio, which is exactly what put
+# us in kitty. TryExec keeps the entry from being offered on machines without
+# ghostty.
+Terminal=false
+TryExec=ghostty
+Exec=ghostty -e yazi %f
+Icon=folder
+NoDisplay=true
+MimeType=inode/directory;
+Categories=System;FileTools;FileManager;

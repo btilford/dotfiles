@@ -24,6 +24,25 @@ hl.env("OZONE_PLATFORM", "wayland")
 
 hl.env("wallpaper_path", os.getenv("HOME") .. "/wallpaper")
 
+-- Terminal for anything that spawns one from the session (clipvault's terminal-mode
+-- actions, scripts that honour $TERMINAL). xdg-open does NOT read this — directories
+-- and Terminal=true handlers are governed by the `xdg` package's mimeapps.list.
+hl.env("TERMINAL", "ghostty")
+
+-- QML modules that live outside ~/.config/quickshell. The clipvault repo ships the
+-- ClipboardDialog as a `Clipvault` QML module; our components/ClipboardDialog.qml is a
+-- thin wrapper that imports it, so the qs daemon needs the repo's examples/quickshell
+-- dir on the import path. Point CLIPVAULT_QML_PATH at your clone (environment.d/uwsm)
+-- if it isn't in the default location; a missing path is harmless — quickshell loads
+-- the wrapper through a LazyLoader, so the dialog is the only thing that fails.
+local qml_paths = os.getenv("CLIPVAULT_QML_PATH")
+    or (os.getenv("HOME") .. "/Projects/public/clipvault/examples/quickshell")
+local existing_qml = os.getenv("QML_IMPORT_PATH")
+if existing_qml and existing_qml ~= "" then
+    qml_paths = existing_qml .. ":" .. qml_paths
+end
+hl.env("QML_IMPORT_PATH", qml_paths)
+
 -- NVIDIA Settings
 hl.env("GBM_BACKEND", "nvidia-drm")
 hl.env("LIBVA_DRIVER_NAME", "nvidia")
