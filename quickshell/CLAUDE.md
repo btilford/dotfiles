@@ -28,10 +28,14 @@ clock on the vertical monitors).
 ## Launcher
 
 - Modes: **combi** (default: apps + `run: <query>` fallback), **drun** (apps), **run**
-  (`$PATH` autocomplete via `compgen -c`), **files** (`FolderListModel` browse).
+  (`$PATH` autocomplete via `compgen -c`), **files** (`FolderListModel` browse),
+  **wallpaper** (thumbnails from `scripts/list-wallpapers.sh`; Enter applies via the
+  `hyprland` package's `WallpaperApply.sh` — awww/mpvpaper + wallust + live hypr colors;
+  `. random` first row for rofi parity).
 - Launch: apps → `DesktopEntry.execute()`; run → `Quickshell.execDetached(["sh","-lc",cmd])`
   (detached/disowned); files → `xdg-open`.
-- Prefixes: `>` run, `/` or `~` files. `Tab` cycles modes.
+- Prefixes: `>` run, `/` or `~` files, `:` emoji, `;` glyphs, `#` icons, `!` wallpaper.
+  `Tab` cycles modes.
 - Shown/hidden via IPC: `qs ipc call launcher toggle [mode]` (from `hypr/scripts/Launcher.sh`).
 - Placed on `Hyprland.focusedMonitor`.
 

@@ -124,7 +124,8 @@ hl.define_submap("workspace-cmd", function()
 	hl.bind("l", cycle_workspace_layout, { description = "Cycle workspace layout" })
 
 	-- Desktop appearance
-	hl.bind("w", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/WallpaperSelect.sh"'), { description = "Wallpaper chooser" })
+	-- backend dispatch: quickshell launcher wallpaper mode, or rofi WallpaperSelect.sh
+	hl.bind("w", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Launcher.sh wallpaper"'), { description = "Wallpaper chooser" })
 	hl.bind("SHIFT + w", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/WallpaperRandom.sh"'), { description = "Random wallpaper" })
 	hl.bind("t", hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/ThemeChanger.sh"'), { description = "Theme chooser" })
 

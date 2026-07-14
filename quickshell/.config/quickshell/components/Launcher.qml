@@ -7,7 +7,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import "../config"
 
-// Multi-mode launcher (rofi parity): combi (apps + run fallback), drun, run, files, emoji, glyphs, icons.
+// Multi-mode launcher (rofi parity): combi (apps + run fallback), drun, run, files, emoji, glyphs, icons, wallpaper.
 PanelWindow {
     id: root
     visible: false
@@ -24,12 +24,12 @@ PanelWindow {
         right: true
     }
 
-    property string mode: "combi" // combi | drun | run | files | emoji | glyphs | icons
+    property string mode: "combi" // combi | drun | run | files | emoji | glyphs | icons | wallpaper
     property string query: ""
     property string folder: Quickshell.env("HOME")
     property var results: []
     // reactive effective mode (for the UI chip/placeholder); mirrors effectiveMode()
-    readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : query.startsWith(":") ? "emoji" : query.startsWith(";") ? "glyphs" : query.startsWith("#") ? "icons" : mode
+    readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : query.startsWith(":") ? "emoji" : query.startsWith(";") ? "glyphs" : query.startsWith("#") ? "icons" : query.startsWith("!") ? "wallpaper" : mode
 
     // ---- lifecycle ----
     function open(m) {
@@ -53,7 +53,7 @@ PanelWindow {
             open(m);
     }
     function cycleMode() {
-        const order = ["combi", "run", "files", "emoji", "glyphs", "icons"];
+        const order = ["combi", "run", "files", "emoji", "glyphs", "icons", "wallpaper"];
         mode = order[(order.indexOf(mode) + 1) % order.length];
         refresh();
     }
@@ -72,7 +72,7 @@ PanelWindow {
     // ---- effective query (strip mode prefix) ----
     function effectiveQuery() {
         let q = query;
-        if (q.startsWith(">") || q.startsWith("/") || q.startsWith("~") || q.startsWith(":") || q.startsWith(";") || q.startsWith("#"))
+        if (q.startsWith(">") || q.startsWith("/") || q.startsWith("~") || q.startsWith(":") || q.startsWith(";") || q.startsWith("#") || q.startsWith("!"))
             return q.slice(1).trim();
         return q.trim();
     }
@@ -87,6 +87,8 @@ PanelWindow {
             return "glyphs";
         if (query.startsWith("#"))
             return "icons";
+        if (query.startsWith("!"))
+            return "wallpaper";
         return mode;
     }
 
@@ -155,6 +157,36 @@ PanelWindow {
     function loadIcons() {
         if (!root.iconData.length && !iconProc.running)
             iconProc.running = true;
+    }
+
+    // ---- wallpaper data (scripts/list-wallpapers.sh: name\tpath\tpreview) ----
+    // previews are static images (gif/video first frames come from the same caches the
+    // rofi menu uses; the script generates missing ones, so the first scan can be slow)
+    property var wallpaperData: []
+    Process {
+        id: wallpaperProc
+        command: [Quickshell.env("HOME") + "/.config/quickshell/scripts/list-wallpapers.sh"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let out = [];
+                for (const line of this.text.split("\n")) {
+                    const parts = line.split("\t");
+                    if (parts.length < 3 || !parts[0].length)
+                        continue;
+                    out.push({
+                        n: parts[0],
+                        p: parts[1],
+                        v: parts[2]
+                    });
+                }
+                root.wallpaperData = out;
+                root.refresh();
+            }
+        }
+    }
+    function loadWallpapers() {
+        if (!root.wallpaperData.length && !wallpaperProc.running)
+            wallpaperProc.running = true;
     }
 
     // ---- build results ----
@@ -263,6 +295,37 @@ PanelWindow {
             }
         }
 
+        if (m === "wallpaper") {
+            if (!root.wallpaperData.length) {
+                loadWallpapers(); // async; re-runs refresh when loaded
+            } else {
+                // ". random" first row (rofi parity) — resolved to a concrete file on activate
+                if (!q.length)
+                    out.push({
+                        kind: "wallpaper",
+                        label: ". random",
+                        sub: "pick one at random",
+                        icon: "",
+                        path: "",
+                        preview: "",
+                        random: true
+                    });
+                for (const wp of root.wallpaperData) {
+                    if (q.length && wp.n.toLowerCase().indexOf(q) < 0)
+                        continue;
+                    out.push({
+                        kind: "wallpaper",
+                        label: wp.n,
+                        sub: wp.p,
+                        icon: "",
+                        path: wp.p,
+                        preview: wp.v,
+                        random: false
+                    });
+                }
+            }
+        }
+
         root.results = out;
         list.currentIndex = out.length ? root.nextSelectable(-1, 1) : -1;
     }
@@ -328,6 +391,14 @@ PanelWindow {
             close();
         } else if (item.kind === "icon") {
             Quickshell.execDetached(["wl-copy", item.label]);
+            close();
+        } else if (item.kind === "wallpaper") {
+            // full path straight to the apply seam — no basename re-find (lossy)
+            let target = item.path;
+            if (item.random && root.wallpaperData.length)
+                target = root.wallpaperData[Math.floor(Math.random() * root.wallpaperData.length)].p;
+            if (target.length)
+                Quickshell.execDetached([Quickshell.env("HOME") + "/.config/hypr/scripts/WallpaperApply.sh", target]);
             close();
         }
     }
@@ -453,7 +524,9 @@ PanelWindow {
                                 ? "Search glyphs  ·  Enter copies to clipboard"
                                 : root.activeMode === "icons"
                                     ? "Search icons  ·  Enter copies icon name"
-                                    : "Search apps  ·  > run  ·  / files  ·  : emoji  ·  ; glyphs  ·  # icons"
+                                    : root.activeMode === "wallpaper"
+                                        ? "Search wallpapers  ·  Enter applies"
+                                        : "Search apps  ·  > run  ·  / files  ·  : emoji  ·  ; glyphs  ·  # icons  ·  ! wallpaper"
                     color: Theme.fg
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize
@@ -500,8 +573,10 @@ PanelWindow {
                 delegate: Rectangle {
                     id: del
                     readonly property bool current: ListView.isCurrentItem
+                    readonly property bool isWallpaper: modelData.kind === "wallpaper"
                     width: list.width
-                    height: 44
+                    // wallpaper rows are tall enough for a readable thumbnail
+                    height: isWallpaper ? 90 : 44
                     color: "transparent"
                     radius: 4
 
@@ -534,10 +609,11 @@ PanelWindow {
                         anchors.rightMargin: 8
                         spacing: 10
 
-                        // icon: themed app icon, else a mono glyph per kind
+                        // icon: themed app icon, wallpaper thumbnail, else a mono glyph per kind
                         Item {
-                            width: 28
-                            height: 28
+                            id: iconBox
+                            width: del.isWallpaper ? 140 : 28
+                            height: del.isWallpaper ? 78 : 28
                             anchors.verticalCenter: parent.verticalCenter
                             Image {
                                 id: appIcon
@@ -547,10 +623,12 @@ PanelWindow {
                                     ? Quickshell.iconPath(modelData.icon, true)
                                     : modelData.kind === "icon"
                                         ? "file://" + modelData.path
-                                        : ""
-                                sourceSize.width: 28
-                                sourceSize.height: 28
-                                fillMode: Image.PreserveAspectFit
+                                        : (del.isWallpaper && modelData.preview.length)
+                                            ? "file://" + modelData.preview
+                                            : ""
+                                sourceSize.width: del.isWallpaper ? 280 : 28
+                                sourceSize.height: del.isWallpaper ? 156 : 28
+                                fillMode: del.isWallpaper ? Image.PreserveAspectCrop : Image.PreserveAspectFit
                                 asynchronous: true
                                 smooth: true
                             }
@@ -563,15 +641,17 @@ PanelWindow {
                                     ? "" // terminal
                                     : modelData.kind === "file"
                                         ? (modelData.isDir ? "" : "") // folder / file
-                                        : "" // app fallback
+                                        : del.isWallpaper
+                                            ? "󰒿" // shuffle — the random row has no preview
+                                            : "" // app fallback
                                 color: Theme.accent
                                 font.family: Theme.fontUi
-                                font.pixelSize: (modelData.kind === "emoji" || modelData.kind === "glyph") ? 22 : 18
+                                font.pixelSize: (modelData.kind === "emoji" || modelData.kind === "glyph") ? 22 : del.isWallpaper ? 30 : 18
                             }
                         }
 
                         Column {
-                            width: parent.width - 38
+                            width: parent.width - iconBox.width - 10
                             anchors.verticalCenter: parent.verticalCenter
                             Text {
                                 text: modelData.label

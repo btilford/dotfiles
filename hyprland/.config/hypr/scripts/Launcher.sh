@@ -24,6 +24,11 @@ case "$HYPR_LAUNCHER" in
             notify-send "Launcher" "icons mode requires the quickshell backend"
             exit 1
         fi
+        # wallpaper mode maps to the rofi chooser (menu-only; both backends apply
+        # through WallpaperApply.sh)
+        if [ "$1" = "wallpaper" ]; then
+            exec "$HOME/.config/hypr/scripts/WallpaperSelect.sh"
+        fi
         # (clip mode is gone: the clipboard is the standalone quickshell
         # ClipboardDialog now, bound directly to SUPER+V with its own clipborg TUI
         # fallback — it no longer routes through this script.)
