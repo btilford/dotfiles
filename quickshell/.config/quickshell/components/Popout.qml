@@ -28,7 +28,7 @@ PopupWindow {
     default property alias content: body.data
 
     readonly property bool upward: Shell.barDevMode
-    readonly property int reflH: reflection && !upward ? Math.ceil(surface.implicitHeight * 0.3) + 2 : 0
+    readonly property int reflH: reflection && !upward && Shell.effectsOn ? Math.ceil(surface.implicitHeight * 0.3) + 2 : 0
 
     // open state drives the inner animation; the window stays mapped until the close anim ends
     property bool shown: false
@@ -76,14 +76,14 @@ PopupWindow {
         color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surfaceOpacity)
         // static fallback border when the energy border is disabled (tooltips)
         border.color: pop.energyBorder ? "transparent" : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.7)
-        border.width: pop.energyBorder ? 0 : 1
+        border.width: pop.energyBorder ? 0 : Theme.borderThin
 
         // animated energy border tracing the rounded surface
         EnergyBorder {
             anchors.fill: parent
             visible: pop.energyBorder
             radius: parent.radius
-            thickness: 2.75
+            thickness: Theme.borderThickness
             energy: pop.shown ? 0.7 : 0.0
         }
 

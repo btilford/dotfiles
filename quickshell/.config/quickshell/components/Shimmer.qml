@@ -50,43 +50,47 @@ Item {
         return ((Pointer.y - (s ? s.y : 0)) - o.y) / Math.max(root.height, 1);
     }
 
-    ShaderEffect {
+    // QS_EFFECTS=off → no glimmer at all; the effect is pure ambience with no static stand-in
+    Loader {
         anchors.fill: parent
-        blending: true
+        active: Shell.effectsOn
+        sourceComponent: ShaderEffect {
+            blending: true
 
-        property real u_time: 0
-        property real u_width: width
-        property real u_height: height
-        property real u_radius: root.radius
-        property real u_sl: root.slantLeft
-        property real u_sr: root.slantRight
-        property real u_strength: root.strength
-        property real u_lightX: root._lx
-        property real u_lightY: root._ly
+            property real u_time: 0
+            property real u_width: width
+            property real u_height: height
+            property real u_radius: root.radius
+            property real u_sl: root.slantLeft
+            property real u_sr: root.slantRight
+            property real u_strength: root.strength
+            property real u_lightX: root._lx
+            property real u_lightY: root._ly
 
-        // smooth the 8Hz cursor poll into continuous light motion
-        Behavior on u_lightX {
-            NumberAnimation {
-                duration: 200
-                easing.type: Easing.OutQuad
+            // smooth the 8Hz cursor poll into continuous light motion
+            Behavior on u_lightX {
+                NumberAnimation {
+                    duration: 200
+                    easing.type: Easing.OutQuad
+                }
             }
-        }
-        Behavior on u_lightY {
-            NumberAnimation {
-                duration: 200
-                easing.type: Easing.OutQuad
+            Behavior on u_lightY {
+                NumberAnimation {
+                    duration: 200
+                    easing.type: Easing.OutQuad
+                }
             }
-        }
 
-        // exactly one 2π period — the band phase is periodic, so the loop is seamless
-        NumberAnimation on u_time {
-            running: root.visible
-            loops: Animation.Infinite
-            from: 0
-            to: 6.2831853
-            duration: 24000
-        }
+            // exactly one 2π period — the band phase is periodic, so the loop is seamless
+            NumberAnimation on u_time {
+                running: root.visible
+                loops: Animation.Infinite
+                from: 0
+                to: 6.2831853
+                duration: 24000
+            }
 
-        fragmentShader: Qt.resolvedUrl("shimmer.frag.qsb")
+            fragmentShader: Qt.resolvedUrl("shimmer.frag.qsb")
+        }
     }
 }

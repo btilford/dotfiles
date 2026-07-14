@@ -150,7 +150,7 @@ PanelWindow {
         EnergyBorder {
             anchors.fill: parent
             radius: parent.radius
-            thickness: 2.75
+            thickness: Theme.borderThickness
             energy: win.visible ? 0.7 : 0.0
         }
 
@@ -249,7 +249,7 @@ PanelWindow {
                 height: 30
                 radius: 5
                 color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.6)
-                border.width: 1
+                border.width: Theme.borderThin
                 border.color: search.activeFocus ? Theme.accent : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3)
                 TextField {
                     id: search

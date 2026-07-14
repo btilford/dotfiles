@@ -108,6 +108,18 @@ The single `qs` daemon must run whenever `$HYPR_BAR` or `$HYPR_LAUNCHER` = quick
 `hyprland` package: `hypr/scripts/StartShell.sh`, `Launcher.sh`, `autostart.lua`). Toggle the
 active bar/launcher per machine in `~/.config/hypr/shell.local.env` (not stowed).
 
+### `shell.local.env` keys (parsed by `config/Shell.qml`, live-reload on save)
+
+| Key | Values | Effect |
+|-----|--------|--------|
+| `HYPR_BAR` | `waybar` \| `quickshell` | which bar renders |
+| `HYPR_LAUNCHER` | `rofi` \| `quickshell` | which launcher `Launcher.sh` targets |
+| `HYPR_BAR_DEV` | `1` | qs bar at the bottom, no exclusive zone, alongside waybar |
+| `QS_EFFECTS` | `full` (default) \| `low` \| `off` | `off` = shaders never instantiated (Loader-gated); static themed fallbacks: accent Rectangle/Shape borders, flat accent fills, no shimmer/reflection/glyph lava. `low` reserved, currently = `full`. |
+
+Border weights are Theme tokens: `Theme.borderThickness` (energy borders) and `Theme.borderThin`
+(static hairlines). Don't hardcode border thickness in components.
+
 ## Theming
 
 `Theme.qml` fallback constants come from `ghostty/.config/ghostty/config` and `.tmux.conf`

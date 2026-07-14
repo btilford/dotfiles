@@ -107,7 +107,7 @@ PanelWindow {
                     radius: Theme.radius
                     color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surfaceOpacity)
                     // faint static outline when idle; energy border takes over when hot
-                    border.width: 1
+                    border.width: Theme.borderThin
                     border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, card.hot ? 0 : 0.35)
                     scale: card.hot ? 1.06 : 1
                     // pointer nav follows the mouse too
@@ -124,7 +124,7 @@ PanelWindow {
                     EnergyBorder {
                         anchors.fill: parent
                         radius: parent.radius
-                        thickness: 3.25
+                        thickness: Theme.borderThickness * 1.2
                         energy: card.hot ? 0.9 : 0.0
                     }
 
@@ -158,7 +158,7 @@ PanelWindow {
                             height: keycap.implicitHeight + 6
                             radius: 4
                             color: "transparent"
-                            border.width: 1
+                            border.width: Theme.borderThin
                             border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, card.hot ? 0.9 : 0.5)
                             Text {
                                 id: keycap

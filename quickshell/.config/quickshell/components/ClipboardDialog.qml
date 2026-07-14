@@ -35,7 +35,7 @@ ClipboardDialog {
             EnergyBorder {
                 anchors.fill: parent
                 radius: Theme.radius
-                thickness: 2.75
+                thickness: Theme.borderThickness
                 energy: 0.7
             }
             Shimmer {

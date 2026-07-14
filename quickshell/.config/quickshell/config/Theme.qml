@@ -42,6 +42,10 @@ Singleton {
     readonly property color energy: accent      // normal energy glow (#ff6600)
     readonly property color energyActive: urgent // active/high-energy glow (#ffaa00)
 
+    // border weights — every border in the shell routes through these
+    readonly property real borderThickness: 3.4 // energy/shader borders (Section, Popout, overlays)
+    readonly property real borderThin: 1.25     // static hairline outlines (cards, keycaps, inputs)
+
     // terminal look
     readonly property real surfaceOpacity: 0.85
     readonly property string fontUi: "JetBrainsMono Nerd Font"

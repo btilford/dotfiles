@@ -36,8 +36,10 @@ Item {
         color: !root.powered ? Theme.subtext : (root.connectedDevices.length > 0 ? Theme.accent : Theme.fg)
         font.family: Theme.fontUi
         font.pixelSize: Theme.barIcon
-        // active (device connected) \u2192 glyph fills with moving lava instead of flat accent
-        layer.enabled: root.powered && root.connectedDevices.length > 0
+        // active (device connected) \u2192 glyph fills with moving lava instead of flat accent.
+        // layer.effect can't live in a Loader, so the QS_EFFECTS gate sits here \u2014 off keeps
+        // the plain accent color from the binding above.
+        layer.enabled: root.powered && root.connectedDevices.length > 0 && Shell.effectsOn
         layer.effect: EnergyGlyph {}
         scale: ma.containsMouse ? 1.15 : 1
         Behavior on scale {

@@ -1,4 +1,5 @@
 import QtQuick
+import "../config"
 
 /*!
     Reflection.qml — "floating above water" reflection of a source item.
@@ -39,30 +40,34 @@ Item {
     width: sourceItem ? sourceItem.width : 0
     height: sourceItem ? sourceItem.height * ratio : 0
 
-    ShaderEffect {
-        id: fx
+    // QS_EFFECTS=off → nothing loads: no ShaderEffectSource capture, no shader. Anything
+    // reserving space for the reflection must gate on Shell.effectsOn too (see Popout.reflH).
+    Loader {
         anchors.fill: parent
-        blending: true
+        active: Shell.effectsOn
+        sourceComponent: ShaderEffect {
+            blending: true
 
-        property variant u_src: ShaderEffectSource {
-            sourceItem: root.sourceItem
-            live: true
-            hideSource: false
+            property variant u_src: ShaderEffectSource {
+                sourceItem: root.sourceItem
+                live: true
+                hideSource: false
+            }
+            property real u_time: 0
+            property real u_ratio: root.ratio
+            property real u_strength: root.strength
+            property real u_amp: root.amp
+
+            // exactly one 2π period — ripple phases are periodic, so the loop is seamless
+            NumberAnimation on u_time {
+                running: root.visible
+                loops: Animation.Infinite
+                from: 0
+                to: 6.2831853
+                duration: 9000
+            }
+
+            fragmentShader: Qt.resolvedUrl("reflection.frag.qsb")
         }
-        property real u_time: 0
-        property real u_ratio: root.ratio
-        property real u_strength: root.strength
-        property real u_amp: root.amp
-
-        // exactly one 2π period — ripple phases are periodic, so the loop is seamless
-        NumberAnimation on u_time {
-            running: root.visible
-            loops: Animation.Infinite
-            from: 0
-            to: 6.2831853
-            duration: 9000
-        }
-
-        fragmentShader: Qt.resolvedUrl("reflection.frag.qsb")
     }
 }

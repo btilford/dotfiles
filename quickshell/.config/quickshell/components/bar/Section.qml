@@ -94,11 +94,53 @@ Item {
     EnergyBorder {
         id: glow
         anchors.fill: parent
-        thickness: 2.75
+        thickness: Theme.borderThickness
         slantLeft: root.sl
         slantRight: root.sr
         skipTop: true
         energy: root.energy
+    }
+
+    // QS_EFFECTS=off → static accent stroke tracing the same outline the shader draws
+    // (sides + bottom, no top edge). EnergyBorder's internal fallback only covers rounded
+    // rects; the trapezoid geometry lives here, mirroring the fill path above.
+    Loader {
+        anchors.fill: parent
+        active: !Shell.effectsOn
+        sourceComponent: Shape {
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                fillColor: "transparent"
+                strokeColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.7)
+                strokeWidth: Math.max(1, Theme.borderThickness * 0.5)
+                startX: root.width
+                startY: 0
+                PathLine {
+                    x: (root.width - root.sr) + root.cr * root.sr / root.rlen
+                    y: root.height - root.cr * root.height / root.rlen
+                }
+                PathQuad {
+                    controlX: root.width - root.sr
+                    controlY: root.height
+                    x: (root.width - root.sr) - root.cr
+                    y: root.height
+                }
+                PathLine {
+                    x: root.sl + root.cl
+                    y: root.height
+                }
+                PathQuad {
+                    controlX: root.sl
+                    controlY: root.height
+                    x: root.sl - root.cl * root.sl / root.llen
+                    y: root.height - root.cl * root.height / root.llen
+                }
+                PathLine {
+                    x: 0
+                    y: 0
+                }
+            }
+        }
     }
 
     Row {

@@ -181,7 +181,7 @@ Item {
                     radius: 7
                     color: row.rmuted ? Theme.subtext : Theme.accent
                     border.color: Theme.bg
-                    border.width: 2
+                    border.width: 2.5
                     anchors.verticalCenter: parent.verticalCenter
                     x: (parent.width - width) * row.rvol
                     Behavior on x {

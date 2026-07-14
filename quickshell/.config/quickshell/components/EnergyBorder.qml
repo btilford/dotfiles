@@ -29,7 +29,7 @@ Item {
     //! Steady-state target energy (0..1). Decay pulls toward this; pulse() spikes above it.
     property real energy: 0.0
     //! Border thickness in pixels
-    property real thickness: 2.0
+    property real thickness: Theme.borderThickness
     //! Left slant in px — matches Section.qml's slanted tab (0 = vertical edge)
     property real slantLeft: 0
     //! Right slant in px (0 = vertical edge)
@@ -58,37 +58,54 @@ Item {
     property real _activeEnergy: 0.0
     readonly property color _shaderColor: root._activeEnergy > 0.8 ? root.energyActiveColor : root.energyColor
 
-    ShaderEffect {
-        id: fx
+    // QS_EFFECTS=off → shader pipeline never instantiated. The rounded-rect case gets a
+    // static accent Rectangle border instead (mirrors Popout's old fallback); the trapezoid
+    // case (slants) is handled by the call site — Section draws its own static stroke Shape.
+    Loader {
         anchors.fill: parent
-        visible: root.isActive
-        blending: true
+        active: Shell.effectsOn
+        sourceComponent: ShaderEffect {
+            id: fx
+            visible: root.isActive
+            blending: true
 
-        property real u_energy: root._activeEnergy
-        property real u_thickness: root.thickness
-        property real u_borderWidth: width
-        property real u_borderHeight: height
-        property real u_time: 0
-        property real u_sl: root.slantLeft
-        property real u_sr: root.slantRight
-        property real u_skipTop: root.skipTop ? 1.0 : 0.0
-        property real u_radius: root.radius
-        property color u_color: root._shaderColor
+            property real u_energy: root._activeEnergy
+            property real u_thickness: root.thickness
+            property real u_borderWidth: width
+            property real u_borderHeight: height
+            property real u_time: 0
+            property real u_sl: root.slantLeft
+            property real u_sr: root.slantRight
+            property real u_skipTop: root.skipTop ? 1.0 : 0.0
+            property real u_radius: root.radius
+            property color u_color: root._shaderColor
 
-        NumberAnimation on u_time {
-            running: fx.visible
-            loops: Animation.Infinite
-            from: 0
-            to: 62.831853
-            duration: 40000
+            NumberAnimation on u_time {
+                running: fx.visible
+                loops: Animation.Infinite
+                from: 0
+                to: 62.831853
+                duration: 40000
+            }
+
+            fragmentShader: Qt.resolvedUrl("energyborder.frag.qsb")
         }
-
-        fragmentShader: Qt.resolvedUrl("energyborder.frag.qsb")
     }
 
-    // 60fps driver: rise toward target, exponential decay back to idle
+    Loader {
+        anchors.fill: parent
+        active: !Shell.effectsOn && root.slantLeft === 0 && root.slantRight === 0
+        sourceComponent: Rectangle {
+            color: "transparent"
+            radius: root.radius
+            border.width: Math.max(1, root.thickness * 0.5)
+            border.color: Qt.rgba(root.energyColor.r, root.energyColor.g, root.energyColor.b, 0.7)
+        }
+    }
+
+    // 60fps driver: rise toward target, exponential decay back to idle (idle with the shader)
     Timer {
-        running: true
+        running: Shell.effectsOn
         repeat: true
         interval: 16
         onTriggered: {

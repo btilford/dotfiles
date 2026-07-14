@@ -360,7 +360,7 @@ PanelWindow {
         EnergyBorder {
             anchors.fill: parent
             radius: parent.radius
-            thickness: 2.75
+            thickness: Theme.borderThickness
             energy: 0.7
         }
 

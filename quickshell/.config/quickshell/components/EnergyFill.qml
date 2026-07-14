@@ -24,27 +24,42 @@ Item {
     //! Overall fill opacity (keep high for text contrast)
     property real alpha: 1.0
 
-    ShaderEffect {
+    // QS_EFFECTS=off → the shader pipeline is never instantiated; a flat themed
+    // rectangle stands in so call sites stay drop-in.
+    Loader {
         anchors.fill: parent
-        blending: true
+        active: Shell.effectsOn
+        sourceComponent: ShaderEffect {
+            blending: true
 
-        property real u_time: 0
-        property real u_width: width
-        property real u_height: height
-        property real u_radius: root.radius
-        property real u_alpha: root.alpha
-        property color u_color: root.color
+            property real u_time: 0
+            property real u_width: width
+            property real u_height: height
+            property real u_radius: root.radius
+            property real u_alpha: root.alpha
+            property color u_color: root.color
 
-        // exactly one 2π period so the loop is seamless. 9s/loop → the sin(2t) breath term
-        // cycles every 4.5s, slow enough to read as breathing but clearly alive.
-        NumberAnimation on u_time {
-            running: root.visible
-            loops: Animation.Infinite
-            from: 0
-            to: 6.2831853
-            duration: 9000
+            // exactly one 2π period so the loop is seamless. 9s/loop → the sin(2t) breath term
+            // cycles every 4.5s, slow enough to read as breathing but clearly alive.
+            NumberAnimation on u_time {
+                running: root.visible
+                loops: Animation.Infinite
+                from: 0
+                to: 6.2831853
+                duration: 9000
+            }
+
+            fragmentShader: Qt.resolvedUrl(root.effect === "lava" ? "energyfill.frag.qsb" : "neonfill.frag.qsb")
         }
+    }
 
-        fragmentShader: Qt.resolvedUrl(root.effect === "lava" ? "energyfill.frag.qsb" : "neonfill.frag.qsb")
+    Loader {
+        anchors.fill: parent
+        active: !Shell.effectsOn
+        sourceComponent: Rectangle {
+            color: root.color
+            radius: root.radius
+            opacity: root.alpha
+        }
     }
 }
