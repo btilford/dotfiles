@@ -39,14 +39,28 @@ Item {
         return null;
     }
 
+    function vpnLine() {
+        if (Vpn.connected)
+            return Vpn.backend === "mullvad"
+                ? "VPN: " + Vpn.relay + (Vpn.location ? " · " + Vpn.location : "")
+                : "VPN: " + Vpn.relay + " (generic)";
+        if (Vpn.busy)
+            return "VPN: " + Vpn.status + "…";
+        if (Vpn.lockedDown)
+            return "VPN: blocked (lockdown)";
+        return "";
+    }
+
     function summary() {
+        const vpn = vpnLine();
+        const tail = vpn.length ? " · " + vpn : "";
         if (!dev)
-            return "Disconnected";
+            return "Disconnected" + tail;
         if (root.wired)
-            return "Wired" + (root.online ? "" : " · limited") + (dev.address ? " · " + dev.address : "");
+            return "Wired" + (root.online ? "" : " · limited") + (dev.address ? " · " + dev.address : "") + tail;
         const ssid = root.wifiNet ? root.wifiNet.name : dev.name;
         const sig = root.wifiNet ? " · " + root.wifiNet.signalStrength + "%" : "";
-        return (ssid || "Wi-Fi") + sig + (root.online ? "" : " · limited");
+        return (ssid || "Wi-Fi") + sig + (root.online ? "" : " · limited") + tail;
     }
 
     Text {
@@ -68,6 +82,23 @@ Item {
             ColorAnimation {
                 duration: Theme.animFast
             }
+        }
+
+        // VPN badge: lock glyph pinned to the icon's foot. Overlay only — the module's
+        // implicitWidth is untouched. Accent = connected, urgent = connecting/error or
+        // lockdown-blocked; hidden when plainly disconnected.
+        Text {
+            visible: Vpn.status !== "disconnected" || Vpn.lockedDown
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.rightMargin: -4
+            anchors.bottomMargin: -3
+            text: "" // fa-lock
+            color: Vpn.connected ? Theme.accent : Theme.urgent
+            font.family: Theme.fontUi
+            font.pixelSize: 9
+            style: Text.Outline
+            styleColor: Theme.bg
         }
     }
 
@@ -116,6 +147,60 @@ Item {
             font.family: Theme.fontUi
             font.pixelSize: Theme.fontSize - 2
             elide: Text.ElideRight
+        }
+
+        // VPN: status line + connect/disconnect (button is mullvad-only; the generic
+        // backend is observe-only — nothing safe to toggle for an arbitrary wg/tun iface)
+        Column {
+            width: parent.width
+            spacing: 6
+            visible: Vpn.backend !== "none"
+
+            Text {
+                width: parent.width
+                text: {
+                    if (Vpn.connected)
+                        return " " + (Vpn.relay || "VPN") + (Vpn.location ? " · " + Vpn.location : "") + (Vpn.backend === "generic" ? " (generic)" : "");
+                    if (Vpn.busy)
+                        return " VPN " + Vpn.status + "…";
+                    if (Vpn.lockedDown)
+                        return " VPN off · lockdown (network blocked)";
+                    return " VPN off";
+                }
+                color: Vpn.connected ? Theme.accent : (Vpn.lockedDown ? Theme.urgent : Theme.subtext)
+                font.family: Theme.fontUi
+                font.pixelSize: Theme.fontSize - 2
+                elide: Text.ElideRight
+            }
+
+            Rectangle {
+                visible: Vpn.mullvadAvailable
+                width: parent.width
+                height: 26
+                radius: 4
+                color: vpnBtnMa.containsMouse && !Vpn.busy
+                    ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.25)
+                    : Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.5)
+                border.width: Theme.borderThin
+                border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, Vpn.busy ? 0.25 : 0.6)
+                opacity: Vpn.busy ? 0.6 : 1
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Vpn.busy ? "…" : (Vpn.connected ? "Disconnect VPN" : "Connect VPN")
+                    color: Theme.fg
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.fontSize - 2
+                }
+                MouseArea {
+                    id: vpnBtnMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    enabled: !Vpn.busy
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Vpn.connected ? Vpn.disconnectVpn() : Vpn.connectVpn()
+                }
+            }
         }
 
         // wifi network list (read-only for now)
