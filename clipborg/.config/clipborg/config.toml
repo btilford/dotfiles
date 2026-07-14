@@ -24,6 +24,32 @@ max_file_entries = 10
 
 [capture]
 dedup_window_secs = 5
+# Which kinds the daemon ingests. A disabled kind's bytes are never even read.
+text = true
+images = true
+files = true
+
+# What clipborg can do. Capabilities, not presentation — so these are global, and the
+# quickshell dialog honours them too (it fetches them over IPC; it never reads this file).
+# Everything on, spelled out rather than left to the defaults.
+#
+# Disabling is subtractive, never an error: config for a switched-off feature is ignored,
+# not rejected. That is what lets this committed base name things a given machine lacks
+# while config.local.toml switches them off.
+[features]
+registers = true             # vim/nvim register ingest (TUI `R` popup, dialog tab)
+pinning = true
+actions = true               # the action menu ([[actions]])
+filters = true               # the blocklists below
+
+[features.llm]
+enabled = true               # master switch for every LLM affordance
+harnesses = true             # subprocess backends ([[llm.harnesses]])
+api = true                   # HTTPS providers ([[llm.providers]])
+tmux = true                  # the tmux mode this config defaults to
+foreground = true            # hand the terminal to the harness
+edit_before_send = true      # honour a prompt's edit_before_send
+backend_picker = true        # `h` in the prompt picker: override the backend per run
 
 [filters]
 # Block saving to history entirely. app_id/class match is case-insensitive
@@ -35,10 +61,32 @@ apps = []
 content_regex = []
 title_regex = []
 
+# Terminal-only: what the TUI *draws*. The quickshell dialog ignores everything under [tui]
+# — it has its own presentation in its own QML. Only the global sections above are shared.
+#
+# The tab bar: all eight builtin tabs (all, text, code, urls, images, files, colors, emails)
+# are on, which is the default, so there is nothing to switch on here. Override a tab by id
+# to rename or drop it — every field but `id` is optional:
+#
+#   [[tui.tabs]]
+#   id = "colors"
+#   enabled = false          # drop it
+#
+#   [[tui.tabs]]
+#   id = "urls"
+#   label = "links"          # keeps its categories and by_host
+#
+# (There is no registers tab in the terminal — `R` opens the live nvim register popup, which
+# renders nothing like a clipboard list. The dialog does show them as a tab. Both are gated
+# on [features] registers above: the capability is shared, the presentation isn't.)
+
 [llm]
 # Pipe an entry through an LLM harness; output becomes a new entry + clipboard.
-# Harnesses "claude" (claude -p, stdin) and "opencode" (opencode run {prompt})
-# are built in. Prompt files live in ~/.config/clipborg/prompts/.
+# Prompt files live in ~/.config/clipborg/prompts/.
+#
+# There are NO built-in harnesses — this list is the whole list, and deleting a
+# block removes that harness for good. `clipborg init` regenerates these from
+# what is actually on $PATH.
 default_harness = "claude"
 copy_result = false
 insert_result = false
@@ -49,7 +97,21 @@ insert_result = false
 mode = "tmux"
 timeout_secs = 120
 
-# Web-capable variant of the built-in "claude" harness. Plain `claude -p` runs
+# The default harness. `claude -p` prints once and exits, which is right for a
+# capture run but would kill a tmux session the moment it opened — hence the
+# separate interactive argv_tmux.
+[[llm.harnesses]]
+id = "claude"
+label = "Claude CLI"
+argv = ["claude", "-p"]
+argv_tmux = ["claude"]
+
+[[llm.harnesses]]
+id = "opencode"
+label = "opencode"
+argv = ["opencode", "run", "{prompt}"]
+
+# Web-capable variant of the "claude" harness above. Plain `claude -p` runs
 # headless with no tool grants, so anything that must fetch a URL just refuses
 # ("WebFetch needs permission"). This grants only WebFetch — scoped, not
 # --dangerously-skip-permissions. argv_tmux stays interactive `claude` so a tmux
