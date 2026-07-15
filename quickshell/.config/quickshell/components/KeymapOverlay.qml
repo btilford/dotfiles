@@ -114,20 +114,11 @@ PanelWindow {
         navKeys.forceActiveFocus();
     }
 
-    // dim backdrop
-    Rectangle {
+    // click-away backdrop — no dim: matches the Launcher's undimmed look (the old 0.55
+    // scrim made the whole overlay read darker than the launcher)
+    MouseArea {
         anchors.fill: parent
-        color: Qt.rgba(0, 0, 0, 0.55)
-        opacity: win.visible ? 1 : 0
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Theme.animMed
-            }
-        }
-        MouseArea {
-            anchors.fill: parent
-            onClicked: Keymap.close()
-        }
+        onClicked: Keymap.close()
     }
 
     // water-mirror reflection under the panel (fades/scales with it)

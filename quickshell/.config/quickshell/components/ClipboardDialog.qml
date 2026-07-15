@@ -57,4 +57,13 @@ ClipboardDialog {
             alpha: 0.3
         }
     }
+
+    // Host glue like the shader seams above: fan the bar-section energy lines into the
+    // dialog frame. Declared after the upstream content so it paints above the dialog's
+    // scrim; ConnectorFan corrects for this window lacking ExclusionMode.Ignore.
+    ConnectorFan {
+        anchors.fill: parent
+        box: dialog.boxItem
+        active: dialog.shown
+    }
 }
