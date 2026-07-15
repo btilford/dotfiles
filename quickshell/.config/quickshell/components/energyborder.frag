@@ -53,7 +53,10 @@ void main() {
         // Slanted trapezoid tab: \____/  (sections). Distance to slanted sides + bottom
         // (+ optional top). An unslanted side is flush to the screen edge — no glow there.
         //   left edge : line (0,0)->(sl,h)   right edge : line (w,0)->(w-sr,h)   bottom : y=h
-        d = h - py;
+        // The bottom edge is the SEGMENT between the slant feet, not the infinite line —
+        // otherwise the glow runs past the feet to the quad corners.
+        float bx = clamp(px, u_sl, w - u_sr);
+        d = length(vec2(px - bx, h - py));
         if (u_sl > 0.5)
             d = min(d, abs(px * h - py * u_sl) / sqrt(h * h + u_sl * u_sl));
         if (u_sr > 0.5)

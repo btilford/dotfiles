@@ -17,6 +17,9 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     WlrLayershell.namespace: "quickshell-session"
+    // true fullscreen (don't shrink below the bar's exclusive zone) — the connector fan
+    // assumes window coords == screen coords
+    exclusionMode: ExclusionMode.Ignore
 
     anchors {
         top: true
@@ -75,6 +78,12 @@ PanelWindow {
             anchors.topMargin: 6
             anchors.horizontalCenter: cards.horizontalCenter
             opacity: cards.opacity
+        }
+
+        // three energy lines fanning from the bar sections into the card row
+        ConnectorFan {
+            box: cards
+            active: win.visible
         }
 
         Row {

@@ -16,6 +16,9 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     WlrLayershell.namespace: "quickshell-launcher"
+    // true fullscreen (don't shrink below the bar's exclusive zone) — the connector fan
+    // assumes window coords == screen coords
+    exclusionMode: ExclusionMode.Ignore
 
     anchors {
         top: true
@@ -407,6 +410,12 @@ PanelWindow {
     MouseArea {
         anchors.fill: parent
         onClicked: root.close()
+    }
+
+    // three energy lines fanning from the bar sections into the box
+    ConnectorFan {
+        box: box
+        active: root.visible
     }
 
     // water-mirror reflection under the box

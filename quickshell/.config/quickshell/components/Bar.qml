@@ -53,6 +53,18 @@ Scope {
                 }
             }
 
+            // Publish the section feet for the dialog connector fan-out (screen coords —
+            // the bar window is pinned to the screen's top edge). Re-publishes whenever
+            // section geometry animates. Dev-mode bottom bars publish nothing: the fan
+            // math assumes lines drop DOWN from the bar.
+            readonly property var connAnchors: bar.devMode ? [] : [
+                { x: leftSection.x + leftSection.width - leftSection.slant, y: bar.implicitHeight },
+                { x: centerSection.x + centerSection.width / 2, y: bar.implicitHeight },
+                { x: rightSection.x + rightSection.slant, y: bar.implicitHeight }
+            ]
+            onConnAnchorsChanged: Connectors.setSectionAnchors(bar.modelData.name, connAnchors)
+            Component.onCompleted: Connectors.setSectionAnchors(bar.modelData.name, connAnchors)
+
             // Pulse every section's energy border on window focus / move / open.
             Connections {
                 target: Hyprland
