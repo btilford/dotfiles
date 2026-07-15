@@ -40,6 +40,9 @@ hl.on("hyprland.start", function()
 
     -- VPN
     hl.exec_cmd("mullvad-vpn")
+    -- netbird mesh gets its own tray item (SNI, rendered by the qs bar's Tray module);
+    -- the quickshell Vpn singleton deliberately ignores netbird interfaces
+    hl.exec_cmd('sh -c "command -v netbird-ui >/dev/null && exec netbird-ui"')
 
     -- USB automount
     hl.exec_cmd("udiskie --no-tray")

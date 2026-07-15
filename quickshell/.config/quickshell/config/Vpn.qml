@@ -132,6 +132,10 @@ Singleton {
                         // mullvad's own tunnel is already reported by the CLI
                         if (n.indexOf("mullvad") >= 0)
                             continue;
+                        // netbird mesh (wt*) is a special case: always-on, has its own
+                        // tray item (netbird-ui via autostart) — not this indicator's job
+                        if (n.indexOf("netbird") >= 0 || /^wt\d/.test(n))
+                            continue;
                         if (l.link_type === "none" || /^(wg|tun|tailscale)/.test(n)) {
                             iface = n;
                             break;
