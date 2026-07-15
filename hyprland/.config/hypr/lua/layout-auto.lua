@@ -72,8 +72,9 @@ end
 hl.on("hyprland.start", apply_layout)
 hl.on("monitor.added", apply_layout)
 hl.on("monitor.removed", apply_layout)
--- Hyprland auto-reloads the lua config on save (misc.disable_autoreload). A reload re-registers
--- the workspace rules but does NOT re-tile existing workspaces to their per-ws direction — they
--- revert to the global scrolling:direction. config.reloaded fires at runtime afterward, so
--- re-running apply_layout here re-applies the per-ws layouts (incl. portrait "down") for real.
+-- A reload (manual SUPER+SHIFT+R — autoreload is off in misc.lua because wallust's colors.lua
+-- writes were triggering it every wallpaper rotation) re-registers the workspace rules but does
+-- NOT re-tile existing workspaces to their per-ws direction — they revert to the global
+-- scrolling:direction. config.reloaded fires at runtime afterward, so re-running apply_layout
+-- here re-applies the per-ws layouts (incl. portrait "down") for real.
 hl.on("config.reloaded", apply_layout)
