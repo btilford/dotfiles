@@ -5,8 +5,8 @@ import "../config"
 
 // Fans three energy connector lines from the bar's section feet (published by Bar.qml
 // into Connectors.sectionAnchors) down to a dialog surface: left foot → the surface's
-// LEFT edge at ⅓ height (edge-routed bezier arriving perpendicular), center → top-center
-// (straight), right foot → RIGHT edge at ⅓ height. Rendered IN the dialog's own window —
+// LEFT edge at ¼ height (edge-routed bezier arriving perpendicular), center → top-center
+// (straight), right foot → RIGHT edge at ¼ height. Rendered IN the dialog's own window —
 // above any dim scrim, which the separate lower-layer ConnectorOverlay can't manage —
 // so instantiate it inside the dialog window ABOVE the scrim, and drive `active` from
 // the shown state:
@@ -31,7 +31,7 @@ Item {
     //! px before the endpoint where the side lines turn into the edge — the run from the
     //! foot is a near-straight diagonal, only the last stretch corners to arrive
     //! perpendicular (a full sweeping curve ate too much screen)
-    property real elbow: 40
+    property real elbow: 50
 
     visible: Shell.effectsOn
 
@@ -78,15 +78,15 @@ Item {
         // surface corners in local space
         const tl = root.box.mapToItem(root, 0, 0);
         const tr = root.box.mapToItem(root, root.box.width, 0);
-        const third = root.box.height / 3;
+        const drop = root.box.height / 4; // how far down the side edge the lines land
         root._links = [
-            // left foot → left edge at ⅓ height. Control point just OUTSIDE the endpoint
+            // left foot → left edge at ¼ height. Control point just OUTSIDE the endpoint
             // on its horizontal: the run is a near-straight diagonal that corners in the
             // last `elbow` px to hit the edge at a right angle
             {
                 x1: f[0].x, y1: f[0].y - 2,
-                x2: tl.x - 2, y2: tl.y + third,
-                cx: tl.x - 2 - root.elbow, cy: tl.y + third,
+                x2: tl.x - 2, y2: tl.y + drop,
+                cx: tl.x - 2 - root.elbow, cy: tl.y + drop,
                 energy: 1.0
             },
             // center → top-center, straight drop
@@ -95,11 +95,11 @@ Item {
                 x2: (tl.x + tr.x) / 2, y2: tl.y + 2,
                 energy: 1.0
             },
-            // right foot → right edge at ⅓ height, mirrored
+            // right foot → right edge at ¼ height, mirrored
             {
                 x1: f[2].x, y1: f[2].y - 2,
-                x2: tr.x + 2, y2: tr.y + third,
-                cx: tr.x + 2 + root.elbow, cy: tr.y + third,
+                x2: tr.x + 2, y2: tr.y + drop,
+                cx: tr.x + 2 + root.elbow, cy: tr.y + drop,
                 energy: 1.0
             }
         ];
