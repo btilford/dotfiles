@@ -48,7 +48,7 @@ Scope {
                     x: modelData.x1
                     y: modelData.y1 - height / 2
                     width: Math.max(Math.hypot(ldx, ldy), 1)
-                    height: Theme.borderThickness + 24
+                    height: Theme.connectorThickness * 2 + 24
                     rotation: Math.atan2(ldy, ldx) * 180 / Math.PI
                     transformOrigin: Item.Left
 
@@ -57,7 +57,7 @@ Scope {
                         blending: true
 
                         property real u_energy: quad.modelData.energy
-                        property real u_thickness: Theme.borderThickness
+                        property real u_thickness: Theme.connectorThickness
                         property real u_lineLength: width
                         property real u_lineHeight: height
                         property real u_time: 0

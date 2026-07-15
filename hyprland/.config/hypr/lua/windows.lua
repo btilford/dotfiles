@@ -4,7 +4,9 @@
 hl.config({
     general = {
         gaps_in = 4,
-        gaps_out = 2,
+        -- top gutter: breathing room between the bar and window tops, so popouts and
+        -- their energy connector arcs float in clear space instead of on window content
+        gaps_out = { top = 12, right = 2, bottom = 2, left = 2 },
         float_gaps = 4,
         gaps_workspaces = 4,
         border_size = 1,

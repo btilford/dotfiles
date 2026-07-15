@@ -18,7 +18,7 @@ PopupWindow {
     property Item anchorItem
     property int popWidth: 260
     property int slide: 10 // travel distance of the slide-in
-    property int gap: 6    // space between the surface and the bar edge
+    property int gap: Theme.popoutGap // stand-off from the bar; the connector arc spans it
     property bool dismissable: true
     // Animated energy border around the surface (off for tiny tooltips)
     property bool energyBorder: true

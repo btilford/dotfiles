@@ -60,6 +60,12 @@ Singleton {
     readonly property int barIcon: 18
     readonly property int barPad: 8
     readonly property real barOpacity: 0.6
+    // popout stand-off from the bar — long enough for the energy connector arc to read
+    // as a line (pairs with the hyprland top gutter, windows.lua gaps_out.top)
+    readonly property int popoutGap: 16
+    // connector arcs are conduits FEEDING the popout border — much heavier than the
+    // border stroke they pour into
+    readonly property real connectorThickness: borderThickness * 2.5
 
     // animation tokens — reuse everywhere for a consistent feel
     readonly property int animFast: 120
