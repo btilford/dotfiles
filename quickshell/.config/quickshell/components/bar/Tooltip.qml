@@ -10,6 +10,7 @@ Popout {
     property alias text: lbl.text
     dismissable: false
     reflection: false
+    connector: false
     popWidth: Math.min(340, tm.advanceWidth + Theme.pad * 2 + 2)
 
     TextMetrics {

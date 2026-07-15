@@ -5,3 +5,4 @@ singleton Keymap Keymap.qml
 singleton Pointer Pointer.qml
 singleton Clipboard Clipboard.qml
 singleton Vpn Vpn.qml
+singleton Connectors Connectors.qml

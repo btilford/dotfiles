@@ -22,6 +22,8 @@ PopupWindow {
     property bool dismissable: true
     // Animated energy border around the surface (off for tiny tooltips)
     property bool energyBorder: true
+    // Energy connector line from the anchor item to the surface (off for tooltips)
+    property bool connector: true
     // Water-mirror reflection under the surface (off for tooltips). Downward popouts only —
     // upward (dev-mode) popouts have no room below the surface.
     property bool reflection: true
@@ -61,6 +63,85 @@ PopupWindow {
         windows: [pop]
         onCleared: pop.close()
     }
+
+    // --- energy connector: anchor item → surface top (bottom in dev mode) ---
+    // Endpoints in screen coords: the bar window is anchored to the full screen edge, so
+    // anchor-item scene coords == screen coords (same assumption Shimmer relies on). The
+    // popup itself is centered under the anchor by the compositor; near screen edges it
+    // may slide and the computed endpoint drifts — accepted, the line stays near-vertical.
+    readonly property string _connId: "popout-" + pop.toString()
+    property real _connEnergy: 0
+    property bool _connLive: false
+    on_ConnEnergyChanged: if (_connLive)
+        Connectors.update(_connId, { energy: _connEnergy })
+
+    // POC screen identity: popouts open from a click on the focused monitor's bar.
+    // (PopupWindow has no reliable screen of its own; revisit for the dialog fan-out.)
+    function _connScreenName() {
+        const m = Hyprland.focusedMonitor;
+        return m ? m.name : "";
+    }
+
+    function _registerConn() {
+        if (!connector || !anchorItem || !Shell.effectsOn)
+            return;
+        const p1 = anchorItem.mapToItem(null, anchorItem.width / 2, pop.upward ? 0 : anchorItem.height);
+        const y2 = pop.upward ? (p1.y - pop.gap - 1) : (p1.y + pop.gap + 1);
+        Connectors.register({
+            id: _connId,
+            screenName: _connScreenName(),
+            x1: p1.x,
+            y1: pop.upward ? p1.y + 2 : p1.y - 2, // inset into the icon so the arc joins it
+            x2: p1.x,
+            y2: y2,
+            energy: 1.0
+        });
+        _connLive = true;
+        connDecay.restart();
+    }
+
+    function _unregisterConn() {
+        if (!_connLive)
+            return;
+        _connLive = false;
+        connDecay.stop();
+        connFade.stop();
+        Connectors.unregister(_connId);
+    }
+
+    // spike on open, settle to a steady shimmer
+    SequentialAnimation {
+        id: connDecay
+        NumberAnimation {
+            target: pop
+            property: "_connEnergy"
+            from: 1.0
+            to: 0.55
+            duration: 600
+            easing.type: Easing.OutCubic
+        }
+    }
+    // fade out on close, then drop the link
+    SequentialAnimation {
+        id: connFade
+        NumberAnimation {
+            target: pop
+            property: "_connEnergy"
+            to: 0
+            duration: Theme.animFast
+        }
+        ScriptAction {
+            script: pop._unregisterConn()
+        }
+    }
+
+    onShownChanged: {
+        if (shown)
+            _registerConn();
+        else if (_connLive)
+            connFade.restart();
+    }
+    Component.onDestruction: _unregisterConn()
 
     Rectangle {
         id: surface

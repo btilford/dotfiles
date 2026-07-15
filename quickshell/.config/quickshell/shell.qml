@@ -9,6 +9,10 @@ import "config"
 ShellRoot {
     Bar {}
 
+    // energy connector lines between components (Popout POC); windows exist only
+    // while links are live and effects are on
+    ConnectorOverlay {}
+
     Launcher {
         id: launcher
     }
