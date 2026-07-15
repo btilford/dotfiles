@@ -78,3 +78,45 @@ hl.on("monitor.removed", apply_layout)
 -- scrolling:direction. config.reloaded fires at runtime afterward, so re-running apply_layout
 -- here re-applies the per-ws layouts (incl. portrait "down") for real.
 hl.on("config.reloaded", apply_layout)
+
+-- Per-workspace column widths.
+--
+-- The scrolling engine reads only `direction` from workspace-rule layoutopts; column_width in
+-- layout_opts is silently ignored — new columns always get the GLOBAL scrolling:column_width
+-- (defaultColumnWidth() in ScrollingAlgorithm.cpp consults no workspace rule; verified against
+-- the v0.55.4 source 2026-07-14). Emulate it: when a window lands on a workspace whose spec
+-- wants a different width, resize its freshly-created column with `layoutmsg colresize <w>`.
+-- layoutmsg routes to the focused monitor's active workspace, so only act when the new window
+-- actually holds focus (the normal case; silent-rule spawns are skipped). Deferred a beat so
+-- focus and column creation have settled.
+local function ws_column_width(id)
+	local spec = WS_LAYOUTS[id]
+	if spec and spec.layout == "scrolling" and spec.opts then
+		return spec.opts.column_width
+	end
+	return nil
+end
+
+local function fix_column_width(w)
+	local monitors = hl.get_monitors() or {}
+	if #monitors <= 1 then
+		return -- single-monitor path already sets the global width
+	end
+	if not w or w.floating or not w.workspace then
+		return
+	end
+	local width = ws_column_width(w.workspace.id)
+	if not width then
+		return
+	end
+	hl.timer(function()
+		local active = hl.get_active_window()
+		if not active or not w.workspace or active.address ~= w.address then
+			return -- focus moved on; colresize would hit the wrong workspace
+		end
+		hl.dispatch(hl.dsp.layout("colresize " .. width))
+	end, { timeout = 80, type = "oneshot" })
+end
+
+hl.on("window.open", fix_column_width)
+hl.on("window.move_to_workspace", fix_column_width)
