@@ -8,6 +8,7 @@ Stow-managed dotfiles for btilford. Each top-level directory is a stow package m
 - Local machine-specific config lives outside the repo, not in stow packages
 - Cross-platform: macOS + Linux. Platform-specific packages are isolated
 - Always stow one package at a time with `--no-folding` to prevent directory symlinking and protect local-only files
+- `hyprland/.config/hypr/wallpaper_effects/.wallpaper_current` is a committed seed (fresh installs need it to exist), but wallpaper rotation rewrites it through the stow symlink every ~30 min. After cloning, run `git update-index --skip-worktree hyprland/.config/hypr/wallpaper_effects/.wallpaper_current` once per machine so the churn never lands in git. Never commit content updates to it.
 
 ## Structure
 
