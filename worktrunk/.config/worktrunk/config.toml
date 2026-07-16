@@ -27,7 +27,8 @@
 #
 # # Inside the repository
 # # Creates: ~/code/myproject/.worktrees/feature-auth
-worktree-path = "{{ repo_path }}/.worktrees/{{ branch | sanitize }}"
+# worktree-path = "{{ repo_path }}/.worktrees/{{ branch | sanitize }}"
+worktree-path = "~/worktrees/{{ branch | sanitize }}/{{ repo }}"
 #
 # # Centralized worktrees directory
 # # Creates: ~/worktrees/myproject/feature-auth
@@ -204,28 +205,20 @@ worktree-path = "{{ repo_path }}/.worktrees/{{ branch | sanitize }}"
 #
 # """
 # <!-- DEFAULT_SQUASH_TEMPLATE_END -->
-[post-create]
+[list]
+# Pin JSON output to schema 1; a future release switches the default to schema 2.
+json-schema = 1
+
+[post-start]
 env = "wt-setup-worktree"
 tmux = """
 S={{ branch | sanitize }}
 W={{ worktree_path }}
 tmux new-session -d -s "$S" -c "$W" -n dev
 
-# Tag panes with user options (@role) — these persist even if the process changes the title
-tmux set-option -p -t "$S:dev.0" @role "shell"
-CLAUDE_PANE=$(tmux split-window -h -t "$S:dev.0" -c "$W" -P -F "#{pane_id}")
-tmux set-option -p -t "$CLAUDE_PANE" @role "claude"
-# Also set titles for visual display
-tmux select-pane -t "$S:dev.0" -T "shell"
-tmux select-pane -t "$CLAUDE_PANE" -T "claude"
-
-# Start claude in the right pane
-# tmux send-keys -t "$CLAUDE_PANE" 'claude' Enter
-
 # Highlight this window in the status bar whenever output appears
 tmux set-window-option -t "$S:dev" monitor-activity on
 
-tmux select-pane -t "$CLAUDE_PANE"
 echo "✓ Session '$S' — attach with: tmux attach -t $S"
 """
 copy = "wt step copy-ignored"
@@ -239,13 +232,13 @@ tmux = "[ -n \"$TMUX\" ] && tmux rename-window {{ branch | sanitize }}"
 command = "CLAUDECODE= MAX_THINKING_TOKENS=0 claude -p --model=haiku --tools='' --disable-slash-commands --setting-sources='' --system-prompt=''"
 
 template = """
-Write a commit message for this diff. Line 1 should be less than 72 characters total and contain `type`, `scope` (optional), and the `subject` formatted 
+Write a commit message for this diff. Line 1 should be less than 72 characters total and contain `type`, `scope` (optional), and the `subject` formatted
 like `<type(scope)>: <subject>`
 
-The body should contain a list of relevnt tickts and optionally any summary level information that does not fit in the subject line.
-There should be a a blank line between after the subject line.
+The body should contain a list of relevant tickets and optionally any summary level information that does not fit in the subject line.
+There should be a blank line after the subject line.
 
-Example: 
+Example:
 
 ```
 <summary>
@@ -265,14 +258,14 @@ Consider {{ recent_commits }} for style reference
 """
 
 
-squash_template = """
-Combine these {{ commits | length }} commits into one message:
-{% for c in commits %}
+squash-template = """
+Combine these {{ commit_details | length }} commits into one message:
+{% for c in commit_details %}
 - {{ c }}
 {% endfor %}
 
-Generate a single subject line that encompases the generalized subject or theme of all the combined commits as the first line with a
-blank line below it. This line should be less than 72 characters total and contain `type`, `scope` (optional), and the `subject` formatted 
+Generate a single subject line that encompasses the generalized subject or theme of all the combined commits as the first line with a
+blank line below it. This line should be less than 72 characters total and contain `type`, `scope` (optional), and the `subject` formatted
 like `<type(scope)>: <subject>`
 
 
