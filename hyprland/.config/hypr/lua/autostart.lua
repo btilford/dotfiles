@@ -60,8 +60,8 @@ hl.on("hyprland.start", function()
     -- GNOME keyring
     hl.exec_cmd("gnome-keyring-daemon --start --components=secrets")
 
-    -- GTK/XDG settings
-    hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme prefer-dark")
+    -- GTK/XDG settings — color-scheme synced across gsettings/dconf/kdeglobals/qt6ct
+    hl.exec_cmd("sh -c \"$HOME/.config/hypr/scripts/SyncColorScheme.sh\"")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface gtk-theme Adwaita-dark")
 
     -- Wallpaper and theme scripts
