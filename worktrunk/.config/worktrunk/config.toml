@@ -211,8 +211,12 @@ json-schema = 1
 
 [post-start]
 env = "wt-setup-worktree"
+# Session name mirrors the directory layout ({{ branch }}/{{ repo }}): worktrees
+# nest multiple repos under one branch/ticket dir, so a branch-only name would
+# collide across repos sharing a ticket. Branch-first keeps a ticket's sessions
+# sorted together in the tmux switcher.
 tmux = """
-S={{ branch | sanitize }}
+S={{ branch | sanitize }}-{{ repo }}
 W={{ worktree_path }}
 tmux new-session -d -s "$S" -c "$W" -n dev
 
@@ -224,9 +228,12 @@ echo "✓ Session '$S' — attach with: tmux attach -t $S"
 copy = "wt step copy-ignored"
 [pre-remove]
 sync = "wt-sync-primary"
-tmux = "tmux kill-session -t {{ branch | sanitize }} 2>/dev/null || true"
+tmux = "tmux kill-session -t {{ branch | sanitize }}-{{ repo }} 2>/dev/null || true"
+[post-remove]
+# Prune the empty branch/ticket parent dir once the last repo under it is removed.
+prune = "wt-prune-branch-dir {{ worktree_path }}"
 [post-switch]
-tmux = "[ -n \"$TMUX\" ] && tmux rename-window {{ branch | sanitize }}"
+tmux = "[ -n \"$TMUX\" ] && tmux rename-window {{ branch | sanitize }}-{{ repo }}"
 [commit.generation]
 # TODO: make this portable
 command = "CLAUDECODE= MAX_THINKING_TOKENS=0 claude -p --model=haiku --tools='' --disable-slash-commands --setting-sources='' --system-prompt=''"
