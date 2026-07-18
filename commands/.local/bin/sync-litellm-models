@@ -48,7 +48,7 @@ TIMEOUT = 20
 
 HOME = Path.home()
 PI_MODELS = HOME / ".pi/agent/models.json"
-OPENCODE_JSON = HOME / "dotfiles/opencode/.config/opencode/opencode.json"
+OPENCODE_JSON = HOME / ".config/opencode/opencode.jsonc"
 
 
 # --- helpers --------------------------------------------------------------
