@@ -22,8 +22,14 @@ PopupWindow {
     property bool dismissable: true
     // Animated energy border around the surface (off for tiny tooltips)
     property bool energyBorder: true
-    // Energy connector line from the anchor item to the surface (off for tooltips)
+    // Energy connector line from the anchor item to the surface (drawn on the
+    // input-passthrough ConnectorOverlay, so it's safe even for hover tooltips)
     property bool connector: true
+    // Line-first open: the connector travels from the bar to the surface position over
+    // this many ms, then the surface slides in — energy arrives, component materializes.
+    // The surface starts rising at 75% of the travel so the two overlap slightly.
+    // Fast enough not to gate the workflow, slow enough to register. 0 = simultaneous.
+    property int travelMs: 120
     // Water-mirror reflection under the surface (off for tooltips). Downward popouts only —
     // upward (dev-mode) popouts have no room below the surface.
     property bool reflection: true
@@ -34,15 +40,32 @@ PopupWindow {
 
     // open state drives the inner animation; the window stays mapped until the close anim ends
     property bool shown: false
+    // true while the connector is still traveling toward the surface position
+    property bool _opening: false
     function open() {
+        if (shown || _opening)
+            return;
         visible = true;
-        shown = true;
+        if (connector && anchorItem && Shell.effectsOn && travelMs > 0) {
+            _opening = true;
+            _startTravel();
+        } else {
+            shown = true;
+        }
     }
     function close() {
+        if (_opening) {
+            // dismissed mid-travel: abort the line, never show the surface
+            _opening = false;
+            travelAnim.stop();
+            _unregisterConn();
+            visible = false;
+            return;
+        }
         shown = false;
     }
     function toggle() {
-        if (shown)
+        if (shown || _opening)
             close();
         else
             open();
@@ -82,28 +105,90 @@ PopupWindow {
         return m ? m.name : "";
     }
 
+    // connector endpoints in screen coords (computed once per open)
+    property real _connX: 0
+    property real _connY1: 0
+    property real _connY2: 0
+    // 0..1 line-travel progress; drives y2 from the bar edge to the surface position
+    property real _connProgress: 0
+    on_ConnProgressChanged: {
+        if (!_connLive || !travelAnim.running)
+            return;
+        Connectors.update(_connId, { y2: _connY1 + (_connY2 - _connY1) * _connProgress });
+        // reveal the surface on the last leg of the travel — slight overlap reads faster
+        if (_opening && _connProgress >= 0.75)
+            _arrive();
+    }
+
+    function _arrive() {
+        _opening = false;
+        shown = true;
+        connDecay.restart();
+    }
+
+    function _connEndpoints() {
+        const p1 = anchorItem.mapToItem(null, anchorItem.width / 2, pop.upward ? 0 : anchorItem.height);
+        _connX = p1.x;
+        _connY1 = pop.upward ? p1.y + 2 : p1.y - 2; // inset into the icon so the arc joins it
+        _connY2 = pop.upward ? (p1.y - pop.gap - 1) : (p1.y + pop.gap + 1);
+    }
+
     function _registerConn() {
         if (!connector || !anchorItem || !Shell.effectsOn)
             return;
-        const p1 = anchorItem.mapToItem(null, anchorItem.width / 2, pop.upward ? 0 : anchorItem.height);
-        const y2 = pop.upward ? (p1.y - pop.gap - 1) : (p1.y + pop.gap + 1);
+        _connEndpoints();
         Connectors.register({
             id: _connId,
             screenName: _connScreenName(),
-            x1: p1.x,
-            y1: pop.upward ? p1.y + 2 : p1.y - 2, // inset into the icon so the arc joins it
-            x2: p1.x,
-            y2: y2,
+            x1: _connX,
+            y1: _connY1,
+            x2: _connX,
+            y2: _connY2,
             energy: 1.0
         });
         _connLive = true;
         connDecay.restart();
     }
 
+    // line-first open: register a zero-length line at the bar edge, grow it to the
+    // surface position, then flip `shown` so the surface materializes where it landed
+    function _startTravel() {
+        _connEndpoints();
+        Connectors.register({
+            id: _connId,
+            screenName: _connScreenName(),
+            x1: _connX,
+            y1: _connY1,
+            x2: _connX,
+            y2: _connY1,
+            energy: 1.0
+        });
+        _connLive = true;
+        _connProgress = 0;
+        travelAnim.restart();
+    }
+
+    SequentialAnimation {
+        id: travelAnim
+        NumberAnimation {
+            target: pop
+            property: "_connProgress"
+            from: 0
+            to: 1
+            duration: pop.travelMs
+            easing.type: Easing.OutCubic
+        }
+        ScriptAction {
+            script: if (pop._opening)
+                pop._arrive()
+        }
+    }
+
     function _unregisterConn() {
         if (!_connLive)
             return;
         _connLive = false;
+        travelAnim.stop();
         connDecay.stop();
         connFade.stop();
         Connectors.unregister(_connId);
@@ -136,10 +221,12 @@ PopupWindow {
     }
 
     onShownChanged: {
-        if (shown)
-            _registerConn();
-        else if (_connLive)
+        if (shown) {
+            if (!_connLive) // travel path already registered the line
+                _registerConn();
+        } else if (_connLive) {
             connFade.restart();
+        }
     }
     Component.onDestruction: _unregisterConn()
 
@@ -165,7 +252,7 @@ PopupWindow {
             visible: pop.energyBorder
             radius: parent.radius
             thickness: Theme.borderThickness
-            energy: pop.shown ? 0.7 : 0.0
+            energy: pop.shown ? 0.85 : 0.0
         }
 
         opacity: pop.shown ? 1 : 0

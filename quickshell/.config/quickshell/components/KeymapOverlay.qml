@@ -131,8 +131,10 @@ PanelWindow {
     }
 
     // panel
-    // three energy lines fanning from the bar sections into the panel
+    // three energy lines fanning from the bar sections into the panel;
+    // the panel materializes only once the fan has landed
     ConnectorFan {
+        id: fan
         box: panel
         active: win.visible
     }
@@ -160,8 +162,8 @@ PanelWindow {
             radius: parent.radius
         }
 
-        scale: win.visible ? 1 : 0.96
-        opacity: win.visible ? 1 : 0
+        scale: fan.landed ? 1 : 0.96
+        opacity: fan.landed ? 1 : 0
         Behavior on scale {
             NumberAnimation {
                 duration: Theme.animMed

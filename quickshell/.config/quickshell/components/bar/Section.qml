@@ -19,7 +19,7 @@ Item {
     default property alias content: inner.data
 
     //! Steady border energy (0..1). Ambient shimmer level; pulse() spikes above it.
-    property real energy: 0.6
+    property real energy: 0.85
     //! Spike the border glow, then decay back to `energy`.
     function pulse() {
         glow.pulse();

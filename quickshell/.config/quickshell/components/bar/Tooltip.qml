@@ -10,7 +10,7 @@ Popout {
     property alias text: lbl.text
     dismissable: false
     reflection: false
-    connector: false
+    travelMs: 70 // hover labels: quicker line travel so scrubbing across icons stays snappy
     popWidth: Math.min(340, tm.advanceWidth + Theme.pad * 2 + 2)
 
     TextMetrics {

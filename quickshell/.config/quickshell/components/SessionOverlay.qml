@@ -80,8 +80,10 @@ PanelWindow {
             opacity: cards.opacity
         }
 
-        // three energy lines fanning from the bar sections into the card row
+        // three energy lines fanning from the bar sections into the card row;
+        // the cards materialize only once the fan has landed
         ConnectorFan {
+            id: fan
             box: cards
             active: win.visible
         }
@@ -90,8 +92,8 @@ PanelWindow {
             id: cards
             anchors.centerIn: parent
             spacing: 18
-            scale: win.visible ? 1 : 0.92
-            opacity: win.visible ? 1 : 0
+            scale: fan.landed ? 1 : 0.92
+            opacity: fan.landed ? 1 : 0
             Behavior on scale {
                 NumberAnimation {
                     duration: Theme.animMed
