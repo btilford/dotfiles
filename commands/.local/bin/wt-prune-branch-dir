@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Remove the empty branch/ticket parent dir left behind after `wt remove`.
 #
-# PSQ worktree layout nests repos under a shared branch dir:
-#   ~/Projects/REDACTED/worktrees/{branch|sanitize}/{repo}
+# The centralized worktree layout nests repos under a shared branch dir:
+#   ~/worktrees/{branch|sanitize}/{repo}
+# (matches worktree-path in config.toml). Override the root with
+# WT_WORKTREES_ROOT for other layouts.
 # `wt remove` deletes the {repo} leaf but never the {branch} parent, so once the
 # last sibling repo is removed an empty branch dir is orphaned. This prunes it,
 # but only when no repo worktrees remain under it.
@@ -16,7 +18,7 @@
 
 set -euo pipefail
 
-ROOT="${WT_WORKTREES_ROOT:-$HOME/Projects/REDACTED/worktrees}"
+ROOT="${WT_WORKTREES_ROOT:-$HOME/worktrees}"
 
 WT_PATH="${1:-}"
 if [ -z "$WT_PATH" ]; then
