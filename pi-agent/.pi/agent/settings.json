@@ -1,44 +1,44 @@
 {
-  "lastChangelogVersion": "0.79.1",
-  "defaultProvider": "litellm",
-  "defaultModel": "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
-  "defaultThinkingLevel": "medium",
-  "enabledModels": [
-    "x870eglacial/qwen2.5-coder:7b",
-    "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
-    "zen/claude-opus-4-7",
-    "zen/claude-sonnet-4-6",
-    "zen/kimi-k2.5",
-    "zen/gemini-3.5-flash",
-    "zen/gpt-5.1",
-    "zen/deepseek-v4-flash-free",
-    "venice/llama-3.3-70b",
-    "venice/venice-uncensored-1-2",
-    "venice/qwen3-coder-480b-a35b-instruct-turbo",
-    "venice/deepseek-v4-pro"
-  ],
-  "compaction": {
-    "enabled": true,
-    "reserveTokens": 8192,
-    "keepRecentTokens": 12000
-  },
-  "retry": {
-    "enabled": true,
-    "maxRetries": 3,
-    "baseDelayMs": 1000,
-    "provider": {
-      "timeoutMs": 120000,
-      "maxRetries": 0,
-      "maxRetryDelayMs": 60000
-    }
-  },
-  "editorPaddingX": 2,
-  "terminal": {
-    "showTerminalProgress": true
-  },
-  "enableInstallTelemetry": false,
-  "treeFilterMode": "all",
-  "warnings": {
-    "anthropicExtraUsage": true
+ "lastChangelogVersion": "0.79.1",
+ "defaultProvider": "litellm",
+ "defaultModel": "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
+ "defaultThinkingLevel": "medium",
+ "enabledModels": [
+  "x870eglacial/qwen2.5-coder:7b",
+  "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
+  "zen/claude-opus-4-7",
+  "zen/claude-sonnet-4-6",
+  "zen/kimi-k2.7-code",
+  "zen/gemini-3.5-flash",
+  "zen/gpt-5.5",
+  "zen/deepseek-v4-flash-free",
+  "venice/llama-3.3-70b",
+  "venice/venice-uncensored-1-2",
+  "venice/qwen3-coder-480b-a35b-instruct-turbo",
+  "venice/deepseek-v4-pro"
+ ],
+ "compaction": {
+  "enabled": true,
+  "reserveTokens": 8192,
+  "keepRecentTokens": 12000
+ },
+ "retry": {
+  "enabled": true,
+  "maxRetries": 3,
+  "baseDelayMs": 1000,
+  "provider": {
+   "timeoutMs": 120000,
+   "maxRetries": 0,
+   "maxRetryDelayMs": 60000
   }
+ },
+ "editorPaddingX": 2,
+ "terminal": {
+  "showTerminalProgress": true
+ },
+ "enableInstallTelemetry": false,
+ "treeFilterMode": "all",
+ "warnings": {
+  "anthropicExtraUsage": true
+ }
 }
