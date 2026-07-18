@@ -412,8 +412,10 @@ PanelWindow {
         onClicked: root.close()
     }
 
-    // three energy lines fanning from the bar sections into the box
+    // three energy lines fanning from the bar sections into the box;
+    // the box materializes only once the fan has landed
     ConnectorFan {
+        id: fan
         box: box
         active: root.visible
     }
@@ -424,6 +426,7 @@ PanelWindow {
         anchors.top: box.bottom
         anchors.topMargin: 2
         anchors.horizontalCenter: box.horizontalCenter
+        opacity: box.opacity
         z: 1
     }
 
@@ -435,6 +438,13 @@ PanelWindow {
         anchors.centerIn: parent
         radius: Theme.radius
         color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, Theme.surfaceOpacity)
+        // materialize only once the connector fan has landed
+        opacity: fan.landed ? 1 : 0
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.animFast
+            }
+        }
 
         // animated energy border tracing the box (replaces the static stroke)
         EnergyBorder {

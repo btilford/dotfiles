@@ -6,10 +6,10 @@ hl.config({
         gaps_in = 4,
         -- top gutter: breathing room between the bar and window tops, so popouts and
         -- their energy connector arcs float in clear space instead of on window content
-        gaps_out = { top = 12, right = 2, bottom = 2, left = 2 },
+        gaps_out = { top = 6, right = 2, bottom = 2, left = 2 },
         float_gaps = 4,
         gaps_workspaces = 4,
-        border_size = 1,
+        border_size = 4,
         -- Multi-monitor default. lua/layout-auto.lua switches to "scrolling" on
         -- single-monitor setups (and back to "master" on 2+) at runtime/hotplug.
         layout = "master",

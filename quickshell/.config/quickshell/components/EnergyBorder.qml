@@ -56,7 +56,9 @@ Item {
 
     // Smoothed energy the shader actually samples
     property real _activeEnergy: 0.0
-    readonly property color _shaderColor: root._activeEnergy > 0.8 ? root.energyActiveColor : root.energyColor
+    // 0.92: only pulse() spikes (target 1.0) trip the active color — steady-state
+    // ambient levels (Section 0.85) must stay on the base energy color
+    readonly property color _shaderColor: root._activeEnergy > 0.92 ? root.energyActiveColor : root.energyColor
 
     // QS_EFFECTS=off → shader pipeline never instantiated. The rounded-rect case gets a
     // static accent Rectangle border instead (mirrors Popout's old fallback); the trapezoid

@@ -88,14 +88,15 @@ void main() {
     float sparkle = pow(hash(pp * 100.0 + floor(t * 12.0)), 8.0);
     sparkle *= smoothstep(0.06, 0.0, abs(pattern - 0.5)) * band;
 
-    vec3 col = u_color * (0.35 + 0.65 * pattern) * glow;
-    col += u_color * sparkle * 0.9;
-
     // Soft outer halo just outside the band
     float halo = 1.0 - clamp(d / max(u_thickness * 3.0, 1.0), 0.0, 1.0);
-    col += u_color * halo * halo * 0.12;
 
-    float alpha = u_energy * (glow * 0.85 + sparkle * 0.5 + halo * halo * 0.15);
+    // Clamp the SCALAR intensity before tinting — letting channels clip past 1.0
+    // in the composite shifts orange toward yellow/white
+    float lum = (0.55 + 0.45 * pattern) * glow + sparkle * 0.9 + halo * halo * 0.18;
+    vec3 col = u_color * min(lum, 1.0);
+
+    float alpha = u_energy * (glow * 1.15 + sparkle * 0.5 + halo * halo * 0.22);
     alpha = clamp(alpha, 0.0, 1.0) * qt_Opacity;
 
     // Qt Quick expects premultiplied alpha

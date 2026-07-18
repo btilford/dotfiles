@@ -129,12 +129,12 @@ void main() {
     // melt into the endpoints
     float endFade = smoothstep(0.0, 0.08, ct) * smoothstep(1.0, 0.92, ct);
 
-    vec3 col = u_color * (0.35 + 0.65 * pattern) * glow;
-    col += u_color * sparkle * 0.9;
     float halo = 1.0 - clamp(d / max(u_thickness * 3.0, 1.0), 0.0, 1.0);
-    col += u_color * halo * halo * 0.12;
+    // Clamp the SCALAR intensity before tinting — channel clipping shifts the hue
+    float lum = (0.55 + 0.45 * pattern) * glow + sparkle * 0.9 + halo * halo * 0.18;
+    vec3 col = u_color * min(lum, 1.0);
 
-    float alpha = u_energy * endFade * (glow * 0.85 + sparkle * 0.5 + halo * halo * 0.15);
+    float alpha = u_energy * endFade * (glow * 1.15 + sparkle * 0.5 + halo * halo * 0.22);
     alpha = clamp(alpha, 0.0, 1.0) * qt_Opacity;
 
     // Qt Quick expects premultiplied alpha

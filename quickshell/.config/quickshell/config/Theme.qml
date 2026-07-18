@@ -40,10 +40,12 @@ Singleton {
 
     // --- shader / energy-border tokens (warm palette) ---
     readonly property color energy: accent      // normal energy glow (#ff6600)
-    readonly property color energyActive: urgent // active/high-energy glow (#ffaa00)
+    // active/high-energy glow — pinned warm with the accent; wallust's color9 can be
+    // near-white on pale wallpapers, which reads as a white border, not a surge
+    readonly property color energyActive: pinAccent ? "#ffaa00" : urgent
 
     // border weights — every border in the shell routes through these
-    readonly property real borderThickness: 3.4 // energy/shader borders (Section, Popout, overlays)
+    readonly property real borderThickness: 6.0 // energy/shader borders (Section, Popout, overlays)
     readonly property real borderThin: 1.25     // static hairline outlines (cards, keycaps, inputs)
 
     // terminal look
@@ -62,10 +64,12 @@ Singleton {
     readonly property real barOpacity: 0.6
     // popout stand-off from the bar — long enough for the energy connector arc to read
     // as a line (pairs with the hyprland top gutter, windows.lua gaps_out.top)
-    readonly property int popoutGap: 16
+    readonly property int popoutGap: 22
     // connector arcs are conduits FEEDING the popout border — much heavier than the
-    // border stroke they pour into
-    readonly property real connectorThickness: borderThickness * 2.5
+    // border stroke they pour into, but lighter than the dialog fan lines
+    readonly property real connectorThickness: borderThickness * 4.75
+    // dialog fan lines are the heaviest strokes on screen — full-window conduits
+    readonly property real connectorFanThickness: borderThickness * 5
 
     // animation tokens — reuse everywhere for a consistent feel
     readonly property int animFast: 120
