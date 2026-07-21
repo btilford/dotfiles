@@ -97,30 +97,6 @@ insert_result = false
 mode = "tmux"
 timeout_secs = 120
 
-# The default harness. `claude -p` prints once and exits, which is right for a
-# capture run but would kill a tmux session the moment it opened — hence the
-# separate interactive argv_tmux.
-[[llm.harnesses]]
-id = "claude"
-label = "Claude CLI"
-argv = ["claude", "-p"]
-argv_tmux = ["claude"]
-
-[[llm.harnesses]]
-id = "opencode"
-label = "opencode"
-argv = ["opencode", "run", "{prompt}"]
-
-# Web-capable variant of the "claude" harness above. Plain `claude -p` runs
-# headless with no tool grants, so anything that must fetch a URL just refuses
-# ("WebFetch needs permission"). This grants only WebFetch — scoped, not
-# --dangerously-skip-permissions. argv_tmux stays interactive `claude` so a tmux
-# run can still prompt for anything else it wants.
-[[llm.harnesses]]
-id = "claude-web"
-label = "Claude CLI (WebFetch)"
-argv = ["claude", "-p", "--allowedTools", "WebFetch"]
-argv_tmux = ["claude"]
 
 # Local content only (code / file paths / files). URLs go to summarize-url below,
 # which needs a fetch-capable harness — keeping them split avoids a capture run
