@@ -1,26 +1,33 @@
 stages: [lint]
 
-# Linters + tool versions are defined in mise.toml, shared with local dev.
-# `mise run lint` fans out to shell/secrets/yaml/json/nu/fish gates.
-lint:
+# NOTE: the self-hosted runner cannot reach api.github.com (rate-limited) or
+# sigstore.dev, so mise's aqua/ubi tool installs fail there. CI therefore uses
+# official tool-bundled images for the two highest-value gates. The full suite
+# (yaml/json/nu/fish + formatters) runs locally via `mise run lint` and the
+# lefthook pre-commit hook, where GitHub is reachable.
+
+lint:shellcheck:
+  stage: lint
+  image: koalaman/shellcheck-alpine:stable
+  script:
+    # Error severity only — vendored hyprland scripts carry heavy style noise.
+    # Exclude __sdkman-noexport-init.sh (zsh syntax) and RofiEmoji.sh (emoji data).
+    - |
+      find . -type f \( -name '*.sh' -o -name '*.bash' \) \
+        -not -path './.git/*' \
+        -not -name '__sdkman-noexport-init.sh' \
+        -not -name 'RofiEmoji.sh' \
+        -print0 \
+        | xargs -0 shellcheck --severity=error -e SC1090,SC1091,SC2148
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+
+lint:secrets:
   stage: lint
   image:
-    name: jdxcode/mise:latest
-    # Reset the image's `mise` entrypoint so GitLab's shell runs the scripts;
-    # mise stays on PATH and is invoked explicitly below.
+    name: zricethezav/gitleaks:latest
     entrypoint: [""]
-  variables:
-    # Keep mise's tool cache inside the project dir so GitLab can cache it.
-    MISE_DATA_DIR: $CI_PROJECT_DIR/.mise-data
-    MISE_YES: "1"
-  cache:
-    key: mise-tools-v1
-    paths:
-      - .mise-data/
-  before_script:
-    - mise trust --yes
-    - mise install
   script:
-    - mise run lint
+    - gitleaks dir . -c .gitleaks.toml --no-banner
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
