@@ -1,10 +1,22 @@
 stages: [lint]
 
-lint:shellcheck:
+# Linters + tool versions are defined in mise.toml, shared with local dev.
+# `mise run lint` fans out to shell/secrets/yaml/json/nu/fish gates.
+lint:
   stage: lint
-  image: koalaman/shellcheck-alpine:stable
+  image: jdxcode/mise:latest
+  variables:
+    # Keep mise's tool cache inside the project dir so GitLab can cache it.
+    MISE_DATA_DIR: $CI_PROJECT_DIR/.mise-data
+    MISE_YES: "1"
+  cache:
+    key: mise-tools-v1
+    paths:
+      - .mise-data/
+  before_script:
+    - mise trust --yes
+    - mise install
   script:
-    - find . -type f \( -name "*.sh" -o -name "*.bash" \) -not -path "./.git/*"
-        | xargs shellcheck -e SC1090,SC1091,SC2148 2>/dev/null || true
+    - mise run lint
   rules:
     - if: $CI_COMMIT_BRANCH == "master"

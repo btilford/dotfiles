@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 ## /* ---- 💫 https://github.com/JaKooLit 💫 ---- */  ##
 # For Dark and Light switching

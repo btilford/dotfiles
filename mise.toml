@@ -5,6 +5,10 @@
 # See CLAUDE.md "Linting & formatting" for the design notes.
 
 [tools]
+# Runtimes — needed so the pipx (yamllint) and npm (markdownlint) backends
+# resolve in a minimal CI image, not just on a dev box with system node/python.
+node = "lts"
+python = "3.12"
 shellcheck = "latest"
 shfmt = "latest"
 stylua = "latest"
@@ -38,10 +42,13 @@ description = "Run every CI gate"
 depends = ["lint:shell", "lint:secrets", "lint:yaml", "lint:json", "lint:nu", "lint:fish"]
 
 [tasks."lint:shell"]
-description = "shellcheck all sh/bash scripts"
+description = "shellcheck sh/bash scripts — error severity only (vendored scripts carry style noise)"
+# Excluded: __sdkman-noexport-init.sh (zsh syntax shellcheck can't parse) and
+# RofiEmoji.sh (inline emoji data mis-parsed as code).
 run = """
 git ls-files '*.sh' '*.bash' \
-  | xargs -r shellcheck -e SC1090,SC1091,SC2148
+  | grep -vE '(__sdkman-noexport-init|RofiEmoji)\\.sh$' \
+  | xargs -r shellcheck --severity=error -e SC1090,SC1091,SC2148
 """
 
 [tasks."lint:secrets"]
@@ -57,8 +64,19 @@ description = "validate all json parses"
 run = "git ls-files '*.json' | xargs -r -I{} jq empty {}"
 
 [tasks."lint:nu"]
-description = "nushell parse check"
-run = "git ls-files '*.nu' | xargs -r -I{} nu --ide-check 1 {}"
+description = "nushell parse check — fail on any parser diagnostic"
+# `nu --ide-check` always exits 0, so gate on the presence of a diagnostic entry.
+run = """
+rc=0
+for f in $(git ls-files '*.nu'); do
+  if nu --ide-check 1 "$f" | grep -q '"type":"diagnostic"'; then
+    echo "nu parse error in: $f"
+    nu --ide-check 1 "$f" | grep '"type":"diagnostic"'
+    rc=1
+  fi
+done
+exit $rc
+"""
 
 [tasks."lint:fish"]
 description = "fish syntax check (skipped where fish is absent, e.g. CI)"

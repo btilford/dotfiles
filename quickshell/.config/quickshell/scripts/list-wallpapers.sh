@@ -21,7 +21,7 @@ find -L "$wallDIR" -type f \( \
       preview="$HOME/.cache/gif_preview/${pic_name}.png"
       if [[ ! -f "$preview" ]]; then
         mkdir -p "$HOME/.cache/gif_preview"
-        magick "$pic_path[0]" -resize 1920x1080 "$preview" 2>/dev/null || preview=""
+        magick "${pic_path}[0]" -resize 1920x1080 "$preview" 2>/dev/null || preview=""
       fi
     elif [[ "$pic_name" =~ \.(mp4|mkv|mov|webm|MP4|MKV|MOV|WEBM)$ ]]; then
       preview="$HOME/.cache/video_preview/${pic_name}.png"
