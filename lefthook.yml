@@ -1,0 +1,28 @@
+# Git hooks, managed via mise-installed lefthook.
+# Install once per clone:  mise run hooks
+# Formatters run on STAGED files only, then re-stage — no repo-wide reflow.
+
+pre-commit:
+  parallel: true
+  commands:
+    shfmt:
+      glob: "*.{sh,bash}"
+      run: shfmt -w -i 2 -ci -sr {staged_files}
+      stage_fixed: true
+    stylua:
+      glob: "*.lua"
+      run: stylua {staged_files}
+      stage_fixed: true
+    taplo:
+      glob: "*.toml"
+      run: taplo fmt {staged_files}
+      stage_fixed: true
+    markdownlint:
+      glob: "*.md"
+      run: markdownlint-cli2 --fix {staged_files}
+      stage_fixed: true
+    fish-syntax:
+      glob: "*.fish"
+      run: 'for f in {staged_files}; do fish --no-execute "$f"; done'
+    gitleaks:
+      run: gitleaks protect --staged -c .gitleaks.toml --no-banner

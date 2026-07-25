@@ -1,0 +1,92 @@
+# Tool + task manager for this repo — shared by CI and local dev.
+#   mise install       install every linter/formatter below
+#   mise run lint      run all CI gates (non-mutating)
+#   mise run fmt       apply formatters (used by the pre-commit hook)
+# See CLAUDE.md "Linting & formatting" for the design notes.
+
+[tools]
+shellcheck = "latest"
+shfmt = "latest"
+stylua = "latest"
+taplo = "latest"
+gitleaks = "latest"
+yamllint = "latest"
+jq = "latest"
+lefthook = "latest"
+"npm:markdownlint-cli2" = "latest"
+"ubi:nushell/nushell" = { version = "latest", exe = "nu" }
+
+# ---------------------------------------------------------------------------
+# CI gates — non-mutating. `mise run lint` runs them all.
+# ---------------------------------------------------------------------------
+
+[tasks.hooks]
+description = "Install git hooks (lefthook) into this clone"
+run = "lefthook install"
+
+[tasks."glab:config"]
+description = "Apply glab prefs after `glab auth login` (token stays local, untracked)"
+run = """
+glab config set editor nvim
+glab config set glamour_style dark
+glab config set git_protocol ssh
+glab config set -h gitlab.example.com git_protocol https
+"""
+
+[tasks.lint]
+description = "Run every CI gate"
+depends = ["lint:shell", "lint:secrets", "lint:yaml", "lint:json", "lint:nu", "lint:fish"]
+
+[tasks."lint:shell"]
+description = "shellcheck all sh/bash scripts"
+run = """
+git ls-files '*.sh' '*.bash' \
+  | xargs -r shellcheck -e SC1090,SC1091,SC2148
+"""
+
+[tasks."lint:secrets"]
+description = "gitleaks — scan working tree for committed secrets"
+run = "gitleaks dir . -c .gitleaks.toml --no-banner"
+
+[tasks."lint:yaml"]
+description = "yamllint all yaml"
+run = "git ls-files '*.yml' '*.yaml' | xargs -r yamllint"
+
+[tasks."lint:json"]
+description = "validate all json parses"
+run = "git ls-files '*.json' | xargs -r -I{} jq empty {}"
+
+[tasks."lint:nu"]
+description = "nushell parse check"
+run = "git ls-files '*.nu' | xargs -r -I{} nu --ide-check 1 {}"
+
+[tasks."lint:fish"]
+description = "fish syntax check (skipped where fish is absent, e.g. CI)"
+run = """
+if command -v fish >/dev/null 2>&1; then
+  git ls-files '*.fish' | xargs -r -n1 fish --no-execute
+else
+  echo "fish not installed — skipping fish syntax check"
+fi
+"""
+
+# ---------------------------------------------------------------------------
+# Formatters — mutating. Run by the pre-commit hook (staged files) and on
+# demand. CI does NOT gate on these yet; the repo has an un-formatted backlog.
+# ---------------------------------------------------------------------------
+
+[tasks.fmt]
+description = "Apply all formatters to the whole repo"
+depends = ["fmt:shell", "fmt:lua", "fmt:toml", "fmt:md"]
+
+[tasks."fmt:shell"]
+run = "git ls-files '*.sh' '*.bash' | xargs -r shfmt -w -i 2 -ci -sr"
+
+[tasks."fmt:lua"]
+run = "stylua $(git ls-files '*.lua')"
+
+[tasks."fmt:toml"]
+run = "taplo fmt $(git ls-files '*.toml')"
+
+[tasks."fmt:md"]
+run = "markdownlint-cli2 --fix $(git ls-files '*.md')"

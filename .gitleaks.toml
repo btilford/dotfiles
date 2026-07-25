@@ -1,0 +1,18 @@
+title = "dotfiles gitleaks config"
+
+# Inherit gitleaks' full default rule set, then narrow with allowlists below.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "GPG signing-key IDs/fingerprints are public, not secrets"
+regexTarget = "line"
+regexes = [
+  '''signingKey\s*=\s*[0-9A-Fa-f]{40}''',
+]
+
+[[allowlists]]
+description = "Token-free glab template — real token lives in the untracked live config"
+paths = [
+  '''glab-cli/\.config/glab-cli/config\.yml''',
+]

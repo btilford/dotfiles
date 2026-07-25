@@ -1,4 +1,4 @@
-stages: [lint, deploy]
+stages: [lint]
 
 lint:shellcheck:
   stage: lint
@@ -6,15 +6,5 @@ lint:shellcheck:
   script:
     - find . -type f \( -name "*.sh" -o -name "*.bash" \) -not -path "./.git/*"
         | xargs shellcheck -e SC1090,SC1091,SC2148 2>/dev/null || true
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master"
-
-trigger-hermes-build:
-  stage: deploy
-  trigger:
-    project: managed/internal/homelab/homelab-apps
-    branch: master
-    strategy: depend
-  needs: [lint:shellcheck]
   rules:
     - if: $CI_COMMIT_BRANCH == "master"

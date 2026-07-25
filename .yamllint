@@ -1,0 +1,14 @@
+# Relaxed ruleset — style noise off, real errors on.
+extends: relaxed
+
+rules:
+  line-length: disable
+  document-start: disable
+  comments:
+    min-spaces-from-content: 1
+  trailing-spaces: enable
+  key-duplicates: enable
+  empty-values: disable
+
+ignore: |
+  graphify-out/
