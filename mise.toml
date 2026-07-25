@@ -4,11 +4,17 @@
 #   mise run fmt       apply formatters (used by the pre-commit hook)
 # See CLAUDE.md "Linting & formatting" for the design notes.
 
+[settings]
+# Route pipx packages (yamllint) through uv, so no separate pipx binary is
+# needed in a minimal CI image.
+pipx.uvx = true
+
 [tools]
 # Runtimes — needed so the pipx (yamllint) and npm (markdownlint) backends
 # resolve in a minimal CI image, not just on a dev box with system node/python.
 node = "lts"
 python = "3.12"
+uv = "latest"
 shellcheck = "latest"
 shfmt = "latest"
 stylua = "latest"
@@ -16,7 +22,8 @@ taplo = "latest"
 gitleaks = "latest"
 yamllint = "latest"
 jq = "latest"
-lefthook = "latest"
+# ubi (direct GitHub binary) — aqua's lefthook build fails attestation in CI.
+"ubi:evilmartians/lefthook" = "latest"
 "npm:markdownlint-cli2" = "latest"
 "ubi:nushell/nushell" = { version = "latest", exe = "nu" }
 
