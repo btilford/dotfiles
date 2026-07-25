@@ -1,3 +1,6 @@
 .idea/
 Session.vim
 *.log
+
+# Personal scratch/notes file, ignored in every repo
+next.md
