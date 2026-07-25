@@ -71,14 +71,21 @@ description = "validate all json parses"
 run = "git ls-files '*.json' | xargs -r -I{} jq empty {}"
 
 [tasks."lint:nu"]
-description = "nushell parse check — fail on any parser diagnostic"
-# `nu --ide-check` always exits 0, so gate on the presence of a diagnostic entry.
+description = "nushell parse check — fail on parser diagnostics (syntax only)"
+# `nu --ide-check` always exits 0, so gate on diagnostic entries. It also
+# resolves `source`/`use` targets and emits "File not found" for machine-local
+# paths absent in a bare checkout — those are env noise, not syntax errors, so
+# drop any "*not found*" diagnostic. Capture output fully to avoid SIGPIPE.
 run = """
 rc=0
 for f in $(git ls-files '*.nu'); do
-  if nu --ide-check 1 "$f" | grep -q '"type":"diagnostic"'; then
+  out=$(nu --ide-check 1 "$f")
+  # `|| true`: grep exits 1 when it filters everything out, which would abort
+  # the task under mise's set -e even though that means "no errors".
+  errs=$(printf '%s\\n' "$out" | grep '"type":"diagnostic"' | grep -iv 'not found' || true)
+  if [ -n "$errs" ]; then
     echo "nu parse error in: $f"
-    nu --ide-check 1 "$f" | grep '"type":"diagnostic"'
+    printf '%s\\n' "$errs"
     rc=1
   fi
 done
