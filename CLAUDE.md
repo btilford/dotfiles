@@ -28,6 +28,26 @@ Stow-managed dotfiles for btilford. Each top-level directory is a stow package m
 - Example config: `/usr/share/hypr/hyprland.lua`
 - Consult stubs before guessing `hl.*` signatures or field names
 
+## Linting & CI
+
+Two surfaces run the same class of checks and must be kept as close as possible:
+
+- **`mise.toml`** — the local toolchain + `mise run lint` tasks (shell, secrets,
+  yaml, json, nu, fish) and `mise run fmt` formatters. This is the full suite.
+- **`.gitlab-ci.yml`** — the CI gate. A deliberate *subset*: shellcheck +
+  gitleaks only, via official tool-bundled images.
+
+**They intentionally diverge** because the self-hosted GitLab runner cannot
+reach `api.github.com` (rate-limited) or `sigstore.dev`, so mise's aqua/ubi
+installs fail in CI (see the `gitlab-runner-no-github-egress` memory). CI works
+around this with prebuilt images; local uses mise directly.
+
+**Sync rule:** whenever you change one of these two files, evaluate the other
+and keep the shared gates aligned — same shellcheck flags/excludes/severity,
+same gitleaks config, same allowlists. If you add a gate to `mise run lint`,
+decide whether CI should carry it too (and whether the runner can, given the
+GitHub/sigstore constraint) rather than letting the two drift silently.
+
 ## graphify
 
 This project has a graphify knowledge graph at graphify-out/.
