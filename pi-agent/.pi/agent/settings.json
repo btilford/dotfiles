@@ -43,5 +43,8 @@
   },
   "packages": [
     "npm:@plannotator/pi-extension"
+  ],
+  "npmCommand": [
+    "bun"
   ]
 }
