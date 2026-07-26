@@ -10,9 +10,12 @@
 pipx.uvx = true
 
 [tools]
-# Runtimes — needed so the pipx (yamllint) and npm (markdownlint) backends
-# resolve in a minimal CI image, not just on a dev box with system node/python.
-node = "lts"
+# Runtime — needed so the pipx (yamllint) backend resolves in a minimal CI
+# image, not just on a dev box with system python.
+#
+# No node here on purpose: markdownlint-cli2 is installed globally by bun and
+# declared in the metapac `core` group, so mise no longer needs a node runtime
+# to resolve an npm-backend tool. bun owns global JS CLIs, uv owns Python ones.
 python = "3.12"
 uv = "latest"
 shellcheck = "latest"
@@ -24,7 +27,6 @@ yamllint = "latest"
 jq = "latest"
 # ubi (direct GitHub binary) — aqua's lefthook build fails attestation in CI.
 "ubi:evilmartians/lefthook" = "latest"
-"npm:markdownlint-cli2" = "latest"
 "ubi:nushell/nushell" = { version = "latest", exe = "nu" }
 
 # ---------------------------------------------------------------------------
@@ -121,4 +123,6 @@ run = "stylua $(git ls-files '*.lua')"
 run = "taplo fmt $(git ls-files '*.toml')"
 
 [tasks."fmt:md"]
+# markdownlint-cli2 comes from bun's global prefix (~/.bun/bin), not mise —
+# see [tools] above. `mise install` alone won't provide it; `metapac sync` will.
 run = "markdownlint-cli2 --fix $(git ls-files '*.md')"

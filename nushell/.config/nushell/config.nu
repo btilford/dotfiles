@@ -769,3 +769,10 @@ let mise_path = ($nu.default-config-dir | path join mise.nu)
 if ($mise_path | path exists) {
     use ($nu.default-config-dir | path join mise.nu)
 }
+# `bun pm ls -g` colorizes even when piped and ignores NO_COLOR, so metapac's bun
+# backend captures ANSI escapes into package names. They then never match the
+# declared names, and `metapac clean` offers to uninstall every bun package.
+# FORCE_COLOR=0 is the only switch bun honors. `^metapac` avoids recursion.
+def --wrapped metapac [...args] {
+    with-env {FORCE_COLOR: "0"} { ^metapac ...$args }
+}

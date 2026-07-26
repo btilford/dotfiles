@@ -12,9 +12,9 @@ Stow-managed dotfiles for btilford. Each top-level directory is a stow package m
 
 ## Structure
 
-- **Cross-platform**: `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`
+- **Cross-platform**: `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`
 - **macOS-only**: `ghostty`, `macos`
-- **Linux-only**: `hyprland`, `rofi`, `konsole`, `konsole`, `kmonad`, `terminator`, `yakuake`, `brave-linux`, `xdg`
+- **Linux-only**: `hyprland`, `rofi`, `konsole`, `kmonad`, `terminator`, `yakuake`, `brave-linux`, `xdg`
 - **Shared base**: `base`
 
 ## Branches
@@ -27,6 +27,39 @@ Stow-managed dotfiles for btilford. Each top-level directory is a stow package m
 - Authoritative API stubs: `/usr/share/hypr/stubs/hl.meta.lua` (installed by `hyprland` package)
 - Example config: `/usr/share/hypr/hyprland.lua`
 - Consult stubs before guessing `hl.*` signatures or field names
+
+## System packages (metapac)
+
+The `metapac` package declares installed packages across machines. Replaced
+`pug`, whose gist-syncing pacman hook had been broken since 2024. Config lives
+at `~/.config/metapac/`; group files are the source of truth.
+
+- **One config for every host.** Per-machine divergence lives in the
+  `[hostname_enabled_backends]` / `[hostname_groups]` tables in `config.toml`,
+  not in separate stow packages.
+- **Backends:** `arch`, `brew`, `bun`, `cargo`, `flatpak`, `mise`, `uv`.
+  `[arch] package_manager = "paru"` is required so AUR installs stay behind the
+  aur-policy gate. `npm` and `pipx` are deliberately disabled.
+- **One owner per tool class.** bun owns global JS CLIs, uv owns global Python
+  CLIs, mise owns runtimes. Never enable `npm`/`pipx` alongside them — two
+  backends claiming the same tool breaks sync/clean semantics.
+- **`metapac clean` uninstalls everything not declared.** Always read its
+  confirmation list; never script it with `--no-confirm` unless you have just
+  read `metapac unmanaged` and the list is what you intend to remove.
+- `desktop-arch.toml` was bootstrapped by declaring the full explicit package
+  set as-is, so `unmanaged` reports clean. Pruning cruft is deliberate: delete
+  the entry, then let `clean` uninstall it.
+- Orphaned *dependencies* are invisible to metapac — it only tracks explicitly
+  installed packages. Use `pacman -Qdtq` for those.
+- **bun quirk:** `bun pm ls -g` colorizes even when piped and ignores
+  `NO_COLOR`, so metapac's bun backend captures ANSI escapes into package names
+  and then treats every bun package as unmanaged. Each shell defines a `metapac`
+  wrapper setting `FORCE_COLOR=0` (see the `bun` drop-ins in `fish`/`bash`/`zsh`
+  and `nushell/config.nu`). Drop those and `clean` will offer to remove your bun
+  packages.
+
+Not managed by metapac, by design: nvim plugins (lazy.nvim + `lazy-lock.json`)
+and Mason's LSP/formatter tools (declared via `mason-tool-installer`).
 
 ## Linting & CI
 

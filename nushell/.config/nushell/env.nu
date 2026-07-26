@@ -22,6 +22,15 @@ $env.PATH = (
     | uniq
 )
 
+# bun — global JS CLIs live in ~/.bun/bin (bun is the sole owner of global JS
+# tools; npm globals are deliberately unused). Same path on Linux and macOS.
+# Prepended so it wins over any stale runtime-managed shim. No-op without bun.
+let bun_bin = ($env.HOME | path join .bun/bin)
+if ($bun_bin | path exists) {
+    $env.BUN_INSTALL = ($env.HOME | path join .bun)
+    $env.PATH = ($env.PATH | split row (char esep) | prepend $bun_bin | uniq)
+}
+
 # Starship prompt cache
 if (which starship | is-not-empty) {
     let starship_cache = ($env.HOME | path join .cache/starship)

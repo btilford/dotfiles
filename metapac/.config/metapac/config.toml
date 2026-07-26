@@ -1,0 +1,24 @@
+# metapac — declarative system packages across machines.
+# One stow package for every host; per-machine divergence lives in the
+# hostname tables below rather than in separate stow packages.
+#
+# Backends (final set): arch, brew, bun, cargo, flatpak, mise, uv.
+# pipx is deliberately absent — uv owns global Python CLIs.
+# zypper is absent — no openSUSE host in the fleet.
+
+hostname_groups_enabled = true
+
+# Base set stays empty; every host opts in explicitly below.
+enabled_backends = []
+
+[hostname_enabled_backends]
+cachyos-fwd = ["arch", "bun", "cargo", "flatpak", "mise", "uv"]
+# <macos-host> = ["brew", "cargo", "mise", "uv", "bun"]
+
+[hostname_groups]
+cachyos-fwd = ["core", "desktop-arch"]
+# <macos-host> = ["core", "macos"]
+
+[arch]
+# Required: routes AUR installs through the aur-policy PreBuildCommand gate.
+package_manager = "paru"

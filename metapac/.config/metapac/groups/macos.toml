@@ -1,0 +1,4 @@
+# macos — macOS-only packages. Populate during the macOS bootstrap pass
+# (cargo install metapac; stow; metapac unmanaged).
+
+brew = { packages = [] }
