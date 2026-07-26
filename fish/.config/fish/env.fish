@@ -11,6 +11,10 @@ end
 
 set -x M2_HOME $HOME/.m2
 
+# Vol screenshot archive — the app's visual history lives with the project notes,
+# never in the repo. `mise run screenshots:archive` refuses to run without this.
+set -gx VOL_SCREENSHOT_ARCHIVE $HOME/Documents/personal-notes/notes/Projects/vol/screenshots
+
 set -gx --prepend PATH $HOME/.cargo/bin
 set -gx --prepend PATH $HOME/.local/bin
 # mise shims last so they win over homebrew and other system tools

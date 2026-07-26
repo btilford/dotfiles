@@ -36,6 +36,11 @@ if [ -f ~/.bashrc_local ] ;then
     source ~/.bashrc_local
 fi
 
+
+# Vol screenshot archive — the app's visual history lives with the project notes,
+# never in the repo. `mise run screenshots:archive` refuses to run without this.
+export VOL_SCREENSHOT_ARCHIVE="${HOME}/Documents/personal-notes/notes/Projects/vol/screenshots"
+
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="${HOME}/.sdkman"
 [[ -s "${HOME}/.sdkman/bin/sdkman-init.sh" ]] && source "${HOME}/.sdkman/bin/sdkman-init.sh"

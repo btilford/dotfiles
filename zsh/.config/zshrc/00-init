@@ -10,3 +10,10 @@ export OS_KERN="$(uname -s)"
 export EDITOR=nvim
 export YARN_ENABLE_SCRIPTS=false
 export PATH="/usr/lib/ccache/bin/:$PATH"
+
+# -----------------------------------------------------
+# Vol screenshot archive
+# -----------------------------------------------------
+# The app's visual history lives with the project notes, never in the repo.
+# `mise run screenshots:archive` refuses to run without this.
+export VOL_SCREENSHOT_ARCHIVE="$HOME/Documents/personal-notes/notes/Projects/vol/screenshots"
