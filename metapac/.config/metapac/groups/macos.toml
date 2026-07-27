@@ -8,7 +8,6 @@ brew = { packages = [
   "1password-cli",
   "act",
   "actionlint",
-  "asdf",
   "ast-grep",
   "atuin",
   "bat",
@@ -130,19 +129,7 @@ mise = { packages = [
   # names) and NOT brew (removed gcloud-cli/google-cloud-sdk; mise is sole owner).
   { name = "gcloud", options = { version = "latest" } },
 ] }
-# cavemen relocated from mise (npm:) to the bun backend — metapac's mise backend
-# can't manage npm:/vfox: prefixed tools. The rest were migrated off npm -g under
-# brew's node (2026-07-27): bun owns global JS CLIs. Promote any to core.toml if
-# you want them on Arch too.
+# Mac-only bun global. The nvim/dev toolchain lives in core.toml (both platforms).
 bun = { packages = [
-  "cavemen",
-  "neovim",
-  "tree-sitter-cli",
-  "typescript",
-  "typescript-language-server",
-  "prettier",
-  "eslint",
-  "@mistweaverco/kulala-fmt",
-  "@mistweaverco/kulala-ls",
   "@shortcut-cli/shortcut-cli",
 ] }

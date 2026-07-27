@@ -25,11 +25,6 @@ if command -v starship >/dev/null 2>&1; then
     fi
 fi
 
-if command -v asdf >/dev/null 2>&1; then
-    . <(asdf completion bash)
-    export ASDF_DATA_DIR="${HOME}/.asdf"
-    PATH="${ASDF_DATA_DIR}/shims:${PATH}"
-fi
 
 if command -v obsidian-cli >/dev/null 2>&1; then
     source <(obsidian-cli completion bash)

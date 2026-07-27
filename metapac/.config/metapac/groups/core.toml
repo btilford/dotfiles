@@ -16,4 +16,14 @@ bun = { packages = [
   "hunkdiff",
   # Used by `mise run fmt:md` and the lefthook pre-commit hook.
   "markdownlint-cli2",
+  # nvim node host + treesitter, and the dev CLIs nvim drives (conform/lint/LSP).
+  # Migrated off npm -g; both platforms.
+  "neovim",
+  "tree-sitter-cli",
+  "typescript",
+  "typescript-language-server",
+  "prettier",
+  "eslint",
+  "@mistweaverco/kulala-fmt",
+  "@mistweaverco/kulala-ls",
 ] }

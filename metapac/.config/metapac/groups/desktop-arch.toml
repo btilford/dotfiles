@@ -25,7 +25,6 @@ arch = { packages = [
   "appimagelauncher",
   "archlinux-xdg-menu",
   "ark",
-  "asdf-vm",
   "atop",
   "aur-scanner",
   "aurscan-manticore-release-git",

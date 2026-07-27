@@ -745,11 +745,6 @@ $env.config = {
     ]
 }
 
-$env.ASDF_DIR = ($env.HOME | path join '.asdf')
-
-#if ($nu.home-path | path join '.asdf/asdf.nu' | path exists) {
-#  source ($nu.home-path | path join '.asdf/asdf.nu')
-#}
 #use /home/btilford/.cache/starship/init.nu
 
 alias ll = eza -al --icons always
