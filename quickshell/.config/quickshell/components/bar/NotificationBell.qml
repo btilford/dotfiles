@@ -7,8 +7,9 @@ import "../../config"
 // fading out, so the motion ends somewhere meaningful and the count it lands on is visible.
 //
 // Deliberately minimal. It shows how many notifications have dwelled here since they were last
-// acknowledged, and clicking clears that. Opening a history drawer, per-category badges and
-// do-not-disturb state are their own stories — do not grow this into them.
+// acknowledged; left click opens the history drawer (which is what marks them read), middle
+// click dismisses whatever is still on screen. Per-category badges and do-not-disturb state are
+// their own stories — do not grow this into them.
 Item {
     id: root
 
@@ -130,15 +131,20 @@ Item {
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
         cursorShape: Qt.PointingHandCursor
         onEntered: {
-            tip.text = root.unread > 0 ? root.unread + " notification(s) since last checked" : (root.live ? Notifications.count + " on screen" : "No new notifications");
+            tip.text = (root.unread > 0 ? root.unread + " notification(s) since last checked" : (root.live ? Notifications.count + " on screen" : "No new notifications")) + " · click for history";
             tip.open();
         }
         onExited: tip.close()
         onClicked: mouse => {
             tip.close();
-            if (mouse.button === Qt.MiddleButton)
+            if (mouse.button === Qt.MiddleButton) {
                 Notifications.dismissAll();
-            Notifications.markRead();
+                Notifications.markRead();
+                return;
+            }
+            // The drawer marks them read on open, so clicking the bell still clears the count —
+            // it just shows you what it cleared instead of swallowing it.
+            NotifyDrawer.toggle();
         }
     }
 

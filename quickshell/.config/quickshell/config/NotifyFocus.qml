@@ -273,12 +273,14 @@ Singleton {
             root.selectAt(0);
     }
 
+    // The keyboard hands over rather than stacking surfaces: two exclusive layer surfaces on
+    // one output fight over the grab, so focus mode releases before the drawer takes it.
     function openDrawer() {
+        root.close();
         if (root.drawerHook) {
-            root.close();
             root.drawerHook();
             return;
         }
-        console.info("notifications: drawer needs the drawer story (notif-drawer)");
+        NotifyDrawer.open();
     }
 }

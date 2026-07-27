@@ -265,6 +265,32 @@ handler. Entered with `qs ipc call notifications toggleFocus` (SUPER + n).
 - Action hints by number belong to notif-actions: the server still advertises
   `actionsSupported: false`, so no action ever reaches the model to hint at.
 
+### Drawer (story: notif-drawer)
+
+`config/NotifyDrawer.qml` (state) + `components/NotificationDrawer.qml` (view). Opens with
+`SUPER + i`, the bar bell, `qs ipc call notifications drawer`, or `o` from popup focus mode.
+
+- **A view over the store, not over the popup list.** The drawer's entire claim is that a popup
+  you already let expire is still reachable, so its rows come from SQLite. The only thing read
+  from `Notifications` is whether a row is still on screen, so clearing it also closes the card.
+- **Clearing is a row state (`cleared_at`), never a delete.** A history you can erase by holding
+  `d` in a list is not a history — `sqlite3 <db> "SELECT …"` still returns every cleared row.
+  That is schema v2; the migration is a bare `ALTER TABLE` whose failure ("duplicate column
+  name") is the success case on an already-migrated database.
+- **Filters push down to SQL, fuzzy matching stays client-side** on the returned page. LIKE is
+  not fuzzy, and a subsequence matcher in SQL would need a stored function we do not have.
+- **Search does not re-rank.** Matching is a subsequence test, not a score: ranking would
+  reorder the list under the user as they type, and this list is chronological on purpose.
+- **Selection is a key, not an index** (`"g:<app>"` / `"r:<row_id>"`), because the list is
+  rebuilt on every refresh, filter change and keystroke — the same rule as the popup stack.
+- **Panel and modal are one code path**, differing only in geometry (`drawer.mode`). Which one
+  survives is a question to answer by living with both, per the story.
+- The panel steps around the bar by hand (`barInset`): `ExclusionMode.Ignore` means the bar
+  does not push it off its strip.
+- Taking the keyboard here is not an exception to AD-011 — focus follows *intent*, and the
+  drawer is something the user deliberately opened. Focus mode releases its grab before the
+  drawer takes one, because two exclusive surfaces on an output fight.
+
 ### Lua rules (story: notif-lua-rules)
 
 `config/NotifyRules.qml` hosts `rules/engine.lua` as a **subprocess**; user rules live at
