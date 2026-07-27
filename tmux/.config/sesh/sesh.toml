@@ -32,6 +32,11 @@ name = "REDACTED Projects"
 path = "~/Projects/REDACTED/"
 
 [[session]]
+name = "REDACTED Worktrees"
+path = "~/Projects/REDACTED/worktrees"
+
+
+[[session]]
 name = "square_root"
 path = "~/Projects/REDACTED/infra/square_root"
 # startup_command = "nvim $(fd --type directory --max-depth 3 | fzf)"
