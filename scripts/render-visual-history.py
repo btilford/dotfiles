@@ -78,8 +78,14 @@ def frontmatter(note_id: str, title: str, tags: list[str], created: str) -> list
 
 
 def label(surface: str, file: str) -> str:
-    """Surfaces ending in -motion are clips; say so, the still and the clip sit together."""
-    return f"{surface} (motion)" if file.endswith(".gif") else surface
+    """Clips read as "drawer (motion)" — the still and the clip sit together under one name.
+
+    The scene names its clip `<surface>-motion`, so drop that suffix rather than
+    rendering "drawer-motion (motion)".
+    """
+    if not file.endswith(".gif"):
+        return surface
+    return f"{surface.removesuffix('-motion')} (motion)"
 
 
 class Batch:

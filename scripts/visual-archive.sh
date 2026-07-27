@@ -117,11 +117,18 @@ NOTE="$(sanitize "$NOTE")"
 
 # Default set: the newest capture per surface. visual-capture.sh writes
 # <surface>-<YYYYmmdd-HHMMSS>.<ext>, so strip the timestamp to get the surface.
+#
+# The timestamp glob is not decoration. A prefix match on "$stem-" makes the
+# surface `drawer` also match `drawer-motion-<ts>.gif` — the clip is newer than
+# the still, so it wins twice and the still is never archived at all. Anchor on
+# the timestamp so a stem only ever matches its own files.
+TS_GLOB='[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]'
 if [ ${#files[@]} -eq 0 ]; then
   [ -d "$SRC" ] || die "no $SRC — run 'mise run screenshots' first"
   while IFS= read -r stem; do
-    newest="$(find "$SRC" -maxdepth 1 -name "$stem-*" \( -name '*.png' -o -name '*.gif' \) -printf '%T@ %p\n' 2> /dev/null |
-      sort -rn | head -1 | cut -d' ' -f2-)"
+    newest="$(find "$SRC" -maxdepth 1 \
+      \( -name "$stem-$TS_GLOB.png" -o -name "$stem-$TS_GLOB.gif" \) \
+      -printf '%T@ %p\n' 2> /dev/null | sort -rn | head -1 | cut -d' ' -f2-)"
     [ -n "$newest" ] && files+=("$newest")
   done < <(find "$SRC" -maxdepth 1 \( -name '*.png' -o -name '*.gif' \) -printf '%f\n' 2> /dev/null |
     sed -E 's/-[0-9]{8}-[0-9]{6}\.(png|gif)$//' | sort -u)
