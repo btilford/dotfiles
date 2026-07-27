@@ -216,7 +216,12 @@ notify_preset() {
 }
 notify_preset right-center
 
-HYPR_NOTIFY=quickshell QS_NOTIFY_CONFIG="$NOTIFY_CONFIG" \
+# QS_NOTIFY_DB likewise: the notification history is a real database under
+# ~/.local/share, and a capture run firing synthetic "Build finished" notifications
+# has no business writing rows into the user's own history.
+NOTIFY_DB="$RUNTIME/notifications.db"
+
+HYPR_NOTIFY=quickshell QS_NOTIFY_CONFIG="$NOTIFY_CONFIG" QS_NOTIFY_DB="$NOTIFY_DB" \
   qs -p "$SHELL_QML" > "$RUNTIME/qs.log" 2>&1 &
 QS_PID=$!
 
@@ -376,7 +381,12 @@ popup_collapse() {
   settle 0.8
   clip popup-collapse-motion 4.0 \
     notify-send -a "visual-capture" -u critical "Disk almost full" "/ has 2% free"
-  settle 0.8
+  ipc notifications dismissAll
+  settle 0.5
+  # Fired outside the clip on purpose: clip() is a no-op under --no-motion, so a still that
+  # depended on the clip's notification would capture an empty desktop in that mode.
+  notify-send -a "visual-capture" -u critical "Disk almost full" "/ has 2% free"
+  settle 2.2 # past the 1.2s collapse above, with the fold finished
   still popup-collapsed
   ipc notifications dismissAll
   notify_preset right-center

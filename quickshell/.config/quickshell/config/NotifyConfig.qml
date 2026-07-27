@@ -72,6 +72,13 @@ Singleton {
             criticalCollapseMs: 15000
         })
 
+    // SQLite history (config/NotifyStore.qml). Retention is age AND count: whichever bites first.
+    readonly property var defaultStore: ({
+            enabled: true,
+            retentionDays: 30,
+            retentionCount: 2000
+        })
+
     // Named presets exist so the two candidate layouts can be swapped with one word and compared
     // from real captures rather than taste (that comparison IS this story).
     readonly property var presets: ({
@@ -100,6 +107,7 @@ Singleton {
     property var placement: root.clone(root.defaultPlacement)
     property var motion: root.clone(root.defaultMotion)
     property var timing: root.clone(root.defaultTiming)
+    property var store: root.clone(root.defaultStore)
 
     readonly property string configPath: root.envOr("QS_NOTIFY_CONFIG", Quickshell.env("HOME") + "/.config/quickshell/notifications.json")
 
@@ -204,6 +212,14 @@ Singleton {
             burstAt: root.pickInt(t2, "burstAt", root.defaultTiming.burstAt, 0),
             burstMs: root.pickInt(t2, "burstMs", root.defaultTiming.burstMs, 0),
             criticalCollapseMs: root.pickInt(t2, "criticalCollapseMs", root.defaultTiming.criticalCollapseMs, 0)
+        };
+
+        const s = cfg.store;
+        root.store = {
+            enabled: root.pickBool(s, "enabled", root.defaultStore.enabled),
+            // 0 on either = that limit is off; both off means the history grows forever
+            retentionDays: root.pickInt(s, "retentionDays", root.defaultStore.retentionDays, 0),
+            retentionCount: root.pickInt(s, "retentionCount", root.defaultStore.retentionCount, 0)
         };
     }
 

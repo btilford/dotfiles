@@ -51,14 +51,34 @@ ShellRoot {
         }
     }
 
-    // `qs ipc call notifications dismissAll` — also the seam the notifctl CLI story grows from
+    // `qs ipc call notifications …` — the public interface, and the seam the notifctl CLI story
+    // grows from. Reads go through the SQLite store, so a client that cannot reach this daemon
+    // (a tmux popup, an SSH session) gets the same answers from `sqlite3 <db>` directly.
     IpcHandler {
         target: "notifications"
         function dismissAll(): void {
             Notifications.dismissAll();
         }
+        function dismiss(id: int): void {
+            Notifications.dismiss(Notifications.entryForId(id));
+        }
         function count(): int {
             return Notifications.count;
+        }
+        function unread(): int {
+            return Notifications.unread;
+        }
+        function markRead(): void {
+            Notifications.markRead();
+        }
+        function dbPath(): string {
+            return NotifyStore.dbPath;
+        }
+        // sqlite3's own `-json` rows, newest first, served from the cache the store refreshes
+        // after every write — an IPC call cannot wait on a subprocess, and a client that wants
+        // an arbitrary query has the database file and its documented schema.
+        function history(limit: int): string {
+            return NotifyStore.recentJson(limit);
         }
     }
 
