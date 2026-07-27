@@ -51,13 +51,59 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+        // reading a card must never be what makes it vanish: the pointer freezes its countdown
+        // (and its collapse clock) until it leaves again
+        onEntered: Notifications.pause(card.entry)
+        onExited: Notifications.resume(card.entry)
         // a resident notification is explicitly asking to survive interaction, so clicking the
         // body doesn't close it (default-action handling belongs to the actions story)
         onClicked: mouse => {
+            if (card.entry.collapsed) {
+                Notifications.expand(card.entry); // one click brings a shrunk critical back
+                return;
+            }
             if (mouse.button === Qt.MiddleButton || !card.entry.resident)
                 Notifications.dismiss(card.entry);
         }
     }
+
+    // ---------------------------------------------------------------------------------------
+    // Remaining-time indicator. `remaining` is animated from wherever the entry's clock actually
+    // is down to zero, and restarted whenever the singleton re-arms that clock (runToken). It is
+    // display only — the Timer in Notifications is what expires the card, so a dropped frame or
+    // a paused animation can never change when that happens.
+    // ---------------------------------------------------------------------------------------
+
+    property real remaining: 1
+
+    function restartCountdown() {
+        countdown.stop();
+        if (card.entry.spanMs <= 0) {
+            card.remaining = 0;
+            return;
+        }
+        card.remaining = Math.max(0, Math.min(1, card.entry.remainingMs / card.entry.spanMs));
+        countdown.duration = card.entry.remainingMs;
+        countdown.start();
+    }
+
+    NumberAnimation {
+        id: countdown
+        target: card
+        property: "remaining"
+        to: 0
+        easing.type: Easing.Linear
+        paused: card.entry.paused
+    }
+
+    Connections {
+        target: card.entry
+        function onRunTokenChanged() {
+            card.restartCountdown();
+        }
+    }
+
+    Component.onCompleted: card.restartCountdown()
 
     Column {
         id: layout
@@ -92,7 +138,9 @@ Rectangle {
                 anchors.right: closeBtn.left
                 anchors.rightMargin: 8
                 anchors.verticalCenter: parent.verticalCenter
-                text: card.entry.appName || "notification"
+                // the pill has room for one line, and which notification it is matters more there
+                // than which app sent it
+                text: card.entry.collapsed ? (card.entry.summary || card.entry.appName) : (card.entry.appName || "notification")
                 elide: Text.ElideRight
                 color: card.urgencyColor
                 font.family: Theme.fontUi
@@ -121,7 +169,8 @@ Rectangle {
 
         Text {
             width: parent.width
-            visible: text.length > 0
+            // collapsed: the pill keeps the header row (icon, app, close) and nothing else
+            visible: text.length > 0 && !card.entry.collapsed
             text: card.entry.summary
             wrapMode: Text.Wrap
             maximumLineCount: 2
@@ -134,7 +183,7 @@ Rectangle {
 
         Text {
             width: parent.width
-            visible: text.length > 0
+            visible: text.length > 0 && !card.entry.collapsed
             text: card.entry.body
             // PlainText on purpose: body-markup is NOT advertised, so a client sending markup
             // is out of spec and we show exactly what we were sent rather than half-parsing it
@@ -152,7 +201,7 @@ Rectangle {
             width: parent.width
             height: 4
             radius: height / 2
-            visible: card.entry.hasProgress
+            visible: card.entry.hasProgress && !card.entry.collapsed
             color: Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, 0.35)
 
             Rectangle {
@@ -164,6 +213,28 @@ Rectangle {
                     NumberAnimation {
                         duration: Theme.animFast
                         easing.type: Theme.easing
+                    }
+                }
+            }
+        }
+
+        // how much of this card's dwell is left — and, when it stops moving and greys out, that
+        // the pointer is holding it open. Sticky and drawer-only cards have no countdown to show.
+        Rectangle {
+            width: parent.width
+            height: 2
+            radius: height / 2
+            visible: Notifications.timing.showRemaining && card.entry.durationMs > 0 && !card.entry.collapsed
+            color: Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, 0.25)
+
+            Rectangle {
+                height: parent.height
+                radius: parent.radius
+                width: parent.width * card.remaining
+                color: card.entry.paused ? Theme.subtext : card.urgencyColor
+                Behavior on color {
+                    ColorAnimation {
+                        duration: Theme.animFast
                     }
                 }
             }

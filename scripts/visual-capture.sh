@@ -208,8 +208,11 @@ log "headless ${WIDTH}x${HEIGHT} session on $WL"
 # ~/.config/quickshell/notifications.json, which is the user's live preference.
 # Capturing has to be able to switch anchor presets without editing it.
 NOTIFY_CONFIG="$RUNTIME/notifications.json"
+notify_cfg() {
+  printf '%s\n' "$1" > "$NOTIFY_CONFIG"
+}
 notify_preset() {
-  printf '{ "preset": "%s" }\n' "$1" > "$NOTIFY_CONFIG"
+  notify_cfg "$(printf '{ "preset": "%s" }' "$1")"
 }
 notify_preset right-center
 
@@ -348,7 +351,34 @@ scene_popup() {
   popup_anchor right-center popup
   popup_dwell
   popup_overflow
+  popup_countdown
+  popup_collapse
   popup_anchor bottom-center popup-bottom
+  notify_preset right-center
+  settle 0.8
+}
+
+# The remaining-time indicator: a long-running card caught partway through its
+# dwell, so the bar under it is visibly part-drained rather than full or empty.
+popup_countdown() {
+  notify-send -a "visual-capture" -t 9000 "Syncing vault" "1 of 4 repositories"
+  settle 2.5
+  still popup-countdown
+  ipc notifications dismissAll
+  settle 0.5
+}
+
+# Shrink-to-icon: a sticky critical folds into a pill instead of owning the
+# screen forever. criticalCollapseMs is cut to ~1s so the fold fits in a clip —
+# the shipped default is 15s, which no reviewer is going to sit through.
+popup_collapse() {
+  notify_cfg '{ "preset": "right-center", "timing": { "criticalCollapseMs": 1200 } }'
+  settle 0.8
+  clip popup-collapse-motion 4.0 \
+    notify-send -a "visual-capture" -u critical "Disk almost full" "/ has 2% free"
+  settle 0.8
+  still popup-collapsed
+  ipc notifications dismissAll
   notify_preset right-center
   settle 0.8
 }

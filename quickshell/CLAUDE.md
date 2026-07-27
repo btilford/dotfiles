@@ -130,8 +130,8 @@ the terminal clients need the model to exist without a window.
 - **`transient` is a reserved QML keyword** — the entry property is `isTransient`. Declaring
   `property bool transient` fails config load outright.
 - Expiry routes through `Notifications.refresh()` → `defaultDurationMs()` → `scheduleExpiry()`,
-  one place, because hover-pause and burst-shortening (timing story) land there next. Duration 0
-  = sticky. `rulesHook` is the rules-engine seam and **fails open**: a throwing hook logs and the
+  one place — hover-pause, burst shortening and collapse all hang off it (see Timing below).
+  `rulesHook` is the rules-engine seam and **fails open**: a throwing hook logs and the
   notification displays with defaults.
 - IPC: `qs ipc call notifications dismissAll` / `count` (the seam the `notifctl` CLI grows from).
 - Deliberately **not** here yet: actions, keyboard focus (popups use
@@ -171,6 +171,33 @@ missing or broken file can never take the shell down; bad values log once and ke
   `+N more` indicator. **A queued entry's expiry timer is not running** — its dwell starts when
   it reaches the screen, so nothing expires unseen.
 - `expireTimeout` from the wire is **milliseconds** (spec), not seconds.
+
+### Timing (story: notif-timing)
+
+One duration vocabulary everywhere — config `timing.low/normal/critical`, a rule's
+`presentation.durationMs`, and `entry.durationMs`:
+
+| value | meaning |
+|-------|---------|
+| `> 0` | show for that many ms |
+| `0` | sticky: stays until dismissed (also what `expire_timeout = 0` means on the wire) |
+| `< 0` | drawer-only: recorded, counted unread, never popped |
+
+- **The Timer's interval is not the clock.** `remainingMs` + `startedAt` on the entry are, because
+  hover pause has to stop mid-count and re-arm from what is left. `Notifications.pause()` /
+  `resume()` are the only things that touch them, and `runToken` ticks whenever the clock is
+  re-armed — that is the card's cue to restart its remaining-time bar. The bar is **display only**;
+  a dropped frame can never change when a card actually expires.
+- **Burst shortening**: once a stack holds `timing.burstAt` cards (0 = `placement.maxVisible`),
+  further non-critical durations are capped at `burstMs`. Critical is never shortened.
+- **Shrink-to-icon**: any *sticky* entry (not just critical — a sticky urgency has the same
+  problem) collapses to an icon pill after `criticalCollapseMs`. `NotificationSlot` narrows the
+  card to `collapsedWidth` and slides it to `restX`, the anchored edge, so the pill keeps its place
+  in the stack without covering the screen. One click on it calls `Notifications.expand()`, which
+  restarts the collapse clock.
+- **Drawer-only entries stay in `popups`** but are skipped by `reflow`, by `visibleCount` and by
+  the overlay's stack keys — they take no slot and run no timer. Until the store/drawer stories
+  land they are capped at `drawerRetention` (100), oldest closed as expired.
 
 ### Testing notifications without a Hyprland session
 

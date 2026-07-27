@@ -40,6 +40,20 @@ Item {
 
     readonly property real slideDistance: 48
 
+    // A collapsed (shrunk-to-icon) card is a narrow pill rather than a full-width card, so it
+    // keeps its place in the stack without covering the screen. It hugs whichever edge the stack
+    // is anchored to — the resting x below, which the entrance animates to and `settle` moves to
+    // when the card folds or unfolds.
+    readonly property real collapsedWidth: 200
+    readonly property real cardWidth: slot.entry.collapsed ? Math.min(slot.width, slot.collapsedWidth) : slot.width
+    readonly property real restX: {
+        if (slot.anchorH === "right")
+            return slot.width - slot.cardWidth;
+        if (slot.anchorH === "center")
+            return (slot.width - slot.cardWidth) / 2;
+        return 0;
+    }
+
     implicitHeight: slot.flying ? 0 : card.implicitHeight
 
     Behavior on implicitHeight {
@@ -108,14 +122,19 @@ Item {
         }
     }
 
+    onRestXChanged: {
+        if (!slot.flying && !entrance.running)
+            settle.restart();
+    }
+
     Component.onCompleted: {
         if (slot.motion.entrance === "none") {
-            card.x = 0;
+            card.x = slot.restX;
             card.y = 0;
             card.scale = 1;
             card.opacity = 1;
         } else {
-            card.x = slot.entranceX();
+            card.x = slot.restX + slot.entranceX();
             card.y = slot.entranceY();
             card.scale = slot.motion.entrance === "fade" ? 1 : 0.94;
             card.opacity = 0;
@@ -133,7 +152,7 @@ Item {
         NumberAnimation {
             target: card
             property: "x"
-            to: 0
+            to: slot.restX
             duration: slot.motion.entranceMs
             easing.type: Easing.OutBack
         }
@@ -197,11 +216,31 @@ Item {
         }
     }
 
+    // fold/unfold: the pill slides to the anchored edge as it narrows, so the collapse reads as
+    // the card retreating rather than as a card of a different size appearing in its place
+    NumberAnimation {
+        id: settle
+
+        target: card
+        property: "x"
+        to: slot.restX
+        duration: Theme.animMed
+        easing.type: Theme.easing
+    }
+
     NotificationCard {
         id: card
 
         entry: slot.entry
-        width: slot.width
+        width: slot.cardWidth
+
+        Behavior on width {
+            NumberAnimation {
+                duration: Theme.animMed
+                easing.type: Theme.easing
+            }
+        }
+
         transformOrigin: Item.Center
         opacity: 0 // set by Component.onCompleted, then owned by the animations above
     }

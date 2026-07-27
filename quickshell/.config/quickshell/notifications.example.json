@@ -14,7 +14,14 @@
     "        Per-source pinning is a rules-engine job (Notifications.rulesHook).",
     "entrance: slide | scale | fade | none",
     "exit:     dwell (fly into the bar bell) | slide | fade | none",
-    "timing:   ms per urgency; 0 = sticky. respectAppTimeout honours the client's request."
+    "timing:   ms per urgency. >0 = show that long, 0 = sticky (stays until dismissed),",
+    "        -1 = drawer-only: recorded and counted unread, never popped.",
+    "        respectAppTimeout honours the client's own expire_timeout request.",
+    "hoverPause: the pointer over a card freezes its countdown; showRemaining draws it.",
+    "burstAt/burstMs: once a stack holds burstAt cards (0 = placement.maxVisible), further",
+    "        non-critical cards are capped at burstMs so the stack drains. burstMs 0 = off.",
+    "criticalCollapseMs: a sticky card folds to an icon pill this long after it appears;",
+    "        one click expands it again. 0 = never collapse."
   ],
   "preset": "right-center",
   "placement": {
@@ -39,6 +46,11 @@
     "low": 3000,
     "normal": 6000,
     "critical": 0,
-    "respectAppTimeout": true
+    "respectAppTimeout": true,
+    "hoverPause": true,
+    "showRemaining": true,
+    "burstAt": 0,
+    "burstMs": 2500,
+    "criticalCollapseMs": 15000
   }
 }

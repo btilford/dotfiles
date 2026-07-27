@@ -43,7 +43,7 @@ Singleton {
     readonly property int visibleCount: {
         var n = 0;
         for (var i = 0; i < popups.length; i++)
-            if (!popups[i].queued)
+            if (!popups[i].queued && !popups[i].drawerOnly)
                 n++;
         return n;
     }
@@ -104,7 +104,9 @@ Singleton {
             console.warn("notifications: rule hook threw, using defaults —", e);
             return;
         }
-        if (typeof presentation.durationMs === "number" && presentation.durationMs >= 0)
+        // negative is a legal answer here: it means drawer-only (see the duration vocabulary in
+        // NotifyConfig), so a rule can silence a source without dropping its notifications.
+        if (typeof presentation.durationMs === "number" && isFinite(presentation.durationMs))
             entry.durationMs = Math.round(presentation.durationMs);
         if (typeof presentation.screenName === "string")
             entry.screenName = presentation.screenName;
@@ -186,6 +188,34 @@ Singleton {
         // it whether it is visible at all — is only settled after the hook has run
         reflow();
         scheduleExpiry(entry);
+        recordDrawerOnly(entry);
+    }
+
+    // Drawer-only entries never appear, so nothing else would mark them seen or bound how many
+    // of them accumulate. Until the store and drawer stories land they live here: counted once
+    // into `unread`, newest `drawerRetention` kept, the rest closed as expired.
+    readonly property int drawerRetention: 100
+
+    function recordDrawerOnly(entry) {
+        if (!entry.drawerOnly || entry.counted)
+            return;
+        entry.counted = true;
+        root.unread++;
+
+        const stale = [];
+        var kept = 0;
+        for (var i = 0; i < popups.length; i++) {
+            if (!popups[i].drawerOnly)
+                continue;
+            kept++;
+            if (kept > root.drawerRetention)
+                stale.push(popups[i]);
+        }
+        for (const e of stale) {
+            if (e.notification)
+                e.notification.expire();
+            forget(e);
+        }
     }
 
     function entryForId(nid) {
@@ -212,6 +242,13 @@ Singleton {
         const seen = {};
         for (var i = 0; i < popups.length; i++) {
             const entry = popups[i];
+            // drawer-only entries are in the model but were never on screen: they take no slot,
+            // hold no timer, and must not push a visible card into the overflow queue
+            if (entry.drawerOnly) {
+                entry.queued = false;
+                entry.expiryTimer.stop();
+                continue;
+            }
             const key = stackKey(entry);
             const rank = seen[key] === undefined ? 0 : seen[key];
             seen[key] = rank + 1;
@@ -241,10 +278,21 @@ Singleton {
     onPopupsChanged: reflow()
     // config edits are live: raising maxVisible must release queued cards immediately
     onPlacementChanged: reflow()
+    // ...and a timing edit re-derives every duration on screen, so tuning a value is visible on
+    // the cards that are already up rather than only on the next notification. Clocks restart.
+    onTimingChanged: {
+        for (const e of popups.slice())
+            refresh(e);
+    }
 
     // ---------------------------------------------------------------------------------------
-    // Expiry — every timeout in the shell routes through here (story: notif-timing extends it
-    // with hover-pause, burst shortening and `0` = drawer-only).
+    // Expiry — every timeout in the shell routes through here.
+    //
+    // Duration vocabulary (same in the config file, in a rule's presentation, and on the entry):
+    //   > 0  show for that long   |   0  sticky   |   < 0  drawer-only, never popped.
+    //
+    // A card's clock is NOT its Timer's interval: hover pause has to know how much is left, so
+    // `remainingMs` + `startedAt` are the truth and the Timer is re-armed from them.
     // ---------------------------------------------------------------------------------------
 
     function defaultDurationMs(entry) {
@@ -264,14 +312,82 @@ Singleton {
         return timing.normal;
     }
 
+    // Burst relief: a stack that is already full drains faster instead of growing without end.
+    // Critical is never shortened — the whole point of critical is that it outlasts the noise.
+    function effectiveDurationMs(entry) {
+        const ms = entry.durationMs;
+        if (ms <= 0 || timing.burstMs <= 0)
+            return ms;
+        if (entry.urgency === NotificationUrgency.Critical)
+            return ms;
+        const threshold = timing.burstAt > 0 ? timing.burstAt : placement.maxVisible;
+        return root.visibleCount >= threshold ? Math.min(ms, timing.burstMs) : ms;
+    }
+
     function scheduleExpiry(entry) {
         entry.expiryTimer.stop();
+        entry.paused = false;
+        scheduleCollapse(entry);
         if (entry.durationMs <= 0)
-            return; // sticky
+            return; // sticky, or drawer-only and never on screen to begin with
         if (entry.queued)
             return; // off screen: the clock starts when a slot frees (see reflow)
-        entry.expiryTimer.interval = entry.durationMs;
+        entry.spanMs = effectiveDurationMs(entry);
+        entry.remainingMs = entry.spanMs;
+        entry.startedAt = Date.now();
+        entry.expiryTimer.interval = entry.spanMs;
         entry.expiryTimer.start();
+        entry.runToken++; // tells the card to restart its countdown indicator from the top
+    }
+
+    // Hover (and, later, keyboard focus) freezes a card: the countdown stops where it is and the
+    // collapse clock with it, so reading a card can never make it disappear mid-sentence.
+    function pause(entry) {
+        if (!entry || entry.paused || entry.leaving || !timing.hoverPause)
+            return;
+        if (entry.expiryTimer.running) {
+            entry.remainingMs = Math.max(0, entry.remainingMs - (Date.now() - entry.startedAt));
+            entry.expiryTimer.stop();
+        }
+        entry.collapseTimer.stop();
+        entry.paused = true;
+    }
+
+    function resume(entry) {
+        if (!entry || !entry.paused)
+            return;
+        entry.paused = false;
+        if (entry.leaving || entry.queued || entry.durationMs <= 0) {
+            scheduleCollapse(entry); // sticky: nothing to count down, but it may still collapse
+            return;
+        }
+        entry.startedAt = Date.now();
+        entry.expiryTimer.interval = Math.max(1, entry.remainingMs);
+        entry.expiryTimer.start();
+        entry.runToken++;
+    }
+
+    // Shrink-to-icon. A sticky card is the only kind that can outstay its welcome — after
+    // criticalCollapseMs it becomes a pill (icon + app name) that keeps its place in the stack
+    // without covering anything. Any sticky entry collapses, not only critical ones: an urgency
+    // configured sticky has exactly the same problem.
+    function scheduleCollapse(entry) {
+        entry.collapseTimer.stop();
+        entry.collapsed = false;
+        if (entry.durationMs !== 0 || entry.queued || entry.leaving)
+            return;
+        if (timing.criticalCollapseMs <= 0)
+            return;
+        entry.collapseTimer.interval = timing.criticalCollapseMs;
+        entry.collapseTimer.start();
+    }
+
+    // One click on a collapsed pill brings the whole card back — and restarts the collapse clock,
+    // so an expanded-then-forgotten critical folds itself away again.
+    function expand(entry) {
+        if (!entry || !entry.collapsed)
+            return;
+        scheduleCollapse(entry);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -284,6 +400,7 @@ Singleton {
         if (!entry)
             return;
         entry.expiryTimer.stop();
+        entry.collapseTimer.stop();
         // a hand-dismissed card is gone, not dwelling: no flight, and it never reaches the bell
         entry.leaveTimer.stop();
         entry.leaving = false;
@@ -303,12 +420,14 @@ Singleton {
         if (!entry || entry.leaving)
             return;
         entry.expiryTimer.stop();
+        entry.collapseTimer.stop();
 
         // The dwell needs a bell to fly into. With no bar on screen (or exit configured to
         // something else) the card takes the plain exit instead of flying at a target that
         // isn't there.
-        const toBell = motion.exit === "dwell" && bellAvailable && !entry.queued;
-        const ms = entry.queued || motion.exit === "none" ? 0 : (toBell ? motion.dwellMs : motion.exitMs);
+        const onScreen = !entry.queued && !entry.drawerOnly;
+        const toBell = motion.exit === "dwell" && bellAvailable && onScreen;
+        const ms = !onScreen || motion.exit === "none" ? 0 : (toBell ? motion.dwellMs : motion.exitMs);
         if (ms > 0) {
             entry.dwellsToBell = toBell;
             entry.leaving = true;
@@ -356,6 +475,7 @@ Singleton {
             return;
         entry.expiryTimer.stop();
         entry.leaveTimer.stop();
+        entry.collapseTimer.stop();
         entry.destroy();
     }
 
@@ -396,6 +516,22 @@ Singleton {
             property string anchorV: "center"
             property string screenName: "" // "" = follow the focused monitor
 
+            // recorded but never popped (durationMs < 0) — see the duration vocabulary above
+            readonly property bool drawerOnly: entry.durationMs < 0
+            // already added to `unread`; drawer-only entries are counted on arrival, once
+            property bool counted: false
+
+            // countdown bookkeeping: how long this showing was granted, how much of it is left,
+            // and when the current run started. runToken ticks whenever the clock is (re)armed,
+            // which is the card's cue to restart its remaining-time indicator.
+            property int spanMs: 0
+            property int remainingMs: 0
+            property real startedAt: 0
+            property int runToken: 0
+            property bool paused: false
+            // sticky and folded down to an icon pill (see scheduleCollapse)
+            property bool collapsed: false
+
             // beyond placement.maxVisible for its stack: in the model, not on screen (see reflow)
             property bool queued: false
             // timed out and currently playing its exit; the D-Bus close waits for the animation
@@ -411,6 +547,11 @@ Singleton {
             property Timer leaveTimer: Timer {
                 repeat: false
                 onTriggered: root.finishExpire(entry)
+            }
+
+            property Timer collapseTimer: Timer {
+                repeat: false
+                onTriggered: entry.collapsed = true
             }
 
             property Connections notificationConn: Connections {
