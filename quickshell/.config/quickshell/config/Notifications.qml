@@ -43,7 +43,7 @@ Singleton {
     readonly property int visibleCount: {
         var n = 0;
         for (var i = 0; i < popups.length; i++)
-            if (!popups[i].queued && !popups[i].drawerOnly)
+            if (!popups[i].queued && !popups[i].drawerOnly && popups[i].resolved)
                 n++;
         return n;
     }
@@ -99,21 +99,20 @@ Singleton {
     // ---------------------------------------------------------------------------------------
     property var rulesHook: null
 
-    function applyRules(entry) {
-        if (!rulesHook)
-            return;
-        const presentation = {
+    function presentationOf(entry) {
+        return {
             durationMs: entry.durationMs,
             screenName: entry.screenName,
             anchorH: entry.anchorH,
             anchorV: entry.anchorV
         };
-        try {
-            rulesHook(presentation, snapshot(entry));
-        } catch (e) {
-            console.warn("notifications: rule hook threw, using defaults —", e);
+    }
+
+    // Write a presentation back onto an entry, key by key, validating each. A rule that
+    // answers nonsense loses that key and keeps the rest — never the notification.
+    function applyPresentation(entry, presentation) {
+        if (!presentation)
             return;
-        }
         // negative is a legal answer here: it means drawer-only (see the duration vocabulary in
         // NotifyConfig), so a rule can silence a source without dropping its notifications.
         if (typeof presentation.durationMs === "number" && isFinite(presentation.durationMs))
@@ -124,6 +123,22 @@ Singleton {
             entry.anchorH = presentation.anchorH;
         if (["top", "center", "bottom"].indexOf(presentation.anchorV) >= 0)
             entry.anchorV = presentation.anchorV;
+    }
+
+    // In-process JS hook, kept alongside the Lua engine: it is what tests and a nested
+    // harness use, and it runs synchronously before the engine so a Lua rule can still
+    // override it.
+    function applyRules(entry) {
+        if (!rulesHook)
+            return;
+        const presentation = presentationOf(entry);
+        try {
+            rulesHook(presentation, snapshot(entry));
+        } catch (e) {
+            console.warn("notifications: rule hook threw, using defaults —", e);
+            return;
+        }
+        applyPresentation(entry, presentation);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -138,6 +153,9 @@ Singleton {
             summary: entry.summary,
             body: entry.body,
             urgency: entry.urgency,
+            // the same value as a word, for rules: `n.urgency == 2` is a magic number in
+            // someone's config file, `n.urgencyName == "critical"` is not
+            urgencyName: ["low", "normal", "critical"][entry.urgency] || "normal",
             category: entry.category,
             image: entry.image,
             value: entry.value,
@@ -191,16 +209,33 @@ Singleton {
 
     // (Re)derive everything that isn't a straight binding: duration, rule overrides, timer.
     // Called on arrival and whenever a live notification is updated underneath us.
+    // The Lua engine answers on a pipe, so this half of refresh() is asynchronous. An entry
+    // that has not been answered for yet is `resolved: false` and the view skips it — a card
+    // must not appear at the default anchor and then jump to the one a rule chose. The
+    // engine's deadline (NotifyRules.timeoutMs, ~50ms) bounds that wait, and a shell with no
+    // rules, no lua, or a broken rules file calls back immediately, so this is the same
+    // single frame it always was.
     function refresh(entry) {
         entry.durationMs = defaultDurationMs(entry);
         applyRules(entry);
+        NotifyRules.evaluate(snapshot(entry), presentationOf(entry), presentation => {
+            // the notification may have been closed while the engine was thinking
+            if (popups.indexOf(entry) < 0)
+                return;
+            applyPresentation(entry, presentation);
+            finishRefresh(entry);
+        });
+    }
+
+    function finishRefresh(entry) {
+        entry.resolved = true;
         // a rule may have moved the entry to another anchor or monitor, so its stack — and with
-        // it whether it is visible at all — is only settled after the hook has run
+        // it whether it is visible at all — is only settled after the rules have run
         reflow();
         scheduleExpiry(entry);
         recordDrawerOnly(entry);
 
-        // History write, always after the rules hook: what is stored is what was actually
+        // History write, always after the rules: what is stored is what was actually
         // presented, not what arrived. Asynchronous and best-effort — see NotifyStore.
         if (entry.stored)
             NotifyStore.update(entry, snapshot(entry));
@@ -291,6 +326,12 @@ Singleton {
         const seen = {};
         for (var i = 0; i < popups.length; i++) {
             const entry = popups[i];
+            // not through the rules engine yet: no anchor is settled, so it can neither take a
+            // slot nor push another card into the queue (see refresh)
+            if (!entry.resolved) {
+                entry.queued = false;
+                continue;
+            }
             // drawer-only entries are in the model but were never on screen: they take no slot,
             // hold no timer, and must not push a visible card into the overflow queue
             if (entry.drawerOnly) {
@@ -592,6 +633,9 @@ Singleton {
             property string anchorV: "center"
             property string screenName: "" // "" = follow the focused monitor
 
+            // the rules engine has answered for this entry (or failed open): until then it is
+            // in the model but on no screen — see refresh()
+            property bool resolved: false
             // recorded but never popped (durationMs < 0) — see the duration vocabulary above
             readonly property bool drawerOnly: entry.durationMs < 0
             // already added to `unread`; drawer-only entries are counted on arrival, once

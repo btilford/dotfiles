@@ -79,6 +79,16 @@ Singleton {
             retentionCount: 2000
         })
 
+    // Lua rules engine (config/NotifyRules.qml + rules/engine.lua). `path` empty = the
+    // conventional ~/.config/quickshell/notifications.lua; QS_NOTIFY_RULES wins over both.
+    // timeoutMs is the fail-open budget: past it the notification is shown with its defaults
+    // and the interpreter is restarted.
+    readonly property var defaultRules: ({
+            enabled: true,
+            path: "",
+            timeoutMs: 50
+        })
+
     // Named presets exist so the two candidate layouts can be swapped with one word and compared
     // from real captures rather than taste (that comparison IS this story).
     readonly property var presets: ({
@@ -108,6 +118,7 @@ Singleton {
     property var motion: root.clone(root.defaultMotion)
     property var timing: root.clone(root.defaultTiming)
     property var store: root.clone(root.defaultStore)
+    property var rules: root.clone(root.defaultRules)
 
     readonly property string configPath: root.envOr("QS_NOTIFY_CONFIG", Quickshell.env("HOME") + "/.config/quickshell/notifications.json")
 
@@ -220,6 +231,15 @@ Singleton {
             // 0 on either = that limit is off; both off means the history grows forever
             retentionDays: root.pickInt(s, "retentionDays", root.defaultStore.retentionDays, 0),
             retentionCount: root.pickInt(s, "retentionCount", root.defaultStore.retentionCount, 0)
+        };
+
+        const r = cfg.rules;
+        root.rules = {
+            enabled: root.pickBool(r, "enabled", root.defaultRules.enabled),
+            path: root.pickString(r, "path", root.defaultRules.path),
+            // a 0 budget would mean "fail open before asking", which is just disabled with
+            // extra steps — clamp to something a lua round trip can actually make
+            timeoutMs: root.pickInt(r, "timeoutMs", root.defaultRules.timeoutMs, 5)
         };
     }
 

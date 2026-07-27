@@ -32,7 +32,7 @@ Singleton {
     readonly property var order: {
         const out = [];
         for (const e of Notifications.popups)
-            if (!e.drawerOnly)
+            if (!e.drawerOnly && e.resolved)
                 out.push(e);
         return out;
     }
@@ -190,7 +190,7 @@ Singleton {
         const key = Notifications.stackKey(entry);
         var rank = 0;
         for (const e of Notifications.popups) {
-            if (e.drawerOnly || Notifications.stackKey(e) !== key)
+            if (e.drawerOnly || !e.resolved || Notifications.stackKey(e) !== key)
                 continue;
             if (e === entry)
                 break;
