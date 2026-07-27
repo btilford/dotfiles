@@ -195,7 +195,14 @@ unset DISPLAY HYPRLAND_INSTANCE_SIGNATURE
 log "headless ${WIDTH}x${HEIGHT} session on $WL"
 
 # --- the shell under test ----------------------------------------------------
-qs -p "$SHELL_QML" > "$RUNTIME/qs.log" 2>&1 &
+# HYPR_NOTIFY is pinned rather than inherited. config/Shell.qml reads the backend
+# selection from ~/.config/hypr/shell.local.env — per-machine state that is not
+# stowed — and the nested session shares $HOME with the live one. Without this
+# the popup scene would capture on a host opted in to quickshell and silently
+# skip on one left at the swaync default, i.e. the harness output would depend on
+# the machine. The env wins over the file (see the comment in Shell.qml), and
+# nothing outside this script exports it, so the live desktop is unaffected.
+HYPR_NOTIFY=quickshell qs -p "$SHELL_QML" > "$RUNTIME/qs.log" 2>&1 &
 QS_PID=$!
 
 ready=0
@@ -323,9 +330,16 @@ scene_popup() {
     return 0
   fi
   clip popup-motion 3.0 notify-send -a "visual-capture" "Build finished" "3 packages rebuilt in 41s"
+  # The clip's notification is still on screen and has not expired. Without this
+  # the still catches both it and the one fired below, stacked — two identical
+  # cards, which reads as a bug in the shell rather than a duplicate in the rig.
+  ipc notifications dismissAll
+  settle 0.8
   notify-send -a "visual-capture" "Build finished" "3 packages rebuilt in 41s"
   settle 1.0
   still popup
+  ipc notifications dismissAll
+  settle 0.5
 }
 
 # Terminal surface. vhs renders a scripted GIF from a committed tape; without it

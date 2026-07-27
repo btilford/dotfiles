@@ -18,6 +18,13 @@ import Quickshell.Io
 // HYPR_NOTIFY selects the notification daemon. It defaults to swaync because only one process
 // can own org.freedesktop.Notifications: the qs server is not created at all unless this says
 // quickshell, so a machine that hasn't opted in can never contest the name with swaync.
+//
+// Every key can also be set in the ENVIRONMENT, which wins over the file. The file is per-machine
+// state at a fixed $HOME path, so without this a nested session (the visual-capture harness, a
+// throwaway `qs -p` rig, CI) inherits whatever the host happens to be set to and cannot select a
+// backend of its own — the shell would be untestable in isolation. See "Worktrees, and why config
+// needs a path seam" in the repo CLAUDE.md. Nothing exports these in a normal login session, so
+// the live desktop keeps reading the file exactly as before.
 Singleton {
     id: root
 
@@ -62,11 +69,20 @@ Singleton {
                     notify = m[2];
             }
         }
-        root.barBackend = bar;
-        root.launcherBackend = launcher;
-        root.barDev = dev;
-        root.effectsMode = effects;
-        root.notifyBackend = notify;
+        // environment overrides the file, key by key — an unset var leaves the file's value alone
+        root.barBackend = envOr("HYPR_BAR", bar);
+        root.launcherBackend = envOr("HYPR_LAUNCHER", launcher);
+        const devRaw = envOr("HYPR_BAR_DEV", dev ? "1" : "0");
+        root.barDev = (devRaw === "1" || devRaw === "true");
+        root.effectsMode = envOr("QS_EFFECTS", effects);
+        root.notifyBackend = envOr("HYPR_NOTIFY", notify);
+    }
+
+    // Quickshell.env returns undefined for an unset variable and "" for an empty one; treat both
+    // as absent so `HYPR_NOTIFY= qs` doesn't silently select a nameless backend.
+    function envOr(key: string, fallback: string): string {
+        const v = Quickshell.env(key);
+        return (v === undefined || v === null || v === "") ? fallback : v;
     }
 
     FileView {
