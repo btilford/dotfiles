@@ -10,3 +10,7 @@ glab-cli/.config/glab-cli/config.yml
 # Capture output from `mise run screenshots` — the archived copies live in the
 # notes vault, never here.
 /build/
+
+# Per-machine notification config (copy of notifications.example.json) — user state,
+# never stowed or tracked.
+quickshell/.config/quickshell/notifications.json

@@ -6,4 +6,5 @@ singleton Pointer Pointer.qml
 singleton Clipboard Clipboard.qml
 singleton Vpn Vpn.qml
 singleton Notifications Notifications.qml
+singleton NotifyConfig NotifyConfig.qml
 singleton Connectors Connectors.qml

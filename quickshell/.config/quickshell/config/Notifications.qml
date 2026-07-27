@@ -19,30 +19,16 @@ Singleton {
     id: root
 
     // ---------------------------------------------------------------------------------------
-    // Config seams. Placement/motion (story: notif-placement-motion) and timing (story:
-    // notif-timing) become real config surfaces later; they are read from here NOW so nothing
-    // downstream hardcodes a corner or a duration. Change the defaults here, not in the view.
+    // Config. Placement, motion and timing are USER config now (story: notif-placement-motion):
+    // they live in ~/.config/quickshell/notifications.json and hot-reload on save, with the QML
+    // constants in NotifyConfig as the fallback. Read them from here, never hardcode an anchor
+    // or a duration downstream — and never write to them, the file is the source of truth.
     // ---------------------------------------------------------------------------------------
 
-    // "left" | "center" | "right" x "top" | "center" | "bottom".
-    // Default is deliberately NOT top-right: that corner covers application controls.
-    readonly property QtObject placement: QtObject {
-        readonly property string anchorH: "right"
-        readonly property string anchorV: "center"
-        readonly property string stack: "down"   // "down" = newest on top, "up" = newest at bottom
-        readonly property int margin: 24         // gap to the screen edge
-        readonly property int spacing: 12        // gap between cards
-        readonly property int cardWidth: 420
-        readonly property int maxVisible: 5      // extras wait in `popups` until a slot frees
-    }
-
+    readonly property var placement: NotifyConfig.placement
+    readonly property var motion: NotifyConfig.motion
     // Durations in ms. 0 = sticky (never auto-expires).
-    readonly property QtObject timing: QtObject {
-        readonly property int low: 3000
-        readonly property int normal: 6000
-        readonly property int critical: 0
-        readonly property bool respectAppTimeout: true
-    }
+    readonly property var timing: NotifyConfig.timing
 
     // ---------------------------------------------------------------------------------------
     // Live state
@@ -51,6 +37,46 @@ Singleton {
     // Newest first. Entries are plain QtObjects (see entryComponent) — data, not views.
     property var popups: []
     readonly property int count: popups.length
+
+    // Popups actually on screen: the rest are queued behind the overflow indicator, holding
+    // their place (and their unstarted expiry timer) until a slot frees.
+    readonly property int visibleCount: {
+        var n = 0;
+        for (var i = 0; i < popups.length; i++)
+            if (!popups[i].queued)
+                n++;
+        return n;
+    }
+
+    // Notifications that have timed out into the bell since it was last read. Dismissing a card
+    // by hand does NOT count — that is the user saying they have dealt with it.
+    property int unread: 0
+    function markRead() {
+        root.unread = 0;
+    }
+
+    // Emitted when a dwelling card finishes its flight into the bar bell, so the bell can react
+    // to the landing rather than guess at the timing.
+    signal dwellLanded(string screenName)
+
+    // Bell positions in screen coordinates, keyed by monitor name, published by the bar widget
+    // (components/bar/NotificationBell.qml). The singleton only stores them: it holds no opinion
+    // about pixels, but the dwell has to know whether a target exists at all before it starts.
+    property var bellAnchors: ({})
+    function setBellAnchor(screenName, x, y) {
+        const next = Object.assign({}, root.bellAnchors);
+        next[screenName] = {
+            x: x,
+            y: y
+        };
+        root.bellAnchors = next;
+    }
+    function clearBellAnchor(screenName) {
+        const next = Object.assign({}, root.bellAnchors);
+        delete next[screenName];
+        root.bellAnchors = next;
+    }
+    readonly property bool bellAvailable: Object.keys(bellAnchors).length > 0
 
     readonly property bool serverActive: serverLoader.item !== null
 
@@ -135,7 +161,8 @@ Singleton {
             timestamp: new Date(),
             anchorH: placement.anchorH,
             anchorV: placement.anchorV,
-            screenName: ""
+            // "" = follow the focused monitor. A rule (or the config) can name one instead.
+            screenName: placement.screenName
         });
 
         const list = popups.slice();
@@ -155,6 +182,9 @@ Singleton {
     function refresh(entry) {
         entry.durationMs = defaultDurationMs(entry);
         applyRules(entry);
+        // a rule may have moved the entry to another anchor or monitor, so its stack — and with
+        // it whether it is visible at all — is only settled after the hook has run
+        reflow();
         scheduleExpiry(entry);
     }
 
@@ -166,17 +196,67 @@ Singleton {
     }
 
     // ---------------------------------------------------------------------------------------
+    // Overflow. Each (monitor, anchor) stack shows at most placement.maxVisible cards; the rest
+    // stay in the model as `queued` and surface as a "+N more" indicator in the view.
+    //
+    // A queued entry's expiry timer is NOT running. Counting down while off screen would expire
+    // notifications the user never saw — "queues without loss" has to mean the dwell starts when
+    // the card appears, not when it arrived.
+    // ---------------------------------------------------------------------------------------
+
+    function stackKey(entry) {
+        return entry.screenName + "|" + entry.anchorH + "|" + entry.anchorV;
+    }
+
+    function reflow() {
+        const seen = {};
+        for (var i = 0; i < popups.length; i++) {
+            const entry = popups[i];
+            const key = stackKey(entry);
+            const rank = seen[key] === undefined ? 0 : seen[key];
+            seen[key] = rank + 1;
+
+            const queued = rank >= placement.maxVisible;
+            if (queued === entry.queued)
+                continue;
+            entry.queued = queued;
+            if (queued)
+                entry.expiryTimer.stop();
+            else
+                scheduleExpiry(entry); // its dwell starts now that it is actually on screen
+        }
+    }
+
+    // How many entries are queued behind the visible cards of one stack — the "+N more" count.
+    function overflowFor(screenName, anchorH, anchorV) {
+        var n = 0;
+        for (var i = 0; i < popups.length; i++) {
+            const e = popups[i];
+            if (e.queued && e.screenName === screenName && e.anchorH === anchorH && e.anchorV === anchorV)
+                n++;
+        }
+        return n;
+    }
+
+    onPopupsChanged: reflow()
+    // config edits are live: raising maxVisible must release queued cards immediately
+    onPlacementChanged: reflow()
+
+    // ---------------------------------------------------------------------------------------
     // Expiry — every timeout in the shell routes through here (story: notif-timing extends it
     // with hover-pause, burst shortening and `0` = drawer-only).
     // ---------------------------------------------------------------------------------------
 
     function defaultDurationMs(entry) {
-        // expireTimeout is in seconds: >0 explicit, 0 = never expire, <0 = server default.
+        // expireTimeout is MILLISECONDS, straight off the wire (org.freedesktop.Notifications
+        // Notify's expire_timeout argument): >0 explicit, 0 = never expire, <0 = server default.
+        // It was read as seconds until this story, which multiplied every client-set timeout by
+        // 1000 — `notify-send -t 1500` sat on screen for 25 minutes instead of 1.5 seconds.
         const t = entry.notification ? entry.notification.expireTimeout : -1;
         if (t === 0)
             return 0;
         if (timing.respectAppTimeout && t > 0)
-            return Math.round(t * 1000);
+            return Math.round(t);
         if (entry.urgency === NotificationUrgency.Critical)
             return timing.critical;
         if (entry.urgency === NotificationUrgency.Low)
@@ -188,6 +268,8 @@ Singleton {
         entry.expiryTimer.stop();
         if (entry.durationMs <= 0)
             return; // sticky
+        if (entry.queued)
+            return; // off screen: the clock starts when a slot frees (see reflow)
         entry.expiryTimer.interval = entry.durationMs;
         entry.expiryTimer.start();
     }
@@ -202,18 +284,54 @@ Singleton {
         if (!entry)
             return;
         entry.expiryTimer.stop();
+        // a hand-dismissed card is gone, not dwelling: no flight, and it never reaches the bell
+        entry.leaveTimer.stop();
+        entry.leaving = false;
         if (entry.notification)
             entry.notification.dismiss(); // → NotificationClosed(reason=Dismissed)
         forget(entry);
     }
 
+    // Timeout. With the dwell motion configured the card does not vanish: it flies into the bar
+    // bell first, and only then is the notification closed.
+    //
+    // The D-Bus close fires at the END of the flight, not the start, because
+    // `notification.expire()` emits NotificationClosed, which drops the entry from the model and
+    // takes the card with it — the flight has to outlive the object it is animating. dwellMs is
+    // an animation duration (~half a second), so no client is kept waiting in any real sense.
     function expire(entry) {
-        if (!entry)
+        if (!entry || entry.leaving)
             return;
         entry.expiryTimer.stop();
+
+        // The dwell needs a bell to fly into. With no bar on screen (or exit configured to
+        // something else) the card takes the plain exit instead of flying at a target that
+        // isn't there.
+        const toBell = motion.exit === "dwell" && bellAvailable && !entry.queued;
+        const ms = entry.queued || motion.exit === "none" ? 0 : (toBell ? motion.dwellMs : motion.exitMs);
+        if (ms > 0) {
+            entry.dwellsToBell = toBell;
+            entry.leaving = true;
+            entry.leaveTimer.interval = ms;
+            entry.leaveTimer.start();
+            return;
+        }
+        finishExpire(entry);
+    }
+
+    function finishExpire(entry) {
+        if (!entry)
+            return;
+        const landed = entry.leaving && entry.dwellsToBell;
+        const screenName = entry.screenName;
+        entry.leaveTimer.stop();
         if (entry.notification)
             entry.notification.expire(); // → NotificationClosed(reason=Expired)
         forget(entry);
+        if (landed) {
+            root.unread++;
+            root.dwellLanded(screenName);
+        }
     }
 
     function dismissAll() {
@@ -237,6 +355,7 @@ Singleton {
         if (!entry)
             return;
         entry.expiryTimer.stop();
+        entry.leaveTimer.stop();
         entry.destroy();
     }
 
@@ -277,9 +396,21 @@ Singleton {
             property string anchorV: "center"
             property string screenName: "" // "" = follow the focused monitor
 
+            // beyond placement.maxVisible for its stack: in the model, not on screen (see reflow)
+            property bool queued: false
+            // timed out and currently playing its exit; the D-Bus close waits for the animation
+            property bool leaving: false
+            // ...and that exit is the dwell flight into the bar bell, rather than a plain fade
+            property bool dwellsToBell: false
+
             property Timer expiryTimer: Timer {
                 repeat: false
                 onTriggered: root.expire(entry)
+            }
+
+            property Timer leaveTimer: Timer {
+                repeat: false
+                onTriggered: root.finishExpire(entry)
             }
 
             property Connections notificationConn: Connections {

@@ -1,0 +1,44 @@
+{
+  "_comment": [
+    "Copy to ~/.config/quickshell/notifications.json to change notification placement,",
+    "motion or timing. The live shell re-reads it on save — no restart, no QML edit.",
+    "Every key is optional; anything missing or invalid falls back to the shipped default",
+    "in config/NotifyConfig.qml. Delete the file to go back to defaults.",
+    "",
+    "preset: right-center (default) | bottom-center | top-right.",
+    "        The placement block below overrides individual preset values.",
+    "        QS_NOTIFY_PRESET in the environment wins over this file.",
+    "anchorH: left | center | right      anchorV: top | center | bottom",
+    "stack:   down (newest nearest the top) | up (newest nearest the bottom)",
+    "screenName: monitor name to pin popups to; empty = whichever monitor has focus.",
+    "        Per-source pinning is a rules-engine job (Notifications.rulesHook).",
+    "entrance: slide | scale | fade | none",
+    "exit:     dwell (fly into the bar bell) | slide | fade | none",
+    "timing:   ms per urgency; 0 = sticky. respectAppTimeout honours the client's request."
+  ],
+  "preset": "right-center",
+  "placement": {
+    "anchorH": "right",
+    "anchorV": "center",
+    "stack": "down",
+    "margin": 24,
+    "spacing": 12,
+    "cardWidth": 420,
+    "maxVisible": 5,
+    "screenName": ""
+  },
+  "motion": {
+    "entrance": "slide",
+    "exit": "dwell",
+    "entranceMs": 260,
+    "exitMs": 200,
+    "dwellMs": 460,
+    "reflowMs": 200
+  },
+  "timing": {
+    "low": 3000,
+    "normal": 6000,
+    "critical": 0,
+    "respectAppTimeout": true
+  }
+}
