@@ -265,6 +265,27 @@ handler. Entered with `qs ipc call notifications toggleFocus` (SUPER + n).
 - Action hints by number belong to notif-actions: the server still advertises
   `actionsSupported: false`, so no action ever reaches the model to hint at.
 
+### Actions — design settled, not built (story: notif-actions)
+
+The shape is decided (spike `notif-actions-config-spike`, AD-012, design note
+`Projects/hyprland-dotfiles/features/notification-actions-design` in the notes vault). Build to
+it rather than re-deciding:
+
+- **Custom actions carry their own matchers** — a flat list of
+  `match = { app, category, urgency, summary, body, hint.* } → label, key, run | prompt`, read
+  like the hyprland keybind table. The Lua rules engine may **veto** actions
+  (`presentation.actions = false`); it never defines them.
+- **Spec actions and custom actions render identically** and share one key-hint sequence, spec
+  actions first, so a client's own "Reply" never loses its key to a config rule.
+- **Substitutions are argv elements** (`{id}`, `{summary}`, `{input}`, `{hint:NAME}`) — no
+  `sh -c`, ever. Any app on the session bus can set a summary, so this is a security boundary.
+- **Prompts** are inline on the card, offered only for a client inline-reply hint, an allowlisted
+  category (`im.received`, `email.arrived`, `x-vault.reminder`), or an action that declares one.
+- **Snooze is a store row**, not a second scheduler: `state = 'snoozed'` + `wake_at`, one armed
+  timer, elapsed rows fired at startup beside the existing `orphaned` sweep.
+- `actionsSupported` / `inlineReplySupported` flip true **in that story and not before** —
+  advertising a capability we don't render makes clients send content we display as garbage.
+
 ### Testing notifications without a Hyprland session
 
 Popups need a compositor, and the D-Bus name is per-session-bus, so the test rig is a nested
