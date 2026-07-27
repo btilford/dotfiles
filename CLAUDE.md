@@ -10,6 +10,40 @@ Stow-managed dotfiles for btilford. Each top-level directory is a stow package m
 - Always stow one package at a time with `--no-folding` to prevent directory symlinking and protect local-only files
 - `hyprland/.config/hypr/wallpaper_effects/.wallpaper_current` is a committed seed (fresh installs need it to exist), but wallpaper rotation rewrites it through the stow symlink every ~30 min. After cloning, run `git update-index --skip-worktree hyprland/.config/hypr/wallpaper_effects/.wallpaper_current` once per machine so the churn never lands in git. Never commit content updates to it.
 
+## Worktrees, and why config needs a path seam
+
+`~/dotfiles` on `master` is the **single deploy checkout** — every stow symlink
+resolves there. Work happens in worktrees (`~/worktrees/<branch>/dotfiles`),
+including background agent sessions, so that a half-finished edit is never live
+on the running desktop. For a repo that *is* the running system, that insulation
+is the point.
+
+The consequence: a worktree edit is invisible to the running system until it is
+merged and `~/dotfiles` pulls. Whether that blocks testing depends entirely on
+whether the tool accepts a path override.
+
+**Config we own resolves env first, fixed path as fallback.** Anything that can
+only be read from a hardcoded `$HOME` path is a testability bug in our config,
+not a reason to work in the live checkout — it means the component cannot be
+exercised in isolation by a harness, a nested session, or CI.
+
+Tools that already have a seam, and the flag to use:
+
+| Tool | Test a worktree copy with |
+|------|---------------------------|
+| quickshell | `qs -p <worktree>/quickshell/.config/quickshell/shell.qml` |
+| tmux | `tmux -L <private-socket> -f <worktree>/tmux/.tmux.conf` |
+| metapac | `metapac --config-dir <worktree>/metapac/.config/metapac` |
+| nvim | `nvim -u <worktree>/nvim/.config/nvim/init.lua` |
+
+No seam, so merge first and verify live: shell rc files (sourced from fixed `~`
+paths at login) and Hyprland's own config discovery (`-c` applies at launch
+only, `hyprctl reload` always re-reads `~/.config/hypr`).
+
+`scripts/visual-capture.sh` is the worked example — it defaults to the working
+tree for both the shell entry point and the tmux config, so a capture shows what
+is in the branch rather than what happens to be stowed.
+
 ## Structure
 
 - **Cross-platform**: `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`
