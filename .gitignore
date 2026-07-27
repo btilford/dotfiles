@@ -6,3 +6,7 @@ pi-agent/.pi/agent/models.json
 # glab writes its token + volatile timestamps here — never track it.
 # Provisioning: `glab auth login` then `mise run glab:config`.
 glab-cli/.config/glab-cli/config.yml
+
+# Capture output from `mise run screenshots` — the archived copies live in the
+# notes vault, never here.
+/build/

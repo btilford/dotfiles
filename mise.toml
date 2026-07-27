@@ -46,6 +46,23 @@ glab config set git_protocol ssh
 glab config set -h gitlab.example.com git_protocol https
 """
 
+# ---------------------------------------------------------------------------
+# Visual history — headless capture of the quickshell surfaces, archived into
+# the notes vault ($DOTFILES_SCREENSHOT_ARCHIVE). See scripts/visuals/README.md.
+# ---------------------------------------------------------------------------
+
+[tasks.screenshots]
+description = "Capture the quickshell surfaces in a headless nested compositor"
+run = "scripts/visual-capture.sh"
+
+[tasks."screenshots:archive"]
+description = "Archive the latest captures into the vault history + regenerate the pages"
+run = "scripts/visual-archive.sh"
+
+[tasks."screenshots:history"]
+description = "Regenerate the history pages from the ledger (no new captures)"
+run = "scripts/render-visual-history.py"
+
 [tasks.lint]
 description = "Run every CI gate"
 depends = ["lint:shell", "lint:secrets", "lint:yaml", "lint:json", "lint:nu", "lint:fish"]

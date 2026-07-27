@@ -41,6 +41,9 @@ fi
 # never in the repo. `mise run screenshots:archive` refuses to run without this.
 export VOL_SCREENSHOT_ARCHIVE="${HOME}/Documents/personal-notes/notes/Projects/vol/screenshots"
 
+# Same deal for this repo's own desktop visuals (quickshell surfaces).
+export DOTFILES_SCREENSHOT_ARCHIVE="${HOME}/Documents/personal-notes/notes/Projects/hyprland-dotfiles/screenshots"
+
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="${HOME}/.sdkman"
 [[ -s "${HOME}/.sdkman/bin/sdkman-init.sh" ]] && source "${HOME}/.sdkman/bin/sdkman-init.sh"
