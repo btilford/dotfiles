@@ -1,0 +1,407 @@
+#!/usr/bin/env bash
+# Headless visual capture of the quickshell desktop surfaces.
+#
+# Usage:
+#   scripts/visual-capture.sh [--scene NAME]... [--out DIR] [--size WxH]
+#                             [--shell FILE] [--list] [--keep] [--no-motion]
+#
+#   --scene NAME  capture only this surface; repeatable. Default: every scene
+#                 that can run (see --list).
+#   --out DIR     where captures land. Default: build/visuals/ in this repo.
+#   --size WxH    headless output resolution. Default: 1920x1080.
+#   --shell FILE  quickshell entry point. Default: the copy in this repo, so a
+#                 capture reflects the working tree, not what is stowed.
+#   --list        print the scene table and exit.
+#   --keep        leave the nested session running afterwards (debugging).
+#   --no-motion   stills only; skip the GIF clips.
+#
+# Boots a private headless wlroots compositor (sway, WLR_BACKENDS=headless) on
+# its own session bus and its own $XDG_RUNTIME_DIR, runs `qs` inside it, drives
+# each surface through quickshell IPC, and captures:
+#
+#   stills  grim -> <surface>-<timestamp>.png
+#   motion  grim frame loop -> ffmpeg -> <surface>-motion-<timestamp>.gif
+#
+# Nothing here touches the live session: no physical display, no logged-in
+# graphical session, and no seat are required, so this runs unattended over ssh
+# or from a background agent. Feed the results to scripts/visual-archive.sh.
+#
+# Why sway and not Hyprland: Hyprland 0.56 (aquamarine) cannot start headless —
+# with no DRM session and no host compositor it dies with "no allocator
+# available", and nesting it inside sway fails because aquamarine binds
+# xdg_wm_base v6 while wlroots 0.19 offers v5. See Projects/hyprland-dotfiles/
+# decisions.md in the vault.
+#
+# DANGER, learned the hard way: a bare `Hyprland -c ...` on a machine with a
+# live session picks the DRM backend, takes DRM master, and kills the running
+# session and every app in it. Never start a compositor from this harness
+# without BOTH an isolated $XDG_RUNTIME_DIR and a forced headless backend
+# (sway: WLR_BACKENDS=headless; Hyprland, if it ever becomes viable:
+# AQ_HEADLESS_ONLY=1).
+set -uo pipefail
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+OUT="$REPO/build/visuals"
+SHELL_QML="$REPO/quickshell/.config/quickshell/shell.qml"
+SIZE="1920x1080"
+KEEP=0
+MOTION=1
+scenes=()
+
+# Motion tuning. grim -t ppm sustains ~60 fps on this hardware, so a plain frame
+# loop is fast enough for UI animation and needs no extra tooling; the GIF is
+# downscaled and frame-capped to stay phone-browsable.
+FRAME_INTERVAL="0.06"
+GIF_FPS=15
+GIF_WIDTH=960
+
+ALL_SCENES=(bar drawer modal popup tmux)
+
+log() { printf '\033[1;36m[capture]\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m[capture]\033[0m %s\n' "$*" >&2; }
+die() {
+  printf '\033[1;31m[capture]\033[0m %s\n' "$*" >&2
+  exit 1
+}
+
+usage() {
+  sed -n '2,30p' "$0"
+  exit 0
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --scene)
+      scenes+=("${2:-}")
+      shift 2
+      ;;
+    --out)
+      OUT="${2:-}"
+      shift 2
+      ;;
+    --size)
+      SIZE="${2:-}"
+      shift 2
+      ;;
+    --shell)
+      SHELL_QML="${2:-}"
+      shift 2
+      ;;
+    --keep)
+      KEEP=1
+      shift
+      ;;
+    --no-motion)
+      MOTION=0
+      shift
+      ;;
+    --list)
+      printf '%-8s %s\n' \
+        bar "top bar (always available)" \
+        drawer "launcher drawer — quickshell IPC" \
+        modal "session/power overlay — quickshell IPC" \
+        popup "notification popup — needs the notification server (story 1)" \
+        tmux "terminal surface — vhs tape if installed, else foot + grim"
+      exit 0
+      ;;
+    -h | --help) usage ;;
+    *) die "unknown argument: $1 (try --help)" ;;
+  esac
+done
+
+[ ${#scenes[@]} -eq 0 ] && scenes=("${ALL_SCENES[@]}")
+[ -f "$SHELL_QML" ] || die "no quickshell entry point at $SHELL_QML"
+
+for tool in sway qs grim ffmpeg swaymsg; do
+  command -v "$tool" > /dev/null 2>&1 || die "missing required tool: $tool"
+done
+
+WIDTH="${SIZE%x*}"
+HEIGHT="${SIZE#*x}"
+case "$WIDTH$HEIGHT" in *[!0-9]*) die "bad --size: $SIZE (want WxH)" ;; esac
+
+TS="$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$OUT" || die "cannot write to $OUT"
+
+# Short path on purpose: a wayland socket path over 108 bytes is rejected by
+# libwayland, and the scratch dirs agents run under are long.
+RUNTIME="/tmp/qs-visuals.$$"
+
+# Private tmux server for the terminal scene — see scene_tmux for why this must
+# never be the default socket. The config comes from the working tree, matching
+# --shell: a capture reflects what is in the repo, not what happens to be stowed.
+TMUX_SOCKET="qs-visuals-$$"
+TMUX_CONF="$REPO/tmux/.tmux.conf"
+
+SWAY_PID=""
+QS_PID=""
+DBUS_PID=""
+
+cleanup() {
+  [ "$KEEP" = "1" ] && {
+    log "--keep: session left at XDG_RUNTIME_DIR=$RUNTIME WAYLAND_DISPLAY=$WL"
+    return
+  }
+  tmux -L "$TMUX_SOCKET" kill-server 2> /dev/null
+  [ -n "$QS_PID" ] && kill "$QS_PID" 2> /dev/null
+  [ -n "$SWAY_PID" ] && kill "$SWAY_PID" 2> /dev/null
+  [ -n "$DBUS_PID" ] && kill "$DBUS_PID" 2> /dev/null
+  sleep 0.3
+  rm -rf "$RUNTIME"
+}
+trap cleanup EXIT INT TERM
+
+rm -rf "$RUNTIME"
+mkdir -p "$RUNTIME" || die "cannot create $RUNTIME"
+chmod 700 "$RUNTIME"
+
+# --- private session bus -----------------------------------------------------
+# Synthetic notifications must reach the shell under test, never the real
+# desktop's notification daemon, so the nested session gets its own bus.
+if command -v dbus-daemon > /dev/null 2>&1; then
+  DBUS_ADDR="$(dbus-daemon --session --fork --print-address --print-pid=3 3> "$RUNTIME/dbus.pid")"
+  DBUS_PID="$(cat "$RUNTIME/dbus.pid" 2> /dev/null)"
+  export DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR"
+else
+  warn "dbus-daemon not found — the popup scene cannot fire synthetic notifications"
+fi
+
+# --- headless compositor -----------------------------------------------------
+cat > "$RUNTIME/sway.conf" << EOF
+# Generated by scripts/visual-capture.sh — the resolution comes from --size.
+output HEADLESS-1 mode ${WIDTH}x${HEIGHT}@60Hz position 0 0
+default_border none
+default_floating_border none
+focus_follows_mouse no
+EOF
+
+env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE \
+  XDG_RUNTIME_DIR="$RUNTIME" \
+  WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 \
+  sway -c "$RUNTIME/sway.conf" > "$RUNTIME/sway.log" 2>&1 &
+SWAY_PID=$!
+
+WL=""
+for _ in $(seq 1 50); do
+  WL="$(find "$RUNTIME" -maxdepth 1 -name 'wayland-*' ! -name '*.lock' -printf '%f\n' 2> /dev/null | head -1)"
+  [ -n "$WL" ] && break
+  sleep 0.2
+done
+[ -n "$WL" ] || die "headless compositor never came up — see $RUNTIME/sway.log"
+
+export XDG_RUNTIME_DIR="$RUNTIME" WAYLAND_DISPLAY="$WL"
+unset DISPLAY HYPRLAND_INSTANCE_SIGNATURE
+log "headless ${WIDTH}x${HEIGHT} session on $WL"
+
+# --- the shell under test ----------------------------------------------------
+# HYPR_NOTIFY is pinned rather than inherited. config/Shell.qml reads the backend
+# selection from ~/.config/hypr/shell.local.env — per-machine state that is not
+# stowed — and the nested session shares $HOME with the live one. Without this
+# the popup scene would capture on a host opted in to quickshell and silently
+# skip on one left at the swaync default, i.e. the harness output would depend on
+# the machine. The env wins over the file (see the comment in Shell.qml), and
+# nothing outside this script exports it, so the live desktop is unaffected.
+HYPR_NOTIFY=quickshell qs -p "$SHELL_QML" > "$RUNTIME/qs.log" 2>&1 &
+QS_PID=$!
+
+ready=0
+for _ in $(seq 1 100); do
+  grep -q "Configuration Loaded" "$RUNTIME/qs.log" 2> /dev/null && {
+    ready=1
+    break
+  }
+  kill -0 "$QS_PID" 2> /dev/null || break
+  sleep 0.2
+done
+[ "$ready" = "1" ] || die "quickshell never loaded — see $RUNTIME/qs.log"
+sleep 1.5 # first frame + entry animations of whatever is visible at startup
+log "quickshell up ($SHELL_QML)"
+
+# `--` is load-bearing: `show` is also a name of an `ipc` subcommand, so without
+# it CLI11 swallows `call <target> show` and prints the handler listing instead
+# of calling anything. --pid pins the call to the instance this script started.
+ipc() { qs ipc --pid "$QS_PID" call -- "$@" > /dev/null 2>&1; }
+settle() { sleep "${1:-0.8}"; }
+
+captured=0
+
+still() {
+  local name="$1" dest="$OUT/$1-$TS.png"
+  if grim "$dest" 2> /dev/null; then
+    command -v oxipng > /dev/null 2>&1 && oxipng -q -o2 --strip safe "$dest" > /dev/null 2>&1
+    log "still  $name -> $dest"
+    captured=$((captured + 1))
+  else
+    warn "still $name failed"
+  fi
+}
+
+# clip <name> <seconds> <trigger command...>
+# Records the screen while the trigger runs, then encodes a GIF. Recording
+# starts first so the frame before the animation is in the clip.
+clip() {
+  local name="$1" secs="$2"
+  shift 2
+  [ "$MOTION" = "1" ] || return 0
+  local frames="$RUNTIME/frames-$name" dest="$OUT/$name-$TS.gif"
+  mkdir -p "$frames"
+
+  (
+    i=0
+    deadline=$(($(date +%s%N) + $(awk -v s="$secs" 'BEGIN{printf "%d", s*1e9}')))
+    while [ "$(date +%s%N)" -lt "$deadline" ]; do
+      grim -t ppm "$frames/$(printf '%05d' "$i").ppm" 2> /dev/null || break
+      i=$((i + 1))
+      sleep "$FRAME_INTERVAL"
+    done
+  ) &
+  local rec=$!
+
+  sleep 0.2
+  "$@"
+  wait "$rec"
+
+  local n
+  n="$(find "$frames" -name '*.ppm' | wc -l)"
+  if [ "$n" -lt 2 ]; then
+    warn "clip $name captured $n frame(s) — skipped"
+    rm -rf "$frames"
+    return 0
+  fi
+
+  if ffmpeg -y -loglevel error -framerate "$GIF_FPS" -i "$frames/%05d.ppm" \
+    -vf "fps=$GIF_FPS,scale=$GIF_WIDTH:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=3" \
+    -loop 0 "$dest" 2> "$RUNTIME/ffmpeg-$name.log"; then
+    log "motion $name -> $dest ($n frames, $(du -h "$dest" | cut -f1))"
+    captured=$((captured + 1))
+  else
+    warn "clip $name: ffmpeg failed — see $RUNTIME/ffmpeg-$name.log"
+  fi
+  rm -rf "$frames"
+}
+
+# --- scenes ------------------------------------------------------------------
+
+scene_bar() {
+  settle
+  still bar
+}
+
+scene_drawer() {
+  ipc launcher show drun
+  settle
+  still drawer
+  ipc launcher hide
+  settle 0.6
+  clip drawer-motion 2.2 ipc launcher show drun
+  ipc launcher hide
+  settle 0.6
+}
+
+scene_modal() {
+  ipc session show
+  settle
+  still modal
+  ipc session hide
+  settle 0.6
+  clip modal-motion 2.2 ipc session show
+  ipc session hide
+  settle 0.6
+}
+
+# Fires a synthetic notification on the nested bus. Until the notification
+# server (epic story 1) exists nothing owns org.freedesktop.Notifications there,
+# so the scene reports why it skipped instead of archiving an empty desktop.
+scene_popup() {
+  command -v notify-send > /dev/null 2>&1 || {
+    warn "popup: notify-send not installed — skipped"
+    return 0
+  }
+  [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] || {
+    warn "popup: no private session bus — skipped"
+    return 0
+  }
+  # --acquired only: without it the list includes activatable names from the
+  # system's service files, which would make this check always pass.
+  if command -v busctl > /dev/null 2>&1 &&
+    ! busctl --user list --acquired --no-legend 2> /dev/null | grep -q 'org.freedesktop.Notifications'; then
+    warn "popup: nothing owns org.freedesktop.Notifications in the nested session — skipped (needs the notification server)"
+    return 0
+  fi
+  clip popup-motion 3.0 notify-send -a "visual-capture" "Build finished" "3 packages rebuilt in 41s"
+  # The clip's notification is still on screen and has not expired. Without this
+  # the still catches both it and the one fired below, stacked — two identical
+  # cards, which reads as a bug in the shell rather than a duplicate in the rig.
+  ipc notifications dismissAll
+  settle 0.8
+  notify-send -a "visual-capture" "Build finished" "3 packages rebuilt in 41s"
+  settle 1.0
+  still popup
+  ipc notifications dismissAll
+  settle 0.5
+}
+
+# Terminal surface. vhs renders a scripted GIF from a committed tape; without it
+# the harness falls back to a real terminal inside the nested compositor, which
+# still gives the tmux status line a visual record.
+#
+# Both paths run tmux on a PRIVATE server (-L "$TMUX_SOCKET") loaded from the
+# working tree's .tmux.conf, never the default socket. Attaching to the user's
+# live tmux server would (a) put whatever they are actually working on into a
+# capture destined for the vault, and (b) let this harness kill sessions out
+# from under them — a background agent lives in that server.
+scene_tmux() {
+  if command -v vhs > /dev/null 2>&1; then
+    local dest="$OUT/tmux-motion-$TS.gif"
+    if (cd "$OUT" && VHS_NO_SANDBOX=1 \
+      QS_VISUALS_TMUX_SOCKET="$TMUX_SOCKET" QS_VISUALS_TMUX_CONF="$TMUX_CONF" \
+      vhs "$REPO/scripts/visuals/tmux.tape" -o "$dest" > "$RUNTIME/vhs.log" 2>&1); then
+      log "motion tmux -> $dest"
+      captured=$((captured + 1))
+    else
+      warn "tmux: vhs failed — see $RUNTIME/vhs.log"
+    fi
+  fi
+
+  local term=""
+  for t in foot kitty wezterm alacritty; do
+    command -v "$t" > /dev/null 2>&1 && {
+      term="$t"
+      break
+    }
+  done
+  [ -n "$term" ] || {
+    warn "tmux: no terminal emulator installed — skipped"
+    return 0
+  }
+  command -v tmux > /dev/null 2>&1 || {
+    warn "tmux: tmux not installed — skipped"
+    return 0
+  }
+
+  "$term" -e tmux -L "$TMUX_SOCKET" -f "$TMUX_CONF" new-session -A -s visuals \
+    > /dev/null 2>&1 &
+  local termpid=$!
+  settle 3.0
+  still tmux
+  kill "$termpid" 2> /dev/null
+  tmux -L "$TMUX_SOCKET" kill-server 2> /dev/null
+  settle 0.5
+}
+
+for scene in "${scenes[@]}"; do
+  case " ${ALL_SCENES[*]} " in
+    *" $scene "*) ;;
+    *)
+      warn "unknown scene: $scene (try --list)"
+      continue
+      ;;
+  esac
+  log "scene: $scene"
+  "scene_$scene"
+done
+
+[ "$captured" -eq 0 ] && die "nothing captured"
+log "$captured capture(s) in $OUT"
+log "archive them with: mise run screenshots:archive -- --ref <ref> --note '<what changed>'"
