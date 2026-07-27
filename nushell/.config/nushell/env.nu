@@ -31,6 +31,24 @@ if ($bun_bin | path exists) {
     $env.PATH = ($env.PATH | split row (char esep) | prepend $bun_bin | uniq)
 }
 
+# CHROME_BIN — headless-browser test runners (Karma, Puppeteer, Playwright's
+# chrome channel, Kotlin/JS + wasmJs `browserTest`) exec whatever this points at.
+# Karma's chrome launcher only probes `google-chrome`, `chrome` and
+# `chromium-browser`, so a machine carrying Brave — or Arch's bare `chromium` —
+# fails to launch a browser it actually has. Brave first (daily driver here),
+# the rest as fallbacks. No-op when none is present or when already set.
+let chrome_bin = (
+    [brave chromium chromium-browser google-chrome-stable google-chrome]
+    | each {|b| which $b }
+    | flatten
+    | get --optional path
+    | compact
+    | get --optional 0
+)
+if $chrome_bin != null and not ("CHROME_BIN" in $env) {
+    $env.CHROME_BIN = $chrome_bin
+}
+
 # Starship prompt cache
 if (which starship | is-not-empty) {
     let starship_cache = ($env.HOME | path join .cache/starship)
