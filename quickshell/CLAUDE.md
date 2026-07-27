@@ -135,7 +135,42 @@ the terminal clients need the model to exist without a window.
   notification displays with defaults.
 - IPC: `qs ipc call notifications dismissAll` / `count` (the seam the `notifctl` CLI grows from).
 - Deliberately **not** here yet: actions, keyboard focus (popups use
-  `WlrKeyboardFocus.None` on purpose), drawer/history, DND, grouping, entrance/exit motion.
+  `WlrKeyboardFocus.None` on purpose), drawer/history, DND, grouping.
+
+### Placement & motion (story: notif-placement-motion)
+
+User config, not QML constants: `~/.config/quickshell/notifications.json`, parsed by the
+`NotifyConfig` singleton and hot-reloaded on save (`notifications.example.json` in this package
+is the annotated template). `QS_NOTIFY_CONFIG=<path>` overrides the path — the seam the capture
+harness uses to switch presets without touching the user's file — and `QS_NOTIFY_PRESET=<name>`
+overrides the preset alone. **Every key falls back to the constants in `NotifyConfig`**, so a
+missing or broken file can never take the shell down; bad values log once and keep the default.
+
+- Presets: `right-center` (default), `bottom-center`, `top-right`. Default is deliberately not a
+  top corner — that is where application toolbars and window buttons live.
+- `NotificationOverlay` renders **one window per (monitor, anchor) pair** in use. Entries carry
+  `screenName`/`anchorH`/`anchorV`, so a rule can pin one source elsewhere; `screenName: ""`
+  follows the focused monitor, and a named monitor that is unplugged falls back to it.
+- The stack windows are **full-screen with `ExclusionMode.Ignore`**, so window coordinates are
+  screen coordinates and a card can fly across the bar. Input is confined to the cards by
+  `mask: Region { item: column }` — never remove that mask, or the notification layer swallows
+  every click on the desktop.
+- **Dwell:** on timeout the card flies into the bar bell (`components/bar/NotificationBell.qml`,
+  which publishes its position per monitor into `Notifications.bellAnchors`). The D-Bus close
+  fires at the END of the flight — `notification.expire()` drops the entry and would take the
+  card with it. With no bell on screen the exit degrades to the plain slide/fade.
+- **The exit animation is explicit `ParallelAnimation`s, not `Behavior`s.** A Behavior reads its
+  duration and easing when it starts, and bindings feeding those from the same flag that
+  triggered it are re-evaluated in no guaranteed order: half the properties animated over the
+  dwell duration and half over the entrance one, and the card was invisible for most of a flight
+  that was otherwise working. Don't "simplify" these back into Behaviors.
+- **A leaving card is reparented into a full-window flight layer.** Its slot collapses to zero
+  height so the cards below close the gap, and a card animating out of a zero-height parent
+  inside a positioner keeps animating but is never presented.
+- Overflow: `placement.maxVisible` per stack, the rest stay in the model as `queued` behind a
+  `+N more` indicator. **A queued entry's expiry timer is not running** — its dwell starts when
+  it reaches the screen, so nothing expires unseen.
+- `expireTimeout` from the wire is **milliseconds** (spec), not seconds.
 
 ### Testing notifications without a Hyprland session
 
