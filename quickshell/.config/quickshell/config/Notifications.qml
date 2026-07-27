@@ -257,6 +257,36 @@ Singleton {
         return entry.screenName + "|" + entry.anchorH + "|" + entry.anchorV;
     }
 
+    // Which rank each stack starts showing at. 0 for every stack unless keyboard focus has
+    // scrolled one (story: notif-keyboard-control) — the cap on visible cards never moves, the
+    // window onto the queue does, so the overflow is reachable without a pointer.
+    property var scrollOffsets: ({})
+
+    function scrollFor(key) {
+        const n = root.scrollOffsets[key];
+        return n === undefined ? 0 : n;
+    }
+
+    function setScroll(key, offset) {
+        const next = Math.max(0, Math.round(offset));
+        if (root.scrollFor(key) === next)
+            return;
+        const map = Object.assign({}, root.scrollOffsets);
+        if (next === 0)
+            delete map[key];
+        else
+            map[key] = next;
+        root.scrollOffsets = map;
+        root.reflow();
+    }
+
+    function clearScroll() {
+        if (Object.keys(root.scrollOffsets).length === 0)
+            return;
+        root.scrollOffsets = ({});
+        root.reflow();
+    }
+
     function reflow() {
         const seen = {};
         for (var i = 0; i < popups.length; i++) {
@@ -272,7 +302,8 @@ Singleton {
             const rank = seen[key] === undefined ? 0 : seen[key];
             seen[key] = rank + 1;
 
-            const queued = rank >= placement.maxVisible;
+            const off = root.scrollFor(key);
+            const queued = rank < off || rank >= off + placement.maxVisible;
             if (queued === entry.queued)
                 continue;
             entry.queued = queued;
@@ -357,12 +388,20 @@ Singleton {
         entry.expiryTimer.interval = entry.spanMs;
         entry.expiryTimer.start();
         entry.runToken++; // tells the card to restart its countdown indicator from the top
+        // a card that arrives while the stack is keyboard-focused starts out frozen like the
+        // rest of them, rather than being the one card that can vanish mid-read
+        if (root.keyboardHold)
+            root.pause(entry, true);
     }
 
     // Hover (and, later, keyboard focus) freezes a card: the countdown stops where it is and the
     // collapse clock with it, so reading a card can never make it disappear mid-sentence.
-    function pause(entry) {
-        if (!entry || entry.paused || entry.leaving || !timing.hoverPause)
+    // `force` is the keyboard's pause: hoverPause is a preference about the POINTER, and someone
+    // who has deliberately focused the stack from the keyboard is reading it by definition.
+    function pause(entry, force) {
+        if (!entry || entry.paused || entry.leaving)
+            return;
+        if (!force && !timing.hoverPause)
             return;
         if (entry.expiryTimer.running) {
             entry.remainingMs = Math.max(0, entry.remainingMs - (Date.now() - entry.startedAt));
@@ -372,8 +411,24 @@ Singleton {
         entry.paused = true;
     }
 
+    // While the keyboard holds the stack, the pointer leaving a card must NOT restart its clock —
+    // otherwise moving the mouse out of the way while reading expires the card being read.
+    property bool keyboardHold: false
+
+    function holdAll() {
+        root.keyboardHold = true;
+        for (const e of popups.slice())
+            root.pause(e, true);
+    }
+
+    function releaseAll() {
+        root.keyboardHold = false;
+        for (const e of popups.slice())
+            root.resume(e);
+    }
+
     function resume(entry) {
-        if (!entry || !entry.paused)
+        if (!entry || !entry.paused || root.keyboardHold)
             return;
         entry.paused = false;
         if (entry.leaving || entry.queued || entry.durationMs <= 0) {

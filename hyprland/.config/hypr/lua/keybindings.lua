@@ -257,6 +257,15 @@ end, { description = "Session/power menu" })
 hl.bind("SUPER + slash", function()
 	os.execute("qs ipc call keymap toggle 2>/dev/null")
 end, { description = "Keymap cheatsheet overlay", submap_universal = true })
+hl.bind("SUPER + n", function()
+	-- Focus the notification stack from the keyboard: j/k to move, d to dismiss, Esc to release.
+	-- Popups never grab the keyboard on their own, so this bind is the only way in.
+	os.execute("qs ipc call notifications toggleFocus 2>/dev/null")
+end, { description = "Focus notifications (keyboard control)" })
+hl.bind("SUPER + SHIFT + N", function()
+	-- falls back to swaync while it is still the server on machines without HYPR_NOTIFY=quickshell
+	os.execute("qs ipc call notifications dismissAll 2>/dev/null || swaync-client -C 2>/dev/null")
+end, { description = "Dismiss all notifications" })
 hl.bind("CTRL + ALT + L", hl.dsp.exec_cmd("loginctl lock-session"), { description = "Lock session" })
 
 -- Workspace switching

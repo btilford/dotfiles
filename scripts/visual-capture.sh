@@ -137,6 +137,7 @@ TMUX_CONF="$REPO/tmux/.tmux.conf"
 SWAY_PID=""
 QS_PID=""
 DBUS_PID=""
+KBD_PID=""
 
 cleanup() {
   [ "$KEEP" = "1" ] && {
@@ -144,6 +145,7 @@ cleanup() {
     return
   }
   tmux -L "$TMUX_SOCKET" kill-server 2> /dev/null
+  [ -n "$KBD_PID" ] && kill "$KBD_PID" 2> /dev/null
   [ -n "$QS_PID" ] && kill "$QS_PID" 2> /dev/null
   [ -n "$SWAY_PID" ] && kill "$SWAY_PID" 2> /dev/null
   [ -n "$DBUS_PID" ] && kill "$DBUS_PID" 2> /dev/null
@@ -193,6 +195,25 @@ done
 export XDG_RUNTIME_DIR="$RUNTIME" WAYLAND_DISPLAY="$WL"
 unset DISPLAY HYPRLAND_INSTANCE_SIGNATURE
 log "headless ${WIDTH}x${HEIGHT} session on $WL"
+
+# --- a keyboard for the seat --------------------------------------------------
+# WLR_LIBINPUT_NO_DEVICES=1 is what keeps this session off the real input devices,
+# and it leaves the seat with NO keyboard at all. A seat with no keyboard never
+# advertises the keyboard capability, so no client ever binds wl_keyboard and no
+# surface is ever told it has keyboard focus — every `wtype` press is discarded,
+# silently, including the ones aimed at an exclusive layer surface.
+#
+# wtype's virtual keyboard lives only as long as the wtype process, so one is
+# parked here for the whole run: `-s` is the delay BETWEEN keystrokes, so this
+# presses nothing for the next hour and holds the capability open. Started before
+# quickshell so the capability exists before any surface takes focus.
+if command -v wtype > /dev/null 2>&1; then
+  wtype -s 3600000 -- " " " " > /dev/null 2>&1 &
+  KBD_PID=$!
+  sleep 0.3
+else
+  warn "wtype not installed — keyboard scenes will be skipped"
+fi
 
 # --- the shell under test ----------------------------------------------------
 # HYPR_NOTIFY is pinned rather than inherited. config/Shell.qml reads the backend
@@ -358,6 +379,7 @@ scene_popup() {
   popup_overflow
   popup_countdown
   popup_collapse
+  popup_keyboard
   popup_anchor bottom-center popup-bottom
   notify_preset right-center
   settle 0.8
@@ -391,6 +413,34 @@ popup_collapse() {
   ipc notifications dismissAll
   notify_preset right-center
   settle 0.8
+}
+
+# Keyboard control: the stack takes the keyboard on an explicit call, the selection
+# moves with j/k, and the legend under the stack says what the keys do. Keys are typed
+# into the nested compositor with wtype — the whole point of the story is that these
+# keystrokes reach a layer surface, so pressing them for real is the only honest test.
+popup_keyboard() {
+  command -v wtype > /dev/null 2>&1 || {
+    warn "popup-keyboard: wtype not installed — skipped"
+    return 0
+  }
+  local i
+  for i in 1 2 3 4 5 6 7; do
+    notify-send -a "visual-capture" "Job $i finished" "worker-$i reported in"
+  done
+  settle 1.2
+  ipc notifications focus
+  settle 0.8
+  still popup-keyboard-focus # newest card selected, legend showing 1/7
+  wtype -k j
+  wtype -k j
+  settle 0.6
+  still popup-keyboard-select # selection two down, countdown bars frozen
+  clip popup-keyboard-motion 4.5 \
+    sh -c 'sleep 0.3; wtype -k j; sleep 0.6; wtype -k j; sleep 0.6; wtype -k d; sleep 0.8; wtype -k Escape'
+  ipc notifications unfocus
+  ipc notifications dismissAll
+  settle 0.5
 }
 
 # popup_anchor <preset> <capture name>: arrival motion + a still at one anchor.

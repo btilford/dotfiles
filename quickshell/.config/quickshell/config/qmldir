@@ -8,4 +8,5 @@ singleton Vpn Vpn.qml
 singleton Notifications Notifications.qml
 singleton NotifyConfig NotifyConfig.qml
 singleton NotifyStore NotifyStore.qml
+singleton NotifyFocus NotifyFocus.qml
 singleton Connectors Connectors.qml

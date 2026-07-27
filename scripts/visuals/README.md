@@ -37,7 +37,7 @@ variable is set by all three shells.
 `org.freedesktop.Notifications` on the nested bus — a capture of an empty desktop
 is worse than no capture. Every other scene works on any branch.
 
-The `popup` scene captures eight files, not one, because notification placement is
+The `popup` scene captures eleven files, not one, because notification placement is
 a choice to be settled from real captures rather than taste — and because the timing
 behaviours (countdown, shrink-to-icon) only exist as motion:
 
@@ -48,7 +48,16 @@ behaviours (countdown, shrink-to-icon) only exist as motion:
 | `popup-overflow` | more popups than `maxVisible`, with the `+N more` tail |
 | `popup-countdown` | a card partway through its dwell, remaining-time bar part-drained |
 | `popup-collapse-motion` / `popup-collapsed` | sticky critical folding to an icon pill |
+| `popup-keyboard-focus` / `popup-keyboard-select` | focus mode: the selected card outlined, key legend under the stack |
+| `popup-keyboard-motion` | j/k moving the selection, `d` dismissing, `Esc` releasing |
 | `popup-bottom` / `popup-bottom-motion` | bottom-center preset: still + arrival |
+
+The keyboard scenes press real keys with `wtype`. That only works because the
+harness parks a long-sleeping `wtype` on the seat for the whole run: with
+`WLR_LIBINPUT_NO_DEVICES=1` the seat has no keyboard, so it never advertises the
+keyboard capability, no client binds `wl_keyboard`, and every keystroke is
+discarded without a word in any log. Remove that holder and the keyboard captures
+silently record a stack that ignores you.
 
 The preset is switched by rewriting a notification config in the nested session's
 runtime dir, which the shell hot-reloads. `QS_NOTIFY_CONFIG` points the shell at
