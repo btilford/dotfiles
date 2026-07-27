@@ -23,6 +23,10 @@ ShellRoot {
     // fullscreen keymap cheatsheet; state lives in the Keymap singleton
     KeymapOverlay {}
 
+    // org.freedesktop.Notifications popups. The D-Bus server itself lives in the Notifications
+    // singleton and only claims the name when HYPR_NOTIFY=quickshell, so it never fights swaync.
+    NotificationOverlay {}
+
     // fullscreen clipboard-history dialog (clipborg); state lives in the Clipboard singleton.
     // Via LazyLoader, not inline: components/ClipboardDialog.qml imports the `Clipborg` QML
     // module out of the clipborg repo (QML_IMPORT_PATH, see hypr/lua/environments.lua). A
@@ -44,6 +48,17 @@ ShellRoot {
         }
         function hide(): void {
             Keymap.close();
+        }
+    }
+
+    // `qs ipc call notifications dismissAll` — also the seam the notifctl CLI story grows from
+    IpcHandler {
+        target: "notifications"
+        function dismissAll(): void {
+            Notifications.dismissAll();
+        }
+        function count(): int {
+            return Notifications.count;
         }
     }
 

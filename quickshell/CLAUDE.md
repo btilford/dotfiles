@@ -15,6 +15,8 @@ with no `-c` flag).
 |------|---------|
 | `shell.qml` | Root `ShellRoot`. Instantiates components + the `launcher` `IpcHandler`. |
 | `components/Launcher.qml` | Multi-mode launcher (combi/drun/run/files), replaces rofi. |
+| `config/Notifications.qml` | `Notifications` singleton: the `org.freedesktop.Notifications` server, live popup model, expiry, and the epic's config/rules/store seams. |
+| `components/NotificationOverlay.qml` + `components/notifications/` | Popup stack view. Pure view over `Notifications.popups`. |
 | `components/ClipboardDialog.qml` | **Thin wrapper** over the dialog shipped by the clipborg repo (`examples/quickshell/Clipborg`). Host glue only. State in the `Clipboard` singleton; IPC `qs ipc call clipboard toggle`; bound to `SUPER+V`. |
 | `config/Theme.qml` + `config/qmldir` | `Theme` singleton: terminal-flavored tokens; reads the wallust palette. |
 | `wallust/.gitkeep` | Runtime `colors.json` lands here (generated, gitignored). |
@@ -106,6 +108,50 @@ Search + flat/tree list + preview pane + actions/llm/pin/delete/bulk-delete. Sta
   injects real keys into an exclusive layer (`hyprctl send_shortcut` can't). See the
   `quickshell-exclusive-grab-lockout` memory.
 
+## Notifications
+
+`org.freedesktop.Notifications` server (story: notif-dbus-server, first of the notifications
+epic). Everything that isn't pixels lives in the `Notifications` singleton; `NotificationOverlay`
+is a view over `Notifications.popups` and holds no state. Keep that split — the SQLite store and
+the terminal clients need the model to exist without a window.
+
+- **Opt-in per machine:** `HYPR_NOTIFY=quickshell` in `~/.config/hypr/shell.local.env`. The
+  `NotificationServer` sits in a `Loader` gated on it, so a machine that hasn't opted in never
+  claims the D-Bus name. Only one process can own that name — start order decides, and while qs
+  holds it swaync cannot be D-Bus activated back. Swap backends: set the key, then
+  `pkill swaync` (or `systemctl --user stop swaync`) and restart `qs`.
+- **Capabilities are advertised honestly.** `GetCapabilities` returns `body` + `icon-static` and
+  nothing else. Do not flip `actionsSupported` / `bodyMarkupSupported` / `inlineReplySupported`
+  until those stories actually render them — clients change what they send based on this.
+- **Entry fields are bindings, not copies (load-bearing).** `replaces_id` does *not* re-emit the
+  `notification` signal: quickshell mutates the existing `Notification` object in place. An entry
+  that copied `summary`/`body`/hints at creation shows the first revision forever (progress bars
+  freeze at their opening value). Every field on the entry binds through `entry.notification`.
+- **`transient` is a reserved QML keyword** — the entry property is `isTransient`. Declaring
+  `property bool transient` fails config load outright.
+- Expiry routes through `Notifications.refresh()` → `defaultDurationMs()` → `scheduleExpiry()`,
+  one place, because hover-pause and burst-shortening (timing story) land there next. Duration 0
+  = sticky. `rulesHook` is the rules-engine seam and **fails open**: a throwing hook logs and the
+  notification displays with defaults.
+- IPC: `qs ipc call notifications dismissAll` / `count` (the seam the `notifctl` CLI grows from).
+- Deliberately **not** here yet: actions, keyboard focus (popups use
+  `WlrKeyboardFocus.None` on purpose), drawer/history, DND, grouping, entrance/exit motion.
+
+### Testing notifications without a Hyprland session
+
+Popups need a compositor, and the D-Bus name is per-session-bus, so the test rig is a nested
+headless sway on a **private** bus:
+
+```sh
+env -u WAYLAND_DISPLAY -u DISPLAY WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 \
+  dbus-run-session -- sway -c /tmp/sway.conf   # sway.conf: exec <your test script>
+# inside: qs -p <config>/shell.qml, notify-send ..., grim -o HEADLESS-1 shot.png
+```
+
+**Always force the headless backend and never point a compositor at the real seat.** A compositor
+started without `WLR_BACKENDS=headless` (Hyprland: also `AQ_HEADLESS_ONLY=1`) grabs DRM master and
+kills the live session and every app in it.
+
 ## Daemon lifecycle
 
 The single `qs` daemon must run whenever `$HYPR_BAR` or `$HYPR_LAUNCHER` = quickshell (see the
@@ -119,6 +165,7 @@ active bar/launcher per machine in `~/.config/hypr/shell.local.env` (not stowed)
 | `HYPR_BAR` | `waybar` \| `quickshell` | which bar renders |
 | `HYPR_LAUNCHER` | `rofi` \| `quickshell` | which launcher `Launcher.sh` targets |
 | `HYPR_BAR_DEV` | `1` | qs bar at the bottom, no exclusive zone, alongside waybar |
+| `HYPR_NOTIFY` | `swaync` (default) \| `quickshell` | which process owns `org.freedesktop.Notifications` |
 | `QS_EFFECTS` | `full` (default) \| `low` \| `off` | `off` = shaders never instantiated (Loader-gated); static themed fallbacks: accent Rectangle/Shape borders, flat accent fills, no shimmer/reflection/glyph lava. `low` reserved, currently = `full`. |
 
 Border weights are Theme tokens: `Theme.borderThickness` (energy borders) and `Theme.borderThin`
