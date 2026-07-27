@@ -131,7 +131,18 @@ mise = { packages = [
   { name = "gcloud", options = { version = "latest" } },
 ] }
 # cavemen relocated from mise (npm:) to the bun backend — metapac's mise backend
-# can't manage npm:/vfox: prefixed tools.
+# can't manage npm:/vfox: prefixed tools. The rest were migrated off npm -g under
+# brew's node (2026-07-27): bun owns global JS CLIs. Promote any to core.toml if
+# you want them on Arch too.
 bun = { packages = [
   "cavemen",
+  "neovim",
+  "tree-sitter-cli",
+  "typescript",
+  "typescript-language-server",
+  "prettier",
+  "eslint",
+  "@mistweaverco/kulala-fmt",
+  "@mistweaverco/kulala-ls",
+  "@shortcut-cli/shortcut-cli",
 ] }
