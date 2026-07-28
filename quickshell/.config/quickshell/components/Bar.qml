@@ -148,6 +148,13 @@ Scope {
                         anchors.verticalCenter: parent.verticalCenter
                         hub: bar.isHub
                     }
+                    // dwell target for expiring notification cards — it publishes its position to
+                    // the Notifications singleton, so it must exist on every bar, hub or not
+                    NotificationBell {
+                        anchors.verticalCenter: parent.verticalCenter
+                        screenName: bar.modelData.name
+                        barWindow: bar
+                    }
                     Clock {
                         anchors.verticalCenter: parent.verticalCenter
                     }

@@ -30,13 +30,27 @@ variable is set by all three shells.
 | `bar` | top bar | always on screen |
 | `drawer` | launcher, drun mode | `qs ipc call launcher show drun` |
 | `modal` | session/power overlay | `qs ipc call session show` |
-| `popup` | notification popup | `notify-send` on the nested bus |
+| `popup` | notification popups | `notify-send` on the nested bus |
 | `tmux` | terminal surface | private tmux server, `vhs` tape or a real terminal |
 
-`popup` **skips itself with a warning** until the notification server lands —
-nothing owns `org.freedesktop.Notifications` on the nested bus before then, and a
-capture of an empty desktop is worse than no capture. Every other scene works on
-any branch.
+`popup` **skips itself with a warning** if nothing owns
+`org.freedesktop.Notifications` on the nested bus — a capture of an empty desktop
+is worse than no capture. Every other scene works on any branch.
+
+The `popup` scene captures six files, not one, because notification placement is
+a choice to be settled from real captures rather than taste:
+
+| Capture | What it shows |
+|---------|---------------|
+| `popup` / `popup-motion` | right-center preset: still + arrival |
+| `popup-dwell-motion` | timeout: the card flying up into the bar bell |
+| `popup-overflow` | more popups than `maxVisible`, with the `+N more` tail |
+| `popup-bottom` / `popup-bottom-motion` | bottom-center preset: still + arrival |
+
+The preset is switched by rewriting a notification config in the nested session's
+runtime dir, which the shell hot-reloads. `QS_NOTIFY_CONFIG` points the shell at
+that file (the same env-first/fixed-path seam as `HYPR_NOTIFY`), so the user's own
+`~/.config/quickshell/notifications.json` is never touched by a capture run.
 
 ## 🚨 Isolation — the part you must not break
 

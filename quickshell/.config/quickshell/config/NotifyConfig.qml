@@ -1,0 +1,205 @@
+pragma Singleton
+
+import QtQuick
+import Quickshell
+import Quickshell.Io
+
+// User-facing notification configuration: placement, motion and timing.
+//
+// WHY A JSON FILE. The story requires that anchor, stack direction, entrance/exit animation and
+// dwell target are changeable "with no QML edit". The rest of this dotfiles repo keeps desktop
+// config in Lua, but that is Hyprland's config language — QML cannot read it without shelling out
+// to a Lua interpreter or generating a second file, which puts a build step between the user and a
+// preference. FileView + JSON is the mechanism this shell already uses for live-reloading config
+// (Theme reads the wallust palette exactly this way), so it costs no new machinery and hot-reloads
+// on save. See Projects/hyprland-dotfiles/decisions.md in the notes vault.
+//
+//   file:  ~/.config/quickshell/notifications.json   (see notifications.example.json)
+//   env:   QS_NOTIFY_CONFIG=<path>    read this file instead — the path seam that lets a nested
+//                                     session (visual-capture harness, `qs -p`, CI) configure the
+//                                     shell without touching the live desktop's file
+//          QS_NOTIFY_PRESET=<name>    override the preset, wins over the file
+//
+// EVERY value falls back to the constants below, key by key: a missing file, a truncated file,
+// invalid JSON or one bad key never breaks the shell — it logs and keeps the default.
+Singleton {
+    id: root
+
+    // ---------------------------------------------------------------------------------------
+    // Fallback defaults. These are the shipped behaviour; the file only ever overrides them.
+    // ---------------------------------------------------------------------------------------
+
+    readonly property string defaultPreset: "right-center"
+
+    readonly property var defaultPlacement: ({
+            anchorH: "right",       // "left" | "center" | "right"
+            anchorV: "center",      // "top"  | "center" | "bottom"
+            stack: "down",          // "down" = newest nearest the top, "up" = newest at the bottom
+            margin: 24,             // gap to the screen edge
+            spacing: 12,            // gap between cards
+            cardWidth: 420,
+            maxVisible: 5,          // extras queue in the model behind a "+N more" indicator
+            screenName: ""          // "" = whichever monitor has focus; else a monitor name
+        })
+
+    readonly property var defaultMotion: ({
+            entrance: "slide",      // "slide" | "scale" | "fade" | "none"
+            exit: "dwell",          // "dwell" (fly into the bar bell) | "slide" | "fade" | "none"
+            entranceMs: 260,
+            exitMs: 200,
+            dwellMs: 460,           // flight time of the dwell into the bell
+            reflowMs: 200           // cards closing the gap after one leaves
+        })
+
+    readonly property var defaultTiming: ({
+            low: 3000,
+            normal: 6000,
+            critical: 0,            // 0 = sticky
+            respectAppTimeout: true
+        })
+
+    // Named presets exist so the two candidate layouts can be swapped with one word and compared
+    // from real captures rather than taste (that comparison IS this story).
+    readonly property var presets: ({
+            "right-center": {
+                anchorH: "right",
+                anchorV: "center",
+                stack: "down"
+            },
+            "bottom-center": {
+                anchorH: "center",
+                anchorV: "bottom",
+                stack: "up"
+            },
+            "top-right": {
+                anchorH: "right",
+                anchorV: "top",
+                stack: "down"
+            }
+        })
+
+    // ---------------------------------------------------------------------------------------
+    // Resolved config. Plain JS objects, replaced wholesale on reload so bindings re-evaluate.
+    // ---------------------------------------------------------------------------------------
+
+    property string preset: root.defaultPreset
+    property var placement: root.clone(root.defaultPlacement)
+    property var motion: root.clone(root.defaultMotion)
+    property var timing: root.clone(root.defaultTiming)
+
+    readonly property string configPath: root.envOr("QS_NOTIFY_CONFIG", Quickshell.env("HOME") + "/.config/quickshell/notifications.json")
+
+    // ---------------------------------------------------------------------------------------
+
+    function clone(o) {
+        return Object.assign({}, o);
+    }
+
+    function envOr(key: string, fallback: string): string {
+        const v = Quickshell.env(key);
+        return (v === undefined || v === null || v === "") ? fallback : v;
+    }
+
+    // Per-key validation. An unknown value is reported once and then ignored, because silently
+    // accepting "botom" would move the popups nowhere with no explanation.
+    function pickEnum(src, key, allowed, fallback) {
+        const v = src ? src[key] : undefined;
+        if (v === undefined)
+            return fallback;
+        if (allowed.indexOf(v) >= 0)
+            return v;
+        console.warn("notifications: config", key, "=", v, "is not one of", allowed.join("/"), "— keeping", fallback);
+        return fallback;
+    }
+
+    function pickInt(src, key, fallback, min) {
+        const v = src ? src[key] : undefined;
+        if (v === undefined)
+            return fallback;
+        if (typeof v !== "number" || !isFinite(v) || v < min) {
+            console.warn("notifications: config", key, "=", v, "is not a number >=", min, "— keeping", fallback);
+            return fallback;
+        }
+        return Math.round(v);
+    }
+
+    function pickBool(src, key, fallback) {
+        const v = src ? src[key] : undefined;
+        return typeof v === "boolean" ? v : fallback;
+    }
+
+    function pickString(src, key, fallback) {
+        const v = src ? src[key] : undefined;
+        return typeof v === "string" ? v : fallback;
+    }
+
+    function rebuild() {
+        let cfg = {};
+        try {
+            const t = configFile.text();
+            if (t && t.trim().length)
+                cfg = JSON.parse(t);
+        } catch (e) {
+            console.warn("notifications: config file unreadable, using defaults —", e);
+            cfg = {};
+        }
+        if (!cfg || typeof cfg !== "object")
+            cfg = {};
+
+        // preset first, then explicit keys on top of it: a file can pick "bottom-center" and
+        // still nudge one value without restating the whole block.
+        const name = root.envOr("QS_NOTIFY_PRESET", root.pickString(cfg, "preset", root.defaultPreset));
+        const presetVals = root.presets[name];
+        if (!presetVals)
+            console.warn("notifications: unknown preset", name, "— using", root.defaultPreset);
+        root.preset = presetVals ? name : root.defaultPreset;
+
+        const base = Object.assign(root.clone(root.defaultPlacement), presetVals || root.presets[root.defaultPreset]);
+        const p = cfg.placement;
+        root.placement = {
+            anchorH: root.pickEnum(p, "anchorH", ["left", "center", "right"], base.anchorH),
+            anchorV: root.pickEnum(p, "anchorV", ["top", "center", "bottom"], base.anchorV),
+            stack: root.pickEnum(p, "stack", ["up", "down"], base.stack),
+            margin: root.pickInt(p, "margin", base.margin, 0),
+            spacing: root.pickInt(p, "spacing", base.spacing, 0),
+            cardWidth: root.pickInt(p, "cardWidth", base.cardWidth, 120),
+            maxVisible: root.pickInt(p, "maxVisible", base.maxVisible, 1),
+            screenName: root.pickString(p, "screenName", base.screenName)
+        };
+
+        const m = cfg.motion;
+        root.motion = {
+            entrance: root.pickEnum(m, "entrance", ["slide", "scale", "fade", "none"], root.defaultMotion.entrance),
+            exit: root.pickEnum(m, "exit", ["dwell", "slide", "fade", "none"], root.defaultMotion.exit),
+            entranceMs: root.pickInt(m, "entranceMs", root.defaultMotion.entranceMs, 0),
+            exitMs: root.pickInt(m, "exitMs", root.defaultMotion.exitMs, 0),
+            dwellMs: root.pickInt(m, "dwellMs", root.defaultMotion.dwellMs, 0),
+            reflowMs: root.pickInt(m, "reflowMs", root.defaultMotion.reflowMs, 0)
+        };
+
+        const t2 = cfg.timing;
+        root.timing = {
+            low: root.pickInt(t2, "low", root.defaultTiming.low, 0),
+            normal: root.pickInt(t2, "normal", root.defaultTiming.normal, 0),
+            critical: root.pickInt(t2, "critical", root.defaultTiming.critical, 0),
+            respectAppTimeout: root.pickBool(t2, "respectAppTimeout", root.defaultTiming.respectAppTimeout)
+        };
+    }
+
+    FileView {
+        id: configFile
+        path: root.configPath
+        watchChanges: true
+        // The file is optional. Without this, every shell on a machine that never wrote one
+        // logs a read error at startup, which trains people to ignore the log.
+        printErrors: false
+        onLoaded: root.rebuild()
+        onLoadFailed: root.rebuild()
+        onFileChanged: {
+            reload();
+            root.rebuild();
+        }
+    }
+
+    Component.onCompleted: rebuild()
+}

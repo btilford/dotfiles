@@ -101,7 +101,7 @@ while [ $# -gt 0 ]; do
         bar "top bar (always available)" \
         drawer "launcher drawer — quickshell IPC" \
         modal "session/power overlay — quickshell IPC" \
-        popup "notification popup — needs the notification server (story 1)" \
+        popup "notification popups — both anchor presets, dwell + overflow" \
         tmux "terminal surface — vhs tape if installed, else foot + grim"
       exit 0
       ;;
@@ -202,7 +202,19 @@ log "headless ${WIDTH}x${HEIGHT} session on $WL"
 # skip on one left at the swaync default, i.e. the harness output would depend on
 # the machine. The env wins over the file (see the comment in Shell.qml), and
 # nothing outside this script exports it, so the live desktop is unaffected.
-HYPR_NOTIFY=quickshell qs -p "$SHELL_QML" > "$RUNTIME/qs.log" 2>&1 &
+#
+# QS_NOTIFY_CONFIG points the notification placement/motion config at a file this
+# script owns, for the same reason: the shell reads
+# ~/.config/quickshell/notifications.json, which is the user's live preference.
+# Capturing has to be able to switch anchor presets without editing it.
+NOTIFY_CONFIG="$RUNTIME/notifications.json"
+notify_preset() {
+  printf '{ "preset": "%s" }\n' "$1" > "$NOTIFY_CONFIG"
+}
+notify_preset right-center
+
+HYPR_NOTIFY=quickshell QS_NOTIFY_CONFIG="$NOTIFY_CONFIG" \
+  qs -p "$SHELL_QML" > "$RUNTIME/qs.log" 2>&1 &
 QS_PID=$!
 
 ready=0
@@ -329,7 +341,24 @@ scene_popup() {
     warn "popup: nothing owns org.freedesktop.Notifications in the nested session — skipped (needs the notification server)"
     return 0
   fi
-  clip popup-motion 3.0 notify-send -a "visual-capture" "Build finished" "3 packages rebuilt in 41s"
+  # Both anchor presets are captured on purpose: choosing between right-center and
+  # bottom-center is the point of the placement story, and it is meant to be settled
+  # from real captures rather than taste. The preset is switched through the config
+  # file the shell hot-reloads, which also exercises that reload path.
+  popup_anchor right-center popup
+  popup_dwell
+  popup_overflow
+  popup_anchor bottom-center popup-bottom
+  notify_preset right-center
+  settle 0.8
+}
+
+# popup_anchor <preset> <capture name>: arrival motion + a still at one anchor.
+popup_anchor() {
+  local preset="$1" name="$2"
+  notify_preset "$preset"
+  settle 0.8 # FileView.watchChanges reload + the stack re-anchoring
+  clip "$name-motion" 3.0 notify-send -a "visual-capture" "Build finished" "3 packages rebuilt in 41s"
   # The clip's notification is still on screen and has not expired. Without this
   # the still catches both it and the one fired below, stacked — two identical
   # cards, which reads as a bug in the shell rather than a duplicate in the rig.
@@ -337,7 +366,29 @@ scene_popup() {
   settle 0.8
   notify-send -a "visual-capture" "Build finished" "3 packages rebuilt in 41s"
   settle 1.0
-  still popup
+  still "$name"
+  ipc notifications dismissAll
+  settle 0.5
+}
+
+# The signature motion: on timeout the card flies up into the bar's bell widget
+# instead of fading out. -t is short so the whole dwell fits in one clip.
+popup_dwell() {
+  clip popup-dwell-motion 4.0 notify-send -a "visual-capture" -t 1200 \
+    "Deploy complete" "staging is on 1.4.2"
+  ipc notifications dismissAll
+  settle 0.5
+}
+
+# More notifications than placement.maxVisible: the stack caps and the rest queue
+# behind a "+N more" line instead of covering the screen.
+popup_overflow() {
+  local i
+  for i in 1 2 3 4 5 6 7 8; do
+    notify-send -a "visual-capture" "Job $i finished" "worker-$i reported in"
+  done
+  settle 1.2
+  still popup-overflow
   ipc notifications dismissAll
   settle 0.5
 }
