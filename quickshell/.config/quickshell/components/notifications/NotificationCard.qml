@@ -28,11 +28,29 @@ Rectangle {
         return Quickshell.iconPath(entry.appIcon, true);
     }
 
+    // the keyboard's cursor (story: notif-keyboard-control). Read off the singleton rather than
+    // passed down the slot: the selection follows a notification id, not a position, so a card
+    // that reflows into another position keeps it.
+    readonly property bool selected: NotifyFocus.active && NotifyFocus.selectedId === card.entry.nid
+
     implicitHeight: layout.implicitHeight + Theme.pad * 2
     radius: Theme.radius
-    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surfaceOpacity)
-    border.width: Theme.borderThin
-    border.color: Qt.rgba(card.urgencyColor.r, card.urgencyColor.g, card.urgencyColor.b, card.critical ? 0.9 : 0.45)
+    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, card.selected ? Math.min(1, Theme.surfaceOpacity + 0.12) : Theme.surfaceOpacity)
+    // selection reads as a full-strength outline in the accent, so it is unambiguous against
+    // both the low card (grey, faint) and the critical one (already a strong urgent border)
+    border.width: card.selected ? Theme.borderThin * 2 : Theme.borderThin
+    border.color: card.selected ? Theme.accent : Qt.rgba(card.urgencyColor.r, card.urgencyColor.g, card.urgencyColor.b, card.critical ? 0.9 : 0.45)
+
+    Behavior on border.width {
+        NumberAnimation {
+            duration: Theme.animFast
+        }
+    }
+    Behavior on border.color {
+        ColorAnimation {
+            duration: Theme.animFast
+        }
+    }
 
     // urgency stripe down the leading edge — the one always-on colour cue
     Rectangle {
@@ -41,9 +59,14 @@ Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.margins: Theme.borderThin
-        width: 3
+        width: card.selected ? 6 : 3
         radius: width / 2
-        color: card.urgencyColor
+        color: card.selected ? Theme.accent : card.urgencyColor
+        Behavior on width {
+            NumberAnimation {
+                duration: Theme.animFast
+            }
+        }
     }
 
     MouseArea {

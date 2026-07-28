@@ -71,6 +71,21 @@ ShellRoot {
         function markRead(): void {
             Notifications.markRead();
         }
+        // Keyboard control. `focus` is the ONLY path that lets a popup take the keyboard, and it
+        // is driven by an explicit Hyprland bind (SUPER + n) — nothing about an arriving
+        // notification can reach it.
+        function focus(): void {
+            NotifyFocus.open();
+        }
+        function unfocus(): void {
+            NotifyFocus.close();
+        }
+        function toggleFocus(): void {
+            NotifyFocus.toggle();
+        }
+        function focused(): bool {
+            return NotifyFocus.active;
+        }
         function dbPath(): string {
             return NotifyStore.dbPath;
         }

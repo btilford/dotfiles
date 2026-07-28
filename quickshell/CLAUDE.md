@@ -234,6 +234,37 @@ sqlite3 -readonly ~/.local/share/quickshell/notifications.db \
 - `group_key` and `actions` columns exist and stay empty until the grouping and actions stories
   fill them.
 
+### Keyboard control (story: notif-keyboard-control)
+
+`config/NotifyFocus.qml` owns focus mode; `components/NotificationOverlay.qml` holds the key
+handler. Entered with `qs ipc call notifications toggleFocus` (SUPER + n).
+
+- **A popup never grabs the keyboard on arrival.** `WlrKeyboardFocus.None` is still the resting
+  state of every notification window; the grab is bound to `NotifyFocus.active` and nothing on the
+  ingest path can set it. Verified by typing into a terminal while a notification arrived — the
+  typed string was unbroken.
+- **Exactly one window takes the grab**: the one whose stack contains the selection
+  (`focusedKey`). Two exclusive layer surfaces on one output fight, and the loser stops receiving
+  keys with no error anywhere.
+- **The selection is a notification id, not an index.** The model reorders under it (a card
+  expires, a `replaces_id` lands); an index would quietly slide onto a different notification.
+- **The overflow queue is navigable** because `Notifications.scrollOffsets` moves the window onto
+  each stack while `placement.maxVisible` stays put — `j` past the last visible card scrolls the
+  queue rather than growing the stack.
+- **Focus freezes every clock** (`Notifications.holdAll`, `keyboardHold`). While it is set, the
+  pointer leaving a card must not restart its countdown, and a card arriving mid-session starts
+  paused like the rest.
+- `Esc` releases and re-focuses the toplevel that was focused when the grab was taken — tracked
+  from the `activewindowv2` event, not polled, because after the grab `hyprctl activewindow` is
+  already answering about the wrong thing. Layer-shell does not specify where the keyboard goes on
+  release, so we put it back by hand rather than trusting the compositor.
+- Keys whose stories are not built (`s` snooze, `r` remind, `o` drawer, `D` dismiss-group) are
+  **bound now and report what they need** — the scheme must not change under the user's fingers
+  when notif-actions / notif-drawer / notif-grouping land. `dismiss-group` falls back to
+  same-app, which is the key grouping will use first anyway.
+- Action hints by number belong to notif-actions: the server still advertises
+  `actionsSupported: false`, so no action ever reaches the model to hint at.
+
 ### Testing notifications without a Hyprland session
 
 Popups need a compositor, and the D-Bus name is per-session-bus, so the test rig is a nested
