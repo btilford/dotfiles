@@ -43,6 +43,8 @@ Scope {
         for (const e of Notifications.popups) {
             if (e.queued || e.drawerOnly || !e.resolved)
                 continue;
+            if (e.collapsed && Notifications.dockCollapsed)
+                continue; // folded into the bar tray (components/bar/NotificationPills.qml)
             const k = scope.keyOf(e);
             if (keys.indexOf(k) < 0)
                 keys.push(k);
@@ -53,7 +55,7 @@ Scope {
     function entriesFor(key) {
         const out = [];
         for (const e of Notifications.popups)
-            if (!e.queued && !e.drawerOnly && e.resolved && scope.keyOf(e) === key)
+            if (!e.queued && !e.drawerOnly && e.resolved && !(e.collapsed && Notifications.dockCollapsed) && scope.keyOf(e) === key)
                 out.push(e);
         return out;
     }
@@ -161,6 +163,10 @@ Scope {
                         NotifyFocus.dismissSelected();
                     else if (event.key === Qt.Key_A && (event.modifiers & Qt.ShiftModifier))
                         NotifyFocus.dismissAll();
+                    else if (event.key === Qt.Key_Y && (event.modifiers & Qt.ShiftModifier))
+                        NotifyFocus.copySelected(true);
+                    else if (event.key === Qt.Key_Y)
+                        NotifyFocus.copySelected(false);
                     else if (event.key === Qt.Key_S)
                         NotifyFocus.snoozeSelected(15 * 60 * 1000);
                     else if (event.key === Qt.Key_R)
@@ -265,7 +271,7 @@ Scope {
                 Text {
                     id: legendText
                     anchors.centerIn: parent
-                    text: (NotifyFocus.indexOfSelected() + 1) + "/" + NotifyFocus.order.length + " · [j/k] move · [d] dismiss · [D] app · [A] all · [s] snooze · [o] drawer · [Esc] release"
+                    text: (NotifyFocus.indexOfSelected() + 1) + "/" + NotifyFocus.order.length + " · [j/k] move · [\u21b5] expand · [y] yank · [d] dismiss · [D] app · [A] all · [o] drawer · [Esc] release"
                     color: Theme.subtext
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize - 3

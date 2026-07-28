@@ -265,6 +265,86 @@ handler. Entered with `qs ipc call notifications toggleFocus` (SUPER + n).
 - Action hints by number belong to notif-actions: the server still advertises
   `actionsSupported: false`, so no action ever reaches the model to hint at.
 
+### Surface language: shadow, not stroke (story: notif-presentation)
+
+Notification popups and the drawer **panel** carry no border. They are paper that landed on the
+desktop, not powered surfaces, so depth comes from `components/Elevation.qml` (a `MultiEffect`
+that re-renders the target blurred and offset behind itself) and the glass comes from the same
+`Shimmer` the bar sections and launcher use. The drawer **modal** keeps its `EnergyBorder` — it
+is a dialog, and it should read like the launcher and session overlay.
+
+- Keyboard selection is marked by the accent-tinted shadow plus the widened urgency stripe.
+  There is no border left to thicken, and adding one back for selection would undo the point.
+- `Elevation` needs an opaque-enough target: the duplicate it draws sits directly under the
+  original, hidden by it.
+- The pill tray uses **one** Elevation for the whole row, not one per pill — per-chip effects
+  each rasterize their own layer for something a few pixels tall.
+
+### Opacity is layered, not global (story: notif-presentation)
+
+Three separate knobs, because these surfaces answer different questions:
+
+| surface | default | why |
+|---|---|---|
+| popup card / pill (`surface.cardOpacity`, `surface.pillOpacity`) | 0.80 / 0.85 | lands over whatever you are working in for a few seconds; must be readable instantly |
+| drawer slab (`drawer.opacity`) | 0.35 | glass — you opened it deliberately, and it covers a third of the screen |
+| drawer rows (`drawer.itemOpacity`) | 0.82 | the content inside the glass; a row over a terminal still has to be legible |
+
+The drawer's translucency only works because Hyprland blurs its namespace — the layer rule for
+`quickshell-notification-drawer` lives in `hypr/lua/windowrules.lua`. Without it, 0.35 is not
+frosted glass, it is unreadable.
+
+### Collapsed stickies dock in the bar (story: notif-presentation)
+
+A folded sticky card leaves the popup stack entirely and becomes a floating pill in the bar,
+between the workspaces and the status cluster (`components/bar/NotificationPills.qml`,
+`collapse.home = "bar"`). It is deliberately **not** inside a `Section`: these are notifications
+that shrank, not bar modules, so they carry their own pill surface and no bar background.
+
+- The stack filter is `entry.collapsed && Notifications.dockCollapsed` in NotificationOverlay
+  **and** in `NotifyFocus.order` — a pill in the bar must not be selectable by the stack's
+  keyboard, since it is not on screen there.
+- `dockCollapsed` also requires `Shell.barVisible`: with no bar there is nowhere to dock, and
+  the pill stays in the stack rather than vanishing.
+- Past `collapse.maxPills` the rest are one "+N" chip that opens the drawer. The bar is not a
+  queue.
+- **The tray adapts to the gap it is given**, because a PORTRAIT bar is ~1440 logical wide and
+  the space between the workspaces and the status cluster is a few hundred pixels:
+  `full` (icon + summary) → `compact` (icon only, summary on hover) → `chip` (one "N" bubble).
+  Thresholds are conservative ESTIMATES on purpose — measuring the laid-out row and feeding
+  that back into the mode that sets the row's width is a binding loop.
+
+### Copy and expand
+
+- `y` yanks summary + body, `Y` the body alone — vim's verb, in the popup stack and the
+  drawer, where a group header yanks every row under it. `c` stays clear-filters in the drawer;
+  one key may not mean two things depending on which surface has the keyboard. `wl-copy` rather than a QML clipboard API: the text
+  has to outlive the popup, and wl-copy forks a daemon that keeps serving the selection.
+- Substitutions go in as **argv, never a shell string**. Any app on the session bus can set a
+  summary; `sh -c` here would be command injection with extra steps.
+- `Enter` unfolds: a shrunk pill becomes a card, a card whose body was elided shows the rest
+  (`Text.truncated` is what decides whether the "more" hint appears at all), and a drawer row
+  expands in place. Expanded bodies are still line-capped so a hostile client cannot push a
+  card past the screen edge.
+
+### Hyprland dispatch has two dialects (bit us live)
+
+`Hyprland.dispatch("focuswindow address:0x…")` — the classic hyprlang form — is **evaluated as
+Lua** on a machine whose config is `hypr/lua/` (this repo's), and dies with `')' expected near
+'address'`. The failure only appears in the quickshell log, so the focus restore silently did
+nothing on the live desktop while every headless test passed (the harness runs sway, which has
+no Lua layer to trip over).
+
+- Lua config: `hyprctl dispatch 'hl.dsp.focus({ window = "address:0x…" })'`
+- hyprlang config: `hyprctl dispatch focuswindow address:0x…`
+- Same trap for submaps: `hyprctl dispatch submap foo` is eaten; use
+  `hyprctl dispatch 'hl.dsp.submap("foo")'`. Inside the Lua config itself, use the API
+  (`hl.dispatch(hl.dsp.submap("reset"))`) and none of this applies.
+
+`NotifyFocus` therefore keeps a `dialect` property, tries one form, reads hyprctl's answer
+(it prints `ok` or a parser error while still exiting 0 — the text is the only signal), and
+flips on failure. Don't "simplify" that back to a single string.
+
 ### Drawer (story: notif-drawer)
 
 `config/NotifyDrawer.qml` (state) + `components/NotificationDrawer.qml` (view). Opens with

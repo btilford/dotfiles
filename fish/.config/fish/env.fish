@@ -11,12 +11,9 @@ end
 
 set -x M2_HOME $HOME/.m2
 
-# Vol screenshot archive — the app's visual history lives with the project notes,
-# never in the repo. `mise run screenshots:archive` refuses to run without this.
-set -gx VOL_SCREENSHOT_ARCHIVE $HOME/Documents/personal-notes/notes/Projects/vol/screenshots
-
-# Same deal for this repo's own desktop visuals (quickshell surfaces).
-set -gx DOTFILES_SCREENSHOT_ARCHIVE $HOME/Documents/personal-notes/notes/Projects/hyprland-dotfiles/screenshots
+# $VOL_SCREENSHOT_ARCHIVE / $DOTFILES_SCREENSHOT_ARCHIVE are machine-local (they
+# point into a notes vault that only exists on some hosts) — set them in
+# ~/.config/fish/conf.d/local.fish, which is untracked. See scripts/visuals/README.md.
 
 set -gx --prepend PATH $HOME/.cargo/bin
 set -gx --prepend PATH $HOME/.local/bin

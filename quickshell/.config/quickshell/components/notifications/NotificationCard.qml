@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Services.Notifications
+import ".."
 import "../../config"
 
 // One notification popup. Pure view over a Notifications entry — it reads the entry and calls
@@ -35,22 +36,11 @@ Rectangle {
 
     implicitHeight: layout.implicitHeight + Theme.pad * 2
     radius: Theme.radius
-    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, card.selected ? Math.min(1, Theme.surfaceOpacity + 0.12) : Theme.surfaceOpacity)
-    // selection reads as a full-strength outline in the accent, so it is unambiguous against
-    // both the low card (grey, faint) and the critical one (already a strong urgent border)
-    border.width: card.selected ? Theme.borderThin * 2 : Theme.borderThin
-    border.color: card.selected ? Theme.accent : Qt.rgba(card.urgencyColor.r, card.urgencyColor.g, card.urgencyColor.b, card.critical ? 0.9 : 0.45)
-
-    Behavior on border.width {
-        NumberAnimation {
-            duration: Theme.animFast
-        }
-    }
-    Behavior on border.color {
-        ColorAnimation {
-            duration: Theme.animFast
-        }
-    }
+    // No border at all: a notification is paper that landed on the desktop, not a powered
+    // surface. Depth comes from the shadow (the Elevation sibling in NotificationSlot), colour
+    // from the urgency stripe, and the glass from the Shimmer at the bottom of this file.
+    // Selection is marked by the stripe and an accent-tinted shadow instead of a thicker stroke.
+    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, card.selected ? Math.min(1, NotifyConfig.surface.cardOpacity + 0.1) : NotifyConfig.surface.cardOpacity)
 
     // urgency stripe down the leading edge — the one always-on colour cue
     Rectangle {
@@ -91,6 +81,26 @@ Rectangle {
     }
 
     // ---------------------------------------------------------------------------------------
+    // Expansion. A body longer than the card shows is elided; Enter (or a click on the hint)
+    // unfolds it. `truncated` is Qt's own answer to "did this text not fit", so the hint appears
+    // exactly when there is more behind it — never on a card that is already whole.
+    // ---------------------------------------------------------------------------------------
+
+    property bool expanded: false
+    readonly property bool hasMore: bodyText.truncated || card.expanded
+
+    function toggleExpanded() {
+        card.expanded = !card.expanded;
+    }
+
+    Behavior on implicitHeight {
+        NumberAnimation {
+            duration: Theme.animMed
+            easing.type: Theme.easing
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------
     // Remaining-time indicator. `remaining` is animated from wherever the entry's clock actually
     // is down to zero, and restarted whenever the singleton re-arms that clock (runToken). It is
     // display only — the Timer in Notifications is what expires the card, so a dropped frame or
@@ -116,13 +126,25 @@ Rectangle {
         property: "remaining"
         to: 0
         easing.type: Easing.Linear
-        paused: card.entry.paused
+        // `running` guards the binding: setPaused() on a stopped animation is a Qt warning, and
+        // a sticky card (no countdown to run) pauses constantly under keyboard focus.
+        paused: countdown.running && card.entry.paused
     }
 
     Connections {
         target: card.entry
         function onRunTokenChanged() {
             card.restartCountdown();
+        }
+    }
+
+    // Enter in focus mode. The signal carries the notification id rather than the entry so the
+    // singleton never has to hold a reference to a view.
+    Connections {
+        target: NotifyFocus
+        function onExpandRequested(nid) {
+            if (nid === card.entry.nid)
+                card.toggleExpanded();
         }
     }
 
@@ -205,6 +227,7 @@ Rectangle {
         }
 
         Text {
+            id: bodyText
             width: parent.width
             visible: text.length > 0 && !card.entry.collapsed
             text: card.entry.body
@@ -212,11 +235,52 @@ Rectangle {
             // is out of spec and we show exactly what we were sent rather than half-parsing it
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
-            maximumLineCount: 6
+            // 6 lines folded; expanded is capped too, because a client that sends a 900-line
+            // body must not be able to push a card past the screen edge
+            maximumLineCount: card.expanded ? 40 : 6
             elide: Text.ElideRight
             color: Theme.subtext
             font.family: Theme.fontUi
             font.pixelSize: Theme.fontSize - 1
+        }
+
+        // "more" affordance: only when the body actually did not fit, so it never promises
+        // content that is not there. Click or Enter (focus mode) unfolds; the same row carries
+        // the copy hint, because the two things you want from a long notification are to read
+        // all of it and to put it somewhere else.
+        Row {
+            visible: card.hasMore && !card.entry.collapsed
+            spacing: 10
+
+            Text {
+                text: card.expanded ? "  less" : "  more"
+                color: moreMa.containsMouse ? Theme.accent : Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 3
+                MouseArea {
+                    id: moreMa
+                    anchors.fill: parent
+                    anchors.margins: -4
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: card.toggleExpanded()
+                }
+            }
+
+            Text {
+                text: "  yank"
+                color: copyMa.containsMouse ? Theme.accent : Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 3
+                MouseArea {
+                    id: copyMa
+                    anchors.fill: parent
+                    anchors.margins: -4
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Notifications.copy(card.entry, false)
+                }
+            }
         }
 
         // `value` hint — progress-style notifications (volume, downloads, build steps)
@@ -262,5 +326,12 @@ Rectangle {
                 }
             }
         }
+    }
+
+    // Cursor-lit glass, the same sheen the bar sections and the launcher carry. Last child so
+    // the light sits over the content rather than under it.
+    Shimmer {
+        anchors.fill: parent
+        radius: parent.radius
     }
 }

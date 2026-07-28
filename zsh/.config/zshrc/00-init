@@ -12,11 +12,8 @@ export YARN_ENABLE_SCRIPTS=false
 export PATH="/usr/lib/ccache/bin/:$PATH"
 
 # -----------------------------------------------------
-# Vol screenshot archive
+# Screenshot archives (machine-local)
 # -----------------------------------------------------
-# The app's visual history lives with the project notes, never in the repo.
-# `mise run screenshots:archive` refuses to run without this.
-export VOL_SCREENSHOT_ARCHIVE="$HOME/Documents/personal-notes/notes/Projects/vol/screenshots"
-
-# Same deal for this repo's own desktop visuals (quickshell surfaces).
-export DOTFILES_SCREENSHOT_ARCHIVE="$HOME/Documents/personal-notes/notes/Projects/hyprland-dotfiles/screenshots"
+# $VOL_SCREENSHOT_ARCHIVE / $DOTFILES_SCREENSHOT_ARCHIVE point into a notes vault
+# that only exists on some hosts, so they are not tracked here — set them in
+# ~/.zshrc_local. See scripts/visuals/README.md.

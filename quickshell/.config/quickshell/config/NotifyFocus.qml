@@ -32,7 +32,9 @@ Singleton {
     readonly property var order: {
         const out = [];
         for (const e of Notifications.popups)
-            if (!e.drawerOnly && e.resolved)
+            // a pill docked in the bar is not on the stack, so the stack's keyboard cannot
+            // select it — clicking it hands it back first
+            if (!e.drawerOnly && e.resolved && !(e.collapsed && Notifications.dockCollapsed))
                 out.push(e);
         return out;
     }
@@ -124,11 +126,53 @@ Singleton {
             probe.running = true; // cold start: no focus change seen yet this session
     }
 
+    // Two dispatch dialects, because Hyprland has two config languages and the dispatcher
+    // string is evaluated by whichever one is loaded. On a Lua config (this repo's hypr/lua/)
+    // the classic `focuswindow address:0x…` is parsed AS LUA and dies with
+    // "')' expected near 'address'" — the restore silently never happens, which is exactly what
+    // it did on the live desktop until this was caught. Neither form works on both, so the
+    // first restore of a session tries one, reads the answer, and remembers which host this is.
+    property string dialect: "lua" // "lua" | "plain"; corrected on first use if wrong
+
+    function dispatchFor(style, address) {
+        if (style === "lua")
+            return ["hyprctl", "dispatch", 'hl.dsp.focus({ window = "address:0x' + address + '" })'];
+        return ["hyprctl", "dispatch", "focuswindow", "address:0x" + address];
+    }
+
     function restoreWindow() {
         if (!root.priorWindow)
             return;
-        Hyprland.dispatch("focuswindow address:0x" + root.priorWindow);
+        const address = root.priorWindow;
         root.priorWindow = "";
+        refocus.retried = false;
+        refocus.address = address;
+        refocus.command = root.dispatchFor(root.dialect, address);
+        refocus.running = true;
+    }
+
+    // hyprctl answers "ok" on success and prints a parser error otherwise — while still exiting
+    // 0, so the text is the only signal. A failure flips the dialect and retries once; after
+    // that the window simply keeps focus where the compositor left it, which is a cosmetic loss,
+    // never a stuck keyboard.
+    Process {
+        id: refocus
+        property string address: ""
+        property bool retried: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (this.text.trim().startsWith("ok"))
+                    return;
+                if (refocus.retried) {
+                    console.warn("notifications: could not restore focus to 0x" + refocus.address, "—", this.text.trim());
+                    return;
+                }
+                refocus.retried = true;
+                root.dialect = root.dialect === "lua" ? "plain" : "lua";
+                refocus.command = root.dispatchFor(root.dialect, refocus.address);
+                refocus.running = true;
+            }
+        }
     }
 
     // Only ever used for the cold-start case above: asking the compositor once, right after the
@@ -229,15 +273,27 @@ Singleton {
         root.close();
     }
 
-    // Enter on a shrunk-to-icon critical unfolds it. Once the actions story lands this is also
-    // where the default action fires — the notification server does not advertise actions yet,
-    // so there is nothing else Enter could do that would not be a lie.
+    // Enter unfolds: a shrunk-to-icon critical becomes a card again, and a card whose body was
+    // too long to fit shows the rest. Once the actions story lands this is also where the
+    // default action fires — the server does not advertise actions yet, so there is nothing
+    // else Enter could do today that would not be a lie.
+    signal expandRequested(int nid)
+
     function activateSelected() {
         const entry = root.selected;
         if (!entry)
             return;
-        if (entry.collapsed)
+        if (entry.collapsed) {
             Notifications.expand(entry);
+            return;
+        }
+        root.expandRequested(entry.nid);
+    }
+
+    // `c` copies summary + body, `C` the body alone — the summary is a label, and half the time
+    // it is noise in whatever you are pasting into.
+    function copySelected(bodyOnly) {
+        Notifications.copy(root.selected, bodyOnly);
     }
 
     // Seams for the stories that own these verbs. They are bound in the key handler already so

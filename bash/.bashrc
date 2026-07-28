@@ -37,12 +37,9 @@ if [ -f ~/.bashrc_local ] ;then
 fi
 
 
-# Vol screenshot archive — the app's visual history lives with the project notes,
-# never in the repo. `mise run screenshots:archive` refuses to run without this.
-export VOL_SCREENSHOT_ARCHIVE="${HOME}/Documents/personal-notes/notes/Projects/vol/screenshots"
-
-# Same deal for this repo's own desktop visuals (quickshell surfaces).
-export DOTFILES_SCREENSHOT_ARCHIVE="${HOME}/Documents/personal-notes/notes/Projects/hyprland-dotfiles/screenshots"
+# $VOL_SCREENSHOT_ARCHIVE / $DOTFILES_SCREENSHOT_ARCHIVE are machine-local (they
+# point into a notes vault that only exists on some hosts) — set them in
+# ~/.bashrc_local, sourced above. See scripts/visuals/README.md.
 
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="${HOME}/.sdkman"

@@ -120,6 +120,21 @@ Scope {
                     }
                 }
 
+                // Collapsed sticky notifications, floating in the gap between the workspaces and
+                // the status cluster. Deliberately NOT inside a Section: these are notifications
+                // that folded down, not bar modules, so they carry their own pill surface and no
+                // bar background. Right-aligned so the tray grows leftward into empty space
+                // instead of pushing the status cluster around.
+                NotificationPills {
+                    id: notifPills
+                    screenName: bar.modelData.name
+                    anchors.right: rightSection.left
+                    anchors.rightMargin: Theme.barPad
+                    anchors.left: centerSection.right
+                    anchors.leftMargin: Theme.barPad
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
                 // right: status cluster + clock —  \____
                 // Audio/Network/Bluetooth are ALWAYS visible (even on minimal landscape bars);
                 // Tray + Battery only on hub bars (Battery also self-hides on desktops).
