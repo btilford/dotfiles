@@ -133,7 +133,8 @@ the terminal clients need the model to exist without a window.
   one place — hover-pause, burst shortening and collapse all hang off it (see Timing below).
   `rulesHook` is the rules-engine seam and **fails open**: a throwing hook logs and the
   notification displays with defaults.
-- IPC: `qs ipc call notifications dismissAll` / `count` (the seam the `notifctl` CLI grows from).
+- IPC: `qs ipc call notifications` → `dismissAll`, `dismiss <id>`, `count`, `unread`, `markRead`,
+  `history <limit>`, `dbPath` (the seam the `notifctl` CLI grows from).
 - Deliberately **not** here yet: actions, keyboard focus (popups use
   `WlrKeyboardFocus.None` on purpose), drawer/history, DND, grouping.
 
@@ -198,6 +199,40 @@ One duration vocabulary everywhere — config `timing.low/normal/critical`, a ru
 - **Drawer-only entries stay in `popups`** but are skipped by `reflow`, by `visibleCount` and by
   the overlay's stack keys — they take no slot and run no timer. Until the store/drawer stories
   land they are capped at `drawerRetention` (100), oldest closed as expired.
+
+### History store (story: notif-store)
+
+`config/NotifyStore.qml` — SQLite at `${XDG_DATA_HOME:-~/.local/share}/quickshell/notifications.db`
+(`QS_NOTIFY_DB` overrides the path; the capture harness sets it so a run never writes into the
+user's real history). **The file, not the daemon, is the public interface** every other frontend is
+built against:
+
+```sh
+sqlite3 -readonly ~/.local/share/quickshell/notifications.db \
+  "SELECT received_at, app_name, summary, state FROM notifications ORDER BY received_at DESC LIMIT 20;"
+```
+
+- **Why the `sqlite3` CLI and not `QtQuick.LocalStorage`**: LocalStorage is the only SQL binding in
+  QML and it stores the database under a *hashed* filename in the offline-storage path. A store
+  whose point is "readable from a tmux popup or over SSH" cannot live at a path nobody can name.
+- **Writes never block a popup.** Statements queue and flush through a subprocess (one transaction
+  per batch, ~one process per burst). A failure logs once, sets `healthy = false`, and the shell
+  carries on purely in memory — verified by pointing `QS_NOTIFY_DB` at an unwritable path: the
+  popup still displayed and only the store went quiet.
+- **One escaping rule.** Values reach SQL as a JSON document inside a single quoted string and are
+  unpacked with `json_extract`. `JSON.stringify` has already escaped every quote and control
+  character, so doubling `'` is sufficient and there is no second escaping context to get wrong.
+  Don't reintroduce per-column quoting.
+- **Rows left `active` at startup are reconciled to `orphaned`** — their D-Bus notifications died
+  with the previous process, so nothing could ever close them. They stay unread, which is how the
+  bell count survives a `qs` restart (`unreadAtStart` → `Notifications.unread`).
+- **IPC reads come from a 200-row cache**, refreshed after each write batch: an `IpcHandler`
+  function must return a value immediately and cannot wait on a subprocess. Anything larger or more
+  selective is a query against the file.
+- Retention is age **and** count (`store.retentionDays` / `retentionCount`, 30d / 2000), run at
+  startup, hourly, and on config save.
+- `group_key` and `actions` columns exist and stay empty until the grouping and actions stories
+  fill them.
 
 ### Testing notifications without a Hyprland session
 

@@ -53,6 +53,16 @@ Singleton {
     property int unread: 0
     function markRead() {
         root.unread = 0;
+        NotifyStore.markAllRead();
+    }
+
+    // The count survives a daemon restart: it is restored from the rows the store has never seen
+    // marked read, which is why a sticky critical from before a `qs` restart still shows up.
+    Connections {
+        target: NotifyStore
+        function onUnreadAtStartChanged() {
+            root.unread = NotifyStore.unreadAtStart;
+        }
     }
 
     // Emitted when a dwelling card finishes its flight into the bar bell, so the bell can react
@@ -189,6 +199,15 @@ Singleton {
         reflow();
         scheduleExpiry(entry);
         recordDrawerOnly(entry);
+
+        // History write, always after the rules hook: what is stored is what was actually
+        // presented, not what arrived. Asynchronous and best-effort — see NotifyStore.
+        if (entry.stored)
+            NotifyStore.update(entry, snapshot(entry));
+        else {
+            entry.stored = true;
+            NotifyStore.record(entry, snapshot(entry));
+        }
     }
 
     // Drawer-only entries never appear, so nothing else would mark them seen or bound how many
@@ -404,6 +423,7 @@ Singleton {
         // a hand-dismissed card is gone, not dwelling: no flight, and it never reaches the bell
         entry.leaveTimer.stop();
         entry.leaving = false;
+        NotifyStore.close(entry.nid, "dismissed");
         if (entry.notification)
             entry.notification.dismiss(); // → NotificationClosed(reason=Dismissed)
         forget(entry);
@@ -444,6 +464,7 @@ Singleton {
         const landed = entry.leaving && entry.dwellsToBell;
         const screenName = entry.screenName;
         entry.leaveTimer.stop();
+        NotifyStore.close(entry.nid, "expired");
         if (entry.notification)
             entry.notification.expire(); // → NotificationClosed(reason=Expired)
         forget(entry);
@@ -520,6 +541,8 @@ Singleton {
             readonly property bool drawerOnly: entry.durationMs < 0
             // already added to `unread`; drawer-only entries are counted on arrival, once
             property bool counted: false
+            // a history row exists for this entry, so further refreshes update it in place
+            property bool stored: false
 
             // countdown bookkeeping: how long this showing was granted, how much of it is left,
             // and when the current run started. runToken ticks whenever the clock is (re)armed,
@@ -561,6 +584,9 @@ Singleton {
                 // the model must let go. Bound to this specific notification, so a stale object
                 // left over from a replaces_id swap can't evict the card that replaced it.
                 function onClosed(reason) {
+                    // no-op in the store if dismiss()/finishExpire() already closed the row:
+                    // every close statement is scoped to state = 'active'
+                    NotifyStore.close(entry.nid, "closed");
                     root.forget(entry);
                 }
 

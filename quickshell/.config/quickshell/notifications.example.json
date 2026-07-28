@@ -21,7 +21,12 @@
     "burstAt/burstMs: once a stack holds burstAt cards (0 = placement.maxVisible), further",
     "        non-critical cards are capped at burstMs so the stack drains. burstMs 0 = off.",
     "criticalCollapseMs: a sticky card folds to an icon pill this long after it appears;",
-    "        one click expands it again. 0 = never collapse."
+    "        one click expands it again. 0 = never collapse.",
+    "store:  SQLite history at ${XDG_DATA_HOME:-~/.local/share}/quickshell/notifications.db",
+    "        (QS_NOTIFY_DB overrides the path). Retention is age AND count, whichever bites",
+    "        first; 0 on either turns that limit off. Query it from anywhere, no shell needed:",
+    "        sqlite3 -readonly ~/.local/share/quickshell/notifications.db \\",
+    "          \"SELECT received_at, app_name, summary FROM notifications ORDER BY received_at DESC LIMIT 20;\""
   ],
   "preset": "right-center",
   "placement": {
@@ -52,5 +57,10 @@
     "burstAt": 0,
     "burstMs": 2500,
     "criticalCollapseMs": 15000
+  },
+  "store": {
+    "enabled": true,
+    "retentionDays": 30,
+    "retentionCount": 2000
   }
 }
