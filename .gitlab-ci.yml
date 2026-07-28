@@ -6,6 +6,22 @@ stages: [lint]
 # (yaml/json/nu/fish + formatters) runs locally via `mise run lint` and the
 # lefthook pre-commit hook, where GitHub is reachable.
 
+# When pipelines run. Until 2026-07-27 both jobs were gated on
+# `$CI_COMMIT_BRANCH == "master"`, which is unset on merge-request pipelines —
+# so CI was a post-merge canary that could report master was broken but could
+# never stop a branch from breaking it. Now every branch and every MR is gated.
+#
+# The middle rule is the load-bearing one: without it, pushing to a branch that
+# has an open MR builds TWICE (once as a branch pipeline, once as an MR
+# pipeline). It suppresses the branch pipeline in that case and lets the MR
+# pipeline — the one attached to the thing being reviewed — be the survivor.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
 lint:shellcheck:
   stage: lint
   image: koalaman/shellcheck-alpine:stable
@@ -19,8 +35,6 @@ lint:shellcheck:
         -not -name 'RofiEmoji.sh' \
         -print0 \
         | xargs -0 shellcheck --severity=error -e SC1090,SC1091,SC2148
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master"
 
 lint:secrets:
   stage: lint
@@ -29,5 +43,3 @@ lint:secrets:
     entrypoint: [""]
   script:
     - gitleaks dir . -c .gitleaks.toml --no-banner
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master"
