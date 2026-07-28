@@ -116,7 +116,9 @@ Rectangle {
         property: "remaining"
         to: 0
         easing.type: Easing.Linear
-        paused: card.entry.paused
+        // `running` guards the binding: setPaused() on a stopped animation is a Qt warning, and
+        // a sticky card (no countdown to run) pauses constantly under keyboard focus.
+        paused: countdown.running && card.entry.paused
     }
 
     Connections {

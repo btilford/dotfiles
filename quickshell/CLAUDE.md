@@ -265,6 +265,24 @@ handler. Entered with `qs ipc call notifications toggleFocus` (SUPER + n).
 - Action hints by number belong to notif-actions: the server still advertises
   `actionsSupported: false`, so no action ever reaches the model to hint at.
 
+### Hyprland dispatch has two dialects (bit us live)
+
+`Hyprland.dispatch("focuswindow address:0x…")` — the classic hyprlang form — is **evaluated as
+Lua** on a machine whose config is `hypr/lua/` (this repo's), and dies with `')' expected near
+'address'`. The failure only appears in the quickshell log, so the focus restore silently did
+nothing on the live desktop while every headless test passed (the harness runs sway, which has
+no Lua layer to trip over).
+
+- Lua config: `hyprctl dispatch 'hl.dsp.focus({ window = "address:0x…" })'`
+- hyprlang config: `hyprctl dispatch focuswindow address:0x…`
+- Same trap for submaps: `hyprctl dispatch submap foo` is eaten; use
+  `hyprctl dispatch 'hl.dsp.submap("foo")'`. Inside the Lua config itself, use the API
+  (`hl.dispatch(hl.dsp.submap("reset"))`) and none of this applies.
+
+`NotifyFocus` therefore keeps a `dialect` property, tries one form, reads hyprctl's answer
+(it prints `ok` or a parser error while still exiting 0 — the text is the only signal), and
+flips on failure. Don't "simplify" that back to a single string.
+
 ### Drawer (story: notif-drawer)
 
 `config/NotifyDrawer.qml` (state) + `components/NotificationDrawer.qml` (view). Opens with

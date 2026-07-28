@@ -155,14 +155,17 @@ Singleton {
                 root.interpreter = this.text.trim().split("\n")[0] || "";
                 if (root.interpreter === "" && root.config.enabled)
                     console.warn("notifications: no lua interpreter found — rules disabled, notifications unaffected");
-                proc.running = root.enabled;
             }
         }
     }
 
     Process {
         id: proc
-        running: false
+        // A binding, not an imperative flag: `command` reads `interpreter`, which arrives
+        // asynchronously from the `which` probe, and any path that set running = true before it
+        // landed started an argv whose binary was the empty string ("Process failed to start").
+        // Tying both to the same condition makes that ordering unrepresentable.
+        running: root.enabled && root.interpreter !== "" && !root.restarting
         command: [root.interpreter, root.enginePath, root.rulesPath]
         stdinEnabled: true
 
@@ -204,11 +207,11 @@ Singleton {
     // and "it died on us" — only the second is worth a line in the log.
     property bool restarting: false
 
+    // Toggling `restarting` cycles the binding above: false stops the process, true lets it
+    // start again with whatever rulesPath/interpreter now say.
     function restart() {
         root.restarting = true;
-        proc.running = false;
         root.restarting = false;
-        proc.running = root.enabled;
     }
 
     // Hot reload: the engine reads the rules file once at startup and has no reload path of
@@ -217,6 +220,9 @@ Singleton {
     FileView {
         path: root.rulesPath
         watchChanges: true
+        // No rules file is the normal state on a machine that has not written one. Without this
+        // every such shell logs a read error at startup, which trains people to ignore the log.
+        printErrors: false
         onFileChanged: {
             console.info("notifications: rules changed, reloading");
             root.restart();
@@ -226,7 +232,6 @@ Singleton {
         onLoadFailed: error => {}
     }
 
-    onEnabledChanged: proc.running = root.enabled
     onRulesPathChanged: if (root.enabled)
         root.restart()
 }

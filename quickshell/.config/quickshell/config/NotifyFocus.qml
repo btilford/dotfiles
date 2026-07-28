@@ -124,11 +124,53 @@ Singleton {
             probe.running = true; // cold start: no focus change seen yet this session
     }
 
+    // Two dispatch dialects, because Hyprland has two config languages and the dispatcher
+    // string is evaluated by whichever one is loaded. On a Lua config (this repo's hypr/lua/)
+    // the classic `focuswindow address:0x…` is parsed AS LUA and dies with
+    // "')' expected near 'address'" — the restore silently never happens, which is exactly what
+    // it did on the live desktop until this was caught. Neither form works on both, so the
+    // first restore of a session tries one, reads the answer, and remembers which host this is.
+    property string dialect: "lua" // "lua" | "plain"; corrected on first use if wrong
+
+    function dispatchFor(style, address) {
+        if (style === "lua")
+            return ["hyprctl", "dispatch", 'hl.dsp.focus({ window = "address:0x' + address + '" })'];
+        return ["hyprctl", "dispatch", "focuswindow", "address:0x" + address];
+    }
+
     function restoreWindow() {
         if (!root.priorWindow)
             return;
-        Hyprland.dispatch("focuswindow address:0x" + root.priorWindow);
+        const address = root.priorWindow;
         root.priorWindow = "";
+        refocus.retried = false;
+        refocus.address = address;
+        refocus.command = root.dispatchFor(root.dialect, address);
+        refocus.running = true;
+    }
+
+    // hyprctl answers "ok" on success and prints a parser error otherwise — while still exiting
+    // 0, so the text is the only signal. A failure flips the dialect and retries once; after
+    // that the window simply keeps focus where the compositor left it, which is a cosmetic loss,
+    // never a stuck keyboard.
+    Process {
+        id: refocus
+        property string address: ""
+        property bool retried: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (this.text.trim().startsWith("ok"))
+                    return;
+                if (refocus.retried) {
+                    console.warn("notifications: could not restore focus to 0x" + refocus.address, "—", this.text.trim());
+                    return;
+                }
+                refocus.retried = true;
+                root.dialect = root.dialect === "lua" ? "plain" : "lua";
+                refocus.command = root.dispatchFor(root.dialect, refocus.address);
+                refocus.running = true;
+            }
+        }
     }
 
     // Only ever used for the cold-start case above: asking the compositor once, right after the

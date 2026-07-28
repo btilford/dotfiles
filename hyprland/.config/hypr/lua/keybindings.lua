@@ -257,19 +257,53 @@ end, { description = "Session/power menu" })
 hl.bind("SUPER + slash", function()
 	os.execute("qs ipc call keymap toggle 2>/dev/null")
 end, { description = "Keymap cheatsheet overlay", submap_universal = true })
-hl.bind("SUPER + n", function()
-	-- Focus the notification stack from the keyboard: j/k to move, d to dismiss, Esc to release.
-	-- Popups never grab the keyboard on their own, so this bind is the only way in.
-	os.execute("qs ipc call notifications toggleFocus 2>/dev/null")
-end, { description = "Focus notifications (keyboard control)" })
-hl.bind("SUPER + SHIFT + N", function()
-	-- falls back to swaync while it is still the server on machines without HYPR_NOTIFY=quickshell
-	os.execute("qs ipc call notifications dismissAll 2>/dev/null || swaync-client -C 2>/dev/null")
-end, { description = "Dismiss all notifications" })
+-- Notifications submap. One entry point for every notification verb, which keeps the top-level
+-- namespace free — and the KeymapOverlay picks it up as its own tree node from the "[notif-cmd]"
+-- description tag, so the map documents itself.
+--
+-- LOAD-BEARING: any verb that hands the keyboard to quickshell (the drawer and focus mode both
+-- take an EXCLUSIVE layer-shell grab) must leave the submap FIRST. A submap is a Hyprland-side
+-- mode, and an exclusive surface swallows every key before Hyprland sees it — so the submap
+-- would stay active with no way to press its own escape: an invisible mode the user is stuck in
+-- until that surface closes. Reset, then run.
+local function notif_run(cmd)
+	hl.dispatch(hl.dsp.submap("reset"))
+	os.execute(cmd)
+end
+
+hl.bind("SUPER + n", hl.dsp.submap("notif-cmd"), { description = "Notifications submap [notif-cmd]" })
+hl.define_submap("notif-cmd", function()
+	hl.bind("d", function()
+		-- searchable history drawer; also opens from the bar bell
+		notif_run("qs ipc call notifications drawer 2>/dev/null || swaync-client -t 2>/dev/null")
+	end, { description = "Notification history drawer" })
+
+	hl.bind("f", function()
+		-- focus the popup stack itself: j/k move, d dismisses, Esc releases. Popups never grab the
+		-- keyboard on their own, so this is the only way in.
+		notif_run("qs ipc call notifications focus 2>/dev/null")
+	end, { description = "Focus the notification stack (keyboard control)" })
+
+	hl.bind("x", function()
+		-- falls back to swaync while it is still the server on hosts without HYPR_NOTIFY=quickshell
+		notif_run("qs ipc call notifications dismissAll 2>/dev/null || swaync-client -C 2>/dev/null")
+	end, { description = "Dismiss everything on screen" })
+
+	hl.bind("r", function()
+		notif_run("qs ipc call notifications markRead 2>/dev/null")
+	end, { description = "Mark all read (clear the bell count)" })
+
+	hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
+end)
+
+-- Kept outside the submap: the drawer is the verb reached most often, and dismiss-all is a panic
+-- key that should never need two presses.
 hl.bind("SUPER + i", function()
-	-- notification history drawer (searchable, grouped); also opens from the bar bell
 	os.execute("qs ipc call notifications drawer 2>/dev/null || swaync-client -t 2>/dev/null")
 end, { description = "Notification history drawer" })
+hl.bind("SUPER + SHIFT + N", function()
+	os.execute("qs ipc call notifications dismissAll 2>/dev/null || swaync-client -C 2>/dev/null")
+end, { description = "Dismiss all notifications" })
 hl.bind("CTRL + ALT + L", hl.dsp.exec_cmd("loginctl lock-session"), { description = "Lock session" })
 
 -- Workspace switching
