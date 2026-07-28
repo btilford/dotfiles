@@ -41,7 +41,7 @@ Scope {
     readonly property var stackKeys: {
         const keys = [];
         for (const e of Notifications.popups) {
-            if (e.queued || e.drawerOnly)
+            if (e.queued || e.drawerOnly || !e.resolved)
                 continue;
             const k = scope.keyOf(e);
             if (keys.indexOf(k) < 0)
@@ -53,7 +53,7 @@ Scope {
     function entriesFor(key) {
         const out = [];
         for (const e of Notifications.popups)
-            if (!e.queued && !e.drawerOnly && scope.keyOf(e) === key)
+            if (!e.queued && !e.drawerOnly && e.resolved && scope.keyOf(e) === key)
                 out.push(e);
         return out;
     }

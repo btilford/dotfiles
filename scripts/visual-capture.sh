@@ -242,7 +242,13 @@ notify_preset right-center
 # has no business writing rows into the user's own history.
 NOTIFY_DB="$RUNTIME/notifications.db"
 
+# QS_NOTIFY_RULES for the same reason again: the popup-rules scene writes a rules file, and
+# it must be this session's, never ~/.config/quickshell/notifications.lua.
+NOTIFY_RULES="$RUNTIME/rules.lua"
+: > "$NOTIFY_RULES"
+
 HYPR_NOTIFY=quickshell QS_NOTIFY_CONFIG="$NOTIFY_CONFIG" QS_NOTIFY_DB="$NOTIFY_DB" \
+  QS_NOTIFY_RULES="$NOTIFY_RULES" \
   qs -p "$SHELL_QML" > "$RUNTIME/qs.log" 2>&1 &
 QS_PID=$!
 
@@ -380,6 +386,7 @@ scene_popup() {
   popup_countdown
   popup_collapse
   popup_keyboard
+  popup_rules
   popup_anchor bottom-center popup-bottom
   notify_preset right-center
   settle 0.8
@@ -441,6 +448,39 @@ popup_keyboard() {
   ipc notifications unfocus
   ipc notifications dismissAll
   settle 0.5
+}
+
+# Lua rules: three notifications, one config. One is routed to the opposite anchor, one is
+# made sticky, one is silenced to drawer-only — so the still shows a rule file deciding
+# placement and lifetime per notification rather than one setting applying to all of them.
+popup_rules() {
+  command -v lua > /dev/null 2>&1 || command -v luajit > /dev/null 2>&1 || {
+    warn "popup-rules: no lua interpreter — skipped"
+    return 0
+  }
+  cat > "$RUNTIME/rules.lua" << 'LUA'
+return {
+  { name = "route deploys top-left",
+    when = function(n) return n.category == "deploy" end,
+    set  = { anchorH = "left", anchorV = "top" } },
+  { name = "alerts stay until dismissed",
+    when = function(n) return n.appName == "alertmanager" end,
+    set  = { durationMs = 0 } },
+  { name = "build noise is drawer-only",
+    when = function(n) return n.appName == "cargo" end,
+    set  = { durationMs = -1 } },
+}
+LUA
+  settle 0.8 # FileView.watchChanges + the engine restart
+  notify-send -a "alertmanager" -u critical "Disk pressure" "node-02 at 91%"
+  notify-send -a "visual-capture" -c deploy "Deploy complete" "staging is on 1.4.2"
+  notify-send -a "cargo" "Compiling 214 crates" "this one never pops"
+  settle 1.6
+  still popup-rules
+  ipc notifications dismissAll
+  # Back to no rules: later scenes must not inherit this file's routing.
+  : > "$RUNTIME/rules.lua"
+  settle 1.0
 }
 
 # popup_anchor <preset> <capture name>: arrival motion + a still at one anchor.

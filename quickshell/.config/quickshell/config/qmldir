@@ -9,4 +9,5 @@ singleton Notifications Notifications.qml
 singleton NotifyConfig NotifyConfig.qml
 singleton NotifyStore NotifyStore.qml
 singleton NotifyFocus NotifyFocus.qml
+singleton NotifyRules NotifyRules.qml
 singleton Connectors Connectors.qml

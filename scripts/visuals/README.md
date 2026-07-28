@@ -37,7 +37,7 @@ variable is set by all three shells.
 `org.freedesktop.Notifications` on the nested bus — a capture of an empty desktop
 is worse than no capture. Every other scene works on any branch.
 
-The `popup` scene captures eleven files, not one, because notification placement is
+The `popup` scene captures twelve files, not one, because notification placement is
 a choice to be settled from real captures rather than taste — and because the timing
 behaviours (countdown, shrink-to-icon) only exist as motion:
 
@@ -50,6 +50,7 @@ behaviours (countdown, shrink-to-icon) only exist as motion:
 | `popup-collapse-motion` / `popup-collapsed` | sticky critical folding to an icon pill |
 | `popup-keyboard-focus` / `popup-keyboard-select` | focus mode: the selected card outlined, key legend under the stack |
 | `popup-keyboard-motion` | j/k moving the selection, `d` dismissing, `Esc` releasing |
+| `popup-rules` | one Lua rules file deciding three notifications: routed, sticky, silenced |
 | `popup-bottom` / `popup-bottom-motion` | bottom-center preset: still + arrival |
 
 The keyboard scenes press real keys with `wtype`. That only works because the

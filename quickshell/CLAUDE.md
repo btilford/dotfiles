@@ -265,6 +265,34 @@ handler. Entered with `qs ipc call notifications toggleFocus` (SUPER + n).
 - Action hints by number belong to notif-actions: the server still advertises
   `actionsSupported: false`, so no action ever reaches the model to hint at.
 
+### Lua rules (story: notif-lua-rules)
+
+`config/NotifyRules.qml` hosts `rules/engine.lua` as a **subprocess**; user rules live at
+`~/.config/quickshell/notifications.lua` (`QS_NOTIFY_RULES` overrides; see
+`notifications.example.lua`).
+
+- **Out of process, not in it.** Quickshell 0.3.0 has no Lua binding, and an in-process VM would
+  put user code on the shell's thread — one `while true` in a predicate would freeze the bar and
+  the launcher, not just a notification.
+- **A rule can never drop a notification.** No rules file, a syntax error, a throwing predicate, a
+  wedged interpreter, no `lua` installed: every path ends with the notification shown using the
+  defaults it already had. The strongest thing a rule can say is `durationMs < 0` (drawer-only).
+- **Protocol**: one JSON line each way, `seq` echoed. The `seq` check exists because several
+  notifications can be in flight and applying one's answer to another would be worse than no rules.
+- **Deadline** (`rules.timeoutMs`, default 50ms) fails open *and restarts the interpreter* — a
+  missed deadline means it is wedged, and every later notification would queue behind it.
+- **Accumulate, last write wins.** Every matching rule runs in file order; `stop = true` ends
+  evaluation. That is what lets "mute this app" be layered with "…except criticals" instead of
+  duplicating matchers.
+- **`resolved` gates the view.** An entry waiting on the engine is in the model but on no screen,
+  so a card never appears at the default anchor and then jumps to the one a rule chose. With no
+  rules the callback is synchronous and this is the same single frame it always was.
+- Hot reload restarts the subprocess rather than re-reading in place: atomic, and it cannot leave
+  half an edited file loaded.
+- The engine carries its own ~150-line JSON codec on purpose — lua-cjson is not installed
+  everywhere this config lands, and a rules engine that fails to start over a missing rock would
+  take notifications with it.
+
 ### Actions — design settled, not built (story: notif-actions)
 
 The shape is decided (spike `notif-actions-config-spike`, AD-012, design note

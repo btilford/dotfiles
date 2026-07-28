@@ -22,6 +22,10 @@
     "        non-critical cards are capped at burstMs so the stack drains. burstMs 0 = off.",
     "criticalCollapseMs: a sticky card folds to an icon pill this long after it appears;",
     "        one click expands it again. 0 = never collapse.",
+    "rules:  Lua rules engine. path empty = ~/.config/quickshell/notifications.lua",
+    "        (QS_NOTIFY_RULES overrides). timeoutMs is the fail-open budget: past it the",
+    "        notification is shown with its defaults and the interpreter is restarted.",
+    "        See notifications.example.lua. A rule can never drop a notification.",
     "store:  SQLite history at ${XDG_DATA_HOME:-~/.local/share}/quickshell/notifications.db",
     "        (QS_NOTIFY_DB overrides the path). Retention is age AND count, whichever bites",
     "        first; 0 on either turns that limit off. Query it from anywhere, no shell needed:",
@@ -62,5 +66,10 @@
     "enabled": true,
     "retentionDays": 30,
     "retentionCount": 2000
+  },
+  "rules": {
+    "enabled": true,
+    "path": "",
+    "timeoutMs": 50
   }
 }

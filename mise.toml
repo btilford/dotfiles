@@ -65,7 +65,7 @@ run = "scripts/render-visual-history.py"
 
 [tasks.lint]
 description = "Run every CI gate"
-depends = ["lint:shell", "lint:secrets", "lint:yaml", "lint:json", "lint:nu", "lint:fish"]
+depends = ["lint:shell", "lint:secrets", "lint:yaml", "lint:json", "lint:nu", "lint:fish", "lint:lua"]
 
 [tasks."lint:shell"]
 description = "shellcheck sh/bash scripts — error severity only (vendored scripts carry style noise)"
@@ -109,6 +109,21 @@ for f in $(git ls-files '*.nu'); do
   fi
 done
 exit $rc
+"""
+
+[tasks."lint:lua"]
+description = "luacheck the quickshell rules engine and shipped rule files"
+# Scoped to quickshell/ on purpose. hyprland/.config/hypr/lua/ is written against the
+# `hl` global the compositor injects, so a bare luacheck run reports ~350 undefined-global
+# warnings there — real work to silence properly (a luacheck std file), not this story's.
+# CI does not carry this gate: the runner cannot reach GitHub for mise's aqua installs and
+# there is no luacheck-bundled image in use — same deliberate divergence as the rest.
+run = """
+if command -v luacheck >/dev/null 2>&1; then
+  git ls-files 'quickshell/**/*.lua' | xargs -r luacheck --no-color
+else
+  echo "luacheck not installed — skipping lua lint"
+fi
 """
 
 [tasks."lint:fish"]
