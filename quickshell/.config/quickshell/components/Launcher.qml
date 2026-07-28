@@ -31,8 +31,49 @@ PanelWindow {
     property string query: ""
     property string folder: Quickshell.env("HOME")
     property var results: []
-    // reactive effective mode (for the UI chip/placeholder); mirrors effectiveMode()
+    // reactive effective mode (for the tab row/placeholder); mirrors effectiveMode()
     readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : query.startsWith(":") ? "emoji" : query.startsWith(";") ? "glyphs" : query.startsWith("#") ? "icons" : query.startsWith("!") ? "wallpaper" : mode
+
+    // The modes, in tab order, each with the query prefix that also selects it. One list drives
+    // the tab row, Tab cycling, and the prefix stripping in selectMode() — they cannot drift.
+    readonly property var modes: [
+        {
+            name: "combi",
+            chord: ""
+        },
+        // drun has no prefix and the old cycle order skipped it, but `launcher show drun` is a
+        // live IPC entry point (Launcher.sh passes it), so it needs a tab or it lights nothing
+        {
+            name: "drun",
+            chord: ""
+        },
+        {
+            name: "run",
+            chord: ">"
+        },
+        {
+            name: "files",
+            chord: "/"
+        },
+        {
+            name: "emoji",
+            chord: ":"
+        },
+        {
+            name: "glyphs",
+            chord: ";"
+        },
+        {
+            name: "icons",
+            chord: "#"
+        },
+        {
+            name: "wallpaper",
+            chord: "!"
+        }
+    ]
+    // every character that steers activeMode from the front of the query ("~" is files, as above)
+    readonly property string modePrefixes: ">/~:;#!"
 
     // ---- lifecycle ----
     function open(m) {
@@ -55,10 +96,22 @@ PanelWindow {
         else
             open(m);
     }
-    function cycleMode() {
-        const order = ["combi", "run", "files", "emoji", "glyphs", "icons", "wallpaper"];
-        mode = order[(order.indexOf(mode) + 1) % order.length];
+    // Select a mode by name. A typed prefix outranks `mode` in activeMode, so a tab click has to
+    // drop the prefix as well — otherwise clicking "files" while the query reads ":smile" would
+    // leave the launcher in emoji mode with the files tab lit.
+    function selectMode(m) {
+        const t = input.text;
+        if (t.length && modePrefixes.indexOf(t.charAt(0)) >= 0)
+            input.text = t.slice(1);   // onTextChanged re-syncs query and refreshes
+        mode = m;
         refresh();
+    }
+    function cycleMode(dir) {
+        const step = dir || 1;
+        const names = modes.map(m => m.name);
+        // cycle from what's actually showing, so Tab continues from a prefix-selected mode
+        const at = names.indexOf(activeMode);
+        selectMode(names[((at < 0 ? 0 : at) + step + names.length) % names.length]);
     }
 
     // ---- $PATH binaries (for run mode), collected once ----
@@ -470,6 +523,55 @@ PanelWindow {
             anchors.margins: Theme.pad
             spacing: Theme.pad
 
+            // mode tabs — rofi's mode-switcher row, which the quickshell launcher never carried
+            // over. Click or Tab; the lit tab is activeMode, so a typed prefix moves it too.
+            Row {
+                id: tabRow
+                width: parent.width
+                height: 26
+                spacing: 4
+
+                Repeater {
+                    model: root.modes
+
+                    Rectangle {
+                        readonly property bool current: modelData.name === root.activeMode
+                        width: tabText.implicitWidth + 18
+                        height: parent.height
+                        radius: 4
+                        color: current ? "transparent" : (tabMa.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.08) : "transparent")
+
+                        // the current tab wears the plasma fill the mode chip used to
+                        EnergyFill {
+                            anchors.fill: parent
+                            radius: parent.radius
+                            visible: parent.current
+                        }
+
+                        Text {
+                            id: tabText
+                            anchors.centerIn: parent
+                            text: modelData.chord.length ? modelData.name + "  " + modelData.chord : modelData.name
+                            color: parent.current ? Theme.fg : Theme.subtext
+                            font.family: Theme.fontMono
+                            font.pixelSize: Theme.fontSize - 2
+                            font.bold: parent.current
+                        }
+
+                        MouseArea {
+                            id: tabMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.selectMode(modelData.name);
+                                input.forceActiveFocus();
+                            }
+                        }
+                    }
+                }
+            }
+
             Rectangle {
                 id: header
                 width: parent.width
@@ -489,32 +591,7 @@ PanelWindow {
                     color: Theme.accent
                 }
 
-                // mode chip
-                Rectangle {
-                    id: chip
-                    anchors.left: parent.left
-                    anchors.leftMargin: 8
-                    anchors.verticalCenter: parent.verticalCenter
-                    height: 24
-                    width: chipText.implicitWidth + 16
-                    radius: 4
-                    color: "transparent"
-                    // animated plasma fill (replaces the flat accent chip)
-                    EnergyFill {
-                        anchors.fill: parent
-                        radius: parent.radius
-                    }
-                    Text {
-                        id: chipText
-                        anchors.centerIn: parent
-                        text: root.activeMode
-                        // translucent plasma fill behind → light text
-                        color: Theme.fg
-                        font.family: Theme.fontMono
-                        font.pixelSize: Theme.fontSize - 2
-                        font.bold: true
-                    }
-                }
+                // (the mode chip lived here; the tab row above states the mode now)
 
                 // result count
                 Text {
@@ -530,9 +607,9 @@ PanelWindow {
 
                 TextField {
                     id: input
-                    anchors.left: chip.right
+                    anchors.left: parent.left
                     anchors.right: countText.left
-                    anchors.leftMargin: 10
+                    anchors.leftMargin: 12
                     anchors.rightMargin: 10
                     anchors.verticalCenter: parent.verticalCenter
                     placeholderText: root.activeMode === "files"
@@ -545,7 +622,7 @@ PanelWindow {
                                     ? "Search icons  ·  Enter copies icon name"
                                     : root.activeMode === "wallpaper"
                                         ? "Search wallpapers  ·  Enter applies"
-                                        : "Search apps  ·  > run  ·  / files  ·  : emoji  ·  ; glyphs  ·  # icons  ·  ! wallpaper"
+                                        : "Search apps  ·  Tab switches mode"   // the prefixes are on the tabs now
                     color: Theme.fg
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize
@@ -570,7 +647,10 @@ PanelWindow {
                             root.activate(root.results[list.currentIndex]);
                             e.accepted = true;
                         } else if (e.key === Qt.Key_Tab) {
-                            root.cycleMode();
+                            root.cycleMode(1);
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_Backtab) {
+                            root.cycleMode(-1);
                             e.accepted = true;
                         }
                     }
@@ -580,7 +660,8 @@ PanelWindow {
             ListView {
                 id: list
                 width: parent.width
-                height: parent.height - 58
+                // derived from the siblings, so adding/resizing a header row can't strand the list
+                height: parent.height - tabRow.height - header.height - parent.spacing * 2
                 clip: true
                 model: root.results
                 currentIndex: 0
