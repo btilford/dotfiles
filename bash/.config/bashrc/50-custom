@@ -39,6 +39,10 @@ if command -v wt >/dev/null 2>&1; then
     eval "$(command wt config shell init bash)"
 fi
 
+if command -v workmux >/dev/null 2>&1; then
+    source <(workmux completions bash)
+fi
+
 # Yazi wrapper: cd into last directory on exit
 function y() {
     local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd

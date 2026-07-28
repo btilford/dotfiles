@@ -46,7 +46,7 @@ is in the branch rather than what happens to be stowed.
 
 ## Structure
 
-- **Cross-platform**: `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`
+- **Cross-platform**: `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`, `workmux`
 - **macOS-only**: `ghostty`, `macos`
 - **Linux-only**: `hyprland`, `rofi`, `konsole`, `kmonad`, `terminator`, `yakuake`, `brave-linux`, `xdg`
 - **Shared base**: `base`
