@@ -89,6 +89,15 @@ Singleton {
             timeoutMs: 50
         })
 
+    // Drawer (components/NotificationDrawer.qml). `mode` is a display choice over the same
+    // data: "panel" slides out from the right edge full height, "modal" is centred and
+    // launcher-shaped. `limit` is how many stored rows one page of the drawer pulls.
+    readonly property var defaultDrawer: ({
+            mode: "panel",
+            width: 460,
+            limit: 200
+        })
+
     // Named presets exist so the two candidate layouts can be swapped with one word and compared
     // from real captures rather than taste (that comparison IS this story).
     readonly property var presets: ({
@@ -119,6 +128,7 @@ Singleton {
     property var timing: root.clone(root.defaultTiming)
     property var store: root.clone(root.defaultStore)
     property var rules: root.clone(root.defaultRules)
+    property var drawer: root.clone(root.defaultDrawer)
 
     readonly property string configPath: root.envOr("QS_NOTIFY_CONFIG", Quickshell.env("HOME") + "/.config/quickshell/notifications.json")
 
@@ -240,6 +250,13 @@ Singleton {
             // a 0 budget would mean "fail open before asking", which is just disabled with
             // extra steps — clamp to something a lua round trip can actually make
             timeoutMs: root.pickInt(r, "timeoutMs", root.defaultRules.timeoutMs, 5)
+        };
+
+        const d = cfg.drawer;
+        root.drawer = {
+            mode: root.pickEnum(d, "mode", ["panel", "modal"], root.defaultDrawer.mode),
+            width: root.pickInt(d, "width", root.defaultDrawer.width, 240),
+            limit: root.pickInt(d, "limit", root.defaultDrawer.limit, 10)
         };
     }
 

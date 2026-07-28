@@ -387,6 +387,7 @@ scene_popup() {
   popup_collapse
   popup_keyboard
   popup_rules
+  popup_drawer
   popup_anchor bottom-center popup-bottom
   notify_preset right-center
   settle 0.8
@@ -481,6 +482,33 @@ LUA
   # Back to no rules: later scenes must not inherit this file's routing.
   : > "$RUNTIME/rules.lua"
   settle 1.0
+}
+
+# The history drawer, in both shapes it ships with. Notifications are fired and left to
+# expire first: the drawer's whole claim is that a popup you already lost is still there.
+popup_drawer() {
+  local i
+  for i in 1 2 3; do
+    notify-send -a "cargo" -t 1200 "Compiled crate $i" "target/release"
+  done
+  notify-send -a "alertmanager" -u critical -t 1200 "Disk pressure" "node-02 at 91%"
+  notify-send -a "ci" -t 1200 "Build failed" "3 tests red on main"
+  settle 2.5 # let them all expire off screen — the drawer is what remains
+
+  ipc notifications drawerShow
+  settle 1.2
+  still popup-drawer
+  ipc notifications drawerHide
+  settle 0.6
+
+  notify_cfg '{ "preset": "right-center", "drawer": { "mode": "modal" } }'
+  settle 0.8
+  ipc notifications drawerShow
+  settle 1.2
+  still popup-drawer-modal
+  ipc notifications drawerHide
+  notify_preset right-center
+  settle 0.8
 }
 
 # popup_anchor <preset> <capture name>: arrival motion + a still at one anchor.

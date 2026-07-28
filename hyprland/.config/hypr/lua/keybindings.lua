@@ -266,6 +266,10 @@ hl.bind("SUPER + SHIFT + N", function()
 	-- falls back to swaync while it is still the server on machines without HYPR_NOTIFY=quickshell
 	os.execute("qs ipc call notifications dismissAll 2>/dev/null || swaync-client -C 2>/dev/null")
 end, { description = "Dismiss all notifications" })
+hl.bind("SUPER + i", function()
+	-- notification history drawer (searchable, grouped); also opens from the bar bell
+	os.execute("qs ipc call notifications drawer 2>/dev/null || swaync-client -t 2>/dev/null")
+end, { description = "Notification history drawer" })
 hl.bind("CTRL + ALT + L", hl.dsp.exec_cmd("loginctl lock-session"), { description = "Lock session" })
 
 -- Workspace switching

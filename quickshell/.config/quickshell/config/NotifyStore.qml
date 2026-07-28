@@ -26,7 +26,7 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property int schemaVersion: 1
+    readonly property int schemaVersion: 2
 
     readonly property string dbPath: {
         const explicit = Quickshell.env("QS_NOTIFY_DB");
@@ -157,6 +157,13 @@ Singleton {
         // critical from before a restart still shows up in the bell count.
         "UPDATE notifications SET state = 'orphaned' WHERE state = 'active';\n";
 
+    // v2 (story: notif-drawer). `cleared_at` is "the user has dealt with this in the drawer",
+    // which is NOT the same as read (seen) or dismissed (a live popup closed by hand) — a row
+    // cleared from the drawer stays in the history and stays queryable, it just stops being
+    // listed. SQLite has no ADD COLUMN IF NOT EXISTS, so this runs as its own statement whose
+    // failure is the success case on an already-migrated database ("duplicate column name").
+    readonly property string migrateSql: "ALTER TABLE notifications ADD COLUMN cleared_at INTEGER;"
+
     Process {
         id: initProc
         stderr: StdioCollector {}
@@ -165,11 +172,21 @@ Singleton {
                 root.fail("could not open " + root.dbPath, initProc.stderr.text.trim());
                 return;
             }
+            migrateProc.command = ["sqlite3", root.dbPath, root.migrateSql];
+            migrateProc.running = true;
             root.ready = true;
             root.prune();
             root.refreshRecent();
             unreadProc.running = true;
         }
+    }
+
+    // Exit code deliberately unchecked: on every start after the first, this fails with
+    // "duplicate column name: cleared_at", which is exactly the state we want. A real failure
+    // (unwritable database) has already been caught by initProc above.
+    Process {
+        id: migrateProc
+        stderr: StdioCollector {}
     }
 
     // mkdir -p the parent: sqlite3 will not create a missing directory, and a first run on a new
@@ -323,6 +340,48 @@ Singleton {
         const n = Math.max(1, Math.min(1000, limit || 50));
         const like = root.sqlText("%" + text + "%");
         root.query("SELECT * FROM notifications WHERE summary LIKE " + like + " OR body LIKE " + like + " OR app_name LIKE " + like + " ORDER BY received_at DESC LIMIT " + n + ";", callback);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Drawer support (story: notif-drawer).
+    //
+    // Clearing is a row state, not a delete: the drawer is a view onto the history, and a
+    // history you can erase by pressing d in a list is not a history. `sqlite3 <db> "SELECT …"`
+    // still returns every cleared row.
+    // ---------------------------------------------------------------------------------------
+
+    function clearRows(rowIds) {
+        if (!NotifyConfig.store.enabled || !rowIds || rowIds.length === 0)
+            return;
+        const ids = rowIds.map(Number).filter(n => isFinite(n)).join(",");
+        if (!ids.length)
+            return;
+        root.enqueue("UPDATE notifications SET cleared_at = " + Date.now() + "\n" + "WHERE cleared_at IS NULL AND row_id IN (" + ids + ");");
+    }
+
+    function clearAll() {
+        if (!NotifyConfig.store.enabled)
+            return;
+        root.enqueue("UPDATE notifications SET cleared_at = " + Date.now() + " WHERE cleared_at IS NULL;");
+    }
+
+    // One page of the drawer: newest first, uncleared only, with the filtering the drawer can
+    // push down to SQL. Fuzzy matching stays client-side on the returned page — LIKE is not
+    // fuzzy, and a subsequence matcher in SQL would be a stored function we do not have.
+    function drawerRows(filters, limit, callback) {
+        const n = Math.max(1, Math.min(2000, limit || 200));
+        const where = ["cleared_at IS NULL"];
+        if (filters) {
+            if (filters.app)
+                where.push("app_name = " + root.sqlText(filters.app));
+            if (filters.category)
+                where.push("category = " + root.sqlText(filters.category));
+            if (typeof filters.urgency === "number" && filters.urgency >= 0)
+                where.push("urgency = " + Number(filters.urgency));
+            if (typeof filters.since === "number" && filters.since > 0)
+                where.push("received_at >= " + Number(filters.since));
+        }
+        root.query("SELECT * FROM notifications WHERE " + where.join(" AND ") + " ORDER BY received_at DESC LIMIT " + n + ";", callback);
     }
 
     // ---------------------------------------------------------------------------------------

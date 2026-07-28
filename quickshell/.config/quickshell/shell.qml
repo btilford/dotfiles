@@ -27,6 +27,10 @@ ShellRoot {
     // singleton and only claims the name when HYPR_NOTIFY=quickshell, so it never fights swaync.
     NotificationOverlay {}
 
+    // Notification history: the searchable drawer over the SQLite store. Its own window rather
+    // than part of the overlay, because it outlives every popup on screen.
+    NotificationDrawer {}
+
     // fullscreen clipboard-history dialog (clipborg); state lives in the Clipboard singleton.
     // Via LazyLoader, not inline: components/ClipboardDialog.qml imports the `Clipborg` QML
     // module out of the clipborg repo (QML_IMPORT_PATH, see hypr/lua/environments.lua). A
@@ -85,6 +89,17 @@ ShellRoot {
         }
         function focused(): bool {
             return NotifyFocus.active;
+        }
+        // Drawer (history). `drawer` is the toggle because that is what a bind wants; show and
+        // hide exist for scripts that need a known end state.
+        function drawer(): void {
+            NotifyDrawer.toggle();
+        }
+        function drawerShow(): void {
+            NotifyDrawer.open();
+        }
+        function drawerHide(): void {
+            NotifyDrawer.close();
         }
         function dbPath(): string {
             return NotifyStore.dbPath;
