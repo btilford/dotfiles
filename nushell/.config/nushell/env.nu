@@ -56,15 +56,33 @@ if (which starship | is-not-empty) {
     starship init nu | save --force ($starship_cache | path join init.nu)
 }
 
+let nu_dir = ($nu.default-config-dir)
+
+# config.nu `source`s the files generated below, and `source` resolves at parse
+# time — but nushell parses config.nu only after env.nu has finished running, so
+# generating them here is what makes a cold start work on a fresh clone. They are
+# gitignored precisely because they are host-specific and regenerated every start.
+#
+# The stub for an unavailable tool is load-bearing, not defensive: a missing file
+# is a parse error that takes the whole shell down, and no `if ... path exists`
+# guard around `source` prevents it — the parser runs before the guard does.
+def ensure-stub [path: path] {
+    if not ($path | path exists) { touch $path }
+}
+
 # Carapace completions cache
 if (which carapace | is-not-empty) {
     $env.CARAPACE_BRIDGES = 'zsh,fish,bash,inshellisense'
-    carapace _carapace nushell | save --force ($env.HOME | path join .config/nushell/carapace.nu)
+    carapace _carapace nushell | save --force ($nu_dir | path join carapace.nu)
+} else {
+    ensure-stub ($nu_dir | path join carapace.nu)
 }
 
 # Zoxide
 if (which zoxide | is-not-empty) {
-    zoxide init nushell --cmd cd | save -f ($env.HOME | path join .config/nushell/.zoxide.nu)
+    zoxide init nushell --cmd cd | save -f ($nu_dir | path join .zoxide.nu)
+} else {
+    ensure-stub ($nu_dir | path join .zoxide.nu)
 }
 
 # Yazi wrapper: cd into last directory on exit
@@ -78,11 +96,15 @@ def --env y [...args] {
     rm -fp $tmp
 }
 
-# Sensitive credentials — load from local-only file not in version control
-# Create ~/.config/nushell/local.nu and add secrets there
-# Note: source requires a parse-time literal; the file must exist at parse time.
-source ~/.config/nushell/local.nu
+# Sensitive credentials / machine-local config. Genuinely untracked now — the stub
+# is created here rather than shipped in the repo, so writing a secret into it can
+# no longer commit that secret. env.nu deliberately does NOT `source` it: that would
+# be parse-time, i.e. before this line can create it. config.nu sources it instead,
+# which parses after env.nu has run.
+ensure-stub ($nu_dir | path join local.nu)
+
 if (which mise | is-not-empty) {
-    let mise_path = ($nu.default-config-dir | path join mise.nu)
-    ^mise activate nu | save $mise_path --force
+    ^mise activate nu | save ($nu_dir | path join mise.nu) --force
+} else {
+    ensure-stub ($nu_dir | path join mise.nu)
 }
