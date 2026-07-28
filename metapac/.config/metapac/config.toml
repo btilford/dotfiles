@@ -13,11 +13,11 @@ enabled_backends = []
 
 [hostname_enabled_backends]
 cachyos-fwd = ["arch", "bun", "cargo", "flatpak", "mise", "uv"]
-# <macos-host> = ["brew", "cargo", "mise", "uv", "bun"]
+"example-macos-host.local" = ["brew", "cargo", "mise", "uv", "bun"]
 
 [hostname_groups]
 cachyos-fwd = ["core", "desktop-arch"]
-# <macos-host> = ["core", "macos"]
+"example-macos-host.local" = ["core", "macos"]
 
 [arch]
 # Required: routes AUR installs through the aur-policy PreBuildCommand gate.

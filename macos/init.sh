@@ -29,7 +29,6 @@ brew install zoxide \
     lua \
     lua-language-server \
     ruby \
-    asdf \
     sdkman-cli \
     fish \
     nushell \
@@ -73,10 +72,6 @@ git reset --hard
 
 source ~/.zshrc
 
-asdf plugin add nodejs
-asdf plugin add python
-asdf install nodejs latest
-asdf install python latest
 
 echo "Completed"
 

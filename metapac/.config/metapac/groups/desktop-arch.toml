@@ -25,7 +25,6 @@ arch = { packages = [
   "appimagelauncher",
   "archlinux-xdg-menu",
   "ark",
-  "asdf-vm",
   "atop",
   "aur-scanner",
   "aurscan-manticore-release-git",
@@ -601,4 +600,33 @@ flatpak = { repos = [
   { name = "system:com.actualbudget.actual", options = { remote = "flathub" } },
   { name = "system:com.github.flxzt.rnote", options = { remote = "flathub" } },
   { name = "system:org.raspberrypi.rpi-imager", options = { remote = "flathub" } },
+] }
+
+# Moved out of core.toml (2026-07-27) so they stay Arch-only. mise is per-host:
+# the two hosts share no mise tools. No node here — the system `nodejs` (declared
+# in the arch block above) covers joplin/mermaid-cli/node-gyp; mise needs none.
+mise = { packages = [
+  { name = "android-sdk", options = { version = "latest" } },
+  { name = "bun", options = { version = "1.3.3" } },
+  { name = "zig", options = { version = "latest" } },
+] }
+cargo = { packages = [
+  { name = "all-smi", options = { version = "0.20.1", git = "https://github.com/lablup/all-smi.git", features = [
+  ] } },
+  { name = "cargo-zigbuild", options = { version = "0.23.0", features = [
+  ] } },
+  { name = "clipborg", options = { version = "0.1.0", features = [
+  ] } },
+  { name = "isw", options = { version = "0.3.8", features = [
+  ] } },
+  { name = "modelsdev", options = { version = "0.9.5", features = [
+  ] } },
+  { name = "rxpipes", options = { version = "1.3.0", features = [
+  ] } },
+  { name = "tenere", options = { version = "0.11.3", features = [
+  ] } },
+] }
+uv = { packages = ["kimi-cli"] }
+bun = { packages = [
+  "@th0rgal/ralph-wiggum",
 ] }

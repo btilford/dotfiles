@@ -1,5 +1,4 @@
-export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$HOME/.cargo/bin:$PATH"
-fpath=(${ASDF_DATA_DIR:-$HOME/.asdf}/completions $fpath)
+export PATH="$HOME/.cargo/bin:$PATH"
 autoload -Uz compinit && compinit
 
 command -v direnv  >/dev/null 2>&1 && eval "$(direnv hook zsh)"

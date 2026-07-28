@@ -53,8 +53,11 @@ is in the branch rather than what happens to be stowed.
 
 ## Branches
 
-- `master` — main
-- `macos` — macOS-specific work
+- `master` — the single deploy checkout and only long-lived branch. Feature work
+  happens in worktrees off `master` (see "Worktrees" above).
+
+Platform divergence lives in per-host `metapac` tables and local-override files,
+not a platform branch — the `macos` branch was retired.
 
 ## Hyprland Lua API
 
@@ -71,9 +74,16 @@ at `~/.config/metapac/`; group files are the source of truth.
 - **One config for every host.** Per-machine divergence lives in the
   `[hostname_enabled_backends]` / `[hostname_groups]` tables in `config.toml`,
   not in separate stow packages.
-- **Backends:** `arch`, `brew`, `bun`, `cargo`, `flatpak`, `mise`, `uv`.
+- **Backends:** `arch`, `brew`, `bun`, `cargo`, `flatpak`, `mise`, `uv` — enabled
+  per host. Arch (`cachyos-fwd`): `arch`, `bun`, `cargo`, `flatpak`, `mise`, `uv`
+  + groups `core`, `desktop-arch`. macOS (`example-macos-host.local`): `brew`,
+  `cargo`, `mise`, `uv`, `bun` + groups `core`, `macos`.
   `[arch] package_manager = "paru"` is required so AUR installs stay behind the
   aur-policy gate. `npm` and `pipx` are deliberately disabled.
+- **Group files:** `core.toml` (cross-platform), `desktop-arch.toml` (Arch),
+  `macos.toml` (macOS). Moving a package `core` → `desktop-arch` is Arch-neutral
+  (Arch enables both) and only drops it from the Mac's set — the safe way to make
+  a `core` entry Arch-only.
 - **One owner per tool class.** bun owns global JS CLIs, uv owns global Python
   CLIs, mise owns runtimes. Never enable `npm`/`pipx` alongside them — two
   backends claiming the same tool breaks sync/clean semantics.
@@ -91,6 +101,26 @@ at `~/.config/metapac/`; group files are the source of truth.
   wrapper setting `FORCE_COLOR=0` (see the `bun` drop-ins in `fish`/`bash`/`zsh`
   and `nushell/config.nu`). Drop those and `clean` will offer to remove your bun
   packages.
+
+- **mise is per-host, not in `core`.** The two hosts share no mise tools, so each
+  declares its own set (`desktop-arch.toml`: android-sdk, bun, zig; `macos.toml`:
+  node, terraform, yarn, ktlint, tmux, bun). bun is declared under mise on both so
+  the shared bun backend (hunkdiff, markdownlint-cli2 in `core`) has an interpreter.
+- **metapac's mise backend can't manage `npm:`/`vfox:`-prefixed tools** (e.g.
+  `npm:cavemen`, `vfox:…-gcloud`). `unmanaged` lists them but `sync` aborts with
+  "invalid packages" if they're declared — a catch-22 with no ignore option in
+  0.10.0. Keep mise blocks to plain registry tools; relocate the rest (gcloud →
+  brew's `gcloud-cli`/`google-cloud-sdk`; cavemen → the bun backend).
+- **macOS `brew`:** one merged list of formulae + casks (metapac installs/removes
+  either by name). metapac itself is cargo-installed on macOS (declared in
+  `macos.toml` `cargo`) since brew has no formula for it; on Arch it comes from AUR.
+- **macOS config path (gotcha).** metapac reads its config from the OS-native dir,
+  not XDG: on macOS that's `~/Library/Application Support/metapac/`, and it ignores
+  `XDG_CONFIG_HOME`. The cross-platform stow package lands at `~/.config/metapac/`,
+  so a no-flag `metapac` on macOS silently loads an *empty default* config (no
+  backends → everything reads "clean"/"nothing to install" — a false pass). Per
+  machine, bridge it once: `ln -s ~/.config/metapac ~/"Library/Application Support/metapac"`.
+  (Linux uses XDG, so `~/.config/metapac/` is already correct there.)
 
 Not managed by metapac, by design: nvim plugins (lazy.nvim + `lazy-lock.json`)
 and Mason's LSP/formatter tools (declared via `mason-tool-installer`).

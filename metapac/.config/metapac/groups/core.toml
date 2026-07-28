@@ -2,41 +2,28 @@
 # Arch and macOS. Platform-only packages belong in desktop-arch.toml / macos.toml.
 #
 # Bootstrapped from `metapac unmanaged` on cachyos-fwd, 2026-07-26.
+# mise is intentionally NOT declared here: the two hosts share no mise tools,
+# so each declares its own set in desktop-arch.toml / macos.toml (2026-07-27).
 
 cargo = { packages = [
-  { name = "all-smi", options = { version = "0.20.1", git = "https://github.com/lablup/all-smi.git", features = [
-  ] } },
-  { name = "cargo-zigbuild", options = { version = "0.23.0", features = [
-  ] } },
-  { name = "clipborg", options = { version = "0.1.0", features = [
-  ] } },
-  { name = "isw", options = { version = "0.3.8", features = [
-  ] } },
   { name = "just", options = { version = "1.46.0", features = [
   ] } },
-  { name = "modelsdev", options = { version = "0.9.5", features = [
-  ] } },
-  { name = "rxpipes", options = { version = "1.3.0", features = [
-  ] } },
-  { name = "tenere", options = { version = "0.11.3", features = [
-  ] } },
 ] }
-mise = { packages = [
-  { name = "android-sdk", options = { version = "latest" } },
-  { name = "bun", options = { version = "1.3.3" } },
-  # No node: mise no longer needs a node runtime (markdownlint-cli2 moved to bun),
-  # and the system `nodejs` package — still required by joplin, mermaid-cli,
-  # node-gyp and friends — is declared in desktop-arch.toml.
-  { name = "zig", options = { version = "latest" } },
-] }
-uv = { packages = ["kimi-cli"] }
 
 # Global JS CLIs go through bun, not npm — one owner, same as uv owns Python.
-# npm globals are deliberately left undeclared (the npm backend is disabled);
-# only corepack and npm itself remain there, both shipped with node.
+# bun itself is provided per-host via mise (desktop-arch.toml / macos.toml).
 bun = { packages = [
-  "@th0rgal/ralph-wiggum",
   "hunkdiff",
   # Used by `mise run fmt:md` and the lefthook pre-commit hook.
   "markdownlint-cli2",
+  # nvim node host + treesitter, and the dev CLIs nvim drives (conform/lint/LSP).
+  # Migrated off npm -g; both platforms.
+  "neovim",
+  "tree-sitter-cli",
+  "typescript",
+  "typescript-language-server",
+  "prettier",
+  "eslint",
+  "@mistweaverco/kulala-fmt",
+  "@mistweaverco/kulala-ls",
 ] }
