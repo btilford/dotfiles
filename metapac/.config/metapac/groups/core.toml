@@ -8,6 +8,9 @@
 cargo = { packages = [
   { name = "just", options = { version = "1.46.0", features = [
   ] } },
+  # Owns the `workmux` stow package (config + shell completions). Cargo rather
+  # than arch/bun: it is published only to crates.io, with no AUR or npm entry.
+  "workmux",
 ] }
 
 # Global JS CLIs go through bun, not npm — one owner, same as uv owns Python.
