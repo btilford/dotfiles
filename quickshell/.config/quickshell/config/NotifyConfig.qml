@@ -51,11 +51,25 @@ Singleton {
             reflowMs: 200           // cards closing the gap after one leaves
         })
 
+    // Duration vocabulary, used by these three values, by a rule's `presentation.durationMs`, and
+    // by the entry's own durationMs — one meaning everywhere:
+    //     > 0   show for that many milliseconds
+    //       0   sticky: stays until dismissed (matches expire_timeout = 0 on the wire)
+    //     < 0   drawer-only: recorded and counted unread, never popped
     readonly property var defaultTiming: ({
             low: 3000,
             normal: 6000,
-            critical: 0,            // 0 = sticky
-            respectAppTimeout: true
+            critical: 0,            // sticky, then collapses to a pill (criticalCollapseMs)
+            respectAppTimeout: true,
+            hoverPause: true,       // pointer over a card freezes its countdown
+            showRemaining: true,    // ...and the card shows how much of it is left
+            // Burst relief: once a stack is this full, further non-critical cards are capped at
+            // burstMs so the stack drains instead of growing. 0 = use placement.maxVisible.
+            burstAt: 0,
+            burstMs: 2500,          // 0 disables burst shortening entirely
+            // A sticky card shrinks to an icon pill this long after it appears, staying on screen
+            // without occupying it. One click expands it again. 0 = never collapse.
+            criticalCollapseMs: 15000
         })
 
     // Named presets exist so the two candidate layouts can be swapped with one word and compared
@@ -178,11 +192,18 @@ Singleton {
         };
 
         const t2 = cfg.timing;
+        // min -1 on the per-urgency values: negative is meaningful here (drawer-only), unlike
+        // every other duration in this file where it is just a typo.
         root.timing = {
-            low: root.pickInt(t2, "low", root.defaultTiming.low, 0),
-            normal: root.pickInt(t2, "normal", root.defaultTiming.normal, 0),
-            critical: root.pickInt(t2, "critical", root.defaultTiming.critical, 0),
-            respectAppTimeout: root.pickBool(t2, "respectAppTimeout", root.defaultTiming.respectAppTimeout)
+            low: root.pickInt(t2, "low", root.defaultTiming.low, -1),
+            normal: root.pickInt(t2, "normal", root.defaultTiming.normal, -1),
+            critical: root.pickInt(t2, "critical", root.defaultTiming.critical, -1),
+            respectAppTimeout: root.pickBool(t2, "respectAppTimeout", root.defaultTiming.respectAppTimeout),
+            hoverPause: root.pickBool(t2, "hoverPause", root.defaultTiming.hoverPause),
+            showRemaining: root.pickBool(t2, "showRemaining", root.defaultTiming.showRemaining),
+            burstAt: root.pickInt(t2, "burstAt", root.defaultTiming.burstAt, 0),
+            burstMs: root.pickInt(t2, "burstMs", root.defaultTiming.burstMs, 0),
+            criticalCollapseMs: root.pickInt(t2, "criticalCollapseMs", root.defaultTiming.criticalCollapseMs, 0)
         };
     }
 
