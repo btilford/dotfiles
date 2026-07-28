@@ -308,6 +308,11 @@ that shrank, not bar modules, so they carry their own pill surface and no bar ba
   the pill stays in the stack rather than vanishing.
 - Past `collapse.maxPills` the rest are one "+N" chip that opens the drawer. The bar is not a
   queue.
+- **The tray adapts to the gap it is given**, because a PORTRAIT bar is ~1440 logical wide and
+  the space between the workspaces and the status cluster is a few hundred pixels:
+  `full` (icon + summary) → `compact` (icon only, summary on hover) → `chip` (one "N" bubble).
+  Thresholds are conservative ESTIMATES on purpose — measuring the laid-out row and feeding
+  that back into the mode that sets the row's width is a binding loop.
 
 ### Copy and expand
 

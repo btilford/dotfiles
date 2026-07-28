@@ -22,6 +22,48 @@ Item {
 
     readonly property int maxPills: NotifyConfig.collapse.maxPills
 
+    // ---------------------------------------------------------------------------------------
+    // Fitting the gap.
+    //
+    // This tray lives between the workspace centre and the status cluster, and on a PORTRAIT
+    // monitor that gap is a few hundred pixels, not a thousand. The mode is therefore derived
+    // from the width actually available rather than assumed:
+    //
+    //   full     icon + summary, the normal landscape case
+    //   compact  icon only — you can see how many and how urgent, hover for the text
+    //   chip     one "N" bubble; the bar has no room to say anything more, so it says how many
+    //
+    // The thresholds are ESTIMATES, deliberately: measuring the laid-out row and feeding that
+    // back into the mode that determines the row's width is a binding loop. Conservative
+    // constants cannot oscillate.
+    // ---------------------------------------------------------------------------------------
+
+    readonly property int fullPillWidth: 190   // icon + elided summary + padding
+    readonly property int compactPillWidth: 46 // stripe + icon + padding
+    readonly property int chipWidth: 54
+    readonly property int gutter: 6
+
+    // room for the "+N" chip when not everything fits
+    readonly property real usable: Math.max(0, root.width - (root.pills.length > root.maxPills ? root.chipWidth + root.gutter : 0))
+
+    readonly property int fitsFull: Math.floor((root.usable + root.gutter) / (root.fullPillWidth + root.gutter))
+    readonly property int fitsCompact: Math.floor((root.usable + root.gutter) / (root.compactPillWidth + root.gutter))
+
+    readonly property string mode: {
+        if (root.fitsFull >= 1)
+            return "full";
+        if (root.fitsCompact >= 1)
+            return "compact";
+        return "chip";
+    }
+
+    readonly property int visibleCount: {
+        if (root.mode === "chip")
+            return 0;
+        const fits = root.mode === "full" ? root.fitsFull : root.fitsCompact;
+        return Math.max(0, Math.min(root.pills.length, Math.min(root.maxPills, fits)));
+    }
+
     // Collapsed, still alive, and belonging to this monitor. "" means the notification follows
     // the focused monitor, which for a docked pill is read as "wherever it was raised".
     readonly property var pills: {
@@ -36,8 +78,8 @@ Item {
         return out;
     }
 
-    readonly property int overflow: Math.max(0, root.pills.length - root.maxPills)
-    readonly property var shown: root.pills.slice(0, root.maxPills)
+    readonly property int overflow: Math.max(0, root.pills.length - root.visibleCount)
+    readonly property var shown: root.pills.slice(0, root.visibleCount)
 
     visible: Shell.notificationsEnabled && root.pills.length > 0
     implicitWidth: visible ? row.implicitWidth : 0
@@ -125,11 +167,13 @@ Item {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         // the summary, not the app: which alert it is matters more in a pill than
-                        // which program raised it, and there is only room for one of them
+                        // which program raised it, and there is only room for one of them.
+                        // Dropped entirely in compact mode — the hover tooltip still has it.
+                        visible: root.mode === "full"
                         text: pill.entry.summary || pill.entry.appName
                         elide: Text.ElideRight
                         // long enough to identify, short enough that three of them fit the gap
-                        width: Math.min(implicitWidth, 150)
+                        width: visible ? Math.min(implicitWidth, 150) : 0
                         color: pill.critical ? Theme.urgent : Theme.fg
                         font.family: Theme.fontUi
                         font.pixelSize: Theme.fontSize - 2
@@ -165,8 +209,8 @@ Item {
             }
         }
 
-        // Overflow: the bar is not a queue. Past maxPills the rest are one chip that opens the
-        // drawer, where they are all listed anyway.
+        // Overflow — and, on a bar too narrow for even one compact pill, the whole tray. Either
+        // way it says how many and opens the drawer, because the bar is not a queue.
         Rectangle {
             visible: root.overflow > 0
             anchors.verticalCenter: parent.verticalCenter
@@ -178,7 +222,8 @@ Item {
             Text {
                 id: moreText
                 anchors.centerIn: parent
-                text: "+" + root.overflow
+                // "+2" next to visible pills, plain "3" when it IS the tray
+                text: (root.mode === "chip" ? "" : "+") + root.overflow
                 color: Theme.subtext
                 font.family: Theme.fontMono
                 font.pixelSize: Theme.fontSize - 2
@@ -190,7 +235,7 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onEntered: {
-                    tip.text = root.overflow + " more collapsed — open the drawer";
+                    tip.text = root.mode === "chip" ? root.overflow + " collapsed — open the drawer" : root.overflow + " more collapsed — open the drawer";
                     tip.open();
                 }
                 onExited: tip.close()
