@@ -26,10 +26,15 @@
     "        (QS_NOTIFY_RULES overrides). timeoutMs is the fail-open budget: past it the",
     "        notification is shown with its defaults and the interpreter is restarted.",
     "        See notifications.example.lua. A rule can never drop a notification.",
+    "surface: opacity of the popup cards and the docked pills. Cards stay mostly solid —",
+    "        one lands over whatever you are working in and has to be readable at a glance.",
     "collapse: where a folded sticky card goes. home \"bar\" docks it as a floating pill in",
     "        the bar between the workspaces and the status cluster (no bar background of its",
     "        own); \"stack\" leaves it in the popup stack. maxPills caps the tray, then one",
     "        \"+N\" chip opens the drawer. Click a pill to unfold it back into a popup.",
+    "drawer.opacity / itemOpacity: the slab is glass (and blurred by the compositor via the",
+    "        layer rule in hypr/lua/windowrules.lua) while the ROWS stay opaque — background is",
+    "        atmosphere, notifications are content.",
     "drawer: history UI. mode panel = full-height slab on the right edge, modal = centred",
     "        launcher-shaped dialog; same rows and same keys either way. limit is how many",
     "        stored rows one page pulls. Clearing from the drawer never deletes a row.",
@@ -79,6 +84,10 @@
     "path": "",
     "timeoutMs": 50
   },
+  "surface": {
+    "cardOpacity": 0.8,
+    "pillOpacity": 0.85
+  },
   "collapse": {
     "home": "bar",
     "maxPills": 3
@@ -86,6 +95,8 @@
   "drawer": {
     "mode": "panel",
     "width": 460,
-    "limit": 200
+    "limit": 200,
+    "opacity": 0.35,
+    "itemOpacity": 0.82
   }
 }

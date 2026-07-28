@@ -92,13 +92,12 @@ PanelWindow {
                 NotifyDrawer.clearAll();
             else if (event.key === Qt.Key_F)
                 NotifyDrawer.cycleRange();
-            else if (event.key === Qt.Key_C && (event.modifiers & Qt.ShiftModifier))
+            // `y`/`Y` yank, as in vim — and it frees `c` to keep meaning clear-filters here
+            else if (event.key === Qt.Key_Y && (event.modifiers & Qt.ShiftModifier))
                 NotifyDrawer.copySelected(true);
-            else if (event.key === Qt.Key_C)
+            else if (event.key === Qt.Key_Y)
                 NotifyDrawer.copySelected(false);
-            // `z` clears the filters — `c` now means copy, in both surfaces, because one verb
-            // may not mean two different things depending on which one has the keyboard
-            else if (event.key === Qt.Key_Z)
+            else if (event.key === Qt.Key_C)
                 NotifyDrawer.clearFilters();
             else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
                 NotifyDrawer.activate();
@@ -128,7 +127,10 @@ PanelWindow {
         x: win.modal ? (win.width - width) / 2 : win.width - width * panel.reveal
         y: win.modal ? (win.height - height) / 2 : win.topInset
         radius: win.modal ? Theme.radius : 0
-        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surfaceOpacity)
+        // Glass: the slab is mostly the desktop behind it (blurred by the compositor), and the
+        // rows below carry their own, much higher opacity. Atmosphere in the background,
+        // content in the foreground.
+        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, NotifyConfig.drawer.opacity)
 
         // 0 = off screen right, 1 = fully out. The panel slides; the modal fades and scales,
         // matching what each shape does everywhere else in this shell.
@@ -250,7 +252,7 @@ PanelWindow {
                         anchors.fill: parent
                         visible: !search.text.length
                         verticalAlignment: Text.AlignVCenter
-                        text: "Search…  [/] search · [j/k] move · [\u21b5] expand · [c] copy · [d] clear · [D] group · [f] range · [Esc] close"
+                        text: "Search…  [/] search · [j/k] move · [\u21b5] expand · [y] yank · [d] clear · [D] group · [f] range · [Esc] close"
                         color: Theme.subtext
                         font: search.font
                         elide: Text.ElideRight
@@ -292,12 +294,26 @@ PanelWindow {
                         }
                     }
 
+                    // Row surface. Opaque enough to read over a terminal even though the slab
+                    // behind it is nearly clear: a group header sits back a little (it is a
+                    // label), a row sits forward (it is the thing), the selection sits forward
+                    // and tints toward the accent.
                     Rectangle {
                         anchors.fill: parent
                         radius: Theme.radius
-                        color: entry.selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12) : (entry.isGroup ? Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.35) : "transparent")
-                        border.width: entry.selected ? Theme.borderThin : 0
-                        border.color: Theme.accent
+                        color: {
+                            const a = NotifyConfig.drawer.itemOpacity;
+                            if (entry.selected)
+                                return Qt.rgba(Theme.accent.r * 0.35 + Theme.surface.r * 0.65, Theme.accent.g * 0.35 + Theme.surface.g * 0.65, Theme.accent.b * 0.35 + Theme.surface.b * 0.65, Math.min(1, a + 0.1));
+                            if (entry.isGroup)
+                                return Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, Math.max(0.15, a - 0.35));
+                            return Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, a);
+                        }
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: Theme.animFast
+                            }
+                        }
                     }
 
                     // unread marker: the drawer's job is to make "what did I miss" answerable

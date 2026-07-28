@@ -280,6 +280,20 @@ is a dialog, and it should read like the launcher and session overlay.
 - The pill tray uses **one** Elevation for the whole row, not one per pill — per-chip effects
   each rasterize their own layer for something a few pixels tall.
 
+### Opacity is layered, not global (story: notif-presentation)
+
+Three separate knobs, because these surfaces answer different questions:
+
+| surface | default | why |
+|---|---|---|
+| popup card / pill (`surface.cardOpacity`, `surface.pillOpacity`) | 0.80 / 0.85 | lands over whatever you are working in for a few seconds; must be readable instantly |
+| drawer slab (`drawer.opacity`) | 0.35 | glass — you opened it deliberately, and it covers a third of the screen |
+| drawer rows (`drawer.itemOpacity`) | 0.82 | the content inside the glass; a row over a terminal still has to be legible |
+
+The drawer's translucency only works because Hyprland blurs its namespace — the layer rule for
+`quickshell-notification-drawer` lives in `hypr/lua/windowrules.lua`. Without it, 0.35 is not
+frosted glass, it is unreadable.
+
 ### Collapsed stickies dock in the bar (story: notif-presentation)
 
 A folded sticky card leaves the popup stack entirely and becomes a floating pill in the bar,
@@ -297,8 +311,9 @@ that shrank, not bar modules, so they carry their own pill surface and no bar ba
 
 ### Copy and expand
 
-- `c` copies summary + body, `C` the body alone — in the popup stack and the drawer, where a
-  group header copies every row under it. `wl-copy` rather than a QML clipboard API: the text
+- `y` yanks summary + body, `Y` the body alone — vim's verb, in the popup stack and the
+  drawer, where a group header yanks every row under it. `c` stays clear-filters in the drawer;
+  one key may not mean two things depending on which surface has the keyboard. `wl-copy` rather than a QML clipboard API: the text
   has to outlive the popup, and wl-copy forks a daemon that keeps serving the selection.
 - Substitutions go in as **argv, never a shell string**. Any app on the session bus can set a
   summary; `sh -c` here would be command injection with extra steps.

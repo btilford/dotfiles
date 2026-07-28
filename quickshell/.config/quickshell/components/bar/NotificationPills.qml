@@ -75,7 +75,7 @@ Item {
                 radius: height / 2
                 // no border: the same paper-not-power rule the cards follow, so a pill reads as
                 // the card it came from rather than as another bar module
-                color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Math.min(1, Theme.surfaceOpacity + 0.08))
+                color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, NotifyConfig.surface.pillOpacity)
 
                 // arrival: the pill grows in place rather than appearing, so a fold that happens
                 // while you are looking elsewhere still registers in peripheral vision
@@ -173,7 +173,7 @@ Item {
             height: root.implicitHeight
             width: moreText.implicitWidth + Theme.barPad * 2
             radius: height / 2
-            color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Math.min(1, Theme.surfaceOpacity + 0.08))
+            color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, NotifyConfig.surface.pillOpacity)
 
             Text {
                 id: moreText

@@ -40,7 +40,7 @@ Rectangle {
     // surface. Depth comes from the shadow (the Elevation sibling in NotificationSlot), colour
     // from the urgency stripe, and the glass from the Shimmer at the bottom of this file.
     // Selection is marked by the stripe and an accent-tinted shadow instead of a thicker stroke.
-    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, card.selected ? Math.min(1, Theme.surfaceOpacity + 0.1) : Theme.surfaceOpacity)
+    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, card.selected ? Math.min(1, NotifyConfig.surface.cardOpacity + 0.1) : NotifyConfig.surface.cardOpacity)
 
     // urgency stripe down the leading edge — the one always-on colour cue
     Rectangle {
@@ -268,7 +268,7 @@ Rectangle {
             }
 
             Text {
-                text: "  copy"
+                text: "  yank"
                 color: copyMa.containsMouse ? Theme.accent : Theme.subtext
                 font.family: Theme.fontMono
                 font.pixelSize: Theme.fontSize - 3

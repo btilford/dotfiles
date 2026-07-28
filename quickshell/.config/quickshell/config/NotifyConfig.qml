@@ -95,7 +95,22 @@ Singleton {
     readonly property var defaultDrawer: ({
             mode: "panel",
             width: 460,
-            limit: 200
+            limit: 200,
+            // The slab is glass: very translucent, and blurred by the compositor
+            // (hypr/lua/windowrules.lua layer rule on the quickshell-notification-drawer
+            // namespace). The ROWS are much more opaque — the background is atmosphere, the
+            // notifications are the content, and content has to stay readable over a terminal.
+            opacity: 0.35,
+            itemOpacity: 0.82
+        })
+
+    // Surface opacity for the popup cards and the docked pills. Separate from the drawer's
+    // (which is deliberately glass — see defaultDrawer): a card sits over whatever you are
+    // working in for a few seconds and has to be readable immediately, so it stays mostly
+    // solid. Theme.surfaceOpacity remains the shell-wide default for everything else.
+    readonly property var defaultSurface: ({
+            cardOpacity: 0.8,
+            pillOpacity: 0.85
         })
 
     // Where a collapsed sticky card goes (story: notif-timing folds it; this decides where the
@@ -139,6 +154,7 @@ Singleton {
     property var rules: root.clone(root.defaultRules)
     property var drawer: root.clone(root.defaultDrawer)
     property var collapse: root.clone(root.defaultCollapse)
+    property var surface: root.clone(root.defaultSurface)
 
     readonly property string configPath: root.envOr("QS_NOTIFY_CONFIG", Quickshell.env("HOME") + "/.config/quickshell/notifications.json")
 
@@ -174,6 +190,17 @@ Singleton {
             return fallback;
         }
         return Math.round(v);
+    }
+
+    function pickReal(src, key, fallback, min, max) {
+        const v = src ? src[key] : undefined;
+        if (v === undefined)
+            return fallback;
+        if (typeof v !== "number" || !isFinite(v) || v < min || v > max) {
+            console.warn("notifications: config", key, "=", v, "is not a number in", min + "…" + max, "— keeping", fallback);
+            return fallback;
+        }
+        return v;
     }
 
     function pickBool(src, key, fallback) {
@@ -266,7 +293,15 @@ Singleton {
         root.drawer = {
             mode: root.pickEnum(d, "mode", ["panel", "modal"], root.defaultDrawer.mode),
             width: root.pickInt(d, "width", root.defaultDrawer.width, 240),
-            limit: root.pickInt(d, "limit", root.defaultDrawer.limit, 10)
+            limit: root.pickInt(d, "limit", root.defaultDrawer.limit, 10),
+            opacity: root.pickReal(d, "opacity", root.defaultDrawer.opacity, 0.05, 1),
+            itemOpacity: root.pickReal(d, "itemOpacity", root.defaultDrawer.itemOpacity, 0.05, 1)
+        };
+
+        const su = cfg.surface;
+        root.surface = {
+            cardOpacity: root.pickReal(su, "cardOpacity", root.defaultSurface.cardOpacity, 0.05, 1),
+            pillOpacity: root.pickReal(su, "pillOpacity", root.defaultSurface.pillOpacity, 0.05, 1)
         };
 
         const co = cfg.collapse;

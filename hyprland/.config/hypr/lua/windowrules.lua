@@ -141,6 +141,19 @@ hl.layer_rule({
     ignore_alpha = 0,
 })
 
+-- Layer rules: quickshell notification drawer.
+-- The drawer's own surface is deliberately near-transparent (notifications.json
+-- drawer.opacity) so it reads as glass rather than a panel; without compositor blur behind
+-- it that is just "hard to read". ignore_alpha keeps the blur off the fully clear regions —
+-- the drawer window covers the whole output and is transparent outside the slab.
+hl.layer_rule({
+	name = "quickshell-notification-drawer",
+	match = { namespace = "^(quickshell-notification-drawer)$" },
+	blur = true,
+	ignore_alpha = 0.15,
+	xray = true,
+})
+
 -- Layer rules: SwayNC
 hl.layer_rule({
     name = "swaync-notifications",

@@ -163,9 +163,9 @@ Scope {
                         NotifyFocus.dismissSelected();
                     else if (event.key === Qt.Key_A && (event.modifiers & Qt.ShiftModifier))
                         NotifyFocus.dismissAll();
-                    else if (event.key === Qt.Key_C && (event.modifiers & Qt.ShiftModifier))
+                    else if (event.key === Qt.Key_Y && (event.modifiers & Qt.ShiftModifier))
                         NotifyFocus.copySelected(true);
-                    else if (event.key === Qt.Key_C)
+                    else if (event.key === Qt.Key_Y)
                         NotifyFocus.copySelected(false);
                     else if (event.key === Qt.Key_S)
                         NotifyFocus.snoozeSelected(15 * 60 * 1000);
@@ -271,7 +271,7 @@ Scope {
                 Text {
                     id: legendText
                     anchors.centerIn: parent
-                    text: (NotifyFocus.indexOfSelected() + 1) + "/" + NotifyFocus.order.length + " · [j/k] move · [\u21b5] expand · [c] copy · [d] dismiss · [D] app · [A] all · [o] drawer · [Esc] release"
+                    text: (NotifyFocus.indexOfSelected() + 1) + "/" + NotifyFocus.order.length + " · [j/k] move · [\u21b5] expand · [y] yank · [d] dismiss · [D] app · [A] all · [o] drawer · [Esc] release"
                     color: Theme.subtext
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize - 3
