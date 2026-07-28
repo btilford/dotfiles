@@ -296,8 +296,21 @@ Singleton {
         root.rows = root.rows.filter(r => ids.indexOf(r.row_id) < 0);
     }
 
-    // What Enter does on the selection: a group folds, a row is a no-op until the actions
-    // story gives stored notifications something to invoke.
+    // Enter: a group folds, a row unfolds to its full body. Invoking a stored notification's
+    // actions needs the actions story; expanding it does not, and "read the rest of this" is
+    // what Enter means on the popup stack too.
+    property var expandedRows: ({})
+
+    function isExpanded(rowId) {
+        return root.expandedRows[rowId] === true;
+    }
+
+    function toggleRow(rowId) {
+        const next = Object.assign({}, root.expandedRows);
+        next[rowId] = !next[rowId];
+        root.expandedRows = next;
+    }
+
     function activate() {
         const sel = root.selected;
         if (!sel)
@@ -306,7 +319,26 @@ Singleton {
             root.toggleGroup(sel.group.name);
             return;
         }
-        console.info("notifications: acting on a stored notification needs the actions story (notif-actions)");
+        root.toggleRow(sel.row.row_id);
+    }
+
+    // Same payload rule as the popup stack: `c` is summary + body, `C` the body alone. A group
+    // header copies every row under it, which is the whole point of grouping a burst.
+    function copySelected(bodyOnly) {
+        const sel = root.selected;
+        if (!sel)
+            return;
+        const rows = sel.kind === "group" ? sel.group.rows : [sel.row];
+        const parts = [];
+        for (const r of rows) {
+            const summary = r.summary || "";
+            const body = r.body || "";
+            parts.push(bodyOnly ? body : (summary && body ? summary + "\n" + body : (summary || body)));
+        }
+        const text = parts.filter(p => p.length).join("\n\n");
+        if (!text)
+            return;
+        Quickshell.execDetached(["wl-copy", "--", text]);
     }
 
     function clearSelected() {

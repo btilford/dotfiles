@@ -1,4 +1,5 @@
 import QtQuick
+import ".."
 import "../../config"
 
 // One card's slot in a stack. The card itself (NotificationCard) is a pure view of the entry;
@@ -226,6 +227,16 @@ Item {
         to: slot.restX
         duration: Theme.animMed
         easing.type: Theme.easing
+    }
+
+    // Depth instead of a stroke. The shadow follows the card through every animation because it
+    // is anchored to it, including the dwell flight — and it tints to the accent while the card
+    // is the keyboard's selection, which is what replaced the thicker border.
+    Elevation {
+        target: card
+        tint: card.selected ? Theme.accent : "#000000"
+        level: card.selected ? 1.3 : 1.0
+        opacity: card.opacity
     }
 
     NotificationCard {

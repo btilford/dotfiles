@@ -63,7 +63,7 @@ behaviours (countdown, shrink-to-icon) only exist as motion:
 | `popup-dwell-motion` | timeout: the card flying up into the bar bell |
 | `popup-overflow` | more popups than `maxVisible`, with the `+N more` tail |
 | `popup-countdown` | a card partway through its dwell, remaining-time bar part-drained |
-| `popup-collapse-motion` / `popup-collapsed` | sticky critical folding to an icon pill |
+| `popup-collapse-motion` / `popup-collapsed` | sticky critical folding to a pill and docking in the bar |
 | `popup-keyboard-focus` / `popup-keyboard-select` | focus mode: the selected card outlined, key legend under the stack |
 | `popup-keyboard-motion` | j/k moving the selection, `d` dismissing, `Esc` releasing |
 | `popup-rules` | one Lua rules file deciding three notifications: routed, sticky, silenced |

@@ -98,6 +98,15 @@ Singleton {
             limit: 200
         })
 
+    // Where a collapsed sticky card goes (story: notif-timing folds it; this decides where the
+    // pill lives). "bar" docks it in the bar between the workspaces and the status cluster,
+    // floating, with no bar background of its own; "stack" leaves it in the popup stack where it
+    // still costs a slot. maxPills caps the tray — past it, one "+N" chip opens the drawer.
+    readonly property var defaultCollapse: ({
+            home: "bar",
+            maxPills: 3
+        })
+
     // Named presets exist so the two candidate layouts can be swapped with one word and compared
     // from real captures rather than taste (that comparison IS this story).
     readonly property var presets: ({
@@ -129,6 +138,7 @@ Singleton {
     property var store: root.clone(root.defaultStore)
     property var rules: root.clone(root.defaultRules)
     property var drawer: root.clone(root.defaultDrawer)
+    property var collapse: root.clone(root.defaultCollapse)
 
     readonly property string configPath: root.envOr("QS_NOTIFY_CONFIG", Quickshell.env("HOME") + "/.config/quickshell/notifications.json")
 
@@ -257,6 +267,12 @@ Singleton {
             mode: root.pickEnum(d, "mode", ["panel", "modal"], root.defaultDrawer.mode),
             width: root.pickInt(d, "width", root.defaultDrawer.width, 240),
             limit: root.pickInt(d, "limit", root.defaultDrawer.limit, 10)
+        };
+
+        const co = cfg.collapse;
+        root.collapse = {
+            home: root.pickEnum(co, "home", ["bar", "stack"], root.defaultCollapse.home),
+            maxPills: root.pickInt(co, "maxPills", root.defaultCollapse.maxPills, 1)
         };
     }
 

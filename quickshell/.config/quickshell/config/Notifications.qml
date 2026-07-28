@@ -482,6 +482,10 @@ Singleton {
         entry.runToken++;
     }
 
+    // Collapsed cards live in the bar rather than the stack when there IS a bar to live in —
+    // otherwise the pill has nowhere to go and stays where it folded.
+    readonly property bool dockCollapsed: NotifyConfig.collapse.home === "bar" && Shell.barVisible
+
     // Shrink-to-icon. A sticky card is the only kind that can outstay its welcome — after
     // criticalCollapseMs it becomes a pill (icon + app name) that keeps its place in the stack
     // without covering anything. Any sticky entry collapses, not only critical ones: an urgency
@@ -495,6 +499,36 @@ Singleton {
             return;
         entry.collapseTimer.interval = timing.criticalCollapseMs;
         entry.collapseTimer.start();
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Copy. A notification is often the only place a build id, a hostname or an error string
+    // exists, and re-typing it from a card that is about to expire is the worst way to move it.
+    // wl-copy rather than a QML clipboard API: the text has to outlive this process (a popup is
+    // gone in seconds), and wl-copy forks a daemon that keeps serving the selection.
+    // ---------------------------------------------------------------------------------------
+
+    signal copied(string text)
+
+    function copyText(entry, bodyOnly) {
+        if (!entry)
+            return "";
+        const body = entry.body || "";
+        if (bodyOnly)
+            return body;
+        const summary = entry.summary || "";
+        return summary && body ? summary + "\n" + body : (summary || body);
+    }
+
+    function copy(entry, bodyOnly) {
+        const text = root.copyText(entry, bodyOnly);
+        if (!text)
+            return;
+        // argv, never a shell string: a summary is attacker-controlled in the general case —
+        // any app on the session bus can set it — and `sh -c` here would be a command injection
+        // with extra steps.
+        Quickshell.execDetached(["wl-copy", "--", text]);
+        root.copied(text);
     }
 
     // One click on a collapsed pill brings the whole card back — and restarts the collapse clock,

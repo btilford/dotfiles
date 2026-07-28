@@ -92,7 +92,13 @@ PanelWindow {
                 NotifyDrawer.clearAll();
             else if (event.key === Qt.Key_F)
                 NotifyDrawer.cycleRange();
+            else if (event.key === Qt.Key_C && (event.modifiers & Qt.ShiftModifier))
+                NotifyDrawer.copySelected(true);
             else if (event.key === Qt.Key_C)
+                NotifyDrawer.copySelected(false);
+            // `z` clears the filters — `c` now means copy, in both surfaces, because one verb
+            // may not mean two different things depending on which one has the keyboard
+            else if (event.key === Qt.Key_Z)
                 NotifyDrawer.clearFilters();
             else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
                 NotifyDrawer.activate();
@@ -103,6 +109,13 @@ PanelWindow {
             keys.pendingG = g;
             event.accepted = true;
         }
+    }
+
+    Elevation {
+        target: panel
+        level: 1.4
+        opacity: panel.opacity
+        visible: !win.modal
     }
 
     Rectangle {
@@ -141,11 +154,22 @@ PanelWindow {
             }
         }
 
+        // The modal keeps the energy border — it is a dialog, it reads as powered, and it
+        // matches the launcher and the session overlay. The panel does not: it is a slab of
+        // paper against the screen edge, so it gets depth and glass instead of a stroke.
         EnergyBorder {
             anchors.fill: parent
             radius: parent.radius
             thickness: Theme.borderThickness
-            energy: win.visible ? 0.7 : 0.0
+            energy: win.modal && win.visible ? 0.7 : 0.0
+            visible: win.modal
+        }
+
+        // cursor-lit glass, same as the bar sections and the launcher
+        Shimmer {
+            anchors.fill: parent
+            radius: parent.radius
+            z: 10
         }
 
         Column {
@@ -226,7 +250,7 @@ PanelWindow {
                         anchors.fill: parent
                         visible: !search.text.length
                         verticalAlignment: Text.AlignVCenter
-                        text: "Search…  [/] search · [j/k] move · [d] clear · [D] group · [A] all · [f] range · [Esc] close"
+                        text: "Search…  [/] search · [j/k] move · [\u21b5] expand · [c] copy · [d] clear · [D] group · [f] range · [Esc] close"
                         color: Theme.subtext
                         font: search.font
                         elide: Text.ElideRight
@@ -260,6 +284,13 @@ PanelWindow {
 
                     width: list.width
                     height: body.implicitHeight + 12
+
+                    Behavior on height {
+                        NumberAnimation {
+                            duration: Theme.animFast
+                            easing.type: Theme.easing
+                        }
+                    }
 
                     Rectangle {
                         anchors.fill: parent
@@ -364,7 +395,9 @@ PanelWindow {
                             text: entry.row ? (entry.row.body || "") : ""
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
-                            maximumLineCount: 2
+                            // 2 lines in the list, the whole thing (bounded) once Enter unfolds
+                            // it — a drawer row is a summary of a summary until you ask
+                            maximumLineCount: entry.row && NotifyDrawer.isExpanded(entry.row.row_id) ? 24 : 2
                             wrapMode: Text.Wrap
                             color: Theme.subtext
                             font.family: Theme.fontUi

@@ -32,7 +32,9 @@ Singleton {
     readonly property var order: {
         const out = [];
         for (const e of Notifications.popups)
-            if (!e.drawerOnly && e.resolved)
+            // a pill docked in the bar is not on the stack, so the stack's keyboard cannot
+            // select it — clicking it hands it back first
+            if (!e.drawerOnly && e.resolved && !(e.collapsed && Notifications.dockCollapsed))
                 out.push(e);
         return out;
     }
@@ -271,15 +273,27 @@ Singleton {
         root.close();
     }
 
-    // Enter on a shrunk-to-icon critical unfolds it. Once the actions story lands this is also
-    // where the default action fires — the notification server does not advertise actions yet,
-    // so there is nothing else Enter could do that would not be a lie.
+    // Enter unfolds: a shrunk-to-icon critical becomes a card again, and a card whose body was
+    // too long to fit shows the rest. Once the actions story lands this is also where the
+    // default action fires — the server does not advertise actions yet, so there is nothing
+    // else Enter could do today that would not be a lie.
+    signal expandRequested(int nid)
+
     function activateSelected() {
         const entry = root.selected;
         if (!entry)
             return;
-        if (entry.collapsed)
+        if (entry.collapsed) {
             Notifications.expand(entry);
+            return;
+        }
+        root.expandRequested(entry.nid);
+    }
+
+    // `c` copies summary + body, `C` the body alone — the summary is a label, and half the time
+    // it is noise in whatever you are pasting into.
+    function copySelected(bodyOnly) {
+        Notifications.copy(root.selected, bodyOnly);
     }
 
     // Seams for the stories that own these verbs. They are bound in the key handler already so
