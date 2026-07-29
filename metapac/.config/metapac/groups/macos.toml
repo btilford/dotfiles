@@ -96,6 +96,7 @@ brew = { packages = [
   "sesh",
   "shopify-cli",
   "silicon",
+  "slk",
   "speedcrunch",
   "starship",
   "stow",
