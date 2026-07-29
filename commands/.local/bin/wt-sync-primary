@@ -5,8 +5,10 @@
 # 2. Detects tracked dev-config changes (mise.toml, .claude/, .config/wt.toml)
 #    on this branch that aren't in master, then prompts to apply as a patch.
 #
-# Called automatically by worktrunk pre-remove hook.
-# Set NONINTERACTIVE=1 to skip the interactive patch prompt (applies automatically).
+# Called automatically by worktrunk pre-remove hook, which runs WITHOUT a TTY —
+# so step 2 only prompts when stdin is a terminal, and otherwise declines rather
+# than failing (a failing pre-remove hook blocks `wt remove` entirely).
+# Set NONINTERACTIVE=1 to skip the prompt and apply the patch automatically.
 
 set -euo pipefail
 
@@ -74,10 +76,18 @@ echo ""
 git diff "$MERGE_BASE" HEAD -- "${TRACKED_PATHS[@]}" --stat
 echo ""
 
+# `wt remove` runs pre-remove hooks without a TTY, so a bare `read` fails under
+# `set -e` and aborts the removal. Absent a TTY the answer defaults to "no": these
+# are tracked commits that reach primary through a normal merge, so silently
+# patching them in would duplicate the change and dirty the primary worktree.
+# NONINTERACTIVE=1 is the explicit opt-in to apply anyway.
 if [ -n "$NONINTERACTIVE" ]; then
     REPLY="y"
+elif [ -t 0 ]; then
+    read -rp "Apply these changes to primary worktree as a patch? [y/N] " REPLY || REPLY="n"
 else
-    read -rp "Apply these changes to primary worktree as a patch? [y/N] " REPLY
+    echo "  no TTY — not prompting; leaving primary untouched"
+    REPLY="n"
 fi
 
 if [[ "$REPLY" =~ ^[Yy]$ ]]; then
