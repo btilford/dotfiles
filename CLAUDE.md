@@ -178,6 +178,22 @@ same gitleaks config, same allowlists. If you add a gate to `mise run lint`,
 decide whether CI should carry it too (and whether the runner can, given the
 GitHub/sigstore constraint) rather than letting the two drift silently.
 
+**Where a gate can be shared outright, share it.** `scripts/shell-files.sh` is
+the sole selector for shellcheck, called by both surfaces, so which files get
+linted is structurally identical rather than two lists kept in step by hand. It
+is POSIX `sh` using only `find`/`grep` because the CI image ships **no git** —
+`git ls-files` is not available there, which is why selection is path-based.
+
+It selects **by shebang, not by extension**. The previous `*.sh`/`*.bash` globs
+silently skipped every extensionless command in `commands/.local/bin` and
+`git/.local/bin` — eight scripts, including the `wt-*` helpers both worktree
+tools depend on. Those files have no extension by design (they are on `PATH`),
+so no glob can ever find them; a new one would have gone unlinted the same way.
+
+Excluded: `git/.config/git/templates/` (vendored git hook samples, not our
+code), plus `__sdkman-noexport-init.sh` (zsh syntax) and `RofiEmoji.sh` (emoji
+data mis-parsed as code).
+
 ## graphify
 
 This project has a graphify knowledge graph at graphify-out/.

@@ -27,14 +27,10 @@ lint:shellcheck:
   image: koalaman/shellcheck-alpine:stable
   script:
     # Error severity only — vendored hyprland scripts carry heavy style noise.
-    # Exclude __sdkman-noexport-init.sh (zsh syntax) and RofiEmoji.sh (emoji data).
-    - |
-      find . -type f \( -name '*.sh' -o -name '*.bash' \) \
-        -not -path './.git/*' \
-        -not -name '__sdkman-noexport-init.sh' \
-        -not -name 'RofiEmoji.sh' \
-        -print0 \
-        | xargs -0 shellcheck --severity=error -e SC1090,SC1091,SC2148
+    # File selection is scripts/shell-files.sh, the same selector `mise run
+    # lint:shell` uses, so this job and the local task cannot diverge. It is POSIX
+    # sh using only find/grep precisely because this image ships no git.
+    - ./scripts/shell-files.sh | xargs -r shellcheck --severity=error -e SC1090,SC1091,SC2148
 
 lint:secrets:
   stage: lint

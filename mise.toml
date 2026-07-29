@@ -69,13 +69,10 @@ depends = ["lint:shell", "lint:secrets", "lint:yaml", "lint:json", "lint:nu", "l
 
 [tasks."lint:shell"]
 description = "shellcheck sh/bash scripts — error severity only (vendored scripts carry style noise)"
-# Excluded: __sdkman-noexport-init.sh (zsh syntax shellcheck can't parse) and
-# RofiEmoji.sh (inline emoji data mis-parsed as code).
-run = """
-git ls-files '*.sh' '*.bash' \
-  | grep -vE '(__sdkman-noexport-init|RofiEmoji)\\.sh$' \
-  | xargs -r shellcheck --severity=error -e SC1090,SC1091,SC2148
-"""
+# File selection lives in scripts/shell-files.sh, shared verbatim with the
+# lint:shellcheck CI job so the two cannot drift. Exclusions and the shebang rule
+# are documented there.
+run = "./scripts/shell-files.sh | xargs -r shellcheck --severity=error -e SC1090,SC1091,SC2148"
 
 [tasks."lint:secrets"]
 description = "gitleaks — scan working tree for committed secrets"
