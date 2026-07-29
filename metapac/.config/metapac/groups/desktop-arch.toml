@@ -181,6 +181,7 @@ arch = { packages = [
   "grub-hook",
   "grv-bin",
   "grype-bin",
+  "grype-db-bin",
   "gsfonts",
   "gst-libav",
   "gst-plugin-pipewire",
