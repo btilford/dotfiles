@@ -180,6 +180,7 @@ arch = { packages = [
   "grub-btrfs-support",
   "grub-hook",
   "grv-bin",
+  "grype-bin",
   "gsfonts",
   "gst-libav",
   "gst-plugin-pipewire",
