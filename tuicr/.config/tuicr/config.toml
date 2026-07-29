@@ -1,0 +1,7 @@
+# tuicr — code review TUI. Reviews local diffs and remote PRs/MRs.
+# Forge (GitHub/GitLab) is auto-detected from the git remote; the `pr`/`mr`
+# subcommand and gh/glab auth are handled by tuicr itself — no forge config here.
+# Docs: https://github.com/agavra/tuicr/blob/main/docs/CONFIG.md
+
+# Split diffs by default (old | new), toggle in-app with :diff.
+diff_view = "side-by-side"

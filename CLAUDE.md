@@ -79,7 +79,7 @@ Differences that remain, deliberately:
 
 ## Structure
 
-- **Cross-platform**: `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`, `workmux`
+- **Cross-platform**: `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`, `workmux`, `tuicr`, `gh`, `gh-dash`
 - **macOS-only**: `ghostty`, `macos`
 - **Linux-only**: `hyprland`, `rofi`, `konsole`, `kmonad`, `terminator`, `yakuake`, `brave-linux`, `xdg`
 - **Shared base**: `base`
@@ -156,7 +156,26 @@ at `~/.config/metapac/`; group files are the source of truth.
   (Linux uses XDG, so `~/.config/metapac/` is already correct there.)
 
 Not managed by metapac, by design: nvim plugins (lazy.nvim + `lazy-lock.json`)
-and Mason's LSP/formatter tools (declared via `mason-tool-installer`).
+and Mason's LSP/formatter tools (declared via `mason-tool-installer`); and
+**gh-dash**, which ships only as a `gh` extension (no brew formula, no
+crates.io/npm, and metapac has no gh-extension backend). Bootstrap it per
+machine with `gh extension install dlvhdr/gh-dash` — the `gh-dash/` stow package
+supplies its `~/.config/gh-dash/config.yml` regardless. (`tuicr` *is* metapac-
+managed via the cargo backend in `core.toml`.)
+
+## Code review TUIs (tuicr + gh-dash)
+
+- **tuicr** (`tuicr/`, cargo) — review TUI over local diffs and remote PRs/MRs;
+  forge is auto-detected from the git remote, so one config serves GitHub and
+  GitLab. Config sets `diff_view = "side-by-side"`.
+- **gh-dash** (`gh-dash/`, gh extension) — GitHub PR/issue dashboard. Its
+  `keybindings.prs` defines **`R`** = open the selected PR in tuicr
+  (`tuicr pr {{.PrNumber}} --repo-url https://github.com/{{.RepoName}}` — builds
+  the URL from `RepoName`, so no local checkout is needed).
+- **tmux popups** (`.tmux.conf`, cwd-pinned via `-d '#{pane_current_path}'`):
+  `prefix + P` → tuicr, `prefix + G` → `gh dash`. Both guarded by `command -v`.
+  This reshuffle also moved: sidebar `A`→`b`, workmux diff `E`→`D`, nvim output
+  `C-e`→`E`.
 
 ## Linting & CI
 

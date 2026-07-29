@@ -76,7 +76,13 @@ defaults:
                 width: 20
                 hidden: true
     refetchIntervalMinutes: 30
-keybindings: {}
+keybindings:
+    prs:
+        # Review the selected PR in tuicr. RepoName is owner/repo, so build the
+        # URL from it — no local checkout required. GitHub-only (gh-dash is).
+        - key: R
+          name: tuicr
+          command: tuicr pr {{.PrNumber}} --repo-url https://github.com/{{.RepoName}}
 repoPaths: {}
 theme:
     ui:
