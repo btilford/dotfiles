@@ -6,6 +6,14 @@
 # Appearance
 #-------------------------------------------------------------------------------
 
+# Nerd Font glyphs in the dashboard and sidebar. workmux prompts for this on first
+# run and writes the answer to this file itself — which, since ~/.config/workmux is
+# a stow symlink, means it appends into the repo. Committed deliberately rather
+# than gitignored: it is a real setting and the terminal font is the same on every
+# host here. Recorded in its documented section instead of the file's tail, where
+# the tool dropped it.
+nerdfont: true
+
 # Color scheme for the dashboard. Press T (shift+t) in the dashboard to cycle.
 # Options: default, emberforge, glacier-signal, obsidian-pop, slate-garden,
 #          phosphor-arcade, lasergrid, mossfire, night-sorbet, graphite-code,
