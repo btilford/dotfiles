@@ -13,7 +13,7 @@ Stow-managed dotfiles for btilford. Each top-level directory is a stow package m
 ## Worktrees, and why config needs a path seam
 
 `~/dotfiles` on `master` is the **single deploy checkout** — every stow symlink
-resolves there. Work happens in worktrees (`~/worktrees/<branch>/dotfiles`),
+resolves there. Work happens in worktrees (`~/worktrees/dotfiles/<branch>`),
 including background agent sessions, so that a half-finished edit is never live
 on the running desktop. For a repo that *is* the running system, that insulation
 is the point.
@@ -35,6 +35,13 @@ Tools that already have a seam, and the flag to use:
 | tmux | `tmux -L <private-socket> -f <worktree>/tmux/.tmux.conf` |
 | metapac | `metapac --config-dir <worktree>/metapac/.config/metapac` |
 | nvim | `nvim -u <worktree>/nvim/.config/nvim/init.lua` |
+| worktrunk | `wt --config <worktree>/worktrunk/.config/worktrunk/config.toml …` |
+| workmux | `workmux add <name> --dry-run --config <worktree>/workmux/.config/workmux/config.yaml` |
+
+`workmux --config` *merges with* the global config rather than replacing it, so a
+worktree check reflects the merge, not the branch alone. `--dry-run` prints the
+resolved worktree path, base, tmux target and hooks without touching anything —
+use it to verify a layout change before merging.
 
 No seam, so merge first and verify live: shell rc files (sourced from fixed `~`
 paths at login) and Hyprland's own config discovery (`-c` applies at launch
@@ -43,6 +50,30 @@ only, `hyprctl reload` always re-reads `~/.config/hypr`).
 `scripts/visual-capture.sh` is the worked example — it defaults to the working
 tree for both the shell entry point and the tmux config, so a capture shows what
 is in the branch rather than what happens to be stowed.
+
+### worktrunk and workmux share one layout
+
+Both tools create worktrees, and both are configured to produce **the same path**:
+`~/worktrees/<repo>/<branch>` (slashes in the branch become dashes). worktrunk gets
+there via `worktree-path = "~/worktrees/{{ repo }}/{{ branch | sanitize }}"`,
+workmux via `worktree_dir: ~/worktrees/{project}`.
+
+The layout is repo-first because that is the only shape **both** can express:
+workmux builds `<worktree_dir>/<handle>` and `worktree_dir` accepts just `~` and
+`{project}`, so branch-first nesting is impossible there (upstream #148 shipped
+only `{project}`; #161, which is exactly this, is open). worktrunk was the one
+that moved. Keep the two templates in sync — changing one silently splits the
+tree, and `wt list` / `wt-prune-branch-dir` only understand paths worktrunk made.
+
+Differences that remain, deliberately:
+
+- **Fetch before create.** worktrunk's `[pre-switch]` hook runs before the branch
+  and worktree exist, so it refreshes `origin/*` first; pair with `-b origin/master`
+  to branch from the fresh tip. workmux has no pre-create hook and never fetches —
+  `base_branch: auto` resolves a *local* ref. A workmux worktree is only as fresh
+  as your last fetch.
+- **tmux naming.** worktrunk names sessions `<branch>-<repo>`; workmux uses its own
+  `wm-<handle>`. Left divergent so it stays obvious which tool made a session.
 
 ## Structure
 

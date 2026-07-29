@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Remove the empty branch/ticket parent dir left behind after `wt remove`.
 #
-# The centralized worktree layout nests repos under a shared branch dir:
-#   ~/worktrees/{branch|sanitize}/{repo}
-# (matches worktree-path in config.toml). Override the root with
-# WT_WORKTREES_ROOT for other layouts.
-# `wt remove` deletes the {repo} leaf but never the {branch} parent, so once the
-# last sibling repo is removed an empty branch dir is orphaned. This prunes it,
-# but only when no repo worktrees remain under it.
+# The centralized worktree layout is repo-first:
+#   ~/worktrees/{repo}/{branch|sanitize}
+# (matches worktree-path in config.toml, and workmux's `worktree_dir:
+# ~/worktrees/{project}` — both tools write into the same tree). Override the
+# root with WT_WORKTREES_ROOT for other layouts.
+# `wt remove` deletes the {branch} leaf but never the {repo} parent, so once the
+# last branch of a repo is removed an empty repo dir is orphaned. This prunes it,
+# but only when no worktrees remain under it; the next `wt add` recreates it.
 #
 # Called automatically by the worktrunk post-remove hook:
 #   [post-remove]
