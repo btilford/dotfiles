@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# workmux wrapper that refreshes the remote before cutting a new worktree.
+#
+# workmux has no pre-create hook — post_create, pre_merge and pre_remove all run
+# after the branch exists — and `base_branch: auto` resolves the effective main
+# branch from LOCAL git state without fetching. So `workmux add` off a stale
+# master silently gives you a stale worktree. worktrunk solves this in-tool with
+# its [pre-switch] hook; workmux needs a wrapper, which is what this is.
+#
+# Only `add` is intercepted. Everything else is exec'd through untouched, so this
+# is safe to alias as a drop-in replacement:
+#
+#   wm add my-feature      -> fetch, then create from the fresh origin tip
+#   wm dashboard           -> plain `workmux dashboard`
+#
+# Opting out, per invocation:
+#   --base <ref>   supply your own base and neither the fetch-derived base nor
+#                  the default-branch lookup applies (your ref wins)
+#   WM_NO_FETCH=1  skip the fetch entirely (offline, or you just fetched)
+
+set -euo pipefail
+
+# Not `add`? Hand over verbatim.
+if [ "${1:-}" != "add" ]; then
+  exec workmux "$@"
+fi
+
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+  echo "[wm] not inside a git repository" >&2
+  exit 1
+fi
+
+# Respect an explicit --base/-b: the caller has already said what to branch from,
+# so resolving a default branch here would be wrong. Still fetch, so their ref is
+# current.
+explicit_base=0
+for arg in "$@"; do
+  case "$arg" in
+    --base | --base=* | -b) explicit_base=1 ;;
+  esac
+done
+
+if [ "${WM_NO_FETCH:-}" != "1" ]; then
+  # --prune so branches deleted on the remote stop showing up locally. Failure is
+  # not fatal: being offline should degrade to workmux's normal behaviour rather
+  # than block worktree creation.
+  git fetch origin --prune 2> /dev/null || echo "[wm] fetch failed — using local refs" >&2
+fi
+
+if [ "$explicit_base" -eq 1 ]; then
+  exec workmux "$@"
+fi
+
+# Resolve the remote's default branch, preferring what origin actually reports.
+# `git remote set-head origin -a` refreshes origin/HEAD when it is missing (a
+# fresh clone with --single-branch often lacks it).
+default_branch=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2> /dev/null || true)
+if [ -z "$default_branch" ]; then
+  git remote set-head origin -a > /dev/null 2>&1 || true
+  default_branch=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2> /dev/null || true)
+fi
+
+# Still nothing (no origin, or a remote that does not advertise HEAD): fall back
+# to whichever conventional branch exists on the remote.
+if [ -z "$default_branch" ]; then
+  for candidate in origin/main origin/master; do
+    if git rev-parse --verify --quiet "$candidate" > /dev/null 2>&1; then
+      default_branch="$candidate"
+      break
+    fi
+  done
+fi
+
+# No remote default at all — let workmux apply its own base_branch logic.
+if [ -z "$default_branch" ]; then
+  echo "[wm] no remote default branch found — falling back to workmux base_branch" >&2
+  exec workmux "$@"
+fi
+
+shift # drop `add`; re-added below so --base lands after the subcommand
+echo "[wm] basing new worktree on $default_branch"
+exec workmux add "$@" --base "$default_branch"
