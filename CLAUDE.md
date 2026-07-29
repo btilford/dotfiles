@@ -10,6 +10,47 @@ Stow-managed dotfiles for btilford. Each top-level directory is a stow package m
 - Always stow one package at a time with `--no-folding` to prevent directory symlinking and protect local-only files
 - `hyprland/.config/hypr/wallpaper_effects/.wallpaper_current` is a committed seed (fresh installs need it to exist), but wallpaper rotation rewrites it through the stow symlink every ~30 min. After cloning, run `git update-index --skip-worktree hyprland/.config/hypr/wallpaper_effects/.wallpaper_current` once per machine so the churn never lands in git. Never commit content updates to it.
 
+## This repo is published publicly — nothing private in tree
+
+The repo is mirrored to a public GitHub. **No private infrastructure names, no
+employer identity, no credentials.** That is not just a secrets rule: host names,
+LAN IPs and internal project names are infrastructure disclosure, and they are
+just as permanent once pushed.
+
+Anything machine-specific resolves from the environment with a public fallback,
+or lives in an untracked file. The single provisioning surface is
+`~/.config/fish/conf.d/local.fish` (untracked; `~/.zshrc.local` on macOS):
+
+| Variable | Consumed by | Unset behaviour |
+|---|---|---|
+| `DOTFILES_GITLAB_HOST` | `mise.toml` → `glab:config` | skips per-host `git_protocol` |
+| `INFISICAL_PROJECT` / `INFISICAL_DOMAIN` | `sync-litellm-models` | **exits** with a message |
+| `LITELLM_GATEWAY` | `sync-litellm-models` | **exits** with a message |
+| `LITELLM_GATEWAY` | `nvim` `plugins/ai.lua` | `http://localhost:4000` |
+| `LEMONADE_URL` / `OLLAMA_URL` | `sync-litellm-models` | `localhost:13305` / `:11434` |
+| `OLLAMA_HOST` | `nvim` `plugins/ai.lua` (gen.nvim) | `localhost` |
+| `HERMES_TUI_GATEWAY_URL` | `fish/conf.d/hermes.fish` | `http://localhost:8642` |
+| `NAS_HOST` / `NAS_SHARE_ROOT` | `mount-library.sh` | **exits** via `${VAR:?}` |
+| `NAS_MOUNT_ROOT` / `NAS_SHARES` / `HOME_NET_PREFIXES` | `mount-library.sh` | `~/nas` / three shares / `10.(33\|101\|148\|104)` |
+
+`conf.d` loads alphabetically, so `local.fish` is sourced after every drop-in it
+needs to override.
+
+Untracked, provision from the `.example` beside it: `docker/.docker/mcp/config.yaml`
+(holds a Google app password), `gh/.config/gh/hosts.yml` (gh writes `oauth_token:`
+into it whenever no OS keyring is available).
+
+Out of tree entirely, in `~/.gitconfig.local` — `.gitconfig` includes it last:
+the self-hosted GitLab `[credential]` block, and the work identity profile plus
+its `includeIf`. `dirs.gitconfig` has **no catch-all `includeIf`**, so on a work
+machine missing that block, repos under the work directory get no identity and
+commits fail outright.
+
+Three secrets were committed here before this rule existed and `gitleaks` scanned
+past all of them across the full history. `.gitleaks.toml` now carries a custom
+rule for each shape — `npmrc-authtoken`, `google-app-password`,
+`bare-secret-export`. Don't remove one without a replacement.
+
 ## Worktrees, and why config needs a path seam
 
 `~/dotfiles` on `master` is the **single deploy checkout** — every stow symlink

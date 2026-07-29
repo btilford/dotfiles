@@ -24,24 +24,8 @@ name = "PRs"
 path = "~/Documents/personal-notes/notes"
 startup_command = "gh dash"
 
-# -------------------------------------------
-# REDACTED
-# -------------------------------------------
-[[session]]
-name = "REDACTED Notes"
-path = "~/Projects/REDACTED/notes/REDACTED/"
-# startup_command = "nvim $(fzf) "
-
-[[session]]
-name = "REDACTED Projects"
-path = "~/Projects/REDACTED/"
-
-[[session]]
-name = "REDACTED Worktrees"
-path = "~/Projects/REDACTED/worktrees"
-
-
-[[session]]
-name = "REDACTED PRs"
-path = "~/Projects/REDACTED/notes/REDACTED/"
-startup_command = "gh dash"
+# Work sessions are not listed here — they name an employer and internal repos.
+# sesh has no include mechanism and this file is stowed as a symlink into the
+# dotfiles repo, so editing it on a work machine would dirty the repo. On such a
+# machine, either rely on sesh's zoxide discovery (these static entries are
+# convenience only) or unstow this one file and keep a real local copy.

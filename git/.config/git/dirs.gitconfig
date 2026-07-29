@@ -45,6 +45,14 @@
     path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/work/anon/"]
     path = ~/.config/git/profiles/anon.gitconfig
-[includeIf "gitdir:~/Projects/REDACTED/"]
-    path = ~/.config/git/profiles/REDACTED.gitconfig
+
+# Work identity is not in this repo — it names an employer, a work GitHub
+# account and a ticket tracker. It lives in ~/.gitconfig.local instead, which is
+# included last by .gitconfig. On a work machine, add there:
+#
+#   [includeIf "gitdir:~/Projects/<employer>/"]
+#       path = ~/.gitconfig.work
+#
+# There is no catch-all includeIf in this file, so until that block exists,
+# repos under that directory get NO user identity and commits will fail.
 

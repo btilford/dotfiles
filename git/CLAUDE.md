@@ -29,9 +29,7 @@ The `git` stow package provides the complete git configuration for all machines.
 | `web.gitconfig` | Browser (`brave-browser`) and instaweb httpd. |
 | `dirs.gitconfig` | `includeIf "gitdir:..."` rules that route each working directory to the correct identity profile. |
 | `profiles/default.gitconfig` | Personal identity: name `btilford`, noreply GitHub email, GPG signing key, GPG sign enabled. |
-| `profiles/REDACTED.gitconfig` | Work identity: name `REDACTED`, noreply GitHub email for work account, GPG signing key, commit template. |
 | `profiles/anon.gitconfig` | Anonymous identity: name `nil`, placeholder email, GPG signing disabled. |
-| `profiles/REDACTED-commit.txt` | Commit message template applied when committing in work repos. |
 
 ## Credential helper design
 
@@ -123,7 +121,6 @@ The per-host helpers in `core.gitconfig` (GitHub → `gh` CLI, GitLab → `glab`
 
 | Directory pattern | Profile | Name | GPG signing |
 |-------------------|---------|------|-------------|
-| `~/Projects/REDACTED/` | `REDACTED.gitconfig` | REDACTED | yes |
 | `~/Projects/ttp/`, `~/work/anon/` | `anon.gitconfig` | nil | no |
 | All others (explicit entries) | `default.gitconfig` | btilford | yes |
 
@@ -184,10 +181,21 @@ chaining would scan twice. The installer reports and skips.
 
 **No absolute paths in wrapper scripts.** The `.local/bin/` scripts call `gh` and `glab` by name. PATH must resolve them at runtime. This is intentional — absolute paths would break across machines and package managers.
 
-**Do not remove the `!` prefix from per-host credential helpers.** The entries in `core.gitconfig` for `https://github.com` and `https://gitlab.example.com` use `helper = !~/.local/bin/...`. The `!` is required for shell invocation and tilde expansion. Removing it breaks authentication for those hosts silently.
+**Do not remove the `!` prefix from per-host credential helpers.** The entries in `core.gitconfig` for `https://github.com` (here) and the self-hosted GitLab (in `~/.gitconfig.local`) use `helper = !~/.local/bin/...`. The `!` is required for shell invocation and tilde expansion. Removing it breaks authentication for those hosts silently.
 
 **GCM belongs in `~/.gitconfig.local`, not here.** Never add a `git-credential-manager` helper to any file in this package. It is machine-specific and must remain outside the dotfiles.
 
 **`config.yml` in glab-cli must never contain tokens.** The `glab-cli` stow package stows `aliases.yml` only. `config.yml` is excluded via `.stow-local-ignore` because `glab auth login` writes auth tokens into it. The dotfiles repo carries a token-free template of `config.yml` for reference only. Never commit a `config.yml` that contains a real token.
 
 **IntelliJ tool paths in `commands.gitconfig` are macOS-specific.** The `difftool "intellij"` and `mergetool "intellij"` entries reference `/Applications/IntelliJ IDEA.app/...`. These are left as-is because they are not active on Linux (the active diff tool is `nvimdiff`). Do not change them to relative paths — the format is required by the application launcher.
+
+## Work identity is out of tree
+
+The work profile and its `includeIf` are deliberately absent — they name an
+employer, a work GitHub account and a ticket tracker, and this repo is published
+publicly. Both live in `~/.gitconfig.local`, which `.gitconfig` includes last.
+
+There is no catch-all `includeIf` in `dirs.gitconfig`, so a work machine without
+that block gives repos under the work directory **no** user identity and commits
+fail outright. Same for the self-hosted GitLab credential helper: the wrapper
+script ships here, the `[credential "https://<host>"]` block does not.

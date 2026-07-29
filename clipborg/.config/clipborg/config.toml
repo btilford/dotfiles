@@ -1,4 +1,4 @@
-# clipborg config — see https://gitlab.example.com/btilford/clipborg for full docs.
+# clipborg config — see your GitLab instance for full docs.
 # All keys are optional; commented values below are the built-in defaults.
 #
 # This is the BASE layer, stowed from ~/dotfiles/clipborg. clipborg reads

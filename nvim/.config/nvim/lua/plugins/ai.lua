@@ -1,3 +1,8 @@
+-- LiteLLM gateway host is machine-local — set LITELLM_GATEWAY in
+-- ~/.config/fish/conf.d/local.fish (untracked). Falls back to a local gateway
+-- so a machine without one still loads; the adapters just fail to reach it.
+local litellm = vim.env.LITELLM_GATEWAY or "http://localhost:4000"
+
 return {
 	{
 		"NickvanDyke/opencode.nvim",
@@ -62,7 +67,7 @@ return {
 			quit_map = "q", -- set keymap to close the response window
 			retry_map = "<c-r>", -- set keymap to re-send the current prompt
 			accept_map = "<c-cr>", -- set keymap to replace the previous selection with the last result
-		host = "ollama.example.lan", -- The host running the Ollama service.
+		host = vim.env.OLLAMA_HOST or "localhost", -- The host running the Ollama service.
 		port = "11434", -- The port on which the Ollama service is listening.
 			display_mode = "float", -- The display mode. Can be "float" or "split" or "horizontal-split" or "vertical-split".
 			show_prompt = false, -- Shows the prompt submitted to Ollama. Can be true (3 lines) or "full".
@@ -71,7 +76,7 @@ return {
 			file = false, -- Write the payload to a temporary file to keep the command short.
 			hidden = false, -- Hide the generation window (if true, will implicitly set `prompt.replace = true`), requires Neovim >= 0.10
 		init = function()
-			-- Ollama runs on ollama.example.lan (Windows machine) — no local serve needed
+			-- Ollama host is machine-local: set OLLAMA_HOST (see local.fish)
 		end,
 			-- Function to initialize Ollama
 			command = function(options)
@@ -131,7 +136,7 @@ return {
 					litellm_chat = function()
 						return require("codecompanion.adapters").extend("openai_compatible", {
 							env = {
-								url      = "https://litellm.example.net",
+								url      = litellm,
 								api_key  = "NEOVIM_API_KEY",
 								chat_url = "/v1/chat/completions",
 							},
@@ -147,7 +152,7 @@ return {
 					litellm_inline = function()
 						return require("codecompanion.adapters").extend("openai_compatible", {
 							env = {
-								url      = "https://litellm.example.net",
+								url      = litellm,
 								api_key  = "NEOVIM_API_KEY",
 								chat_url = "/v1/chat/completions",
 							},
@@ -196,7 +201,7 @@ return {
 				provider_options = {
 					openai_compatible = {
 						model     = "local/qwen2.5-coder-7b",
-						end_point = "https://litellm.example.net/v1/chat/completions",
+						end_point = litellm .. "/v1/chat/completions",
 						api_key   = vim.env.NEOVIM_API_KEY or "missing-NEOVIM_API_KEY",
 						stream    = true,
 						optional  = {

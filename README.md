@@ -61,9 +61,7 @@ git/
     default.gitignore               # additional global ignore patterns
     profiles/
       default.gitconfig             # personal identity (btilford)
-      REDACTED.gitconfig               # work identity (REDACTED / REDACTED)
       anon.gitconfig                # anonymous commits (no name, no GPG)
-      REDACTED-commit.txt              # commit message template for work repos
   .local/bin/
     gh-git-credential               # wrapper: exec gh auth git-credential "$@"
     glab-git-credential             # wrapper: exec glab auth git-credential "$@"
@@ -75,9 +73,14 @@ git/
 
 | Directory | Profile | Identity |
 |-----------|---------|----------|
-| `~/Projects/REDACTED/` | `REDACTED.gitconfig` | REDACTED, GPG signed |
 | `~/Projects/ttp/`, `~/work/anon/` | `anon.gitconfig` | no name, no GPG |
 | Everything else | `default.gitconfig` | btilford, GPG signed |
+
+A work identity is **not** in this repo — it would name an employer, a work
+account and a ticket tracker. Add both the profile and its `includeIf` to
+`~/.gitconfig.local` on the machine that needs it. There is no catch-all
+`includeIf`, so until you do, repos under that directory get no identity and
+commits fail.
 
 No manual profile switching is needed — git picks the right identity when you `cd` into a repo.
 
@@ -89,6 +92,12 @@ Per-host credential helpers are configured in `core.gitconfig`:
 [credential "https://github.com"]
     helper = !~/.local/bin/gh-git-credential
 
+```
+
+A self-hosted GitLab gets the same treatment, but its host name identifies
+private infrastructure, so that block lives in `~/.gitconfig.local`:
+
+```ini
 [credential "https://gitlab.example.com"]
     helper = !~/.local/bin/glab-git-credential
 ```
@@ -114,7 +123,7 @@ stow --no-folding git
 
 # Authenticate CLIs so the credential wrappers work
 gh auth login
-glab auth login --hostname gitlab.example.com
+glab auth login --hostname <your-gitlab-host>
 
 # macOS only: configure GCM in a local override (not tracked in dotfiles)
 # Create ~/.gitconfig.local with the [credential] block shown above

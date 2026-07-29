@@ -16,8 +16,15 @@
     # (`mise run setup:git-template` in the dotfiles repo).
     templateDir = ~/.local/share/git-template
 
-[credential "https://gitlab.example.com"]
-  helper = !~/.local/bin/glab-git-credential
+# Self-hosted GitLab lives in ~/.gitconfig.local — the host name identifies
+# private infrastructure, so it stays out of the public repo. The helper script
+# itself (glab-git-credential) is still shipped here. Per machine, add:
+#
+#   [credential "https://gitlab.example.com"]
+#       helper = !~/.local/bin/glab-git-credential
+#
+# The `!` prefix is required — see CLAUDE.md. Verify with:
+#   git config --get-urlmatch credential.helper https://<host>
 
 [credential "https://github.com"]
   helper = !~/.local/bin/gh-git-credential

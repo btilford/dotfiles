@@ -53,11 +53,17 @@ run = "./scripts/setup-git-spice.sh"
 
 [tasks."glab:config"]
 description = "Apply glab prefs after `glab auth login` (token stays local, untracked)"
+# The self-hosted host is machine-local (DOTFILES_GITLAB_HOST, set in
+# ~/.config/fish/conf.d/local.fish). Without it, only the global prefs apply.
 run = """
 glab config set editor nvim
 glab config set glamour_style dark
 glab config set git_protocol ssh
-glab config set -h gitlab.example.com git_protocol https
+if [ -n "${DOTFILES_GITLAB_HOST:-}" ]; then
+  glab config set -h "$DOTFILES_GITLAB_HOST" git_protocol https
+else
+  echo "DOTFILES_GITLAB_HOST unset — skipping per-host git_protocol"
+fi
 """
 
 # ---------------------------------------------------------------------------

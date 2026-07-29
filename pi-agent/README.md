@@ -24,7 +24,7 @@ Stow package for the Pi terminal AI agent.
      "providers": {
        "litellm": {
          "name": "LiteLLM (homelab)",
-         "baseUrl": "https://litellm.example.net/v1",
+         "baseUrl": "https://litellm.example.com/v1",
          "api": "openai-completions",
          "apiKey": "YOUR_API_KEY_HERE",
          "models": [

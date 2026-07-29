@@ -381,9 +381,9 @@
       "label": "REDACTED Work Profile",
       "type": "profile",
       "source": "git/CLAUDE.md",
-      "id": "REDACTED_profile",
+      "id": "work_profile",
       "community": 3,
-      "norm_label": "REDACTED work profile"
+      "norm_label": "work work profile"
     },
     {
       "label": "Anonymous Git Profile",
@@ -1090,9 +1090,9 @@
       "relation": "includes",
       "confidence": "EXTRACTED",
       "_src": "git_profiles",
-      "_tgt": "REDACTED_profile",
+      "_tgt": "work_profile",
       "source": "git_profiles",
-      "target": "REDACTED_profile",
+      "target": "work_profile",
       "confidence_score": 1.0
     },
     {
@@ -1116,9 +1116,9 @@
     {
       "relation": "uses",
       "confidence": "EXTRACTED",
-      "_src": "REDACTED_profile",
+      "_src": "work_profile",
       "_tgt": "gpg_signing",
-      "source": "REDACTED_profile",
+      "source": "work_profile",
       "target": "gpg_signing",
       "confidence_score": 1.0
     },

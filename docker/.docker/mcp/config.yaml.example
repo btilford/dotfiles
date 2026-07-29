@@ -1,0 +1,23 @@
+# Copy to config.yaml and fill in. config.yaml is gitignored — it holds a live
+# app password and machine-local paths, and must never be tracked.
+gmail:
+  email_address: you@example.com
+  imap_host: imap.gmail.com
+  imap_port: "993"
+  smtp_host: smtp.gmail.com
+  smtp_port: "587"
+  # Google app password, not the account password.
+  # Issue/revoke: https://myaccount.google.com/apppasswords
+  email_password: "<16-char app password, 4 groups of 4>"
+
+gitlab:
+  url: https://gitlab.example.com
+
+obsidian:
+  # Uses default host (host.docker.internal)
+
+ast-grep:
+  path: ~/Projects
+
+jetbrains:
+  port: 64342

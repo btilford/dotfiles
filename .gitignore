@@ -7,6 +7,15 @@ pi-agent/.pi/agent/models.json
 # Provisioning: `glab auth login` then `mise run glab:config`.
 glab-cli/.config/glab-cli/config.yml
 
+# Holds a Google app password for the gmail MCP server, plus a personal address
+# and machine-local paths. Provision from config.yaml.example.
+docker/.docker/mcp/config.yaml
+
+# gh writes `oauth_token:` into hosts.yml whenever no OS keyring is available,
+# so tracking it is a standing leak risk even when it currently looks clean.
+# Provision with `gh auth login`.
+gh/.config/gh/hosts.yml
+
 # Capture output from `mise run screenshots` — the archived copies live in the
 # notes vault, never here.
 /build/
