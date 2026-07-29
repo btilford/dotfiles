@@ -49,7 +49,15 @@
 # and `{project}` for the main worktree's directory name, so a global config
 # can namespace each repo, e.g. `~/.workmux/{project}`.
 # Default: Sibling directory '<project>__worktrees'.
-# worktree_dir: .worktrees
+#
+# Shares one root with worktrunk. `{project}` is the main worktree's directory
+# name, which equals worktrunk's `{{ repo }}`, and the leaf handle is the branch
+# with slashes turned to dashes, matching `{{ branch | sanitize }}` — so
+# `~/worktrees/{project}` here and `~/worktrees/{{ repo }}/{{ branch | sanitize }}`
+# in worktrunk's config.toml resolve to the same path for the same branch.
+# worktrunk was moved to repo-first to meet workmux, which cannot express
+# branch-first (upstream #148 shipped only `{project}`; #161 is still open).
+worktree_dir: ~/worktrees/{project}
 
 # Strategy for deriving names from branch names.
 # Options: full (default), basename (part after last '/').
@@ -69,7 +77,20 @@
 # Mode for tmux operations: window (default) or session.
 # - window: Create windows within the current tmux session
 # - session: Create tmux sessions for each worktree
-# mode: session
+#
+# Session, to match worktrunk's post-start hook, which builds a dedicated session
+# per worktree rather than a window in the current one.
+mode: session
+
+# Base ref for new worktrees. `auto` resolves the effective main branch from LOCAL
+# git state only — verified: it reports `master`, not `origin/master`, and workmux
+# never fetches. workmux also has no pre-create hook (only post_create/pre_merge/
+# pre_remove, all of which run too late), so unlike worktrunk's [pre-switch] there
+# is no in-tool seam to refresh first. A stale local master therefore yields a
+# stale worktree; refresh with `git fetch` and pass `--base origin/master`, or use
+# a shell wrapper. Left on `auto` rather than hardcoding `origin/master`, which
+# would break every repo whose default branch is `main`.
+base_branch: auto
 
 # Placement for new tmux windows in window mode.
 # Options: after_current (default), rightmost
@@ -136,9 +157,14 @@
 # These block window creation - use for short tasks only.
 # Use "<global>" to inherit from global config.
 # Set to empty list to disable: `post_create: []`
-# post_create:
-#   - "<global>"
-#   - mise use
+#
+# Same helper worktrunk calls from its [post-start] env hook — copying .env and
+# friends from the primary worktree, then delegating to `mise run setup:worktree`
+# when the project defines it. The script is tool-agnostic (it finds the primary
+# via `git worktree list` and works from $PWD), so sharing it is what actually
+# keeps the two tools in step: fix the behaviour once, both inherit it.
+post_create:
+  - wt-setup-worktree
 
 # Commands to run before merging (e.g., linting, tests).
 # Aborts the merge if any command fails.
@@ -162,9 +188,13 @@
 #   - WM_HANDLE: The worktree handle (directory name)
 #   - WM_WORKTREE_PATH: Absolute path of the worktree being deleted
 #   - WM_PROJECT_ROOT: Absolute path of the main project directory
-# pre_remove:
-#   - mkdir -p "$WM_PROJECT_ROOT/artifacts/$WM_HANDLE"
-#   - cp -r test-results/ "$WM_PROJECT_ROOT/artifacts/$WM_HANDLE/"
+# Mirrors worktrunk's [pre-remove] sync hook. NONINTERACTIVE=1 is required, not
+# cosmetic: the script prompts before applying a dev-config patch back to the
+# primary, and a hook has no TTY to answer it. Note workmux has no post_remove
+# hook, so worktrunk's prune step has no counterpart — harmless under the
+# repo-first layout, where the parent dir is reused by the next branch.
+pre_remove:
+  - NONINTERACTIVE=1 wt-sync-primary
 
 #-------------------------------------------------------------------------------
 # Files

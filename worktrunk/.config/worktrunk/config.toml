@@ -28,7 +28,13 @@
 # # Inside the repository
 # # Creates: ~/code/myproject/.worktrees/feature-auth
 # worktree-path = "{{ repo_path }}/.worktrees/{{ branch | sanitize }}"
-worktree-path = "~/worktrees/{{ branch | sanitize }}/{{ repo }}"
+# Repo-first, NOT branch-first. workmux builds `<worktree_dir>/<handle>` and its
+# `worktree_dir` accepts only `~` and `{project}` (upstream #148 shipped that and
+# dropped the richer git placeholders; #161, which is this exact layout, is still
+# open). Branch-first is therefore inexpressible in workmux, so worktrunk moves to
+# the layout both tools CAN share: `~/worktrees/<repo>/<branch>` here equals
+# `worktree_dir: ~/worktrees/{project}` there.
+worktree-path = "~/worktrees/{{ repo }}/{{ branch | sanitize }}"
 #
 # # Centralized worktrees directory
 # # Creates: ~/worktrees/myproject/feature-auth
@@ -209,12 +215,24 @@ worktree-path = "~/worktrees/{{ branch | sanitize }}/{{ repo }}"
 # Pin JSON output to schema 1; a future release switches the default to schema 2.
 json-schema = 1
 
+# Runs before the branch AND the worktree exist (verified: a pre-switch probe sees
+# neither), so this is the only place a refresh can still affect what a new
+# worktree is cut from. pre-start is too late — the worktree is already on disk.
+#
+# Fetch ONLY. Deliberately not `git merge --ff-only origin/master`: pre-switch runs
+# in the *source* worktree, which is usually a feature branch, so a merge here would
+# pull master into whatever you happen to be on. Fetching leaves local refs alone
+# and updates origin/*; pair it with `-b origin/master` (or `wt switch -c x -b ^`)
+# to actually branch from the fresh tip.
+[pre-switch]
+fetch = "git fetch origin --prune"
+
 [post-start]
 env = "wt-setup-worktree"
-# Session name mirrors the directory layout ({{ branch }}/{{ repo }}): worktrees
-# nest multiple repos under one branch/ticket dir, so a branch-only name would
-# collide across repos sharing a ticket. Branch-first keeps a ticket's sessions
-# sorted together in the tmux switcher.
+# Session name stays branch-first ({{ branch }}-{{ repo }}) even though the path is
+# now repo-first: a ticket worked across several repos still keeps its sessions
+# sorted together in the tmux switcher, which is the property worth having here.
+# The repo suffix remains load-bearing — without it those sessions collide.
 tmux = """
 S={{ branch | sanitize }}-{{ repo }}
 W={{ worktree_path }}
@@ -230,7 +248,9 @@ copy = "wt step copy-ignored"
 sync = "wt-sync-primary"
 tmux = "tmux kill-session -t {{ branch | sanitize }}-{{ repo }} 2>/dev/null || true"
 [post-remove]
-# Prune the empty branch/ticket parent dir once the last repo under it is removed.
+# Prune the empty parent dir left behind by `wt remove`. Under the repo-first
+# layout that parent is `~/worktrees/<repo>/`, so this now fires only when the
+# last branch of a repo goes away; the dir is recreated by the next `wt add`.
 prune = "wt-prune-branch-dir {{ worktree_path }}"
 [post-switch]
 tmux = "[ -n \"$TMUX\" ] && tmux rename-window {{ branch | sanitize }}-{{ repo }}"
