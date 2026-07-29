@@ -70,8 +70,10 @@ Differences that remain, deliberately:
 - **Fetch before create.** worktrunk's `[pre-switch]` hook runs before the branch
   and worktree exist, so it refreshes `origin/*` first; pair with `-b origin/master`
   to branch from the fresh tip. workmux has no pre-create hook and never fetches —
-  `base_branch: auto` resolves a *local* ref. A workmux worktree is only as fresh
-  as your last fetch.
+  `base_branch: auto` resolves a *local* ref. Use the `wm` wrapper
+  (`commands/.local/bin/wm`) instead of bare `workmux`: it intercepts `add` only,
+  fetches, and passes `--base origin/<default>`. Everything else execs straight
+  through. Opt out with `--base <ref>` or `WM_NO_FETCH=1`.
 - **tmux naming.** worktrunk names sessions `<branch>-<repo>`; workmux uses its own
   `wm-<handle>`. Left divergent so it stays obvious which tool made a session.
 
