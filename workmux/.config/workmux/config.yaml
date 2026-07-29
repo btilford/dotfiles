@@ -196,13 +196,19 @@ post_create:
 #   - WM_HANDLE: The worktree handle (directory name)
 #   - WM_WORKTREE_PATH: Absolute path of the worktree being deleted
 #   - WM_PROJECT_ROOT: Absolute path of the main project directory
-# Mirrors worktrunk's [pre-remove] sync hook. NONINTERACTIVE=1 is required, not
-# cosmetic: the script prompts before applying a dev-config patch back to the
-# primary, and a hook has no TTY to answer it. Note workmux has no post_remove
-# hook, so worktrunk's prune step has no counterpart — harmless under the
-# repo-first layout, where the parent dir is reused by the next branch.
+# Mirrors worktrunk's [pre-remove] sync hook — invoked identically, with no
+# NONINTERACTIVE=1. wt-sync-primary handles the missing TTY itself now: it prompts
+# only when stdin is a terminal and otherwise declines, so the hook cannot hang or
+# fail here. NONINTERACTIVE=1 would mean the opposite of what it looks like — it is
+# the opt-in to APPLY the patch unattended, which would both duplicate changes that
+# reach primary through a normal merge and make workmux behave differently from
+# worktrunk on the same removal.
+#
+# Note workmux has no post_remove hook, so worktrunk's prune step has no
+# counterpart — harmless under the repo-first layout, where the parent dir is
+# reused by the next branch.
 pre_remove:
-  - NONINTERACTIVE=1 wt-sync-primary
+  - wt-sync-primary
 
 #-------------------------------------------------------------------------------
 # Files
