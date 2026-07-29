@@ -163,16 +163,6 @@ eval "$(mise activate bash)"
 mise install
 ```
 
-### graphify
-
-The `graphify` command requires mise to be activated in the current shell. If you see `graphify: command not found`, run:
-
-```sh
-mise install
-```
-
-Then activate mise in your shell as shown above.
-
 ```sh
 git clone <repo> ~/dotfiles
 cd ~/dotfiles

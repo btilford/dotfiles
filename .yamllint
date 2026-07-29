@@ -9,6 +9,3 @@ rules:
   trailing-spaces: enable
   key-duplicates: enable
   empty-values: disable
-
-ignore: |
-  graphify-out/

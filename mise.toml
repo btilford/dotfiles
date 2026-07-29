@@ -108,7 +108,11 @@ run = "gitleaks dir . -c .gitleaks.toml --no-banner"
 
 [tasks."lint:yaml"]
 description = "yamllint all yaml"
-run = "git ls-files '*.yml' '*.yaml' | xargs -r yamllint"
+# File selection lives in scripts/yaml-files.sh, shared verbatim with the GitLab
+# lint:yaml job and the GitHub workflow. It excludes the two gitignored,
+# machine-provisioned configs so a provisioned box selects the same set as a
+# fresh CI clone.
+run = "./scripts/yaml-files.sh | xargs -r yamllint"
 
 [tasks."lint:json"]
 description = "validate all json parses"

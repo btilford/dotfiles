@@ -2,9 +2,16 @@ stages: [lint]
 
 # NOTE: the self-hosted runner cannot reach api.github.com (rate-limited) or
 # sigstore.dev, so mise's aqua/ubi tool installs fail there. CI therefore uses
-# official tool-bundled images for the two highest-value gates. The full suite
-# (yaml/json/nu/fish + formatters) runs locally via `mise run lint` and the
-# lefthook pre-commit hook, where GitHub is reachable.
+# official tool-bundled images for the highest-value gates. The remainder
+# (json/nu/fish/lua + formatters) runs locally via `mise run lint` and the
+# lefthook pre-commit hook, and on GitHub Actions via .github/workflows/lint.yml,
+# where GitHub IS reachable and mise can install the full toolchain.
+#
+# Images are pinned by digest, not by tag. `:stable` and `:latest` are moving
+# targets — an upstream rebuild can turn a green pipeline red with no commit
+# here, and there is no record of which build actually gated a given merge.
+# To update one: `docker pull <image>:<tag>` then
+# `docker inspect --format='{{index .RepoDigests 0}}' <image>:<tag>`.
 
 # When pipelines run. Until 2026-07-27 both jobs were gated on
 # `$CI_COMMIT_BRANCH == "master"`, which is unset on merge-request pipelines —
@@ -24,7 +31,8 @@ workflow:
 
 lint:shellcheck:
   stage: lint
-  image: koalaman/shellcheck-alpine:stable
+  # koalaman/shellcheck-alpine:stable
+  image: koalaman/shellcheck-alpine@sha256:c82fe42504fbc9fc68f15d36638e5ee2324ebb8b94e96a3c4e395bf361c49183
   script:
     # Error severity only — vendored hyprland scripts carry heavy style noise.
     # File selection is scripts/shell-files.sh, the same selector `mise run
@@ -35,7 +43,20 @@ lint:shellcheck:
 lint:secrets:
   stage: lint
   image:
-    name: zricethezav/gitleaks:latest
+    # zricethezav/gitleaks:latest
+    name: zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
     entrypoint: [""]
   script:
     - gitleaks dir . -c .gitleaks.toml --no-banner
+
+lint:yaml:
+  stage: lint
+  image:
+    # pipelinecomponents/yamllint:latest — yamllint 1.37.1
+    name: pipelinecomponents/yamllint@sha256:5ab5eb7da0ed5e606b07c1723fc8b275e925189f70ac259b26b7329cb5f8f44d
+    entrypoint: [""]
+  script:
+    # Same selector as `mise run lint:yaml` and the GitHub workflow. Like the
+    # shellcheck image this one ships no git, hence the find-based script.
+    # Rules come from .yamllint (relaxed base, style noise off, real errors on).
+    - ./scripts/yaml-files.sh | xargs -r yamllint

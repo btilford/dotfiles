@@ -12,7 +12,6 @@ This document describes the migration from Hyprland's legacy `.conf` format to t
 - **Branch**: `hyprland-lua`
 - **Base Branch**: `hyprland` (working `.conf` configuration)
 - **Wallust**: Template updated to generate `colors-hyprland.lua`
-- **Mise**: Required for graphify tool activation
 
 ## Migration Status
 
@@ -92,25 +91,6 @@ All core configuration has been migrated from `.conf` files to `.lua` modules:
 - `SUPER + Tab` = workspace cycling (was `Super_R`)
 
 **When Fixed**: If Hyprland fixes Discussion #11014, the commented-out `Super_L`/`Super_R` keybinds in `keybindings.lua` can be uncommented and the generic `SUPER` bindings removed.
-
-### 2. graphify Requires mise Shell
-
-**Status**: ⚠️ Documented
-
-**Impact**: `graphify update .` command requires `mise` to be activated in the shell.
-
-**Solution**: Added to README:
-```sh
-# Install mise
-curl https://mise.run | sh
-
-# Activate in shell
-eval "$(mise activate bash)"  # or fish, zsh
-
-# Then run graphify
-graphify update .
-```
-
 
 ## Keybinding Changes for Window Management Priority
 

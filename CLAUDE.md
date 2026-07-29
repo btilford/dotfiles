@@ -356,29 +356,53 @@ On macOS also `ln -s ~/.config/metapac ~/"Library/Application Support/metapac"`
 
 ## Linting & CI
 
-Two surfaces run the same class of checks and must be kept as close as possible:
+**Three** surfaces run the same class of checks and must be kept as close as
+possible:
 
 - **`mise.toml`** — the local toolchain + `mise run lint` tasks (shell, secrets,
-  yaml, json, nu, fish) and `mise run fmt` formatters. This is the full suite.
-- **`.gitlab-ci.yml`** — the CI gate. A deliberate *subset*: shellcheck +
-  gitleaks only, via official tool-bundled images.
+  yaml, json, nu, fish, lua) and `mise run fmt` formatters. The full suite.
+- **`.github/workflows/lint.yml`** — runs `mise run lint`, i.e. the same full
+  suite. GitHub runners have no egress restriction, so mise installs the real
+  toolchain. It additionally `apt install`s fish and lua-check, because
+  `lint:fish` and `lint:lua` **self-skip when their tool is missing** and would
+  otherwise report success while checking nothing.
+- **`.gitlab-ci.yml`** — a deliberate *subset*: shellcheck + gitleaks + yamllint,
+  via official tool-bundled images pinned by digest.
 
-**They intentionally diverge** because the self-hosted GitLab runner cannot
-reach `api.github.com` (rate-limited) or `sigstore.dev`, so mise's aqua/ubi
-installs fail in CI (see the `gitlab-runner-no-github-egress` memory). CI works
-around this with prebuilt images; local uses mise directly.
+**GitLab diverges** because the self-hosted runner cannot reach
+`api.github.com` (rate-limited) or `sigstore.dev`, so mise's aqua/ubi installs
+fail there (see the `gitlab-runner-no-github-egress` memory). It works around
+this with prebuilt images; the other two use mise directly.
 
-**Sync rule:** whenever you change one of these two files, evaluate the other
-and keep the shared gates aligned — same shellcheck flags/excludes/severity,
-same gitleaks config, same allowlists. If you add a gate to `mise run lint`,
-decide whether CI should carry it too (and whether the runner can, given the
-GitHub/sigstore constraint) rather than letting the two drift silently.
+That makes **GitHub the strictest gate** — a change can pass GitLab and still
+fail on GitHub. Do not "fix" that by weakening the GitHub workflow.
 
-**Where a gate can be shared outright, share it.** `scripts/shell-files.sh` is
-the sole selector for shellcheck, called by both surfaces, so which files get
-linted is structurally identical rather than two lists kept in step by hand. It
-is POSIX `sh` using only `find`/`grep` because the CI image ships **no git** —
+**Pin by digest/SHA, never by tag.** GitHub Actions are pinned to full commit
+SHAs and GitLab images to `@sha256:` digests, each with a comment naming the
+release. A tag is mutable: `@v4` or `:latest` can be repointed at new code with
+no commit here, which is both a supply-chain hole and a source of pipelines that
+turn red without anything changing. Refresh an action with
+`gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq .object.sha`; an image with
+`docker inspect --format='{{index .RepoDigests 0}}' <image>:<tag>` after a pull.
+
+**Sync rule:** whenever you change one of these three files, evaluate the other
+two and keep the shared gates aligned — same shellcheck flags/excludes/severity,
+same gitleaks config, same allowlists. If you add a gate to `mise run lint`, it
+reaches GitHub for free; decide separately whether GitLab can carry it, given
+the GitHub/sigstore constraint, rather than letting the surfaces drift.
+
+**Where a gate can be shared outright, share it.** `scripts/shell-files.sh` and
+`scripts/yaml-files.sh` are the sole selectors for shellcheck and yamllint,
+called by every surface that runs those gates, so which files get linted is
+structurally identical rather than lists kept in step by hand. Both are POSIX
+`sh` using only `find`/`grep` because the CI images ship **no git** —
 `git ls-files` is not available there, which is why selection is path-based.
+
+`yaml-files.sh` also excludes `docker/.docker/mcp/config.yaml` and
+`gh/.config/gh/hosts.yml`. Those are gitignored and machine-provisioned: absent
+in a fresh CI clone, present on a provisioned box, so a `find` that included
+them would lint local state that can never be committed and make the local run
+disagree with CI. Their committed `.example` siblings are linted normally.
 
 It selects **by shebang, not by extension**. The previous `*.sh`/`*.bash` globs
 silently skipped every extensionless command in `commands/.local/bin` and
@@ -401,13 +425,3 @@ purpose — mise and CI scan the tree (`gitleaks dir .`), the hook scans staged
 content (`gitleaks protect --staged`). In this repo `lefthook.yml` already owns
 `pre-commit` and runs the same gitleaks command, so the template hook is skipped
 here and does not double-run.
-
-## graphify
-
-This project has a graphify knowledge graph at graphify-out/.
-
-Rules:
-
-- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
-- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
-- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)

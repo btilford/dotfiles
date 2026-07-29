@@ -18,5 +18,7 @@
   // Both callers pass their own file list: lefthook `{staged_files}`, and
   // `mise run fmt:md` uses `$(git ls-files '*.md')` for a whole-repo pass. A bare
   // `markdownlint-cli2` with no arguments now checks nothing — pass files.
-  "ignores": ["graphify-out/**", "**/node_modules/**"]
+  // graphify-out/ is gone from the repo (dropped in this branch), so its ignore
+  // entry went with it.
+  "ignores": ["**/node_modules/**"]
 }
