@@ -30,7 +30,7 @@ exercised in isolation by a harness, a nested session, or CI.
 Tools that already have a seam, and the flag to use:
 
 | Tool | Test a worktree copy with |
-|------|---------------------------|
+| ------ | --------------------------- |
 | quickshell | `qs -p <worktree>/quickshell/.config/quickshell/shell.qml` |
 | tmux | `tmux -L <private-socket> -f <worktree>/tmux/.tmux.conf` |
 | metapac | `metapac --config-dir <worktree>/metapac/.config/metapac` |
@@ -193,7 +193,7 @@ at `~/.config/metapac/`; group files are the source of truth.
   not in separate stow packages.
 - **Backends:** `arch`, `brew`, `bun`, `cargo`, `flatpak`, `mise`, `uv` — enabled
   per host. Arch (`cachyos-fwd`): `arch`, `bun`, `cargo`, `flatpak`, `mise`, `uv`
-  + groups `core`, `desktop-arch`. macOS (`example-macos-host.local`): `brew`,
+  - groups `core`, `desktop-arch`. macOS (`example-macos-host.local`): `brew`,
   `cargo`, `mise`, `uv`, `bun` + groups `core`, `macos`.
   `[arch] package_manager = "paru"` is required so AUR installs stay behind the
   aur-policy gate. `npm` and `pipx` are deliberately disabled.
@@ -262,8 +262,21 @@ need interactive auth:
 
 ```bash
 gh extension install dlvhdr/gh-dash        # gh-dash (no package backend)
+mise run hooks                             # lefthook -> .git/hooks, PER CLONE
 mise run setup:git-spice                   # git-spice: template, forge URL, auth, hooks
 ```
+
+**`mise run hooks` is per clone and nothing runs it for you.** This repo went a
+long time without it, so `lefthook.yml`'s formatters (shfmt, stylua, taplo,
+markdownlint) and its gitleaks command never fired on a commit — which is where
+the formatting backlog came from. `setup:git-spice` step 7 now flags a clone that
+is missing them.
+
+One interaction to know (verified on lefthook 2.1.10): `lefthook install`
+**renames an existing `pre-commit` to `pre-commit.old` and does not run it**, so
+it displaces the global gitleaks hook installed via `init.templateDir`. Harmless
+here because `lefthook.yml` runs the same gitleaks command itself; in a lefthook
+repo that does *not*, installing lefthook silently drops the secret gate.
 
 `scripts/setup-git-spice.sh` (that task) is idempotent and does the checkable work
 itself — regenerating `~/.local/share/git-template`, verifying no symlink survived
@@ -353,6 +366,7 @@ here and does not double-run.
 This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
+
 - Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
 - After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
