@@ -8,6 +8,15 @@
     "MD024": { "siblings_only": true }, // duplicate headings ok across sections
     "MD029": false // ordered-list numbering style
   },
-  "globs": ["**/*.md"],
+  // No "globs" here on purpose. markdownlint-cli2 treats a configured `globs` as
+  // the file set and IGNORES the paths given on the command line, so lefthook's
+  // `--fix {staged_files}` silently linted the WHOLE repo — every commit touching
+  // any markdown then failed on unrelated pre-existing debt in other READMEs.
+  // Verified: with `globs`, `markdownlint-cli2 good.md` still reports errors from
+  // bad.md; without it, only the passed file is linted.
+  //
+  // Both callers pass their own file list: lefthook `{staged_files}`, and
+  // `mise run fmt:md` uses `$(git ls-files '*.md')` for a whole-repo pass. A bare
+  // `markdownlint-cli2` with no arguments now checks nothing — pass files.
   "ignores": ["graphify-out/**", "**/node_modules/**"]
 }
