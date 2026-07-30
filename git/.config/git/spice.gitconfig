@@ -1,0 +1,26 @@
+# git-spice — stacked branches and stacked MRs/PRs.
+#
+# Binary is `git-spice`, NOT `gs`: /usr/bin/gs is ghostscript, which is required
+# by okular, cups-pdf and texlive and is invoked as a bare `gs` by imagemagick
+# and matplotlib. The docs' `gs` is a per-shell alias only (see the shell
+# drop-ins) — never a PATH shadow.
+#
+# Host- and forge-specific values do NOT belong here. `spice.forge.gitlab.url`
+# for the self-hosted instance goes in ~/.gitconfig.local, which .gitconfig
+# includes last.
+
+[spice "log"]
+    # Show every tracked branch, not just the current stack.
+    all = true
+    # Fetch change-request status in `gs ls`. Costs a forge round-trip per
+    # listing; drop this if `gs ls` starts feeling slow offline.
+    crStatus = true
+
+[spice "submit"]
+    # Stack-position comment on each MR/PR, so reviewers can see the chain.
+    navigationComment = true
+
+[spice "branchDelete"]
+    # Rebase upstack branches when a branch is deleted, instead of leaving them
+    # pointed at a base that no longer exists. Upstream default is false.
+    restack = true

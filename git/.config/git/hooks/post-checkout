@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Auto-init and auto-track branches with git-spice, so any worktree is stackable
+# regardless of which tool created it (worktrunk, workmux, bare git worktree add).
+#
+# Reached via the shim that init.templateDir installs into .git/hooks. Hooks live
+# in $GIT_COMMON_DIR/hooks, which every worktree of a repo shares, so one install
+# covers all of them — that is why this is a hook and not per-tool integration.
+#
+# EVERY path exits 0. Tracking is a convenience; it must never fail a checkout or
+# a `git worktree add`. Compare with the pre-commit hook, which must be able to
+# fail.
+#
+# post-checkout receives: $1 old HEAD, $2 new HEAD, $3 1=branch 0=file checkout.
+
+set -uo pipefail
+
+# Inert on hosts without git-spice.
+command -v git-spice > /dev/null 2>&1 || exit 0
+
+# git-spice sets GIT_SPICE during its own operations (v0.23.0+). Without this,
+# `gs branch checkout` re-enters here.
+[ -n "${GIT_SPICE:-}" ] && exit 0
+
+# File checkouts (`git checkout -- path`) are not branch changes.
+[ "${3:-0}" -eq 0 ] && exit 0
+
+# No remote means a scratch or throwaway repo. This is the only fence keeping
+# git-spice state out of repos that will never have a change request.
+git remote get-url origin > /dev/null 2>&1 || exit 0
+
+branch=$(git rev-parse --abbrev-ref HEAD 2> /dev/null) || exit 0
+[ "$branch" = HEAD ] && exit 0 # detached
+git show-ref --verify --quiet "refs/heads/$branch" || exit 0
+
+# Auto-init once per repo. --no-prompt because there is frequently no TTY here
+# (workmux and worktrunk create worktrees from their own process), and a prompt
+# would hang worktree creation rather than merely fail.
+if ! git rev-parse --verify --quiet refs/spice/data > /dev/null; then
+    trunk=$(git-default-branch --branch --local 2> /dev/null) || exit 0
+    [ -n "$trunk" ] || exit 0
+    if ! git-spice --no-prompt repo init --trunk "$trunk" --remote origin > /dev/null 2>&1; then
+        echo >&2 "[git-spice] repo init failed (trunk '$trunk'); not tracking. Run: gs repo init"
+        exit 0
+    fi
+fi
+
+trunk=$(git-spice trunk -n 2> /dev/null) || exit 0
+[ "$branch" = "$trunk" ] && exit 0
+
+# Already tracked? Read git-spice's internal store directly — `gs ls --json` would
+# be far slower on a hook that runs on every checkout.
+#
+# Warning: depends on git-spice's internal storage layout. If tracking starts
+# firing on every checkout of an already-tracked branch, this probe is what broke.
+git rev-parse --verify --quiet "refs/spice/data:branches/$branch" > /dev/null && exit 0
+
+echo >&2 "[git-spice] tracking '$branch'"
+# downstack, not `branch track`: picks up any untracked branches between this one
+# and trunk.
+git-spice --no-prompt downstack track "$branch" 2> /dev/null \
+    || echo >&2 "[git-spice] could not track '$branch' non-interactively. Run: gs downstack track"
+
+exit 0

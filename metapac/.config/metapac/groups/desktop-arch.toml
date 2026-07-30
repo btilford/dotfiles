@@ -163,8 +163,10 @@ arch = { packages = [
   "git",
   "git-credential-manager",
   "git-delta",
+  "git-spice-bin",
   "github-cli",
   "gitlab-runner",
+  "gitleaks",
   "glab",
   "glances",
   "glow",
@@ -629,6 +631,4 @@ cargo = { packages = [
   ] } },
 ] }
 uv = { packages = ["kimi-cli"] }
-bun = { packages = [
-  "@th0rgal/ralph-wiggum",
-] }
+bun = { packages = ["@th0rgal/ralph-wiggum"] }

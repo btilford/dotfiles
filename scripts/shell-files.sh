@@ -14,6 +14,10 @@
 # git/.local/bin are on PATH and therefore deliberately extensionless — an
 # extension glob silently skipped all eight of them, including scripts both
 # worktree tools depend on.
+#
+# The exclusion is `*.sample`, not the whole templates dir: git/.config/git/
+# templates/hooks now holds our own real hook shims next to git's vendored
+# samples, and those shims must be linted like any other script.
 
 set -eu
 
@@ -21,7 +25,7 @@ cd "$(cd "$(dirname "$0")/.." && pwd)"
 
 find . -type f \
   -not -path './.git/*' \
-  -not -path './git/.config/git/templates/*' \
+  -not -name '*.sample' \
   -not -name '__sdkman-noexport-init.sh' \
   -not -name 'RofiEmoji.sh' \
   -print \

@@ -1,0 +1,18 @@
+# git-spice — stacked branches. The binary installs as `git-spice` (AUR package
+# and homebrew-core both), not `gs`: /usr/bin/gs is ghostscript, required by
+# okular/cups-pdf/texlive and invoked as a bare `gs` by imagemagick and
+# matplotlib. So `gs` is an interactive alias only — scripts and git hooks must
+# call `git-spice` directly. No-op on machines without it.
+#
+# No completion setup here on purpose: .zshrc sources these drop-ins BEFORE it
+# runs compinit, and `git-spice shell completion zsh` emits imperative code that
+# needs bashcompinit. The eval therefore lives in .zshrc just after compinit.
+#
+# It is eval'd rather than committed as ~/.zfunc/_git-spice (the _grype/_workmux
+# convention) because the generated output hardcodes the binary's absolute path —
+# /usr/bin on Arch, a brew prefix on macOS — which is not portable and breaks the
+# repo's no-absolute-paths rule.
+
+if command -v git-spice > /dev/null 2>&1; then
+    alias gs="git-spice"
+fi

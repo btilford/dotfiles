@@ -19,7 +19,13 @@ The `git` stow package provides the complete git configuration for all machines.
 | `aliases.gitconfig` | Short-form and descriptive aliases. Aliases that shell out use the `!sh -c '...'` pattern. |
 | `commands.gitconfig` | Push/pull/fetch/merge/diff behavior. Configures merge and diff tools (nvimdiff, IntelliJ, meld). Note: IntelliJ tool paths are macOS-specific absolute paths and should not be changed to relative. |
 | `flow.gitconfig` | Branch prefix conventions for git-flow (`feature-`, `release-`, `hotfix-`, `bug-`, `poc-`, `spike-`). |
-| `shell.gitconfig` | Color output, rebase sequence editor (`interactive-rebase-tool`), and notes refs config. |
+| `shell.gitconfig` | Color output, rebase sequence editor (`interactive-rebase-tool`), and notes refs config (`+refs/notes/*:refs/notes/*` on fetch and push — do not remove). |
+| `spice.gitconfig` | git-spice: `spice.log.*`, `spice.submit.navigationComment`, `spice.branchDelete.restack`. Forge URLs are machine-specific and live in `~/.gitconfig.local`. |
+| `templates/hooks/post-checkout`, `templates/hooks/pre-commit` | Identical shims installed into new repos by `init.templateDir`. They derive the hook name from `$0` and delegate to `hooks/<name>`. |
+| `hooks/post-checkout` | Real logic: auto-init + auto-track branches with git-spice. Exits 0 on every path. |
+| `hooks/pre-commit` | Real logic: `gitleaks protect --staged`, using the repo's own `.gitleaks.toml` when present. Must be able to fail. |
+| `.local/bin/git-template-sync` | Dereferences `templates/` into `~/.local/share/git-template` (real files — see below). |
+| `.local/bin/git-spice-hook-install` | Retrofits hooks into already-cloned repos; chains an incumbent `post-checkout` instead of clobbering it. |
 | `web.gitconfig` | Browser (`brave-browser`) and instaweb httpd. |
 | `dirs.gitconfig` | `includeIf "gitdir:..."` rules that route each working directory to the correct identity profile. |
 | `profiles/default.gitconfig` | Personal identity: name `btilford`, noreply GitHub email, GPG signing key, GPG sign enabled. |
@@ -124,6 +130,55 @@ The per-host helpers in `core.gitconfig` (GitHub → `gh` CLI, GitLab → `glab`
 There is no catch-all `includeIf` — every directory that should use a non-default identity needs an explicit entry. Repos in unlisted directories will not have a user identity set from this file (git will fall back to any system-level config or error on commit).
 
 The `dirs.gitconfig` file contains some legacy entries under the `# Old layout` comment. These are kept for backward compatibility with machines that still use the old directory layout.
+
+## Hooks and `init.templateDir`
+
+`core.gitconfig` sets `init.templateDir = ~/.local/share/git-template`, so every
+new clone or `git init` gets a `post-checkout` hook (git-spice auto-tracking) and
+a `pre-commit` hook (gitleaks). Hooks live in `$GIT_COMMON_DIR/hooks`, shared by
+all worktrees of a repo, so one install covers every worktree whatever created it.
+
+### Why the template dir is generated instead of stowed
+
+**`init.templateDir` must never point at `~/.config/git/templates`.** Git copies
+template entries **as symlinks, preserving the relative link target** — it does
+not dereference them. stow makes every file in a package a relative symlink, so
+that path would give each new repo a *dangling* `.git/hooks/post-checkout` (plus
+dangling `.git/description` and `.git/info/exclude`): hooks that silently never
+run, with no error anywhere. Verified behaviour, and the reason the old
+`#templatedir = ~/.config/git/default-template` line stayed commented out.
+
+`git-template-sync` therefore does a `cp -RL` of the stowed tree into
+`~/.local/share/git-template` and **fails loudly if any symlink survives**. Run it
+once per machine (`mise run setup:git-template`) and again after changing anything
+under `templates/`.
+
+The two template hooks are deliberately trivial and byte-identical: they resolve
+`$0`'s basename and exec `~/.config/git/hooks/<name>`. Real logic therefore lives
+in the stowed tree and reaches every repo immediately — no re-sync, no per-repo
+reinstall. Keep them that way; putting logic in a template hook means every repo
+carries a stale copy of it.
+
+### Why `templateDir` and not global `core.hooksPath`
+
+`core.hooksPath` is not additive and not per-hook: it replaces the hooks directory
+wholesale, so any hook name absent from it stops existing in *every* repo on the
+machine (verified — a repo's `pre-commit` was ignored entirely and a
+secret-carrying commit went through). Keeping repo hooks alive would mean putting
+our own chaining script in the path of every git operation. `templateDir` never
+intercepts, and its collision case is benign: git keeps the repo's existing hook
+and skips ours. `git-spice-hook-install` handles that case explicitly, per repo.
+
+**Chaining moves the incumbent aside, it does not append to it.** Hooks commonly
+use guard-clause `exit 0`s — `~/dotfiles`' own graphify `post-checkout` has three
+— so appended code would be unreachable on exactly the paths that matter. The
+installer renames the incumbent to `post-checkout.chained` and writes a wrapper
+that runs ours first, then it. A tool that reinstalls its own hook will clobber
+the wrapper and orphan the `.chained` file; re-running the installer restores it.
+
+**`pre-commit` is never chained.** lefthook and the pre-commit framework already
+run gitleaks in repos configured for them (this repo does, via `lefthook.yml`), so
+chaining would scan twice. The installer reports and skips.
 
 ## Rules and constraints
 

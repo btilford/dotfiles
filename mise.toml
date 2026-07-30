@@ -37,6 +37,20 @@ jq = "latest"
 description = "Install git hooks (lefthook) into this clone"
 run = "lefthook install"
 
+[tasks."setup:git-template"]
+description = "Build ~/.local/share/git-template (init.templateDir) from the stowed templates"
+# Per machine, and again after changing git/.config/git/templates/. Needed because
+# git copies template entries as symlinks and stow makes every file a symlink —
+# the generated dir holds real files so installed hooks don't dangle.
+run = "git-template-sync"
+
+[tasks."setup:git-spice"]
+description = "Per-machine git-spice bootstrap: template, forge URL, auth, hooks (idempotent)"
+# Supersedes setup:git-template for a fresh machine — it runs that step itself and
+# then checks the parts that need sudo or interactive input, printing the exact
+# command for each. Pass repos to retrofit: mise run setup:git-spice -- --repos ~/a ~/b
+run = "./scripts/setup-git-spice.sh"
+
 [tasks."glab:config"]
 description = "Apply glab prefs after `glab auth login` (token stays local, untracked)"
 run = """
@@ -65,7 +79,15 @@ run = "scripts/render-visual-history.py"
 
 [tasks.lint]
 description = "Run every CI gate"
-depends = ["lint:shell", "lint:secrets", "lint:yaml", "lint:json", "lint:nu", "lint:fish", "lint:lua"]
+depends = [
+  "lint:shell",
+  "lint:secrets",
+  "lint:yaml",
+  "lint:json",
+  "lint:nu",
+  "lint:fish",
+  "lint:lua",
+]
 
 [tasks."lint:shell"]
 description = "shellcheck sh/bash scripts — error severity only (vendored scripts carry style noise)"

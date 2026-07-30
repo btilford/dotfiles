@@ -1,0 +1,13 @@
+# git-spice — stacked branches. The binary installs as `git-spice` (AUR package
+# and homebrew-core both), not `gs`: /usr/bin/gs is ghostscript, required by
+# okular/cups-pdf/texlive and invoked as a bare `gs` by imagemagick and
+# matplotlib. So `gs` is an interactive alias only — scripts and git hooks must
+# call `git-spice` directly. No-op on machines without it.
+#
+# Note this takes over `gs`, which 10-aliases had (commented out) as
+# `git status`.
+
+if command -v git-spice > /dev/null 2>&1; then
+    alias gs="git-spice"
+    eval "$(git-spice shell completion bash)"
+fi
