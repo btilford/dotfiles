@@ -7,11 +7,15 @@
     "MD041": false, // first line must be a heading
     "MD024": { "siblings_only": true }, // duplicate headings ok across sections
     "MD029": false, // ordered-list numbering style
-    // Table pipe alignment. Purely cosmetic, not auto-fixable in practice, and it
-    // fails on hand-maintained tables across most files in this repo — including
-    // ones nobody is editing. Since lefthook fails a commit on any remaining
-    // markdownlint error, leaving it on means unrelated table churn is forced into
-    // every commit that happens to touch a doc.
+    // Table pipe alignment. Off TEMPORARILY, not on principle: prettier fixes it
+    // completely (verified — README went from 9 MD060 errors to 0), but prettier
+    // has never been run over this repo, so 15 markdown files would reformat. With
+    // lefthook now actually installed and failing a commit on any remaining
+    // markdownlint error, leaving MD060 on forces that unrelated churn into every
+    // commit that happens to touch a doc.
+    //
+    // Re-enable as part of the repo-wide format pass, which adds prettier to
+    // `mise run fmt:md`. See Plans/dotfiles-format-lint-cleanup in the vault.
     "MD060": false
   },
   // No "globs" here on purpose. markdownlint-cli2 treats a configured `globs` as
