@@ -42,11 +42,19 @@ nerdfont: true
 # Default merge strategy for `workmux merge`.
 # Options: merge (default), rebase, squash
 # CLI flags (--rebase, --squash) always override this.
-# merge_strategy: rebase
+#
+# Set explicitly to match worktrunk's [merge] defaults (squash = true), which are
+# on unless disabled. Leaving this unset would silently diverge: workmux defaults
+# to a plain merge commit, so the same branch merged with one tool and then the
+# other would land differently shaped history.
+merge_strategy: squash
 
 # Keep the worktree, window, and branch after `workmux merge` by default.
 # Keep and cleanup CLI flags always override this.
-# merge_keep: true
+#
+# false mirrors worktrunk's [merge] remove = true — the worktree and its window go
+# away once the branch has landed. workmux's own default is the opposite.
+merge_keep: false
 
 #-------------------------------------------------------------------------------
 # Naming & Paths
