@@ -764,8 +764,12 @@ overlay use ~/.config/nushell/starship.nu
 
 source ~/.config/nushell/.zoxide.nu
 
+# Machine-local values, read from ~/.config/dotfiles/local.env (untracked). This
+# reader IS tracked and holds no values — see commands/.local/share/dotfiles/required-env.
+source ~/.config/nushell/local-env.nu
+
 # Machine-local secrets/config. Untracked — put real secrets here, not in any other
-# nushell file in this package.
+# nushell file in this package. Loaded after local-env.nu so it can override.
 source ~/.config/nushell/local.nu
 
 use ($nu.default-config-dir | path join mise.nu)

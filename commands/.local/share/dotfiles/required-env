@@ -1,0 +1,22 @@
+# Machine-local variables this repo's config depends on.
+#
+# Format:  VAR<TAB>required|optional<TAB>consumer<TAB>note
+#
+# Read by `dotfiles-local-env --check` and by the machine bootstrap. Keeping the
+# manifest next to the code means the audit and the consumers cannot drift.
+#
+# Values live in ~/.config/dotfiles/local.env — untracked, chmod 600, never here.
+DOTFILES_GITLAB_HOST	optional	mise.toml (glab:config task)	task skips the line when unset
+NAS_HOST	required	commands/.local/bin/mount-library.sh	mount fails on the :? guard when unset
+NAS_MOUNT_ROOT	optional	commands/.local/bin/mount-library.sh	defaults to $HOME/nas
+HOME_NET_PREFIXES	optional	commands/.local/bin/mount-library.sh	defaults to the built-in prefix list
+INFISICAL_DOMAIN	required	commands/.local/bin/sync-litellm-models	script exits when unset
+INFISICAL_PROJECT	required	commands/.local/bin/sync-litellm-models	project id, not a credential
+LITELLM_GATEWAY	required	sync-litellm-models, nvim ai.lua	nvim falls back to http://localhost:4000
+LEMONADE_URL	optional	commands/.local/bin/sync-litellm-models	
+OLLAMA_URL	optional	commands/.local/bin/sync-litellm-models	
+OLLAMA_HOST	optional	nvim/.config/nvim/lua/plugins/ai.lua	read via vim.env, so needs environment.d
+NEOVIM_API_KEY	required	nvim/.config/nvim/lua/plugins/ai.lua	CREDENTIAL — degrades to the literal string "missing-NEOVIM_API_KEY"
+HERMES_TUI_GATEWAY_URL	optional	fish/.config/fish/conf.d/hermes.fish	defaults to http://localhost:8642
+VOL_SCREENSHOT_ARCHIVE	optional	scripts/visuals	
+DOTFILES_SCREENSHOT_ARCHIVE	optional	scripts/visual-archive.sh	

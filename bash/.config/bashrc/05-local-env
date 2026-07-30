@@ -1,0 +1,20 @@
+# Load machine-local values from ~/.config/dotfiles/local.env.
+#
+# That file is untracked and machine-specific: hostnames, gateway URLs, and one
+# credential (NEOVIM_API_KEY). Nothing private belongs in THIS file — it is
+# published. Manifest: commands/.local/share/dotfiles/required-env.
+# Find what is missing with: dotfiles-local-env --check
+#
+# Numbered 05 deliberately. The loader in .bashrc/.zshrc sources this directory in
+# glob order, and configs that set their own fallback only do so when the variable
+# is unset — so values must load BEFORE them. Behaviour overrides belong in a
+# `99-local` file instead, which loads last and wins.
+#
+# `set -a` exports everything the file defines; the format is plain KEY=VALUE with
+# no quotes and no expansion, so systemd's environment.d can read the same file.
+
+if [ -r "$HOME/.config/dotfiles/local.env" ]; then
+  set -a
+  . "$HOME/.config/dotfiles/local.env"
+  set +a
+fi

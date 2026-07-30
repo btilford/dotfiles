@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# Manage ~/.config/dotfiles/local.env — the single untracked file holding every
+# machine-local value this repo's config needs.
+#
+#   dotfiles-local-env --check      what is missing (exit 1 if a required var is unset)
+#   dotfiles-local-env --template   create local.env from the tracked example
+#   dotfiles-local-env --pull       render local.env from Infisical
+#   dotfiles-local-env --targets    show every file that reads it, and whether it is wired
+#
+# There is deliberately no "generate the shell files" mode. Each shell has a
+# TRACKED `05-local-env` drop-in that reads local.env directly, and systemd's
+# environment.d consumes the same KEY=VALUE format via a symlink — so nothing
+# needs rendering, and no generated file can go stale.
+
+set -uo pipefail
+
+env_file="${DOTFILES_LOCAL_ENV:-$HOME/.config/dotfiles/local.env}"
+share_dir="$HOME/.local/share/dotfiles"
+manifest="$share_dir/required-env"
+example="$share_dir/local.env.example"
+
+die() {
+  echo "[local-env] $1" >&2
+  exit 1
+}
+
+# Values only; never printed, only tested against.
+value_of() {
+  [ -r "$env_file" ] || return 1
+  sed -nE "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*(.*)$/\1/p" "$env_file" | head -1
+}
+
+cmd_check() {
+  [ -r "$manifest" ] || die "manifest not found: $manifest (is the commands package stowed?)"
+
+  local missing=0 empty_optional=0 total=0
+  if [ ! -r "$env_file" ]; then
+    echo "  ✗ $env_file does not exist — run: dotfiles-local-env --template"
+    missing=1
+  fi
+
+  while IFS=$'\t' read -r var req consumer note; do
+    case "$var" in '' | '#'*) continue ;; esac
+    total=$((total + 1))
+    local val
+    val=$(value_of "$var" || true)
+    if [ -n "$val" ]; then
+      continue
+    fi
+    if [ "$req" = required ]; then
+      printf '  ✗ %-28s REQUIRED by %s\n' "$var" "$consumer"
+      [ -n "${note:-}" ] && printf '      %s\n' "$note"
+      missing=$((missing + 1))
+    else
+      printf '  · %-28s optional, unset (%s)\n' "$var" "${note:-$consumer}"
+      empty_optional=$((empty_optional + 1))
+    fi
+  done < "$manifest"
+
+  # environment.d matters for anything not launched from a shell (nvim via a
+  # desktop entry, systemd user services, the Wayland session).
+  if [ "$(uname)" != Darwin ]; then
+    local envd="$HOME/.config/environment.d/50-local.conf"
+    if [ -e "$envd" ]; then
+      printf '  ✓ %s\n' "environment.d wired ($envd)"
+    else
+      printf '  ⚠ %s\n' "environment.d NOT wired — vim.env vars are unset outside a shell. Fix:"
+      printf '      mkdir -p ~/.config/environment.d && ln -s %s %s\n' "$env_file" "$envd"
+    fi
+  fi
+
+  echo "  ($total vars in manifest, $missing required missing, $empty_optional optional unset)"
+  [ "$missing" -eq 0 ]
+}
+
+cmd_template() {
+  [ -r "$example" ] || die "example not found: $example (is the commands package stowed?)"
+  [ -e "$env_file" ] && die "$env_file already exists — edit it, or delete it first"
+  install -m 600 -D "$example" "$env_file" || die "could not write $env_file"
+  echo "[local-env] created $env_file (mode 600) — fill in the values, then --check"
+}
+
+cmd_pull() {
+  command -v infisical > /dev/null 2>&1 || die "infisical not installed"
+  # INFISICAL_DOMAIN is itself one of the managed values, so bootstrap it from the
+  # environment or an already-present local.env rather than assuming.
+  local domain="${INFISICAL_DOMAIN:-$(value_of INFISICAL_DOMAIN || true)}"
+  local project="${INFISICAL_PROJECT:-$(value_of INFISICAL_PROJECT || true)}"
+  [ -n "$domain" ] || die "INFISICAL_DOMAIN unknown — set it in the environment for this one call"
+  [ -n "$project" ] || die "INFISICAL_PROJECT unknown — set it in the environment for this one call"
+
+  local tmp
+  tmp=$(mktemp) || die "mktemp failed"
+  chmod 600 "$tmp"
+  if ! infisical export --format=dotenv --domain="$domain" --projectId="$project" > "$tmp" 2>/dev/null; then
+    rm -f "$tmp"
+    die "infisical export failed — logged in? (infisical login)"
+  fi
+  [ -s "$tmp" ] || {
+    rm -f "$tmp"
+    die "infisical returned nothing; refusing to overwrite $env_file"
+  }
+  mkdir -p "$(dirname "$env_file")"
+  mv "$tmp" "$env_file"
+  chmod 600 "$env_file"
+  echo "[local-env] wrote $env_file from Infisical ($(grep -c '=' "$env_file") vars)"
+}
+
+cmd_targets() {
+  printf '  canonical: %s%s\n' "$env_file" "$([ -r "$env_file" ] && echo '' || echo '   (MISSING)')"
+  local t
+  for t in \
+    "$HOME/.config/fish/conf.d/05-local-env.fish" \
+    "$HOME/.config/bashrc/05-local-env" \
+    "$HOME/.config/zshrc/05-local-env" \
+    "$HOME/.config/nushell/local-env.nu" \
+    "$HOME/.config/environment.d/50-local.conf"; do
+    printf '  %s %s\n' "$([ -e "$t" ] && echo '✓' || echo '✗')" "$t"
+  done
+  echo "  (✗ on a shell reader means that package is not stowed; on environment.d, see --check)"
+}
+
+case "${1:---check}" in
+  --check) cmd_check ;;
+  --template) cmd_template ;;
+  --pull) cmd_pull ;;
+  --targets) cmd_targets ;;
+  -h | --help) sed -n '2,14p' "$0" ;;
+  *) die "unknown option: $1 (try --help)" ;;
+esac
