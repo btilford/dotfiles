@@ -6,7 +6,13 @@
     "MD033": false, // inline HTML
     "MD041": false, // first line must be a heading
     "MD024": { "siblings_only": true }, // duplicate headings ok across sections
-    "MD029": false // ordered-list numbering style
+    "MD029": false, // ordered-list numbering style
+    // Table pipe alignment. Purely cosmetic, not auto-fixable in practice, and it
+    // fails on hand-maintained tables across most files in this repo — including
+    // ones nobody is editing. Since lefthook fails a commit on any remaining
+    // markdownlint error, leaving it on means unrelated table churn is forced into
+    // every commit that happens to touch a doc.
+    "MD060": false
   },
   // No "globs" here on purpose. markdownlint-cli2 treats a configured `globs` as
   // the file set and IGNORES the paths given on the command line, so lefthook's

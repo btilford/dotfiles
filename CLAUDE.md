@@ -19,10 +19,13 @@ just as permanent once pushed.
 
 Anything machine-specific resolves from the environment with a public fallback,
 or lives in an untracked file. The single provisioning surface is
-`~/.config/fish/conf.d/local.fish` (untracked; `~/.zshrc.local` on macOS):
+**`~/.config/dotfiles/local.env`** — see "Machine-local config: the `.d/` pattern"
+below for how each shell and the systemd session read it. (It replaced
+`local.fish`, which only fish read, so on macOS and in nushell none of these were
+ever set.)
 
 | Variable | Consumed by | Unset behaviour |
-|---|---|---|
+| --- | --- | --- |
 | `DOTFILES_GITLAB_HOST` | `mise.toml` → `glab:config` | skips per-host `git_protocol` |
 | `INFISICAL_PROJECT` / `INFISICAL_DOMAIN` | `sync-litellm-models` | **exits** with a message |
 | `LITELLM_GATEWAY` | `sync-litellm-models` | **exits** with a message |
@@ -33,8 +36,9 @@ or lives in an untracked file. The single provisioning surface is
 | `NAS_HOST` / `NAS_SHARE_ROOT` | `mount-library.sh` | **exits** via `${VAR:?}` |
 | `NAS_MOUNT_ROOT` / `NAS_SHARES` / `HOME_NET_PREFIXES` | `mount-library.sh` | `~/nas` / three shares / `10.(33\|101\|148\|104)` |
 
-`conf.d` loads alphabetically, so `local.fish` is sourced after every drop-in it
-needs to override.
+The authoritative list is `commands/.local/share/dotfiles/required-env`, which
+`dotfiles-local-env --check` reads — so this table cannot silently drift from what
+the code actually needs.
 
 Untracked, provision from the `.example` beside it: `docker/.docker/mcp/config.yaml`
 (holds a Google app password), `gh/.config/gh/hosts.yml` (gh writes `oauth_token:`
@@ -201,6 +205,61 @@ When you *do* want a worktree for a branch that stacks on another, pass the
 parent explicitly — `wm add foo --base parent-branch`. The default (`wm`'s
 fetch-and-use-`origin/<default>`) is right for a stack *root* and wrong for
 anything above it, which would otherwise be tracked as trunk-based.
+
+## Machine-local config: the `.d/` pattern
+
+Anything machine-specific — hostnames, gateway URLs, monitor serials, one API key
+— lives **outside** the repo, and the repo carries only readers and examples.
+
+This works because stow always runs with `--no-folding`: directories are real and
+only files are symlinks, so an **untracked real file can sit inside a stowed
+directory** and survives `stow -R` / `stow -D` (verified — stow only manages links
+it owns).
+
+**One canonical file:** `~/.config/dotfiles/local.env`, plain `KEY=VALUE`, no
+quotes and no expansion, `chmod 600` (it holds `NEOVIM_API_KEY`). Provision it per
+machine with `dotfiles-local-env --template`, or `--pull` from Infisical.
+
+| Context | Reader (tracked, holds no values) |
+| ------ | ------ |
+| fish | `fish/.config/fish/conf.d/05-local-env.fish` |
+| bash | `bash/.config/bashrc/05-local-env` |
+| zsh | `zsh/.config/zshrc/05-local-env` |
+| nushell | `nushell/.config/nushell/local-env.nu` |
+| systemd user + Wayland session | `~/.config/environment.d/50-local.conf` → **symlink to `local.env`** |
+
+The `environment.d` symlink is not optional cosmetics: **nvim reads
+`OLLAMA_HOST` and `NEOVIM_API_KEY` via `vim.env`**, i.e. the environment of
+whatever launched it. Started from a desktop entry or a systemd service with only
+shell readers in place, the API key silently becomes the literal string
+`"missing-NEOVIM_API_KEY"`. `dotfiles-local-env --check` warns when it is unwired.
+
+**Two reserved slots, ordered opposite ways:**
+
+- `05-local-env` — *values*, must load **early**. Configs that self-default use
+  "set only if unset" (`fish/conf.d/hermes.fish`), so a reader running after them
+  would never apply.
+- `99-local` — *behaviour* overrides, must load **last** to win.
+
+**Reserved names**, in both `.gitignore` and `.stow-local-ignore`: `local.env`,
+`*.local`, `*.local.{lua,toml,fish}`, `NN-local*`. A local file therefore cannot be
+committed by accident, and `scripts/no-local-values.sh` is the second barrier.
+
+`commands/.local/share/dotfiles/required-env` is the manifest — variable, whether
+it is required, which consumer needs it. `dotfiles-local-env --check` reads it, so
+the audit and the code cannot drift.
+
+**Where no `.d` exists:** git has no directory include (keep `~/.gitconfig.local`),
+and Hyprland's Lua config uses a guarded `dofile` of `monitors.local.lua` — that is
+where monitor serials live, since `desc:` needs a serial to tell two identical
+panels apart. `monitors.lua` publishes a `MON` alias table so the workspace layout
+stays tracked and portable.
+
+**Escape hatch:** bash and zsh both support
+`~/.config/{bash,zsh}rc/custom/<same-filename>`, which *replaces* a stowed drop-in
+outright (`[[ -f $c ]] && source $c || source $f`). Neither `custom/` dir exists
+yet. That is the clean way to neutralise one stowed file on one machine — e.g. a
+Linux-only drop-in on the Mac — with no repo change and no unstowing.
 
 ## Structure
 
@@ -416,6 +475,14 @@ Excluded: `*.sample` (git's vendored hook samples under
 mis-parsed as code). The exclusion used to be that whole templates directory;
 it was narrowed to `*.sample` when our own hook shims moved in beside the
 samples — they need linting like anything else.
+
+**`lint:private` blocks re-introduction.** `scripts/no-local-values.sh` fails if
+content contains a *value* from `~/.config/dotfiles/local.env` (reading them at run
+time, so no private string is ever committed as a denylist — only the variable
+name is printed) or a generic private pattern (RFC1918, `/home/<user>`, `desc:`
+serials). Runs in lefthook pre-commit, `mise run lint`, GitLab CI, and GitHub
+Actions. CI has no `local.env`, which is why the pattern half exists; and CI is the
+real enforcement since `--no-verify` skips the hook.
 
 **gitleaks now has a third surface:** the global `pre-commit` hook
 (`git/.config/git/hooks/pre-commit`), on top of `mise run lint:secrets` and CI.

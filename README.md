@@ -6,7 +6,7 @@ Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/manu
 
 Each top-level directory is a **stow package** whose contents mirror `$HOME`. Stow creates symlinks from `$HOME` into the package directory.
 
-```
+```text
 dotfiles/
   fish/
     .config/
@@ -46,7 +46,7 @@ stow --no-folding -n -v fish
 
 The `git` package uses a fragmented config structure. `~/.gitconfig` is the entry point; it includes all fragments via `[include]` directives. All fragments live under `~/.config/git/`.
 
-```
+```text
 git/
   .gitconfig                        # entry point — includes all fragments
   .config/git/
@@ -73,7 +73,7 @@ git/
 
 | Directory | Profile | Identity |
 |-----------|---------|----------|
-| `~/Projects/ttp/`, `~/work/anon/` | `anon.gitconfig` | no name, no GPG |
+| `~/work/anon/` (+ client dirs, local-only) | `anon.gitconfig` | no name, no GPG |
 | Everything else | `default.gitconfig` | btilford, GPG signed |
 
 A work identity is **not** in this repo — it would name an employer, a work
@@ -183,5 +183,3 @@ stow --no-folding starship
 stow --no-folding ghostty
 stow --no-folding macos
 ```
-
-

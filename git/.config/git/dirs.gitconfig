@@ -30,8 +30,14 @@
 
 [includeIf "gitdir:~/Projects/homelab/"]
     path = ~/.config/git/profiles/default.gitconfig
-[includeIf "gitdir:~/Projects/ttp/"]
-    path = ~/.config/git/profiles/anon.gitconfig
+# Client/employer directories are named in ~/.gitconfig.local, not here — a
+# directory name is itself an identifying detail. Pattern to copy there:
+#
+#   [includeIf "gitdir:~/Projects/<client>/"]
+#       path = ~/.config/git/profiles/anon.gitconfig
+#
+# There is no catch-all includeIf, so a machine missing that block gets NO identity
+# for those repos and commits fail outright.
 [includeIf "gitdir:~/Projects/private/practice/"]
     path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/Projects/private/qmk/"]

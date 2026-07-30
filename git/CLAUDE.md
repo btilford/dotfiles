@@ -13,7 +13,7 @@ The `git` stow package provides the complete git configuration for all machines.
 ## Config file map
 
 | File | Purpose |
-|------|---------|
+| ------ | --------- |
 | `.gitconfig` | Entry point. Contains `[include]` directives for all fragments plus LFS config. Includes `~/.gitconfig.local` last so machine-local settings (GCM, etc.) take effect after all shared config. |
 | `core.gitconfig` | Editor (`nvim`), pager (`delta`), global excludesfile, `autocrlf`, and per-host credential helper entries for GitHub and the private GitLab instance. |
 | `aliases.gitconfig` | Short-form and descriptive aliases. Aliases that shell out use the `!sh -c '...'` pattern. |
@@ -119,10 +119,10 @@ The per-host helpers in `core.gitconfig` (GitHub → `gh` CLI, GitLab → `glab`
 
 `dirs.gitconfig` uses `includeIf "gitdir:<path>"` to select an identity profile. Git evaluates these conditionally at read time — the matching include wins and its `[user]` and `[commit]` settings override the previous values.
 
-| Directory pattern | Profile | Name | GPG signing |
-|-------------------|---------|------|-------------|
-| `~/Projects/ttp/`, `~/work/anon/` | `anon.gitconfig` | nil | no |
-| All others (explicit entries) | `default.gitconfig` | btilford | yes |
+| Directory pattern                          | Profile             | Name     | GPG signing   |
+| ------------------------------------------ | ------------------- | -------- | ------------- |
+| `~/work/anon/` (+ client dirs, local-only) | `anon.gitconfig`    | nil      | no            |
+| All others (explicit entries)              | `default.gitconfig` | btilford | yes           |
 
 There is no catch-all `includeIf` — every directory that should use a non-default identity needs an explicit entry. Repos in unlisted directories will not have a user identity set from this file (git will fall back to any system-level config or error on commit).
 
@@ -176,6 +176,26 @@ the wrapper and orphan the `.chained` file; re-running the installer restores it
 **`pre-commit` is never chained.** lefthook and the pre-commit framework already
 run gitleaks in repos configured for them (this repo does, via `lefthook.yml`), so
 chaining would scan twice. The installer reports and skips.
+
+## Machine-local git config
+
+`~/.gitconfig.local` is the only local seam for git, because **git has no
+directory include** — `include.path` takes one path per line and there is no
+`.d/` mechanism to drop a file into. `.gitconfig` includes it last, so it wins.
+
+What belongs there, never in this package:
+
+- the self-hosted GitLab `[credential]` block
+- `[spice "forge.gitlab"] url = …` for git-spice. Note the subsection form: dots
+  are illegal in a variable name, and `[spice "forge"]` with `gitlab.url = …`
+  makes **every** git command fail with `bad config line`.
+- the work identity profile and its `includeIf`. `dirs.gitconfig` has no
+  catch-all, so a machine missing that block gets no identity for those repos and
+  commits fail outright.
+
+Order matters for git-spice: set the forge URL *before* `git-spice auth login`.
+The token is keyed to the resolved forge URL, so logging in first stores it
+against gitlab.com and a self-hosted remote then reports `gitlab: not logged in`.
 
 ## Rules and constraints
 
