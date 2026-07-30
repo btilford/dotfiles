@@ -46,7 +46,12 @@ lint:private:
   # constraint scripts/shell-files.sh works under. No local.env here, so only the
   # generic pattern half runs — the value half is a developer-machine gate.
   image:
-    name: alpine/git:latest
+    # alpine/git because the script needs BOTH git and sh; the shellcheck image has
+    # no git. entrypoint must be cleared — alpine/git's entrypoint is `git`, so a
+    # plain script line becomes `git sh -c …` and fails with
+    # "git: 'sh' is not a git command". Digest-pinned like every other image here.
+    name: alpine/git@sha256:b4d933c7185b5cc9da7704f2c6e19d477f935ea31a50d9a017ffce2bbd1109a3
+    entrypoint: [""]
   script:
     - ./scripts/no-local-values.sh --all
 
