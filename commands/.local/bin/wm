@@ -51,25 +51,9 @@ if [ "$explicit_base" -eq 1 ]; then
   exec workmux "$@"
 fi
 
-# Resolve the remote's default branch, preferring what origin actually reports.
-# `git remote set-head origin -a` refreshes origin/HEAD when it is missing (a
-# fresh clone with --single-branch often lacks it).
-default_branch=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2> /dev/null || true)
-if [ -z "$default_branch" ]; then
-  git remote set-head origin -a > /dev/null 2>&1 || true
-  default_branch=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2> /dev/null || true)
-fi
-
-# Still nothing (no origin, or a remote that does not advertise HEAD): fall back
-# to whichever conventional branch exists on the remote.
-if [ -z "$default_branch" ]; then
-  for candidate in origin/main origin/master; do
-    if git rev-parse --verify --quiet "$candidate" > /dev/null 2>&1; then
-      default_branch="$candidate"
-      break
-    fi
-  done
-fi
+# Resolve the remote's default branch. Shared with the git-spice post-checkout
+# hook via git-default-branch, so the two cannot disagree about what trunk is.
+default_branch=$(git-default-branch 2> /dev/null || true)
 
 # No remote default at all — let workmux apply its own base_branch logic.
 if [ -z "$default_branch" ]; then

@@ -41,6 +41,7 @@ brew = { packages = [
   "git-lfs",
   "git-open",
   "git-sizer",
+  "git-spice",
   "git-town",
   "gitleaks",
   "glab",
@@ -131,6 +132,4 @@ mise = { packages = [
   { name = "gcloud", options = { version = "latest" } },
 ] }
 # Mac-only bun global. The nvim/dev toolchain lives in core.toml (both platforms).
-bun = { packages = [
-  "@shortcut-cli/shortcut-cli",
-] }
+bun = { packages = ["@shortcut-cli/shortcut-cli"] }

@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# Hook shim, installed into a repo's .git/hooks by init.templateDir.
+#
+# Deliberately trivial and byte-identical for every hook name: it derives the
+# hook from $0 and delegates to the stowed implementation, so edits to the real
+# logic reach every repo without regenerating the template or re-running
+# git-spice-hook-install. Adding another hook = copy this file to that name.
+#
+# git copies template entries AS SYMLINKS, preserving the relative target, so the
+# stowed ~/.config/git/templates cannot be used as init.templateDir directly —
+# every hook would land in .git/hooks as a dangling link and silently never run.
+# git-template-sync dereferences into ~/.local/share/git-template, which is what
+# init.templateDir actually points at. See git/CLAUDE.md.
+
+hook=$(basename "$0")
+target="$HOME/.config/git/hooks/$hook"
+
+[ -x "$target" ] || exit 0
+exec "$target" "$@"

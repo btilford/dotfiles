@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+# Block staged secrets with gitleaks, in every repo — not just the ones that
+# opted into a hook manager.
+#
+# Reached via the shim that init.templateDir installs into .git/hooks. Note this
+# hook is the opposite of the post-checkout one: it MUST be able to fail, since
+# failing is the entire point. Only a missing gitleaks exits 0.
+#
+# Third surface for this gate, alongside `mise run lint:secrets` and
+# .gitlab-ci.yml's lint:secrets job (see the Linting section of CLAUDE.md). It
+# stays aligned by using the repo's own .gitleaks.toml when there is one, so each
+# repo's allowlists apply here too, rather than carrying a copy of them. Scope
+# differs on purpose: mise and CI scan the whole tree, this scans staged content.
+#
+# Escape hatches, when a repo has secret-shaped fixtures: `git commit --no-verify`,
+# or an allowlist in that repo's .gitleaks.toml.
+
+command -v gitleaks > /dev/null 2>&1 || exit 0
+
+root=$(git rev-parse --show-toplevel 2> /dev/null) || exit 0
+
+if [ -f "$root/.gitleaks.toml" ]; then
+    exec gitleaks protect --staged -c "$root/.gitleaks.toml" --no-banner
+fi
+
+exec gitleaks protect --staged --no-banner

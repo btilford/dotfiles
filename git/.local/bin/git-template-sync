@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Generate the real-file git template directory that init.templateDir points at.
+#
+# Why this exists: git copies template entries AS SYMLINKS, preserving the
+# relative link target. stow makes every file in a package a relative symlink, so
+# pointing init.templateDir at ~/.config/git/templates gives every new repo a
+# DANGLING .git/hooks/post-checkout (plus dangling .git/description and
+# .git/info/exclude) — hooks that silently never run, with no error anywhere.
+# Verified behaviour, not a guess.
+#
+# So: the stowed tree stays the source of truth, and this dereferences it into a
+# directory of real files.
+#
+# Idempotent. Re-run after changing anything under git/.config/git/templates/.
+# Note that already-initialised repos keep the copy they got — which is why the
+# template hooks are trivial shims that delegate to ~/.config/git/hooks/, so real
+# logic changes need no re-run at all.
+#
+#   mise run setup:git-template     (or run this directly, once per machine)
+
+set -euo pipefail
+
+src="${GIT_TEMPLATE_SRC:-$HOME/.config/git/templates}"
+dest="${GIT_TEMPLATE_DEST:-$HOME/.local/share/git-template}"
+
+if [ ! -d "$src" ]; then
+    echo "[git-template-sync] source not found: $src" >&2
+    echo "[git-template-sync] is the git stow package stowed?" >&2
+    exit 1
+fi
+
+rm -rf "$dest"
+mkdir -p "$dest"
+
+# -L dereferences symlinks, which is the entire point.
+cp -RL "$src/." "$dest/"
+
+# Hooks must be executable; stow-managed sources are, but be explicit rather than
+# depending on the copy preserving it.
+if [ -d "$dest/hooks" ]; then
+    find "$dest/hooks" -type f ! -name '*.sample' -exec chmod +x {} +
+fi
+
+# A symlink surviving here means cp -L failed and every installed hook will
+# dangle. Fail loudly rather than shipping a silent no-op.
+if [ -n "$(find "$dest" -type l -print -quit)" ]; then
+    echo "[git-template-sync] symlinks present in $dest — hooks would dangle:" >&2
+    find "$dest" -type l >&2
+    exit 1
+fi
+
+echo "[git-template-sync] $dest"
+find "$dest/hooks" -type f ! -name '*.sample' -printf '  %f\n' 2> /dev/null || true
+echo "[git-template-sync] new clones pick these up automatically."
+echo "[git-template-sync] for existing repos: git-spice-hook-install [path...]"

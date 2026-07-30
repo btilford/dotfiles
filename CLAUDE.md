@@ -77,6 +77,90 @@ Differences that remain, deliberately:
 - **tmux naming.** worktrunk names sessions `<branch>-<repo>`; workmux uses its own
   `wm-<handle>`. Left divergent so it stays obvious which tool made a session.
 
+## Stacked branches (git-spice)
+
+Stacking is managed by **git-spice**. State lives in `refs/spice/data`, a ref in
+the repo's common dir, so a stack is visible from every worktree of that repo.
+
+**The binary is `git-spice`, never `gs`.** `/usr/bin/gs` is ghostscript —
+required by okular, cups-pdf and texlive, and invoked as a bare `gs` by
+imagemagick and matplotlib. `gs` exists only as an interactive shell alias
+(`fish/conf.d/git-spice.fish`, `{bash,zsh}rc/18-git-spice`). **Scripts, hooks and
+agents must spell it `git-spice`** — a shell alias does not exist in a
+non-interactive shell, so `gs` in a script silently runs ghostscript.
+
+### Agents: use git-spice instead of raw git/glab/gh
+
+Raw `git` branch and push commands, `glab mr create`, and `gh pr create` leave
+the stack metadata wrong: bases go stale, upstack branches are not restacked, and
+MRs lose their navigation comments. Prefer:
+
+| Instead of | Use | Note |
+| ------ | ------ | ------ |
+| `git checkout -b X` | `git-spice branch create X` | creates *and* tracks |
+| `git commit` | `git-spice commit create` | commits, then restacks upstack |
+| `git commit --amend` | `git-spice commit amend` | same, after amending |
+| `git rebase <base>` | `git-spice upstack restack` / `stack restack` | never hand-rebase a tracked branch |
+| `git checkout <branch>` | `git-spice branch checkout`, `up`, `down`, `top`, `bottom`, `trunk` | |
+| `git push` | `git-spice branch submit` | pushes with lease and opens/updates the MR |
+| `glab mr create`, `gh pr create` | `git-spice branch submit` / `stack submit` | idempotent: updates an existing MR rather than duplicating |
+| `git pull` on trunk, deleting merged branches | `git-spice repo sync` | add `--restack` to rebase survivors |
+| `git branch -d X` | `git-spice branch delete X` | retargets upstack branches |
+| changing a branch's base | `git-spice upstack onto` / `branch onto` | |
+
+Rules that matter for non-interactive use:
+
+- **Always pass `--no-prompt`** in a script or an unattended agent session.
+  git-spice prompts by default and will otherwise hang with no TTY. For submits,
+  `--fill` derives title/body from commits; `--title`/`--body` set them
+  explicitly.
+- **Read-only stays raw.** `git status`, `git diff`, `git log`, `glab mr view`,
+  `gh pr view` are all fine. Use `git-spice log short` (`ls`) for the stack.
+- **Do not use the `merge` commands** — they are behind
+  `spice.experiment.merge` and off here. Merge through the forge (or
+  worktrunk/workmux), then `git-spice repo sync --restack` from the primary
+  checkout to delete merged branches and retarget what is left.
+- **Never `git push --force`** a tracked branch by hand; `branch submit` already
+  force-pushes with a lease.
+- **In a repo with no git-spice state and no `origin`**, the hook does not
+  auto-init and plain git is correct. Do not force `repo init` on someone else's
+  repo.
+
+### Tracking is automatic, via a git hook
+
+`init.templateDir` installs a `post-checkout` hook that auto-inits git-spice and
+tracks the branch (`git/.config/git/hooks/post-checkout`, reached through a shim).
+Hooks live in `$GIT_COMMON_DIR/hooks`, shared by every worktree of a repo, so
+**any** worktree is stackable regardless of which tool created it — worktrunk,
+workmux, or bare `git worktree add`. See `git/CLAUDE.md` for why the template dir
+must be generated rather than pointed at the stowed path.
+
+### One worktree per *stack*, not per branch
+
+`up`/`down`/`branch checkout` do a real `git checkout`, and restack does a real
+rebase — neither can touch a branch that is checked out in another worktree.
+Verified on 0.31.2, and the failure mode is quiet rather than loud:
+
+```console
+$ git-spice upstack restack
+WRN feat-c: checked out in another worktree (/…/work-wt), skipping
+INF feat-b: restacked on feat-a
+```
+
+It **skips and carries on**, so that branch silently keeps a stale base and stays
+`(needs restack)` in `git-spice ls` — which also annotates it `[wt: <path>]`. A
+restack that reports success has not necessarily restacked the whole stack.
+Upstream worktree-scoped filtering (abhinav/git-spice#1247) is still open.
+
+So: cut one worktree for the stack, add branches inside it with
+`git-spice branch create`, and navigate with `up`/`down`. If a stack branch does
+end up in its own worktree, restack from *that* worktree to catch it.
+
+When you *do* want a worktree for a branch that stacks on another, pass the
+parent explicitly — `wm add foo --base parent-branch`. The default (`wm`'s
+fetch-and-use-`origin/<default>`) is right for a stack *root* and wrong for
+anything above it, which would otherwise be tracked as trunk-based.
+
 ## Structure
 
 - **Cross-platform**: `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`, `workmux`, `tuicr`, `gh`, `gh-dash`
@@ -155,6 +239,14 @@ at `~/.config/metapac/`; group files are the source of truth.
   machine, bridge it once: `ln -s ~/.config/metapac ~/"Library/Application Support/metapac"`.
   (Linux uses XDG, so `~/.config/metapac/` is already correct there.)
 
+- **Per-OS entries, not `core.toml`, when the backends differ.** `git-spice` is
+  the worked example: AUR `git-spice-bin` in `desktop-arch.toml`, homebrew-core
+  `git-spice` in `macos.toml`. No cargo crate exists (it is Go) and mise's
+  registry has no entry. `gitleaks` is the same shape — brew on macOS, `extra/`
+  on Arch — and is *also* pinned in `mise.toml` for the lint suite and CI. That
+  duplication is deliberate: a system-wide git hook cannot depend on a project's
+  mise toolchain.
+
 Not managed by metapac, by design: nvim plugins (lazy.nvim + `lazy-lock.json`)
 and Mason's LSP/formatter tools (declared via `mason-tool-installer`); and
 **gh-dash**, which ships only as a `gh` extension (no brew formula, no
@@ -162,6 +254,37 @@ crates.io/npm, and metapac has no gh-extension backend). Bootstrap it per
 machine with `gh extension install dlvhdr/gh-dash` — the `gh-dash/` stow package
 supplies its `~/.config/gh-dash/config.yml` regardless. (`tuicr` *is* metapac-
 managed via the cargo backend in `core.toml`.)
+
+### Per-machine bootstrap, not committable
+
+Steps that must be run once on each machine, since they write outside the repo or
+need interactive auth:
+
+```bash
+gh extension install dlvhdr/gh-dash        # gh-dash (no package backend)
+mise run setup:git-spice                   # git-spice: template, forge URL, auth, hooks
+```
+
+`scripts/setup-git-spice.sh` (that task) is idempotent and does the checkable work
+itself — regenerating `~/.local/share/git-template`, verifying no symlink survived
+into it, and confirming `init.templateDir`, the forge URL and auth. For the three
+things it cannot do it prints the exact command: the package install (needs sudo),
+`git-spice auth login` (interactive), and the forge URL (belongs in
+`~/.gitconfig.local`, never in this repo). Pass repos to retrofit hooks into:
+
+```bash
+mise run setup:git-spice -- --repos ~/src/a ~/src/b
+```
+
+**Order matters for auth:** set `spice.forge.gitlab.url` in `~/.gitconfig.local`
+*before* `git-spice auth login`. Log in first and the token is keyed to
+gitlab.com, and a self-hosted remote then reports `gitlab: not logged in`. The
+config form is `[spice "forge.gitlab"]` + `url = …` — dots are illegal in a
+variable name, and `[spice "forge"]` with `gitlab.url = …` makes **every** git
+command fail with `bad config line`.
+
+On macOS also `ln -s ~/.config/metapac ~/"Library/Application Support/metapac"`
+(see the config-path gotcha above).
 
 ## Code review TUIs (tuicr + gh-dash)
 
@@ -209,9 +332,21 @@ silently skipped every extensionless command in `commands/.local/bin` and
 tools depend on. Those files have no extension by design (they are on `PATH`),
 so no glob can ever find them; a new one would have gone unlinted the same way.
 
-Excluded: `git/.config/git/templates/` (vendored git hook samples, not our
-code), plus `__sdkman-noexport-init.sh` (zsh syntax) and `RofiEmoji.sh` (emoji
-data mis-parsed as code).
+Excluded: `*.sample` (git's vendored hook samples under
+`git/.config/git/templates/hooks/`, not our code), plus
+`__sdkman-noexport-init.sh` (zsh syntax) and `RofiEmoji.sh` (emoji data
+mis-parsed as code). The exclusion used to be that whole templates directory;
+it was narrowed to `*.sample` when our own hook shims moved in beside the
+samples — they need linting like anything else.
+
+**gitleaks now has a third surface:** the global `pre-commit` hook
+(`git/.config/git/hooks/pre-commit`), on top of `mise run lint:secrets` and CI.
+It stays aligned by *using the repo's own `.gitleaks.toml` when one exists*, so
+each repo's allowlists apply, rather than carrying a copy. Scopes differ on
+purpose — mise and CI scan the tree (`gitleaks dir .`), the hook scans staged
+content (`gitleaks protect --staged`). In this repo `lefthook.yml` already owns
+`pre-commit` and runs the same gitleaks command, so the template hook is skipped
+here and does not double-run.
 
 ## graphify
 
