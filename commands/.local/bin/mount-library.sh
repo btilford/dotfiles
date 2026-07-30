@@ -6,7 +6,7 @@
 # they are not committed. Set them in ~/.config/fish/conf.d/local.fish (or the
 # shell equivalent), which is untracked:
 #
-#   set -gx NAS_HOST        10.0.0.1
+#   set -gx NAS_HOST        nas.example.lan
 #   set -gx NAS_SHARE_ROOT  /mnt/shares          # path exported by the NAS
 #   set -gx NAS_MOUNT_ROOT  ~/nas              # optional, defaults to ~/nas
 #   set -gx NAS_SHARES      'user-data library images'   # optional
@@ -25,14 +25,14 @@ NAS_SHARES="${NAS_SHARES:-user-data library images}"
 HOME_NET_PREFIXES="${HOME_NET_PREFIXES:-10\\.(0|1|2|3)}"
 
 HOME_NET="$(ip -j a | jq -r --arg re "^${HOME_NET_PREFIXES}\\.[0-9]{1,3}\\.[0-9]{1,3}\$" \
-    '.[].addr_info[].local | select(. | test($re))')"
+  '.[].addr_info[].local | select(. | test($re))')"
 
 if [ "${HOME_NET}" == "" ]; then
-    echo "Away from home network. Skipping mounts"
+  echo "Away from home network. Skipping mounts"
 else
-    for share in ${NAS_SHARES}; do
-        sudo mount -o soft \
-            "${NAS_HOST}:${NAS_SHARE_ROOT}/${share}" \
-            "${NAS_MOUNT_ROOT}/${share}/"
-    done
+  for share in ${NAS_SHARES}; do
+    sudo mount -o soft \
+      "${NAS_HOST}:${NAS_SHARE_ROOT}/${share}" \
+      "${NAS_MOUNT_ROOT}/${share}/"
+  done
 fi

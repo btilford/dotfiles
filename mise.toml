@@ -88,6 +88,7 @@ description = "Run every CI gate"
 depends = [
   "lint:shell",
   "lint:secrets",
+  "lint:private",
   "lint:yaml",
   "lint:json",
   "lint:nu",
@@ -101,6 +102,13 @@ description = "shellcheck sh/bash scripts — error severity only (vendored scri
 # lint:shellcheck CI job so the two cannot drift. Exclusions and the shebang rule
 # are documented there.
 run = "./scripts/shell-files.sh | xargs -r shellcheck --severity=error -e SC1090,SC1091,SC2148"
+
+[tasks."lint:private"]
+description = "block machine-local hostnames/IPs/serials from entering the repo"
+# Two halves: values read from the untracked ~/.config/dotfiles/local.env (so no
+# private string is ever committed as a denylist), plus generic patterns that are
+# private by shape. CI has no local.env, which is why the pattern half exists.
+run = "./scripts/no-local-values.sh --all"
 
 [tasks."lint:secrets"]
 description = "gitleaks — scan working tree for committed secrets"

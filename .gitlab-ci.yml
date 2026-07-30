@@ -40,6 +40,16 @@ lint:shellcheck:
     # sh using only find/grep precisely because this image ships no git.
     - ./scripts/shell-files.sh | xargs -r shellcheck --severity=error -e SC1090,SC1091,SC2148
 
+lint:private:
+  stage: lint
+  # No mise/tooling in CI: the script is POSIX sh using only git/grep/sed, the same
+  # constraint scripts/shell-files.sh works under. No local.env here, so only the
+  # generic pattern half runs — the value half is a developer-machine gate.
+  image:
+    name: alpine/git:latest
+  script:
+    - ./scripts/no-local-values.sh --all
+
 lint:secrets:
   stage: lint
   image:

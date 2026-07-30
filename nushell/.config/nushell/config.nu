@@ -745,7 +745,7 @@ $env.config = {
     ]
 }
 
-#use /home/btilford/.cache/starship/init.nu
+#use ~/.cache/starship/init.nu
 
 alias ll = eza -al --icons always
 

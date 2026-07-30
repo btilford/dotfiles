@@ -33,3 +33,21 @@ nushell/.config/nushell/.zoxide.nu
 nushell/.config/nushell/carapace.nu
 nushell/.config/nushell/mise.nu
 nushell/.config/nushell/local.nu
+
+# bless (hex editor) session state — records the last-opened file path, which has
+# leaked a client project dir and an absolute home path. Config only; state stays
+# local. preferences.xml is still tracked.
+bless/.config/bless/history.xml
+bless/.config/bless/last.session
+
+# Machine-local config, dropped in beside stowed files (works because stow runs
+# with --no-folding: directories are real, only files are symlinks). Reserved here
+# so a local file can never be committed by accident; scripts/no-local-values.sh
+# is the second barrier.
+local.env
+*.local
+*.local.lua
+*.local.toml
+*.local.fish
+[0-9][0-9]-local
+[0-9][0-9]-local.*

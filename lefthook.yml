@@ -24,5 +24,7 @@ pre-commit:
     fish-syntax:
       glob: "*.fish"
       run: 'for f in {staged_files}; do fish --no-execute "$f"; done'
+    no-local-values:
+      run: scripts/no-local-values.sh
     gitleaks:
       run: gitleaks protect --staged -c .gitleaks.toml --no-banner
