@@ -239,7 +239,7 @@ Rectangle {
             // body must not be able to push a card past the screen edge
             maximumLineCount: card.expanded ? 40 : 6
             elide: Text.ElideRight
-            color: Theme.subtext
+            color: Theme.fg
             font.family: Theme.fontUi
             font.pixelSize: Theme.fontSize - 1
         }
