@@ -165,6 +165,76 @@ base_branch: auto
 #   system_prompt: "Generate a kebab-case git branch name."
 #   background: true  # Always run in background when using --auto-name
 
+# Named agent profiles. Global-only — workmux ignores an `agents:` block in a
+# project .workmux.yaml. Reference one with `agent: <name>`, `workmux add -a <name>`,
+# `<agent:<name>>` in a pane command, or `vdb spawn launch --workmux-agent <name>`.
+# Structured profiles take `type`, `command`, `args`, `env`.
+#
+# Why this exists at all: `workmux add` takes an agent NAME, not an argv, so on the
+# workmux path `vdb spawn`'s --model-tier / --permission / --remote-control are
+# silently dropped (spawn.sh warns and names this block as the fix). A profile is the
+# only way to pin them there. The worktrunk path threads the same flags directly and
+# needs no profile.
+# One profile per model tier, named to match vault-db's --model-tier map
+# (1 = haiku, 2 = sonnet, 3 = opus) so a spawn can be moved between tiers by
+# swapping only --workmux-agent. All three are otherwise identical: differing on
+# anything but --model would make a tier change silently change permissions too.
+#
+# Unattended means an MR-stack loop launches these per ticket with no human at the
+# keyboard.
+#
+# --permission-mode auto approves every tool call but KEEPS the background safety
+# checks. It is not `--dangerously-skip-permissions`, which disables them outright
+# and which vdb's spawn.sh refuses on a host worktree. acceptEdits is the wrong
+# choice here for a specific reason: it auto-approves edits but still prompts on
+# Bash, so an overnight run stalls on the first gradle/git call and the supervising
+# loop spends the night watching a frozen prompt.
+#
+# --remote-control's name is optional; omitted, workmux cannot know the per-ticket
+# session name, so claude generates one prefixed with the hostname. That is enough
+# to reach the session from claude.ai/code or the mobile app.
+#
+# Aliases verified 2026-07-29 against the installed claude, since a bad --model is
+# only discovered when a spawn dies:
+#
+#   opus   -> claude-opus-5              1M ctx   64K out
+#   sonnet -> claude-sonnet-5            1M ctx   64K out
+#   haiku  -> claude-haiku-4-5-20251001  200K ctx 32K out
+#
+# `haiku` resolves but is NOT listed in `claude --help`, which documents only fable,
+# opus and sonnet — treat it as undocumented and re-verify after a claude upgrade.
+# Note the context asymmetry: haiku has 1/5th the window, so a task whose prompt is a
+# handoff doc plus a repo survey can fit on opus/sonnet and overflow on haiku. That is
+# a capability difference in the profile, not in the work.
+agents:
+  unattended-opus:
+    type: claude
+    command: claude
+    args:
+      - --model
+      - opus
+      - --permission-mode
+      - auto
+      - --remote-control
+  unattended-sonnet:
+    type: claude
+    command: claude
+    args:
+      - --model
+      - sonnet
+      - --permission-mode
+      - auto
+      - --remote-control
+  unattended-haiku:
+    type: claude
+    command: claude
+    args:
+      - --model
+      - haiku
+      - --permission-mode
+      - auto
+      - --remote-control
+
 #-------------------------------------------------------------------------------
 # Hooks
 #-------------------------------------------------------------------------------
