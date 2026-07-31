@@ -2,7 +2,7 @@
 """Render the visual-history pages from <archive>/history/log.tsv.
 
 Pure function of the ledger: safe to re-run at any time, so recovering from a bad edit
-is just re-running it. Called automatically by scripts/visual-archive.sh.
+is just re-running it. Called automatically by mise-scripts/visual-archive.sh.
 
 The archive lives in the notes vault, not in this repo. Its location comes from --dest
 or $DOTFILES_SCREENSHOT_ARCHIVE — never hardcoded here.

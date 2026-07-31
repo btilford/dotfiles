@@ -2,7 +2,7 @@
 # Archive fresh captures into the long-term visual history.
 #
 # Usage:
-#   scripts/visual-archive.sh [--dest DIR] [--ref REF] [--epic EPIC] [--milestone]
+#   mise-scripts/visual-archive.sh [--dest DIR] [--ref REF] [--epic EPIC] [--milestone]
 #                             [--title TITLE] [--note NOTE] [file ...]
 #
 #   --dest       archive root. Defaults to $DOTFILES_SCREENSHOT_ARCHIVE. The history
@@ -167,7 +167,7 @@ done
 
 [ "$n" -eq 0 ] && die "nothing archived"
 
-python3 "$ROOT/scripts/render-visual-history.py" --dest "$DEST" || die "render failed"
+python3 "$ROOT/mise-scripts/render-visual-history.py" --dest "$DEST" || die "render failed"
 
 summary="$n capture(s) under ref '$REF'"
 [ -n "$EPIC" ] && summary="$summary, epic '$EPIC'"

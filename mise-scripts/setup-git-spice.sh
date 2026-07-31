@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Per-machine git-spice bootstrap. Idempotent — safe to re-run any time.
 #
-#   mise run setup:git-spice          # or: ./scripts/setup-git-spice.sh
-#   ./scripts/setup-git-spice.sh --repos ~/src/a ~/src/b
+#   mise run setup:git-spice          # or: ./mise-scripts/setup-git-spice.sh
+#   ./mise-scripts/setup-git-spice.sh --repos ~/src/a ~/src/b
 #
 # What it cannot do for you, and why:
 #   - install the package   -> needs sudo (metapac/paru); it tells you the command

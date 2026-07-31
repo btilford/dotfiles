@@ -28,5 +28,5 @@ find . -type f \( -name '*.yml' -o -name '*.yaml' \) \
   -not -path './build/*' \
   -not -path './docker/.docker/mcp/config.yaml' \
   -not -path './gh/.config/gh/hosts.yml' \
-  -print \
-  | sort
+  -print |
+  sort

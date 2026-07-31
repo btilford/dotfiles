@@ -2,8 +2,8 @@
 # Fail if tracked content contains a machine-local VALUE, or a generic private
 # pattern. Guards the public mirror against re-introducing what was scrubbed.
 #
-#   scripts/no-local-values.sh              # staged changes (pre-commit)
-#   scripts/no-local-values.sh --all        # whole tree (mise run lint:private, CI)
+#   mise-scripts/no-local-values.sh              # staged changes (pre-commit)
+#   mise-scripts/no-local-values.sh --all        # whole tree (mise run lint:private, CI)
 #
 # Two halves, on purpose:
 #
@@ -18,7 +18,7 @@
 #    safe to write down and work everywhere including CI.
 #
 # POSIX sh with only git/grep/sed: the GitLab CI image ships no extra tooling, the
-# same constraint scripts/shell-files.sh works under.
+# same constraint mise-scripts/shell-files.sh works under.
 
 set -u
 

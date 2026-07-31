@@ -28,8 +28,8 @@ find . -type f \
   -not -name '*.sample' \
   -not -name '__sdkman-noexport-init.sh' \
   -not -name 'RofiEmoji.sh' \
-  -print \
-  | while IFS= read -r f; do
+  -print |
+  while IFS= read -r f; do
     case "$f" in
       # Extension is sufficient on its own; no need to read the file.
       *.sh | *.bash)
@@ -41,9 +41,9 @@ find . -type f \
     # Otherwise take the shebang's word for it. Matches sh/bash/dash/ksh, the
     # dialects shellcheck actually supports, and skips perl/python/fish/etc.
     # (`grep -q` on a single line is cheap enough across a repo this size.)
-    if head -n 1 "$f" 2>/dev/null \
-      | grep -qE '^#![[:space:]]*(/usr/bin/env[[:space:]]+)?(/[^[:space:]]*/)?(ba|da|k)?sh([[:space:]]|$)'; then
+    if head -n 1 "$f" 2> /dev/null |
+      grep -qE '^#![[:space:]]*(/usr/bin/env[[:space:]]+)?(/[^[:space:]]*/)?(ba|da|k)?sh([[:space:]]|$)'; then
       printf '%s\n' "$f"
     fi
-  done \
-  | sort
+  done |
+  sort

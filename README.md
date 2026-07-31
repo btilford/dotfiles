@@ -133,6 +133,31 @@ glab auth login --hostname <your-gitlab-host>
 
 Machine-specific config (local env vars, overrides, secrets) should **not** be committed to this repo. Place those files directly in their target locations outside of stow. Since `--no-folding` is always used, unmanaged files in the same directories as stowed files are left untouched.
 
+Machine-local **values** — host names, gateway URLs, one API key — all come from a
+single untracked file, `~/.config/dotfiles/local.env` (`KEY=VALUE`, no quotes, no
+shell expansion, mode 600). Generate it with placeholders before stowing anything:
+
+```sh
+mise run setup:local-env          # or: ./mise-scripts/gen-local-env.sh
+$EDITOR ~/.config/dotfiles/local.env
+```
+
+The variable list comes from `commands/.local/share/dotfiles/required-env`, which
+records for each variable whether it is required and which file consumes it. Once
+the `commands` package is stowed, `dotfiles-local-env --check` reports what is
+still missing, and `--pull` can render the file from Infisical instead.
+
+Anything not launched from a shell — nvim from a desktop entry, systemd user
+services, the Wayland session — reads the same file through `environment.d`:
+
+```sh
+ln -s ~/.config/dotfiles/local.env ~/.config/environment.d/50-local.conf
+```
+
+`local.env` is reserved in both `.gitignore` and `.stow-local-ignore`, and
+`mise-scripts/no-local-values.sh` (run by the pre-commit hook, `mise run
+lint:private` and CI) fails any commit whose content contains one of its values.
+
 ## Ignored Files
 
 `.stow-local-ignore` prevents certain files inside packages from being symlinked (uses Perl regex):

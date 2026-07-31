@@ -42,7 +42,7 @@ bless/.config/bless/last.session
 
 # Machine-local config, dropped in beside stowed files (works because stow runs
 # with --no-folding: directories are real, only files are symlinks). Reserved here
-# so a local file can never be committed by accident; scripts/no-local-values.sh
+# so a local file can never be committed by accident; mise-scripts/no-local-values.sh
 # is the second barrier.
 local.env
 *.local

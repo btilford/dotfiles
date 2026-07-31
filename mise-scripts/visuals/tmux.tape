@@ -1,6 +1,6 @@
 # vhs tape for the tmux terminal surface.
-#   vhs scripts/visuals/tmux.tape -o build/visuals/tmux-motion-<ts>.gif
-# Driven by scripts/visual-capture.sh when vhs is installed; without vhs the
+#   vhs mise-scripts/visuals/tmux.tape -o build/visuals/tmux-motion-<ts>.gif
+# Driven by mise-scripts/visual-capture.sh when vhs is installed; without vhs the
 # harness falls back to a real terminal inside the nested compositor.
 #
 # The tmux server here is PRIVATE: -L "$QS_VISUALS_TMUX_SOCKET" with the working

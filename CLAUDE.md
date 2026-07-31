@@ -92,7 +92,7 @@ No seam, so merge first and verify live: shell rc files (sourced from fixed `~`
 paths at login) and Hyprland's own config discovery (`-c` applies at launch
 only, `hyprctl reload` always re-reads `~/.config/hypr`).
 
-`scripts/visual-capture.sh` is the worked example — it defaults to the working
+`mise-scripts/visual-capture.sh` is the worked example — it defaults to the working
 tree for both the shell entry point and the tmux config, so a capture shows what
 is in the branch rather than what happens to be stowed.
 
@@ -217,8 +217,22 @@ directory** and survives `stow -R` / `stow -D` (verified — stow only manages l
 it owns).
 
 **One canonical file:** `~/.config/dotfiles/local.env`, plain `KEY=VALUE`, no
-quotes and no expansion, `chmod 600` (it holds `NEOVIM_API_KEY`). Provision it per
-machine with `dotfiles-local-env --template`, or `--pull` from Infisical.
+quotes and no expansion, `chmod 600` (it holds `NEOVIM_API_KEY`). Three ways to
+provision it per machine, in the order they apply:
+
+| Command | Use when |
+| ------ | ------ |
+| `mise run setup:local-env` (`mise-scripts/gen-local-env.sh`) | fresh clone, nothing stowed yet |
+| `dotfiles-local-env --template` | `commands` already stowed |
+| `dotfiles-local-env --pull` | machine can reach Infisical |
+
+`gen-local-env.sh` exists because of an ordering trap: `--template` copies the
+example out of `~/.local/share/dotfiles`, which only exists **after** `commands` is
+stowed — and stowing is the step that wants these values. The generator reads the
+repo directly, so it works on a bare checkout. It builds the file from the
+**manifest** rather than the example, so a variable added to `required-env` cannot
+go missing, and it reports any drift between the two on stderr. It refuses to
+overwrite an existing `local.env` without `--force`, and writes mode 600.
 
 | Context | Reader (tracked, holds no values) |
 | ------ | ------ |
@@ -243,7 +257,7 @@ shell readers in place, the API key silently becomes the literal string
 
 **Reserved names**, in both `.gitignore` and `.stow-local-ignore`: `local.env`,
 `*.local`, `*.local.{lua,toml,fish}`, `NN-local*`. A local file therefore cannot be
-committed by accident, and `scripts/no-local-values.sh` is the second barrier.
+committed by accident, and `mise-scripts/no-local-values.sh` is the second barrier.
 
 `commands/.local/share/dotfiles/required-env` is the manifest — variable, whether
 it is required, which consumer needs it. `dotfiles-local-env --check` reads it, so
@@ -378,7 +392,7 @@ it displaces the global gitleaks hook installed via `init.templateDir`. Harmless
 here because `lefthook.yml` runs the same gitleaks command itself; in a lefthook
 repo that does *not*, installing lefthook silently drops the secret gate.
 
-`scripts/setup-git-spice.sh` (that task) is idempotent and does the checkable work
+`mise-scripts/setup-git-spice.sh` (that task) is idempotent and does the checkable work
 itself — regenerating `~/.local/share/git-template`, verifying no symlink survived
 into it, and confirming `init.templateDir`, the forge URL and auth. For the three
 things it cannot do it prints the exact command: the package install (needs sudo),
@@ -415,6 +429,18 @@ On macOS also `ln -s ~/.config/metapac ~/"Library/Application Support/metapac"`
 
 ## Linting & CI
 
+### `mise-scripts/` holds the repo's task scripts
+
+Anything a `mise.toml` task shells out to lives in **`mise-scripts/`** (renamed
+from `scripts/`), so a top-level directory of shell files cannot be mistaken for
+config that gets stowed — every *other* top-level directory in this repo is a stow
+package. Nothing in it is stowed, and no stow package should reach into it.
+
+Three of them have a second caller by design — `no-local-values.sh` (lefthook +
+CI), `shell-files.sh` and `yaml-files.sh` (both CI jobs). The directory name says
+who *owns* them, not who may run them; when moving or renaming one, grep
+`lefthook.yml` and `.gitlab-ci.yml` as well as `mise.toml`.
+
 **Three** surfaces run the same class of checks and must be kept as close as
 possible:
 
@@ -450,8 +476,8 @@ same gitleaks config, same allowlists. If you add a gate to `mise run lint`, it
 reaches GitHub for free; decide separately whether GitLab can carry it, given
 the GitHub/sigstore constraint, rather than letting the surfaces drift.
 
-**Where a gate can be shared outright, share it.** `scripts/shell-files.sh` and
-`scripts/yaml-files.sh` are the sole selectors for shellcheck and yamllint,
+**Where a gate can be shared outright, share it.** `mise-scripts/shell-files.sh` and
+`mise-scripts/yaml-files.sh` are the sole selectors for shellcheck and yamllint,
 called by every surface that runs those gates, so which files get linted is
 structurally identical rather than lists kept in step by hand. Both are POSIX
 `sh` using only `find`/`grep` because the CI images ship **no git** —
@@ -476,7 +502,7 @@ mis-parsed as code). The exclusion used to be that whole templates directory;
 it was narrowed to `*.sample` when our own hook shims moved in beside the
 samples — they need linting like anything else.
 
-**`lint:private` blocks re-introduction.** `scripts/no-local-values.sh` fails if
+**`lint:private` blocks re-introduction.** `mise-scripts/no-local-values.sh` fails if
 content contains a *value* from `~/.config/dotfiles/local.env` (reading them at run
 time, so no private string is ever committed as a denylist — only the variable
 name is printed) or a generic private pattern (RFC1918, `/home/<user>`, `desc:`

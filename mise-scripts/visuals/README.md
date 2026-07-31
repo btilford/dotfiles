@@ -94,7 +94,7 @@ vault). The rules that came out of that:
   a backend — the compositor will still take DRM master and kill the session.
 - The nested session gets its own short-path `$XDG_RUNTIME_DIR` under `/tmp`, its
   own session bus, and runs with `WAYLAND_DISPLAY`/`DISPLAY` unset.
-- The launch lives in `scripts/visual-capture.sh` — a committed, reviewable
+- The launch lives in `mise-scripts/visual-capture.sh` — a committed, reviewable
   script. Never an ad-hoc shell line.
 - **A failed compositor start is never retried in a loop.** One failure: stop and
   report. A retry loop is how the desktop died.
@@ -107,7 +107,7 @@ it would take those agents down.
 
 ## Layout the archive produces
 
-```
+```text
 $DOTFILES_SCREENSHOT_ARCHIVE/
   SCREENSHOTS.md              index: epic milestones as images, all else a table
   history/log.tsv             append-only ledger — the only source of truth

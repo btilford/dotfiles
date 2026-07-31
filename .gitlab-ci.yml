@@ -35,15 +35,15 @@ lint:shellcheck:
   image: koalaman/shellcheck-alpine@sha256:c82fe42504fbc9fc68f15d36638e5ee2324ebb8b94e96a3c4e395bf361c49183
   script:
     # Error severity only — vendored hyprland scripts carry heavy style noise.
-    # File selection is scripts/shell-files.sh, the same selector `mise run
+    # File selection is mise-scripts/shell-files.sh, the same selector `mise run
     # lint:shell` uses, so this job and the local task cannot diverge. It is POSIX
     # sh using only find/grep precisely because this image ships no git.
-    - ./scripts/shell-files.sh | xargs -r shellcheck --severity=error -e SC1090,SC1091,SC2148
+    - ./mise-scripts/shell-files.sh | xargs -r shellcheck --severity=error -e SC1090,SC1091,SC2148
 
 lint:private:
   stage: lint
   # No mise/tooling in CI: the script is POSIX sh using only git/grep/sed, the same
-  # constraint scripts/shell-files.sh works under. No local.env here, so only the
+  # constraint mise-scripts/shell-files.sh works under. No local.env here, so only the
   # generic pattern half runs — the value half is a developer-machine gate.
   image:
     # alpine/git because the script needs BOTH git and sh; the shellcheck image has
@@ -53,7 +53,7 @@ lint:private:
     name: alpine/git@sha256:b4d933c7185b5cc9da7704f2c6e19d477f935ea31a50d9a017ffce2bbd1109a3
     entrypoint: [""]
   script:
-    - ./scripts/no-local-values.sh --all
+    - ./mise-scripts/no-local-values.sh --all
 
 lint:secrets:
   stage: lint
@@ -74,4 +74,4 @@ lint:yaml:
     # Same selector as `mise run lint:yaml` and the GitHub workflow. Like the
     # shellcheck image this one ships no git, hence the find-based script.
     # Rules come from .yamllint (relaxed base, style noise off, real errors on).
-    - ./scripts/yaml-files.sh | xargs -r yamllint
+    - ./mise-scripts/yaml-files.sh | xargs -r yamllint
