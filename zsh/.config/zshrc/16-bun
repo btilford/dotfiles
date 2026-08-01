@@ -15,5 +15,9 @@ fi
 # declared names, and `metapac clean` offers to uninstall every bun package.
 # FORCE_COLOR=0 is the only switch bun honors. `command` avoids recursion.
 if command -v metapac >/dev/null 2>&1; then
-    metapac() { FORCE_COLOR=0 command metapac "$@"; }
+    metapac() {
+    # config.toml keys tables by generic OS name, not real hostname (public repo).
+    local key=arch; [ "$(uname)" = Darwin ] && key=macos
+    FORCE_COLOR=0 command metapac --hostname "$key" "$@"
+  }
 fi

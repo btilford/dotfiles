@@ -56,6 +56,22 @@ run = "./mise-scripts/stow-status.sh"
 description = "Pick packages with fzf (preview shows per-file state) and stow them"
 run = "./mise-scripts/stow-pick.sh"
 
+[tasks.metapac]
+description = "Run metapac with the OS-derived --hostname key (arch|macos)"
+# metapac 0.10.0 selects per-host config by HOSTNAME and has no OS detection, so
+# this repo's config.toml keys its tables by generic OS names (arch, macos) rather
+# than real machine hostnames — which would otherwise leak into a public repo.
+# This task supplies the missing OS->key step from `uname`, and is the documented
+# canonical entry point. Interactive shells get the same via their metapac wrapper;
+# CI and scripts should use this task. Pass args through: `mise run metapac -- sync`.
+run = """
+case "$(uname)" in
+  Darwin) key=macos ;;
+  *)      key=arch ;;
+esac
+FORCE_COLOR=0 metapac --hostname "$key" "$@"
+"""
+
 [tasks."setup:local-env"]
 description = "Create ~/.config/dotfiles/local.env from placeholders (fill in, never commit)"
 # Runs from a plain checkout — unlike `dotfiles-local-env --template`, which reads

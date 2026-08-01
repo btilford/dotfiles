@@ -1,13 +1,12 @@
 # core — cross-platform tooling. Everything here must be installable on both
 # Arch and macOS. Platform-only packages belong in desktop-arch.toml / macos.toml.
 #
-# Bootstrapped from `metapac unmanaged` on cachyos-fwd, 2026-07-26.
+# Bootstrapped from `metapac unmanaged` on the Arch host, 2026-07-26.
 # mise is intentionally NOT declared here: the two hosts share no mise tools,
 # so each declares its own set in desktop-arch.toml / macos.toml (2026-07-27).
 
 cargo = { packages = [
-  { name = "just", options = { version = "1.46.0", features = [
-  ] } },
+  { name = "just", options = { version = "1.46.0", features = [] } },
   # Owns the `workmux` stow package (config + shell completions). Cargo rather
   # than arch/bun: it is published only to crates.io, with no AUR or npm entry.
   "workmux",

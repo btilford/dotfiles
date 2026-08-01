@@ -783,5 +783,7 @@ use ($nu.default-config-dir | path join mise.nu)
 # declared names, and `metapac clean` offers to uninstall every bun package.
 # FORCE_COLOR=0 is the only switch bun honors. `^metapac` avoids recursion.
 def --wrapped metapac [...args] {
-    with-env {FORCE_COLOR: "0"} { ^metapac ...$args }
+    # config.toml keys tables by generic OS name, not real hostname (public repo).
+    let key = (if (sys host | get name) == "Darwin" { "macos" } else { "arch" })
+    with-env {FORCE_COLOR: "0"} { ^metapac --hostname $key ...$args }
 }

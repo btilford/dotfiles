@@ -377,8 +377,9 @@ at `~/.config/metapac/`; group files are the source of truth.
   `[hostname_enabled_backends]` / `[hostname_groups]` tables in `config.toml`,
   not in separate stow packages.
 - **Backends:** `arch`, `brew`, `bun`, `cargo`, `flatpak`, `mise`, `uv` — enabled
-  per host. Arch (`cachyos-fwd`): `arch`, `bun`, `cargo`, `flatpak`, `mise`, `uv`
-  - groups `core`, `desktop-arch`. macOS (`example-macos-host.local`): `brew`,
+  per host, selected by a generic OS key (`arch`/`macos`) via `--hostname`, since
+  metapac has no OS detection. Arch (`arch`): `arch`, `bun`, `cargo`, `flatpak`, `mise`, `uv`
+  - groups `core`, `desktop-arch`. macOS (`macos`): `brew`,
   `cargo`, `mise`, `uv`, `bun` + groups `core`, `macos`.
   `[arch] package_manager = "paru"` is required so AUR installs stay behind the
   aur-policy gate. `npm` and `pipx` are deliberately disabled.

@@ -12,7 +12,7 @@ stow --no-folding commands
 |--------|---------|
 | `sync-litellm-models` | Sync real provider models into LiteLLM + agents (see below) |
 | `wt-setup-worktree` / `wt-sync-primary` | git worktree helpers |
-| `edit-output.sh`, `kde-virtual-screens.sh`, `mount-library.sh`, `seshls` | misc desktop/session helpers |
+| `edit-output.sh`, `kde-virtual-screens.sh`, `mount-library.sh (moved to private repo)`, `seshls` | misc desktop/session helpers |
 
 ---
 

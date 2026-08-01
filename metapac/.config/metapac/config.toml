@@ -1,6 +1,13 @@
 # metapac — declarative system packages across machines.
-# One stow package for every host; per-machine divergence lives in the
-# hostname tables below rather than in separate stow packages.
+# One stow package for every host; per-OS divergence lives in the tables below.
+#
+# The table keys are GENERIC OS names (`arch`, `macos`), NOT real hostnames —
+# metapac 0.10.0 keys per-host config by hostname and has no OS detection, so the
+# real machine name would otherwise leak into this published repo. Each machine
+# passes `--hostname <os>` to select its table; the shell wrapper and
+# `mise run metapac` derive it from `uname`. Run metapac through those, or pass
+# --hostname yourself. A bare `metapac` uses the real hostname, finds no matching
+# key, and safely no-ops with a "no backends" warning.
 #
 # Backends (final set): arch, brew, bun, cargo, flatpak, mise, uv.
 # pipx is deliberately absent — uv owns global Python CLIs.
@@ -12,12 +19,12 @@ hostname_groups_enabled = true
 enabled_backends = []
 
 [hostname_enabled_backends]
-cachyos-fwd = ["arch", "bun", "cargo", "flatpak", "mise", "uv"]
-"example-macos-host.local" = ["brew", "cargo", "mise", "uv", "bun"]
+arch = ["arch", "bun", "cargo", "flatpak", "mise", "uv"]
+macos = ["brew", "cargo", "mise", "uv", "bun"]
 
 [hostname_groups]
-cachyos-fwd = ["core", "desktop-arch"]
-"example-macos-host.local" = ["core", "macos"]
+arch = ["core", "desktop-arch"]
+macos = ["core", "macos"]
 
 [arch]
 # Required: routes AUR installs through the aur-policy PreBuildCommand gate.
