@@ -1,0 +1,21 @@
+# EXAMPLE ONLY — this file is not read by git.
+#
+# The real profiles/default.gitconfig is owned by the PRIVATE dotfiles repo: it
+# carries a name, an email and a signing key. dirs.gitconfig here includes it by
+# path, so a machine without the private repo has no identity for those
+# directories — and with user.useConfigOnly = true that fails the commit loudly
+# instead of inventing user@hostname.
+#
+# profiles/anon.gitconfig stays in the public repo: it is a placeholder identity
+# with signing disabled and nothing personal in it.
+
+[user]
+    name = Your Name
+    email = 00000+youruser@users.noreply.github.com
+    signingKey = 0000000000000000000000000000000000000000
+
+[commit]
+    gpgSign = true
+
+[credential "https://github.com"]
+    username = youruser

@@ -1,3 +1,16 @@
+# EXAMPLE ONLY — this file is not read by sesh.
+#
+# The real ~/.config/sesh/sesh.toml is owned by the PRIVATE dotfiles repo, because
+# a session list names the directories you actually work in: clients, employers,
+# internal projects. sesh has no include mechanism, so the file can only be owned
+# whole — there is no way to keep a public base here and add private entries.
+#
+# Copy this to the private repo (or straight to ~/.config/sesh/sesh.toml on a
+# machine with no private repo) and add your own entries.
+#
+# Exactly one repo may own that path. If both ship it, `stow` aborts with
+# "existing target is not owned by stow" on every machine that stows both.
+
 [default_session]
 preview_command = "eza --all --git --icons --color=always {}"
 

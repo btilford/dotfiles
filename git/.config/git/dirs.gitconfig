@@ -16,6 +16,13 @@
     path = ~/.config/git/profiles/default.gitconfig
 
 
+# NOTE: profiles/default.gitconfig is NOT in this repo — the private dotfiles repo
+# owns it, because it carries a real name, email and signing key. Git silently
+# ignores an include whose path does not exist, so on a machine without that repo
+# these entries resolve to nothing and the directory has no identity. With
+# user.useConfigOnly = true (core.gitconfig) that surfaces as a failed commit
+# naming the missing setting, rather than a commit authored as user@hostname.
+#
 # The private half of the stow setup. Without this entry the clone has no
 # identity at all — there is no catch-all includeIf here — and every commit in it
 # fails with "unable to auto-detect email address".
