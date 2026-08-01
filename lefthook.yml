@@ -28,3 +28,11 @@ pre-commit:
       run: mise-scripts/no-local-values.sh
     gitleaks:
       run: gitleaks protect --staged -c .gitleaks.toml --no-banner
+
+# A commit message is published exactly like file content, and was ungated until
+# now — pre-commit runs before the message exists, so nothing ever looked at it.
+# {1} is the path to the message file.
+commit-msg:
+  commands:
+    no-local-values:
+      run: mise-scripts/no-local-values.sh --message {1}

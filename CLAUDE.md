@@ -600,6 +600,36 @@ offending line into them discloses exactly what it blocked. Staged mode still
 prints the line, since that runs in the author's own terminal on content they just
 wrote. Keep that asymmetry if you touch `check_pattern`.
 
+### Commit metadata leaks independently of file content
+
+Two surfaces the file-content gates never saw:
+
+**Commit messages.** Published exactly like a file, and previously ungated —
+`pre-commit` runs before the message exists, so nothing looked at it. There is now
+a `commit-msg` hook running `no-local-values.sh --message`, i.e. the same three
+halves over the message body (git's own `#` comment lines stripped).
+
+**Author identity, which local git config does not control.** `default.gitconfig`
+sets the GitHub noreply address, and every locally-made commit is correct. But
+**GitLab stamps merge commits with the account's own commit-email setting**, which
+was the real personal address — so 58 commits on `master`, every one of them a
+`Merge branch … into 'master'` made through the web UI, carry it. Nothing local
+could have caught that: the wrong identity is applied server-side, after the push.
+
+The fix is two-part and neither part is in this repo:
+
+1. **Stop new ones:** GitLab → Profile → Edit profile → *Commit email* → the
+   private `users.noreply` option. Self-service only; the `PUT /user` API is
+   admin-only. Verify with `glab api user | jq .commit_email`.
+2. **Remove existing ones:** `git filter-repo --mailmap`, using the mailmap in the
+   private repo (`git/.mailmap`). It cannot live here — a mailmap must contain the
+   address it maps *from*, so committing it would publish exactly what it removes,
+   and the email gate would fail on it. This joins the Phase 2 rewrite.
+
+`noreply@anthropic.com` appears in 191 commit messages (the `Co-Authored-By`
+trailer) and is deliberately exempt — `no-reply@` and `users.noreply.*` addresses
+exist to be published, so flagging them would fight the fix.
+
 **gitleaks now has a third surface:** the global `pre-commit` hook
 (`git/.config/git/hooks/pre-commit`), on top of `mise run lint:secrets` and CI.
 It stays aligned by *using the repo's own `.gitleaks.toml` when one exists*, so
