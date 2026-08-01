@@ -28,7 +28,7 @@ The `git` stow package provides the complete git configuration for all machines.
 | `.local/bin/git-spice-hook-install` | Retrofits hooks into already-cloned repos; chains an incumbent `post-checkout` instead of clobbering it. |
 | `web.gitconfig` | Browser (`brave-browser`) and instaweb httpd. |
 | `dirs.gitconfig` | `includeIf "gitdir:..."` rules that route each working directory to the correct identity profile. |
-| `profiles/default.gitconfig` | **Not in this repo** — owned by the private dotfiles repo (real name, email, signing key). `default.gitconfig.example` here shows the shape. |
+| `profiles/default.gitconfig` | **Not in this repo** — owned by the private dotfiles repo (real name, email, signing key). `default.example.gitconfig` here shows the shape. |
 | `profiles/anon.gitconfig` | Anonymous identity: name `nil`, placeholder email, GPG signing disabled. Stays public — nothing personal in it. |
 
 ## Credential helper design

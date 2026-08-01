@@ -565,7 +565,7 @@ master after the scrub branch was cut, past every gate.
 
 Regexes rather than literals because one line then covers every spelling
 (`acme|acme[- ]?corp|acmeco`) and can anchor to a path shape. Provision from
-`scrub.patterns.example`; `dotfiles-local-env --check` reports when the file is
+`scrub.example.patterns`; `dotfiles-local-env --check` reports when the file is
 absent, since a gate that silently isn't armed is worse than no gate.
 
 Two properties to preserve:

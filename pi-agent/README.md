@@ -5,6 +5,7 @@ Stow package for the Pi terminal AI agent.
 ## Quick Start (New Machine)
 
 1. **Stow the package** (non-folding):
+
    ```bash
    cd ~/dotfiles
    stow --no-folding pi-agent
@@ -18,6 +19,7 @@ Stow package for the Pi terminal AI agent.
    > `apiKey`/`baseUrl` are preserved.
 
    Minimal starter (the `models` array is replaced by the generator on first run):
+
    ```bash
    cat > ~/.pi/agent/models.json << 'EOF'
    {
@@ -43,9 +45,11 @@ Stow package for the Pi terminal AI agent.
    }
    EOF
    ```
+
    Replace `YOUR_API_KEY_HERE` with your actual key.
 
 3. **Set the environment variable** (optional, if you want to use the env placeholder):
+
    ```bash
    export PI_API_KEY="your-real-key"
    ```
@@ -56,7 +60,7 @@ Stow package for the Pi terminal AI agent.
 |------|---------|-------|
 | `.pi/agent/settings.json` | ✅ Yes | Safe to share across machines. Default model: `cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF`. |
 | `.pi/agent/models.json` | ❌ No | **Contains API keys.** Ignored by git. Each machine maintains its own copy. |
-| `.pi/agent/models.json.example` | ✅ Yes | Template with placeholder key. |
+| `.pi/agent/models.example.json` | ✅ Yes | Template with placeholder key. |
 
 ## Secrets Policy
 
@@ -66,6 +70,7 @@ The repo's `models.json` is a placeholder with `!printenv PI_API_KEY`.
 ## Adopting on a Machine with Existing Configs
 
 If you already have a local `~/.pi/agent/models.json` with a real key:
+
 ```bash
 cd ~/dotfiles
 # Adopt existing configs (copies local files into the repo)
@@ -81,4 +86,4 @@ rm ~/.pi/agent/models.json
 
 ## Example `models.json` (for reference)
 
-See `models.json.example` in this directory for the full template.
+See `models.example.json` in this directory for the full template.

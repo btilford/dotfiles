@@ -8,7 +8,7 @@ pi-agent/.pi/agent/models.json
 glab-cli/.config/glab-cli/config.yml
 
 # Holds a Google app password for the gmail MCP server, plus a personal address
-# and machine-local paths. Provision from config.yaml.example.
+# and machine-local paths. Provision from config.example.yaml.
 docker/.docker/mcp/config.yaml
 
 # gh writes `oauth_token:` into hosts.yml whenever no OS keyring is available,
@@ -46,7 +46,13 @@ bless/.config/bless/last.session
 # is the second barrier.
 local.env
 scrub.patterns
-*.local
+# `?*.local`, NOT `*.local`: in gitignore `*` matches the empty string, so
+# `*.local` also matches a directory literally named `.local` — i.e. every stow
+# package's `.local/` tree. Files newly added under commands/.local/bin were
+# silently ignored for as long as that rule existed (dotfiles-secrets and
+# scrub.patterns.example were both lost that way; already-tracked files were
+# unaffected, which is why it went unnoticed). `?` requires one char first.
+?*.local
 *.local.lua
 *.local.toml
 *.local.fish

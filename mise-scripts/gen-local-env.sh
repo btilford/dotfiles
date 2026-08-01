@@ -21,7 +21,7 @@ set -uo pipefail
 
 repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd) || exit 1
 manifest="$repo_root/commands/.local/share/dotfiles/required-env"
-example="$repo_root/commands/.local/share/dotfiles/local.env.example"
+example="$repo_root/commands/.local/share/dotfiles/local.example.env"
 out="${DOTFILES_LOCAL_ENV:-$HOME/.config/dotfiles/local.env}"
 print=0
 force=0

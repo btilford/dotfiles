@@ -20,7 +20,7 @@ env_file="${DOTFILES_LOCAL_ENV:-$HOME/.config/dotfiles/local.env}"
 # manifest — the repo's testability rule in CLAUDE.md.
 share_dir="${DOTFILES_SHARE_DIR:-$HOME/.local/share/dotfiles}"
 manifest="$share_dir/required-env"
-example="$share_dir/local.env.example"
+example="$share_dir/local.example.env"
 
 die() {
   echo "[local-env] $1" >&2
@@ -81,7 +81,7 @@ cmd_check() {
       "$(grep -cvE '^[[:space:]]*(#|$)' "$patterns")"
   else
     printf '  · %s absent — the scrub gate cannot match identifiers. Fix:\n' "$patterns"
-    printf '      install -m 600 -D %s %s\n' "$share_dir/scrub.patterns.example" "$patterns"
+    printf '      install -m 600 -D %s %s\n' "$share_dir/scrub.example.patterns" "$patterns"
   fi
 
   echo "  ($total vars in manifest, $missing required missing, $empty_optional optional unset)"

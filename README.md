@@ -161,10 +161,10 @@ lint:private` and CI) fails any commit whose content contains one of its values.
 A second untracked file, `~/.config/dotfiles/scrub.patterns`, feeds that same gate
 a list of regexes for things private by *identity* rather than by value — an
 employer, a client, an internal project name. One extended regex per line, matched
-case-insensitively, provisioned from `scrub.patterns.example`:
+case-insensitively, provisioned from `scrub.example.patterns`:
 
 ```sh
-install -m 600 -D ~/.local/share/dotfiles/scrub.patterns.example \
+install -m 600 -D ~/.local/share/dotfiles/scrub.example.patterns \
   ~/.config/dotfiles/scrub.patterns
 ```
 
