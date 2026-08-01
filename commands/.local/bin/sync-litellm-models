@@ -41,9 +41,33 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-INFISICAL_PROJECT = "8126d8e5-926f-407c-a1f7-e88509c3d585"
-INFISICAL_DOMAIN = "https://infisical.example.com"
-GATEWAY = "https://litellm.example.net"
+# Infrastructure identifiers are machine-local — set them in
+# ~/.config/fish/conf.d/local.fish (untracked), not here:
+#
+#   set -gx INFISICAL_PROJECT <uuid>
+#   set -gx INFISICAL_DOMAIN  https://infisical.example.com
+#   set -gx LITELLM_GATEWAY   https://litellm.example.com
+#
+# The two LAN model hosts default to localhost, so a machine that runs neither
+# still works — those providers just report unreachable and keep their entries:
+#
+#   set -gx LEMONADE_URL      http://<host>:13305
+#   set -gx OLLAMA_URL        http://<host>:11434
+
+
+def _require_env(name: str) -> str:
+    val = os.environ.get(name)
+    if not val:
+        raise SystemExit(
+            f"{name} is not set — see the comment at the top of this script.")
+    return val
+
+
+INFISICAL_PROJECT = _require_env("INFISICAL_PROJECT")
+INFISICAL_DOMAIN = _require_env("INFISICAL_DOMAIN")
+GATEWAY = _require_env("LITELLM_GATEWAY")
+LEMONADE_URL = os.environ.get("LEMONADE_URL", "http://localhost:13305")
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 TIMEOUT = 20
 
 HOME = Path.home()
@@ -102,14 +126,14 @@ def provider_specs(keys) -> list[dict]:
                                  "api_base": "https://opencode.ai/zen/v1",
                                  "api_key": keys["ZEN"]}},
         {"prefix": "cachyos-fwd", "label": "Lemonade",
-         "models_url": "http://192.0.2.11:13305/v1/models", "token": None,
+         "models_url": f"{LEMONADE_URL}/v1/models", "token": None,
          "litellm": lambda mid: {"model": f"openai/{mid}",
-                                 "api_base": "http://192.0.2.11:13305/v1",
+                                 "api_base": f"{LEMONADE_URL}/v1",
                                  "api_key": "none"}},
         {"prefix": "x870eglacial", "label": "Ollama",
-         "models_url": "http://192.0.2.12:11434/v1/models", "token": None,
+         "models_url": f"{OLLAMA_URL}/v1/models", "token": None,
          "litellm": lambda mid: {"model": f"ollama/{mid}",
-                                 "api_base": "http://192.0.2.12:11434",
+                                 "api_base": OLLAMA_URL,
                                  "api_key": "none"}},
     ]
 

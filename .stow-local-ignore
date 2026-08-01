@@ -6,3 +6,9 @@ nvim/.config/nvim/lazy-lock.json
 README.*
 CLAUDE\.md
 
+
+# Machine-local drop-ins are never stowed — they are created directly in $HOME.
+local\.env
+.*\.local
+.*\.local\..*
+[0-9][0-9]-local

@@ -6,7 +6,7 @@ Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/manu
 
 Each top-level directory is a **stow package** whose contents mirror `$HOME`. Stow creates symlinks from `$HOME` into the package directory.
 
-```
+```text
 dotfiles/
   fish/
     .config/
@@ -46,7 +46,7 @@ stow --no-folding -n -v fish
 
 The `git` package uses a fragmented config structure. `~/.gitconfig` is the entry point; it includes all fragments via `[include]` directives. All fragments live under `~/.config/git/`.
 
-```
+```text
 git/
   .gitconfig                        # entry point — includes all fragments
   .config/git/
@@ -61,9 +61,7 @@ git/
     default.gitignore               # additional global ignore patterns
     profiles/
       default.gitconfig             # personal identity (btilford)
-      REDACTED.gitconfig               # work identity (REDACTED / REDACTED)
       anon.gitconfig                # anonymous commits (no name, no GPG)
-      REDACTED-commit.txt              # commit message template for work repos
   .local/bin/
     gh-git-credential               # wrapper: exec gh auth git-credential "$@"
     glab-git-credential             # wrapper: exec glab auth git-credential "$@"
@@ -75,9 +73,14 @@ git/
 
 | Directory | Profile | Identity |
 |-----------|---------|----------|
-| `~/Projects/REDACTED/` | `REDACTED.gitconfig` | REDACTED, GPG signed |
-| `~/Projects/ttp/`, `~/work/anon/` | `anon.gitconfig` | no name, no GPG |
+| `~/work/anon/` (+ client dirs, local-only) | `anon.gitconfig` | no name, no GPG |
 | Everything else | `default.gitconfig` | btilford, GPG signed |
+
+A work identity is **not** in this repo — it would name an employer, a work
+account and a ticket tracker. Add both the profile and its `includeIf` to
+`~/.gitconfig.local` on the machine that needs it. There is no catch-all
+`includeIf`, so until you do, repos under that directory get no identity and
+commits fail.
 
 No manual profile switching is needed — git picks the right identity when you `cd` into a repo.
 
@@ -89,6 +92,12 @@ Per-host credential helpers are configured in `core.gitconfig`:
 [credential "https://github.com"]
     helper = !~/.local/bin/gh-git-credential
 
+```
+
+A self-hosted GitLab gets the same treatment, but its host name identifies
+private infrastructure, so that block lives in `~/.gitconfig.local`:
+
+```ini
 [credential "https://gitlab.example.com"]
     helper = !~/.local/bin/glab-git-credential
 ```
@@ -114,7 +123,7 @@ stow --no-folding git
 
 # Authenticate CLIs so the credential wrappers work
 gh auth login
-glab auth login --hostname gitlab.example.com
+glab auth login --hostname <your-gitlab-host>
 
 # macOS only: configure GCM in a local override (not tracked in dotfiles)
 # Create ~/.gitconfig.local with the [credential] block shown above
@@ -123,6 +132,41 @@ glab auth login --hostname gitlab.example.com
 ## Local Config
 
 Machine-specific config (local env vars, overrides, secrets) should **not** be committed to this repo. Place those files directly in their target locations outside of stow. Since `--no-folding` is always used, unmanaged files in the same directories as stowed files are left untouched.
+
+Machine-local **values** — host names, gateway URLs, one API key — all come from a
+single untracked file, `~/.config/dotfiles/local.env` (`KEY=VALUE`, no quotes, no
+shell expansion, mode 600). Generate it with placeholders before stowing anything:
+
+```sh
+mise run setup:local-env          # or: ./mise-scripts/gen-local-env.sh
+$EDITOR ~/.config/dotfiles/local.env
+```
+
+The variable list comes from `commands/.local/share/dotfiles/required-env`, which
+records for each variable whether it is required and which file consumes it. Once
+the `commands` package is stowed, `dotfiles-local-env --check` reports what is
+still missing, and `--pull` can render the file from Infisical instead.
+
+Anything not launched from a shell — nvim from a desktop entry, systemd user
+services, the Wayland session — reads the same file through `environment.d`:
+
+```sh
+ln -s ~/.config/dotfiles/local.env ~/.config/environment.d/50-local.conf
+```
+
+`local.env` is reserved in both `.gitignore` and `.stow-local-ignore`, and
+`mise-scripts/no-local-values.sh` (run by the pre-commit hook, `mise run
+lint:private` and CI) fails any commit whose content contains one of its values.
+
+A second untracked file, `~/.config/dotfiles/scrub.patterns`, feeds that same gate
+a list of regexes for things private by *identity* rather than by value — an
+employer, a client, an internal project name. One extended regex per line, matched
+case-insensitively, provisioned from `scrub.example.patterns`:
+
+```sh
+install -m 600 -D ~/.local/share/dotfiles/scrub.example.patterns \
+  ~/.config/dotfiles/scrub.patterns
+```
 
 ## Ignored Files
 
@@ -154,16 +198,6 @@ eval "$(mise activate bash)"
 mise install
 ```
 
-### graphify
-
-The `graphify` command requires mise to be activated in the current shell. If you see `graphify: command not found`, run:
-
-```sh
-mise install
-```
-
-Then activate mise in your shell as shown above.
-
 ```sh
 git clone <repo> ~/dotfiles
 cd ~/dotfiles
@@ -184,5 +218,3 @@ stow --no-folding starship
 stow --no-folding ghostty
 stow --no-folding macos
 ```
-
-

@@ -16,6 +16,20 @@
     path = ~/.config/git/profiles/default.gitconfig
 
 
+# NOTE: profiles/default.gitconfig is NOT in this repo — the private dotfiles repo
+# owns it, because it carries a real name, email and signing key. Git silently
+# ignores an include whose path does not exist, so on a machine without that repo
+# these entries resolve to nothing and the directory has no identity. With
+# user.useConfigOnly = true (core.gitconfig) that surfaces as a failed commit
+# naming the missing setting, rather than a commit authored as user@hostname.
+#
+# The private half of the stow setup. Without this entry the clone has no
+# identity at all — there is no catch-all includeIf here — and every commit in it
+# fails with "unable to auto-detect email address".
+[includeIf "gitdir:~/private-dotfiles/"]
+    path = ~/.config/git/profiles/default.gitconfig
+
+
 [includeIf "gitdir:~/Projects/open/"]
     path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/Projects/personal/"]
@@ -30,8 +44,14 @@
 
 [includeIf "gitdir:~/Projects/homelab/"]
     path = ~/.config/git/profiles/default.gitconfig
-[includeIf "gitdir:~/Projects/ttp/"]
-    path = ~/.config/git/profiles/anon.gitconfig
+# Client/employer directories are named in ~/.gitconfig.local, not here — a
+# directory name is itself an identifying detail. Pattern to copy there:
+#
+#   [includeIf "gitdir:~/Projects/<client>/"]
+#       path = ~/.config/git/profiles/anon.gitconfig
+#
+# There is no catch-all includeIf, so a machine missing that block gets NO identity
+# for those repos and commits fail outright.
 [includeIf "gitdir:~/Projects/private/practice/"]
     path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/Projects/private/qmk/"]
@@ -45,6 +65,14 @@
     path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/work/anon/"]
     path = ~/.config/git/profiles/anon.gitconfig
-[includeIf "gitdir:~/Projects/REDACTED/"]
-    path = ~/.config/git/profiles/REDACTED.gitconfig
+
+# Work identity is not in this repo — it names an employer, a work GitHub
+# account and a ticket tracker. It lives in ~/.gitconfig.local instead, which is
+# included last by .gitconfig. On a work machine, add there:
+#
+#   [includeIf "gitdir:~/Projects/<employer>/"]
+#       path = ~/.gitconfig.work
+#
+# There is no catch-all includeIf in this file, so until that block exists,
+# repos under that directory get NO user identity and commits will fail.
 

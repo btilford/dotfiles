@@ -62,16 +62,16 @@ Lemonade. No more hand-editing model lists.
 
 - `infisical` CLI logged in — secrets (`VENICE_API_KEY`, `ZEN_API_KEY`,
   `LITELLM_MASTER_KEY`) come from Infisical project
-  `8126d8e5-926f-407c-a1f7-e88509c3d585`, env `prod`.
-- Network reach to the gateway (`litellm.example.net`) and to whichever
-  providers are local (Lemonade `192.0.2.11:13305`, Ollama `192.0.2.12:11434`).
+  `$INFISICAL_PROJECT`, env `prod`.
+- Network reach to the gateway (`$LITELLM_GATEWAY`) and to whichever
+  providers are local (Lemonade `$LEMONADE_URL`, Ollama `$OLLAMA_URL`).
 
 ### Provider → prefix map
 
 | Prefix | Provider | LiteLLM model | api_base |
 |--------|----------|---------------|----------|
-| `cachyos-fwd/` | Lemonade (cachyos-fwd) | `openai/<id>` | `http://192.0.2.11:13305/v1` |
-| `x870eglacial/` | Ollama (x870eglacial) | `ollama/<id>` | `http://192.0.2.12:11434` |
+| `cachyos-fwd/` | Lemonade (cachyos-fwd) | `openai/<id>` | `$LEMONADE_URL/v1` |
+| `x870eglacial/` | Ollama (x870eglacial) | `ollama/<id>` | `$OLLAMA_URL` |
 | `zen/` | OpenCode Zen | `openai/<id>` | `https://opencode.ai/zen/v1` |
 | `venice/` | Venice.ai | `openai/<id>` | `https://api.venice.ai/api/v1` |
 

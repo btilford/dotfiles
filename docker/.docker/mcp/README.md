@@ -13,7 +13,7 @@ Docker's MCP Gateway allows you to run containerized MCP servers that provide to
 
 ## Directory Structure
 
-```
+```text
 ~/.docker/mcp/
 ├── .env                    # API keys and secrets (DO NOT commit!)
 ├── config.yaml            # Server-specific configuration
@@ -26,9 +26,11 @@ Docker's MCP Gateway allows you to run containerized MCP servers that provide to
 ## Files Explained
 
 ### `.env` - Secrets File
+
 Contains API keys and authentication tokens. This file has `600` permissions (owner read/write only) for security.
 
 **Format:**
+
 ```bash
 service.secret_name=YOUR_SECRET_VALUE
 ```
@@ -36,15 +38,19 @@ service.secret_name=YOUR_SECRET_VALUE
 **Important:** Never commit this file to version control!
 
 ### `config.yaml` - Server Configuration
+
 Contains non-secret configuration for MCP servers that need additional parameters (like connection strings, email addresses, etc.).
 
 ### `registry.yaml` - Enabled Servers
+
 Lists all MCP servers that are currently installed/enabled in your setup. Each entry has a `ref` field that tracks the specific version.
 
 ### `catalog.json` - Catalog Metadata
+
 Points to the Docker MCP catalog URL and tracks the last update time.
 
 ### `catalogs/docker-mcp.yaml` - Available Servers
+
 Complete catalog of all available MCP servers from Docker's registry. Browse this file to discover new servers to add.
 
 ## Current Setup
@@ -72,7 +78,7 @@ Each secret follows the pattern: `service_name.secret_key=value`
 
 ### GitHub Personal Access Token
 
-1. Visit: https://github.com/settings/tokens
+1. Visit: <https://github.com/settings/tokens>
 2. Click "Generate new token" → "Generate new token (classic)"
 3. Give it a descriptive name (e.g., "MCP Server Access")
 4. Select scopes:
@@ -83,7 +89,7 @@ Each secret follows the pattern: `service_name.secret_key=value`
 
 ### Brave Search API Key
 
-1. Visit: https://brave.com/search/api/
+1. Visit: <https://brave.com/search/api/>
 2. Sign up for a free account (1,000 queries/month free tier available)
 3. Get your API key from the dashboard
 4. Add to `.env`: `brave.api_key=YOUR_KEY_HERE`
@@ -93,6 +99,7 @@ Each secret follows the pattern: `service_name.secret_key=value`
 ### Step 1: Browse the Catalog
 
 Look through `catalogs/docker-mcp.yaml` to find available servers. Each entry shows:
+
 - **title**: Human-readable name
 - **description**: What the server does
 - **secrets**: Required API keys (if any)
@@ -145,15 +152,17 @@ If you're using OpenCode, update your OpenCode configuration to include the new 
 **Problem**: The secrets file path is incorrect or not specified.
 
 **Solution**: Make sure you're using the `--secrets` flag when starting the MCP gateway:
+
 ```bash
---secrets=/home/btilford/.docker/mcp/.env
+--secrets=~/.docker/mcp/.env
 ```
 
 ### Connection Errors
 
 **Problem**: MCP server fails to connect to external APIs.
 
-**Solution**: 
+**Solution**:
+
 1. Verify API keys are correct in `.env`
 2. Check that keys haven't expired
 3. Ensure the service account has necessary permissions
@@ -163,6 +172,7 @@ If you're using OpenCode, update your OpenCode configuration to include the new 
 **Problem**: Container won't start or crashes immediately.
 
 **Solution**:
+
 1. Check Docker daemon is running: `docker ps`
 2. Verify the server's required configuration is provided
 3. Check Docker logs: `docker logs <container-id>`
@@ -173,6 +183,7 @@ If you're using OpenCode, update your OpenCode configuration to include the new 
 **Problem**: Cannot read or write to `.env` file.
 
 **Solution**: Check file permissions:
+
 ```bash
 chmod 600 ~/.docker/mcp/.env
 ```
@@ -182,6 +193,7 @@ chmod 600 ~/.docker/mcp/.env
 **Problem**: Getting rate limit errors from services.
 
 **Solution**:
+
 - Check your API plan limits
 - Consider upgrading to a paid tier
 - Implement caching or reduce request frequency
@@ -191,6 +203,7 @@ chmod 600 ~/.docker/mcp/.env
 ### File Permissions
 
 The `.env` file should have restrictive permissions:
+
 ```bash
 chmod 600 ~/.docker/mcp/.env  # Owner read/write only
 ```
@@ -198,6 +211,7 @@ chmod 600 ~/.docker/mcp/.env  # Owner read/write only
 ### Version Control
 
 Never commit secrets to git. Your `.env` file should be in `.gitignore`:
+
 ```bash
 echo ".env" >> ~/.gitignore
 ```
@@ -224,8 +238,8 @@ echo ".env" >> ~/.gitignore
 
 ## Additional Resources
 
-- **MCP Specification**: https://modelcontextprotocol.io/
-- **Docker MCP Docs**: https://docs.docker.com/desktop/features/mcp/
+- **MCP Specification**: <https://modelcontextprotocol.io/>
+- **Docker MCP Docs**: <https://docs.docker.com/desktop/features/mcp/>
 - **Available Servers**: Browse `catalogs/docker-mcp.yaml` in this directory
 
 ## Example: Adding Playwright Server
@@ -237,6 +251,7 @@ Here's a complete example of adding the Playwright server for browser automation
    - No additional config needed ✓
 
 2. **Add to registry** in `registry.yaml`:
+
    ```yaml
    playwright:
      ref: ""
@@ -245,7 +260,8 @@ Here's a complete example of adding the Playwright server for browser automation
 3. **Restart** your MCP gateway to pick up the changes
 
 4. **Use it** in your AI assistant:
-   ```
+
+   ```text
    "Can you navigate to example.com and take a screenshot?"
    ```
 

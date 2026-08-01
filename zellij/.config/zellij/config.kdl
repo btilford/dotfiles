@@ -270,7 +270,7 @@ theme "dracula"
 // Choose the path to the default shell that zellij will use for opening new panes
 // Default: $SHELL
 // 
-//default_shell "/home/btilford/.config/nushell/env.nu"
+//default_shell "~/.config/nushell/env.nu"
  
 // Choose the path to override cwd that zellij will use for opening new panes
 // 

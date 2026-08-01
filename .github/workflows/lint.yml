@@ -1,0 +1,60 @@
+# GitHub mirror of the lint gate.
+#
+# This runs the FULL suite (`mise run lint` — shell, secrets, yaml, json, nu,
+# fish, lua), where GitLab runs only shellcheck + gitleaks + yaml. That is not
+# drift: the self-hosted GitLab runner cannot reach api.github.com or
+# sigstore.dev, so mise's aqua/ubi tool installs fail there and it has to use
+# tool-bundled images instead. A GitHub runner has no such restriction, so it
+# can install the real toolchain and run everything.
+#
+# Consequence to keep in mind: GitHub is the STRICTER gate. A change that passes
+# GitLab can still fail here. See CLAUDE.md "Linting & CI".
+#
+# Every action is pinned to a full commit SHA, never a tag. Tags are mutable —
+# `@v4` can be repointed at new code by anyone who can push a tag, which is a
+# supply-chain hole in a workflow that runs against our repo contents. The
+# comment records which release the SHA was at pin time.
+# Refresh with: gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq .object.sha
+
+name: lint
+
+on:
+  push:
+  pull_request:
+
+# A push to a PR branch would otherwise build twice (push + pull_request).
+# Newest run per ref wins; older in-flight runs are cancelled.
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          # gitleaks' git mode needs history; `gitleaks dir` (what we run) does
+          # not, but keep the full clone so switching modes is a one-line change.
+          fetch-depth: 0
+
+      # fish and luacheck are not on the runner by default, and both lint:fish
+      # and lint:lua SELF-SKIP when their tool is missing — they would report
+      # success while checking nothing. Install them so the gate is real.
+      - name: Install gate tools not bundled with the runner
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fish lua-check
+
+      # jdx/mise-action v4.2.3
+      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14
+        with:
+          install: true
+          cache: true
+
+      - name: mise run lint
+        run: mise run lint

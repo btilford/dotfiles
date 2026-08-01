@@ -1,16 +1,16 @@
 -- local obsidianWorkspaces = {}
 -- local notes = "~/Documents/personal-notes/notes/"
--- local psqnotes = "~/Projects/REDACTED/notes/REDACTED/"
+-- local worknotes = "~/Projects/<employer>/notes/"
 -- if ( !vim.fn.empty(vim.fn.glob(notes)) and vim.fn.isdirectory(notes) ) then
 -- 	obsidianWorkspaces[#obsidianWorkspaces + 1] = {
 -- 		name = "notes",
 -- 		path = "~/Documents/personal-notes/notes/",
 -- 	}
 -- end
--- if ( !vim.fn.empty(vim.fn.glob(psqnotes)) and vim.fn.isdirectory(psqnotes) ) then
+-- if ( !vim.fn.empty(vim.fn.glob(worknotes)) and vim.fn.isdirectory(worknotes) ) then
 -- 	obsidianWorkspaces[#obsidianWorkspaces + 1] = {
--- 		name = "REDACTED",
--- 		path = "~/Projects/REDACTED/notes/REDACTED/",
+-- 		name = "work",
+-- 		path = "~/Projects/<employer>/notes/",
 -- 	}
 -- end
 --

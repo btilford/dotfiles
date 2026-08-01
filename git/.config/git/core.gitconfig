@@ -6,6 +6,17 @@
     commentchar = '#'
     pager = 'delta'
 
+[user]
+    # Never invent an identity from user@hostname. dirs.gitconfig has no catch-all
+    # includeIf, so a repo in an unlisted directory has no user.email — without
+    # this, git quietly authors as btilford@cachyos-fwd.(none) and the wrong
+    # address is in the history before anyone notices. With it, the commit fails
+    # and names the missing setting.
+    #
+    # Not set via `git config --global`: ~/.gitconfig is a stow symlink into the
+    # repo, so that would edit a tracked file in the deploy checkout.
+    useConfigOnly = true
+
 [init]
     # Hooks for new clones/inits: git-spice branch tracking and a gitleaks
     # pre-commit. NOT the stowed ~/.config/git/templates — git copies template
@@ -16,8 +27,15 @@
     # (`mise run setup:git-template` in the dotfiles repo).
     templateDir = ~/.local/share/git-template
 
-[credential "https://gitlab.example.com"]
-  helper = !~/.local/bin/glab-git-credential
+# Self-hosted GitLab lives in ~/.gitconfig.local — the host name identifies
+# private infrastructure, so it stays out of the public repo. The helper script
+# itself (glab-git-credential) is still shipped here. Per machine, add:
+#
+#   [credential "https://gitlab.example.com"]
+#       helper = !~/.local/bin/glab-git-credential
+#
+# The `!` prefix is required — see CLAUDE.md. Verify with:
+#   git config --get-urlmatch credential.helper https://<host>
 
 [credential "https://github.com"]
   helper = !~/.local/bin/gh-git-credential

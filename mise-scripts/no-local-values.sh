@@ -1,0 +1,207 @@
+#!/usr/bin/env sh
+# Fail if tracked content contains a machine-local VALUE, or a generic private
+# pattern. Guards the public mirror against re-introducing what was scrubbed.
+#
+#   mise-scripts/no-local-values.sh              # staged changes (pre-commit)
+#   mise-scripts/no-local-values.sh --all        # whole tree (mise run lint:private, CI)
+#   mise-scripts/no-local-values.sh --message F  # a commit message (commit-msg hook)
+#
+# A commit message is published exactly like file content and was previously
+# ungated — nothing stopped an internal hostname or a client name being explained
+# in a commit body. `--message` runs the same three halves over the message file.
+#
+# Two halves, on purpose:
+#
+# 1. VALUES from ~/.config/dotfiles/local.env. A denylist of the actual hostnames
+#    cannot live in this repo — committing it would publish the very strings it
+#    protects. So the values are read from the untracked file at run time, and
+#    only the VARIABLE NAME is ever printed. Side effect worth having: this also
+#    blocks committing local.env itself.
+#    Skipped when local.env is absent, e.g. in CI. That is why half 2 exists.
+#
+# 2. GENERIC patterns that are private by shape rather than by value, so they are
+#    safe to write down and work everywhere including CI.
+#
+# 3. LOCAL patterns from ~/.config/dotfiles/scrub.patterns — an untracked list of
+#    regexes for things private by *identity* rather than by shape or by being
+#    config: an employer name, a client, an internal project directory. No pattern
+#    can distinguish a company name from any other word, and such a name is not a
+#    value any config consumes, so halves 1 and 2 are both blind to it. Same
+#    discipline as half 1: the file is untracked and only its LINE NUMBER is ever
+#    printed, never the pattern.
+#
+# POSIX sh with only git/grep/sed: the GitLab CI image ships no extra tooling, the
+# same constraint mise-scripts/shell-files.sh works under.
+
+set -u
+
+env_file="${DOTFILES_LOCAL_ENV:-$HOME/.config/dotfiles/local.env}"
+patterns_file="${DOTFILES_SCRUB_PATTERNS:-$HOME/.config/dotfiles/scrub.patterns}"
+mode="${1:-staged}"
+status=0
+
+cd "$(cd "$(dirname "$0")/.." && pwd)" || exit 1
+
+# Content under test. Staged mode looks at the diff so unrelated pre-existing
+# debt in other files never blocks a commit.
+if [ "$mode" = "--all" ]; then
+  content=$(git ls-files -z | xargs -0 grep -nIH '' 2> /dev/null)
+elif [ "$mode" = "--message" ]; then
+  msg_file="${2:-}"
+  [ -n "$msg_file" ] || {
+    echo "  ✗ --message needs a file" >&2
+    exit 2
+  }
+  [ -r "$msg_file" ] || {
+    echo "  ✗ cannot read $msg_file" >&2
+    exit 2
+  }
+  # Comment lines are git's own template and never end up in the message.
+  content=$(grep -vE '^#' "$msg_file")
+else
+  content=$(git diff --cached --unified=0 --no-color | grep -E '^\+' | grep -v '^+++')
+fi
+
+[ -n "$content" ] || exit 0
+
+# ---------------------------------------------------------------------------
+# 1. Values from local.env
+# ---------------------------------------------------------------------------
+if [ -r "$env_file" ]; then
+  while IFS= read -r line; do
+    case "$line" in '' | '#'*) continue ;; esac
+
+    var=$(printf '%s' "$line" | sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=.*/\1/p')
+    val=$(printf '%s' "$line" | sed -nE 's/^[^=]*=[[:space:]]*(.*)$/\1/p')
+
+    [ -n "$var" ] || continue
+    # Short values produce false positives (a bare port, "true", an empty var).
+    [ ${#val} -ge 8 ] || continue
+
+    if printf '%s' "$content" | grep -qF -- "$val"; then
+      echo "  ✗ content contains the value of \$$var" >&2
+      status=1
+    fi
+  done < "$env_file"
+else
+  echo "  · $env_file not readable — value check skipped (pattern check still runs)" >&2
+fi
+
+# ---------------------------------------------------------------------------
+# 2. Generic patterns
+# ---------------------------------------------------------------------------
+# RFC1918 addresses. 127.0.0.1 and 0.0.0.0 are fine; so is a bare 10.0.0.0/8 in
+# prose about ranges, which is why the pattern requires all four octets.
+# check_pattern LABEL PATTERN [EXTRA_EXCLUDE]
+#
+# EXTRA_EXCLUDE is per-pattern, so a narrow exemption cannot silently weaken the
+# other checks — the shared list below applies to everything and stays small.
+check_pattern() {
+  label="$1"
+  pattern="$2"
+  extra="${3:-}"
+  hits=$(printf '%s' "$content" | grep -nE "$pattern" | grep -vE 'example|placeholder|<[a-z-]+>|0\.0\.0\.0|127\.0\.0\.1|/(Users|home)/(me|user|username|you|youruser)/|SERIAL|MODEL|VENDOR|Vendor Inc|555[-. ]?01[0-9]{2}')
+  [ -n "$extra" ] && hits=$(printf '%s' "$hits" | grep -vE "$extra")
+  hits=$(printf '%s' "$hits" | head -5)
+  if [ -n "$hits" ]; then
+    echo "  ✗ $label:" >&2
+    if [ "$mode" = "--all" ]; then
+      # Tree mode is the one CI runs, and CI job logs are a published surface once
+      # the mirror is public. Printing the offending line there would disclose the
+      # exact value this gate exists to keep out — the failure would leak what the
+      # commit was blocked for. Location only. Fields are
+      # <stream-index>:<path>:<line>:<text> — the index comes from the grep -n in
+      # check_pattern, the path and line from the grep -nIH that built `content`.
+      printf '%s\n' "$hits" | cut -d: -f2,3 | sed 's/^/      /' >&2
+      echo "      (content withheld — run: mise-scripts/no-local-values.sh --all locally)" >&2
+    else
+      # Staged mode runs in the author's own terminal, on lines they just wrote.
+      printf '%s\n' "$hits" | sed 's/^/      /' >&2
+    fi
+    status=1
+  fi
+}
+
+check_pattern "RFC1918 address" '(^|[^0-9])(10\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])|192\.168)\.[0-9]{1,3}\.[0-9]{1,3}'
+check_pattern "absolute home path" '/home/[a-z][a-z0-9_-]+/|/Users/[a-z][a-z0-9_-]+/'
+check_pattern "hardware serial in a monitor descriptor" 'desc:[^"]*[A-Z0-9]{6,}'
+
+# US/NANP phone numbers, in every common written form: 212-555-0143, (212) 555-0143,
+# 212.555.0143, 212 555 0143, 2125550143, and each of those with a +1 / 1- prefix.
+#
+# Three things keep the false-positive rate at zero on this tree:
+#
+#   - NANP structure, not "ten digits": area and exchange must start [2-9]. That
+#     alone rejects unix timestamps (17xxxxxxxx) and most sequential digit runs.
+#   - Explicit boundaries rather than \b — the CI image's busybox grep cannot be
+#     relied on for it. Without them the bare 10-digit form matched INSIDE longer
+#     numbers: GLSL float matrices and git SHAs in lazy-lock.json, 31 hits.
+#   - 555-01xx is excluded above. NANP reserves it for fiction, so documentation
+#     can use an example number without failing the gate.
+check_pattern "US phone number" '(^|[^0-9A-Za-z.])(\+?1[-. ]?)?(\([2-9][0-9]{2}\)|[2-9][0-9]{2})[-. ]?[2-9][0-9]{2}[-. ]?[0-9]{4}([^0-9A-Za-z]|$)'
+
+# Email addresses. Exempt by shape, not by path:
+#
+#   - `users.noreply.*` and `no-reply@` — these EXIST to be published. GitHub's
+#     ID+user@users.noreply.github.com and GitLab's private commit email are the
+#     correct thing to commit, so flagging them would fight the fix.
+#   - attribution lines — SPDX-FileCopyrightText, `Author:`, `Maintainer:`,
+#     `Copyright`. Three vendored files carry their upstream authors' addresses
+#     that way, and stripping them would remove attribution from someone else's
+#     work (the SPDX one is a licence header). Exempting the ATTRIBUTION FORM
+#     rather than those file paths means a new vendored file is covered too, while
+#     a bare address anywhere still fails.
+check_pattern "email address" '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' \
+  'users\.noreply\.|no-?reply@|@a\.hole|SPDX-FileCopyrightText|[Mm]aintainer[[:space:]]*:|[Aa]uthor[[:space:]]*:|Copyright'
+
+# ---------------------------------------------------------------------------
+# 3. Local patterns
+# ---------------------------------------------------------------------------
+if [ -r "$patterns_file" ]; then
+  pat_line=0
+  while IFS= read -r pattern; do
+    pat_line=$((pat_line + 1))
+    case "$pattern" in '' | '#'*) continue ;; esac
+
+    # A pattern that does not compile makes grep exit 2, which is neither "found"
+    # nor "clean". Left unchecked it would read as a pass and silently disable
+    # that line for good, so it is reported as a failure instead.
+    printf '' | grep -Eiq -- "$pattern" 2> /dev/null
+    if [ $? -gt 1 ]; then
+      echo "  ✗ $patterns_file:$pat_line is not a valid regex — gate cannot run it" >&2
+      status=1
+      continue
+    fi
+
+    hits=$(printf '%s' "$content" | grep -nEi -- "$pattern" | head -5)
+    [ -n "$hits" ] || continue
+
+    # The pattern itself is private — it spells out the thing being kept out of
+    # the mirror — so only its line number is named, never its text.
+    echo "  ✗ matches $patterns_file:$pat_line" >&2
+    if [ "$mode" = "--all" ]; then
+      printf '%s\n' "$hits" | cut -d: -f2,3 | sed 's/^/      /' >&2
+      echo "      (content withheld — run: mise-scripts/no-local-values.sh --all locally)" >&2
+    else
+      printf '%s\n' "$hits" | sed 's/^/      /' >&2
+    fi
+    status=1
+  done < "$patterns_file"
+fi
+
+if [ "$status" -ne 0 ]; then
+  cat >&2 << 'MSG'
+
+  Machine-local content must not be committed. Options:
+    - move the value into ~/.config/dotfiles/local.env and read it from the
+      environment (see commands/.local/share/dotfiles/required-env)
+    - use $HOME instead of an absolute path
+    - for a monitor table, use ~/.config/hypr/lua/monitors.local.lua
+    - for a name that is private by identity (employer, client, internal
+      project), add a regex to ~/.config/dotfiles/scrub.patterns
+
+  This gate also runs in CI, where --no-verify cannot skip it.
+MSG
+fi
+
+exit "$status"

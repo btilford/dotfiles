@@ -1,0 +1,32 @@
+# Things that must never reach the public mirror because of WHAT THEY ARE, not
+# what shape they have: an employer name, a client, an internal project or
+# directory. No generic pattern can tell such a name from any other word, and it
+# is not a value any config consumes, so the other two halves of
+# mise-scripts/no-local-values.sh are blind to it.
+#
+# Copy to ~/.config/dotfiles/scrub.patterns and fill in:
+#
+#   install -m 600 -D ~/.local/share/dotfiles/scrub.example.patterns \
+#     ~/.config/dotfiles/scrub.patterns
+#
+# Format:
+#   - one POSIX extended regex (grep -E) per line
+#   - blank lines and # comments ignored
+#   - matched CASE-INSENSITIVELY, so write one spelling, not four
+#   - a plain word is a valid line; regex is there when you need variants
+#
+# The file is untracked and never read by anything but the gate. When a pattern
+# fires, only its LINE NUMBER in this file is printed — never the pattern text,
+# which would disclose the very string being kept out.
+#
+# A pattern that does not compile fails the gate loudly rather than being skipped,
+# so a typo cannot silently switch a line off.
+#
+# Keep patterns specific. A short or common word here fails every commit that
+# happens to use it in prose; there is no allowlist to climb back out with.
+
+# --- examples, delete these -------------------------------------------------
+# acme[- ]?corp
+# REDACTED|REDACTED
+# ~/Projects/(acme|client-[a-z]+)/
+# jdoe@acme\.com

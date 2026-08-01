@@ -10,6 +10,59 @@ Stow-managed dotfiles for btilford. Each top-level directory is a stow package m
 - Always stow one package at a time with `--no-folding` to prevent directory symlinking and protect local-only files
 - `hyprland/.config/hypr/wallpaper_effects/.wallpaper_current` is a committed seed (fresh installs need it to exist), but wallpaper rotation rewrites it through the stow symlink every ~30 min. After cloning, run `git update-index --skip-worktree hyprland/.config/hypr/wallpaper_effects/.wallpaper_current` once per machine so the churn never lands in git. Never commit content updates to it.
 
+## This repo is published publicly — nothing private in tree
+
+The repo is mirrored to a public GitHub. **No private infrastructure names, no
+employer identity, no credentials.** That is not just a secrets rule: host names,
+LAN IPs and internal project names are infrastructure disclosure, and they are
+just as permanent once pushed.
+
+Anything machine-specific resolves from the environment with a public fallback,
+or lives in an untracked file. The single provisioning surface is
+**`~/.config/dotfiles/local.env`** — see "Machine-local config: the `.d/` pattern"
+below for how each shell and the systemd session read it. (It replaced
+`local.fish`, which only fish read, so on macOS and in nushell none of these were
+ever set.)
+
+| Variable | Consumed by | Unset behaviour |
+| --- | --- | --- |
+| `DOTFILES_GITLAB_HOST` | `mise.toml` → `glab:config` | skips per-host `git_protocol` |
+| `INFISICAL_PROJECT` / `INFISICAL_DOMAIN` | `sync-litellm-models` | **exits** with a message |
+| `LITELLM_GATEWAY` | `sync-litellm-models` | **exits** with a message |
+| `LITELLM_GATEWAY` | `nvim` `plugins/ai.lua` | `http://localhost:4000` |
+| `LEMONADE_URL` / `OLLAMA_URL` | `sync-litellm-models` | `localhost:13305` / `:11434` |
+| `OLLAMA_HOST` | `nvim` `plugins/ai.lua` (gen.nvim) | `localhost` |
+| `HERMES_TUI_GATEWAY_URL` | `fish/conf.d/hermes.fish` | `http://localhost:8642` |
+| `NAS_HOST` / `NAS_SHARE_ROOT` | `mount-library.sh` | **exits** via `${VAR:?}` |
+| `NAS_MOUNT_ROOT` / `NAS_SHARES` / `HOME_NET_PREFIXES` | `mount-library.sh` | `~/nas` / three shares / `10.(33\|101\|148\|104)` |
+
+The authoritative list is `commands/.local/share/dotfiles/required-env`, which
+`dotfiles-local-env --check` reads — so this table cannot silently drift from what
+the code actually needs.
+
+Untracked, provision from the `.example` beside it: `docker/.docker/mcp/config.yaml`
+(holds a Google app password), `hyprland/.config/hypr/lua/monitors.local.lua`,
+`pi-agent/.pi/agent/models.json`, `quickshell/.config/quickshell/notifications.json`.
+
+Untracked with **no example, by design** — the tool writes them itself and there is
+nothing to template: `gh/.config/gh/hosts.yml` (`gh auth login`, which stores an
+`oauth_token:` there when no OS keyring is available) and
+`glab-cli/.config/glab-cli/config.yml` (`glab auth login`, then
+`mise run glab:config` for the rest of the settings). Everything about those two
+tools that *can* be tracked already is — `gh/.config/gh/config.yml` and
+`glab-cli/.config/glab-cli/aliases.yml` are stowed normally.
+
+Out of tree entirely, in `~/.gitconfig.local` — `.gitconfig` includes it last:
+the self-hosted GitLab `[credential]` block, and the work identity profile plus
+its `includeIf`. `dirs.gitconfig` has **no catch-all `includeIf`**, so on a work
+machine missing that block, repos under the work directory get no identity and
+commits fail outright.
+
+Three secrets were committed here before this rule existed and `gitleaks` scanned
+past all of them across the full history. `.gitleaks.toml` now carries a custom
+rule for each shape — `npmrc-authtoken`, `google-app-password`,
+`bare-secret-export`. Don't remove one without a replacement.
+
 ## Worktrees, and why config needs a path seam
 
 `~/dotfiles` on `master` is the **single deploy checkout** — every stow symlink
@@ -47,7 +100,7 @@ No seam, so merge first and verify live: shell rc files (sourced from fixed `~`
 paths at login) and Hyprland's own config discovery (`-c` applies at launch
 only, `hyprctl reload` always re-reads `~/.config/hypr`).
 
-`scripts/visual-capture.sh` is the worked example — it defaults to the working
+`mise-scripts/visual-capture.sh` is the worked example — it defaults to the working
 tree for both the shell entry point and the tmux config, so a capture shows what
 is in the branch rather than what happens to be stowed.
 
@@ -160,6 +213,113 @@ When you *do* want a worktree for a branch that stacks on another, pass the
 parent explicitly — `wm add foo --base parent-branch`. The default (`wm`'s
 fetch-and-use-`origin/<default>`) is right for a stack *root* and wrong for
 anything above it, which would otherwise be tracked as trunk-based.
+
+## Machine-local config: the `.d/` pattern
+
+Anything machine-specific — hostnames, gateway URLs, monitor serials, one API key
+— lives **outside** the repo, and the repo carries only readers and examples.
+
+This works because stow always runs with `--no-folding`: directories are real and
+only files are symlinks, so an **untracked real file can sit inside a stowed
+directory** and survives `stow -R` / `stow -D` (verified — stow only manages links
+it owns).
+
+**One canonical file:** `~/.config/dotfiles/local.env`, plain `KEY=VALUE`, no
+quotes and no expansion, `chmod 600` (it holds `NEOVIM_API_KEY`). Three ways to
+provision it per machine, in the order they apply:
+
+| Command | Use when |
+| ------ | ------ |
+| `mise run setup:local-env` (`mise-scripts/gen-local-env.sh`) | fresh clone, nothing stowed yet |
+| `dotfiles-local-env --template` | `commands` already stowed |
+| `dotfiles-local-env --pull` | machine can reach Infisical |
+
+`gen-local-env.sh` exists because of an ordering trap: `--template` copies the
+example out of `~/.local/share/dotfiles`, which only exists **after** `commands` is
+stowed — and stowing is the step that wants these values. The generator reads the
+repo directly, so it works on a bare checkout. It builds the file from the
+**manifest** rather than the example, so a variable added to `required-env` cannot
+go missing, and it reports any drift between the two on stderr. It refuses to
+overwrite an existing `local.env` without `--force`, and writes mode 600.
+
+| Context | Reader (tracked, holds no values) |
+| ------ | ------ |
+| fish | `fish/.config/fish/conf.d/05-local-env.fish` |
+| bash | `bash/.config/bashrc/05-local-env` |
+| zsh | `zsh/.config/zshrc/05-local-env` |
+| nushell | `nushell/.config/nushell/local-env.nu` |
+| systemd user + Wayland session | `~/.config/environment.d/50-local.conf` → **symlink to `local.env`** |
+
+The `environment.d` symlink is not optional cosmetics: **nvim reads
+`OLLAMA_HOST` and `NEOVIM_API_KEY` via `vim.env`**, i.e. the environment of
+whatever launched it. Started from a desktop entry or a systemd service with only
+shell readers in place, the API key silently becomes the literal string
+`"missing-NEOVIM_API_KEY"`. `dotfiles-local-env --check` warns when it is unwired.
+
+**Two reserved slots, ordered opposite ways:**
+
+- `05-local-env` — *values*, must load **early**. Configs that self-default use
+  "set only if unset" (`fish/conf.d/hermes.fish`), so a reader running after them
+  would never apply.
+- `99-local` — *behaviour* overrides, must load **last** to win.
+
+### Secrets are never in the environment
+
+`local.env` holds **no credentials**. Nothing exports one, nothing caches one to
+disk, and **no shell calls infisical at startup** — that last point is a hard
+constraint, not a preference: a network call in `conf.d` hangs every new terminal
+when the daemon is unreachable or the keyring is locked.
+
+Checking token validity first is not a way around it. The CLI has no local expiry
+check — `infisical token` only *renews* universal-auth tokens, over the network —
+and the user token lives in the OS keyring, so even reading it can raise an unlock
+prompt. A validity check is a network call plus a possible prompt, which is
+strictly worse at startup than the cache it would replace.
+
+So `commands/.local/bin/dotfiles-secrets` is the single accessor, and there are
+three ways a secret reaches a consumer:
+
+| Path | For | Lifetime |
+| ------ | ------ | ------ |
+| `--get NAME` | consumers we control (nvim `ai.lua`) | one call |
+| `--run -- CMD` | third-party tools needing real env vars (opencode, aider) | that process only |
+| `secrets-load` | a shell session, when `--run` is impractical | until the shell exits |
+
+`--run` is a thin wrapper over `infisical run`, which injects into the child and
+nothing else. `secrets-load` is defined in every shell (`06-secrets` for fish,
+bash and zsh; `secrets.nu` for nushell) and **is never called automatically** —
+those files define functions and run nothing.
+
+Every failure is printed to stderr *and* appended to
+`~/.local/state/dotfiles/secrets.log`, with the reason distinguished — missing
+binary, unconfigured, timed out, logged out, or no such secret. The log exists for
+nvim, which swallows stderr; without it a failed fetch there would be a silent
+missing key. Values are never logged. Calls are bounded by `timeout` and run with
+`</dev/null`, so they can neither prompt nor stall a caller.
+
+The old failure mode this replaces: `api_key = vim.env.NEOVIM_API_KEY or
+"missing-NEOVIM_API_KEY"` evaluated at config load, which sent the literal string
+`missing-NEOVIM_API_KEY` as a credential whenever nvim started outside a shell.
+
+**Reserved names**, in both `.gitignore` and `.stow-local-ignore`: `local.env`,
+`*.local`, `*.local.{lua,toml,fish}`, `NN-local*`. A local file therefore cannot be
+committed by accident, and `mise-scripts/no-local-values.sh` is the second barrier.
+
+`commands/.local/share/dotfiles/required-env` is the manifest — variable, whether
+it is required, which consumer needs it. `dotfiles-local-env --check` reads it, so
+the audit and the code cannot drift.
+
+**Where no `.d` exists:** git has no directory include (keep `~/.gitconfig.local`),
+and Hyprland's Lua config uses a guarded `dofile` of `monitors.local.lua` — that is
+where monitor serials live, since `desc:` needs a serial to tell two identical
+panels apart. `monitors.lua` publishes a `MON` alias table so the workspace layout
+stays tracked and portable.
+
+**Escape hatch:** bash and zsh both support
+`~/.config/{bash,zsh}rc/custom/<same-filename>`, which *replaces* a stowed drop-in
+outright (`[[ -f $c ]] && source $c || source $f`). Neither `custom/` dir exists
+yet. That is the clean way to neutralise one stowed file on one machine — e.g. a
+Linux-only drop-in on the Mac — with no repo change and no unstowing.
 
 ## Structure
 
@@ -278,7 +438,7 @@ it displaces the global gitleaks hook installed via `init.templateDir`. Harmless
 here because `lefthook.yml` runs the same gitleaks command itself; in a lefthook
 repo that does *not*, installing lefthook silently drops the secret gate.
 
-`scripts/setup-git-spice.sh` (that task) is idempotent and does the checkable work
+`mise-scripts/setup-git-spice.sh` (that task) is idempotent and does the checkable work
 itself — regenerating `~/.local/share/git-template`, verifying no symlink survived
 into it, and confirming `init.templateDir`, the forge URL and auth. For the three
 things it cannot do it prints the exact command: the package install (needs sudo),
@@ -315,29 +475,65 @@ On macOS also `ln -s ~/.config/metapac ~/"Library/Application Support/metapac"`
 
 ## Linting & CI
 
-Two surfaces run the same class of checks and must be kept as close as possible:
+### `mise-scripts/` holds the repo's task scripts
+
+Anything a `mise.toml` task shells out to lives in **`mise-scripts/`** (renamed
+from `scripts/`), so a top-level directory of shell files cannot be mistaken for
+config that gets stowed — every *other* top-level directory in this repo is a stow
+package. Nothing in it is stowed, and no stow package should reach into it.
+
+Three of them have a second caller by design — `no-local-values.sh` (lefthook +
+CI), `shell-files.sh` and `yaml-files.sh` (both CI jobs). The directory name says
+who *owns* them, not who may run them; when moving or renaming one, grep
+`lefthook.yml` and `.gitlab-ci.yml` as well as `mise.toml`.
+
+**Three** surfaces run the same class of checks and must be kept as close as
+possible:
 
 - **`mise.toml`** — the local toolchain + `mise run lint` tasks (shell, secrets,
-  yaml, json, nu, fish) and `mise run fmt` formatters. This is the full suite.
-- **`.gitlab-ci.yml`** — the CI gate. A deliberate *subset*: shellcheck +
-  gitleaks only, via official tool-bundled images.
+  yaml, json, nu, fish, lua) and `mise run fmt` formatters. The full suite.
+- **`.github/workflows/lint.yml`** — runs `mise run lint`, i.e. the same full
+  suite. GitHub runners have no egress restriction, so mise installs the real
+  toolchain. It additionally `apt install`s fish and lua-check, because
+  `lint:fish` and `lint:lua` **self-skip when their tool is missing** and would
+  otherwise report success while checking nothing.
+- **`.gitlab-ci.yml`** — a deliberate *subset*: shellcheck + gitleaks + yamllint,
+  via official tool-bundled images pinned by digest.
 
-**They intentionally diverge** because the self-hosted GitLab runner cannot
-reach `api.github.com` (rate-limited) or `sigstore.dev`, so mise's aqua/ubi
-installs fail in CI (see the `gitlab-runner-no-github-egress` memory). CI works
-around this with prebuilt images; local uses mise directly.
+**GitLab diverges** because the self-hosted runner cannot reach
+`api.github.com` (rate-limited) or `sigstore.dev`, so mise's aqua/ubi installs
+fail there (see the `gitlab-runner-no-github-egress` memory). It works around
+this with prebuilt images; the other two use mise directly.
 
-**Sync rule:** whenever you change one of these two files, evaluate the other
-and keep the shared gates aligned — same shellcheck flags/excludes/severity,
-same gitleaks config, same allowlists. If you add a gate to `mise run lint`,
-decide whether CI should carry it too (and whether the runner can, given the
-GitHub/sigstore constraint) rather than letting the two drift silently.
+That makes **GitHub the strictest gate** — a change can pass GitLab and still
+fail on GitHub. Do not "fix" that by weakening the GitHub workflow.
 
-**Where a gate can be shared outright, share it.** `scripts/shell-files.sh` is
-the sole selector for shellcheck, called by both surfaces, so which files get
-linted is structurally identical rather than two lists kept in step by hand. It
-is POSIX `sh` using only `find`/`grep` because the CI image ships **no git** —
+**Pin by digest/SHA, never by tag.** GitHub Actions are pinned to full commit
+SHAs and GitLab images to `@sha256:` digests, each with a comment naming the
+release. A tag is mutable: `@v4` or `:latest` can be repointed at new code with
+no commit here, which is both a supply-chain hole and a source of pipelines that
+turn red without anything changing. Refresh an action with
+`gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq .object.sha`; an image with
+`docker inspect --format='{{index .RepoDigests 0}}' <image>:<tag>` after a pull.
+
+**Sync rule:** whenever you change one of these three files, evaluate the other
+two and keep the shared gates aligned — same shellcheck flags/excludes/severity,
+same gitleaks config, same allowlists. If you add a gate to `mise run lint`, it
+reaches GitHub for free; decide separately whether GitLab can carry it, given
+the GitHub/sigstore constraint, rather than letting the surfaces drift.
+
+**Where a gate can be shared outright, share it.** `mise-scripts/shell-files.sh` and
+`mise-scripts/yaml-files.sh` are the sole selectors for shellcheck and yamllint,
+called by every surface that runs those gates, so which files get linted is
+structurally identical rather than lists kept in step by hand. Both are POSIX
+`sh` using only `find`/`grep` because the CI images ship **no git** —
 `git ls-files` is not available there, which is why selection is path-based.
+
+`yaml-files.sh` also excludes `docker/.docker/mcp/config.yaml` and
+`gh/.config/gh/hosts.yml`. Those are gitignored and machine-provisioned: absent
+in a fresh CI clone, present on a provisioned box, so a `find` that included
+them would lint local state that can never be committed and make the local run
+disagree with CI. Their committed `.example` siblings are linted normally.
 
 It selects **by shebang, not by extension**. The previous `*.sh`/`*.bash` globs
 silently skipped every extensionless command in `commands/.local/bin` and
@@ -352,6 +548,101 @@ mis-parsed as code). The exclusion used to be that whole templates directory;
 it was narrowed to `*.sample` when our own hook shims moved in beside the
 samples — they need linting like anything else.
 
+**`lint:private` blocks re-introduction.** `mise-scripts/no-local-values.sh` fails if
+content contains a *value* from `~/.config/dotfiles/local.env` (reading them at run
+time, so no private string is ever committed as a denylist — only the variable
+name is printed) or a generic private pattern (RFC1918, `/home/<user>`, `desc:`
+serials, US phone numbers). Runs in lefthook pre-commit, `mise run lint`, GitLab CI, and GitHub
+Actions. CI has no `local.env`, which is why the pattern half exists; and CI is the
+real enforcement since `--no-verify` skips the hook.
+
+**A third half covers identifiers:** `~/.config/dotfiles/scrub.patterns`, an
+untracked list of extended regexes, one per line, matched case-insensitively.
+Neither other half can catch an employer or client name — it is not a value any
+config consumes, and it has no *shape* distinguishing it from any other word. This
+was found the hard way: work sessions re-entered `tmux/.config/sesh/sesh.toml` on
+master after the scrub branch was cut, past every gate.
+
+Regexes rather than literals because one line then covers every spelling
+(`acme|acme[- ]?corp|acmeco`) and can anchor to a path shape. Provision from
+`scrub.example.patterns`; `dotfiles-local-env --check` reports when the file is
+absent, since a gate that silently isn't armed is worse than no gate.
+
+Two properties to preserve:
+
+- **Only the line number is printed, never the pattern.** The pattern spells out
+  the string being kept out — printing it on failure would disclose exactly what
+  was blocked. Same discipline as half 1's variable names.
+- **A pattern that does not compile fails the gate.** `grep` exits 2 on a bad
+  regex, which is neither "found" nor "clean"; treated as a pass, a typo would
+  switch that line off permanently and silently.
+
+**It matches against `path:line:text`, so it catches file *names* too.** That is
+how a kmonad keymap under `kmonad/.config/kmonad/` was found — the client name was
+in the *filename*, and both the acceptance greps and a plain `grep -ri` over the
+tree missed it because they only ever looked at file *contents*. Renamed to
+`macos-work-2025.kbd`. When scrubbing, check names as well as content.
+
+**Write about a scrubbed string without spelling it.** This paragraph originally
+named that file in full, so the commit documenting the scrub re-introduced the
+identifier into a published file — and the gate caught it on the next run. Say
+"the client name", not the name.
+
+Its limit is the same as half 1's: **a machine with no `scrub.patterns`, and CI,
+cannot enforce it.** The names are only known where they are declared, so this
+catches re-introduction at the author's commit, not at the merge.
+
+**A failure must not print what it caught.** Half 1 only ever prints the variable
+name. Half 2 matches by pattern, so it can point at a location — but in `--all`
+mode, the mode CI runs, it prints `path:line` and withholds the content: CI job
+logs are a published surface once the mirror is public, and a gate that echoes the
+offending line into them discloses exactly what it blocked. Staged mode still
+prints the line, since that runs in the author's own terminal on content they just
+wrote. Keep that asymmetry if you touch `check_pattern`.
+
+### Commit metadata leaks independently of file content
+
+Two surfaces the file-content gates never saw:
+
+**Commit messages.** Published exactly like a file, and previously ungated —
+`pre-commit` runs before the message exists, so nothing looked at it. There is now
+a `commit-msg` hook running `no-local-values.sh --message`, i.e. the same three
+halves over the message body (git's own `#` comment lines stripped).
+
+**Author identity, which local git config does not control.** `default.gitconfig`
+sets the GitHub noreply address, and every locally-made commit is correct. But
+**GitLab stamps merge commits with the account's own commit-email setting**, which
+was the real personal address — so 58 commits on `master`, every one of them a
+`Merge branch … into 'master'` made through the web UI, carry it. Nothing local
+could have caught that: the wrong identity is applied server-side, after the push.
+
+The fix is two-part and neither part is in this repo:
+
+1. **Stop new ones:** set the GitLab account's *Commit email* to the **same
+   GitHub noreply address the local profile uses**, so both forges produce one
+   canonical author. Verify with `glab api user | jq .commit_email`.
+
+   The obvious-looking choice — GitLab's own private `users.noreply` option — is
+   **wrong here**: that address embeds the instance hostname
+   (`{id}-{user}@users.noreply.<gitlab host>`), which is itself private
+   infrastructure, so it trades a personal-email leak for a hostname leak on every
+   merge commit. The gate would flag it.
+
+   GitLab normally only accepts *verified* account emails, and a noreply address
+   can never receive a confirmation mail. It works here because the instance sets
+   `email_confirmation_setting = off` and the account is an instance admin, so the
+   address can be added with `skip_confirmation`. On an instance without both,
+   the fallback is to stop merging in the web UI — merge locally and push, and
+   every commit carries the local identity.
+2. **Remove existing ones:** `git filter-repo --mailmap`, using the mailmap in the
+   private repo (`git/.mailmap`). It cannot live here — a mailmap must contain the
+   address it maps *from*, so committing it would publish exactly what it removes,
+   and the email gate would fail on it. This joins the Phase 2 rewrite.
+
+`noreply@anthropic.com` appears in 191 commit messages (the `Co-Authored-By`
+trailer) and is deliberately exempt — `no-reply@` and `users.noreply.*` addresses
+exist to be published, so flagging them would fight the fix.
+
 **gitleaks now has a third surface:** the global `pre-commit` hook
 (`git/.config/git/hooks/pre-commit`), on top of `mise run lint:secrets` and CI.
 It stays aligned by *using the repo's own `.gitleaks.toml` when one exists*, so
@@ -360,13 +651,3 @@ purpose — mise and CI scan the tree (`gitleaks dir .`), the hook scans staged
 content (`gitleaks protect --staged`). In this repo `lefthook.yml` already owns
 `pre-commit` and runs the same gitleaks command, so the template hook is skipped
 here and does not double-run.
-
-## graphify
-
-This project has a graphify knowledge graph at graphify-out/.
-
-Rules:
-
-- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
-- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
-- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)

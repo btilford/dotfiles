@@ -745,7 +745,7 @@ $env.config = {
     ]
 }
 
-#use /home/btilford/.cache/starship/init.nu
+#use ~/.cache/starship/init.nu
 
 alias ll = eza -al --icons always
 
@@ -764,9 +764,18 @@ overlay use ~/.config/nushell/starship.nu
 
 source ~/.config/nushell/.zoxide.nu
 
+# Machine-local values, read from ~/.config/dotfiles/local.env (untracked). This
+# reader IS tracked and holds no values — see commands/.local/share/dotfiles/required-env.
+source ~/.config/nushell/local-env.nu
+
 # Machine-local secrets/config. Untracked — put real secrets here, not in any other
-# nushell file in this package.
+# nushell file in this package. Loaded after local-env.nu so it can override.
 source ~/.config/nushell/local.nu
+
+# Secrets helpers: `use`, not `source`, because these are exported defs and one is
+# `--env`. Defines secrets-load / secrets-run and calls neither, so nothing here
+# can make a shell wait on infisical.
+use ~/.config/nushell/secrets.nu *
 
 use ($nu.default-config-dir | path join mise.nu)
 # `bun pm ls -g` colorizes even when piped and ignores NO_COLOR, so metapac's bun

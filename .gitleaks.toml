@@ -4,15 +4,43 @@ title = "dotfiles gitleaks config"
 [extend]
 useDefault = true
 
+# Custom rules. Each of these caught a secret that the default rule set scanned
+# straight past — all three were committed here and reported clean by
+# `gitleaks git .` across the full history. Do not remove without a replacement.
+
+[[rules]]
+id = "npmrc-authtoken"
+description = "npm registry _authToken (Nexus/Artifactory/npmjs)"
+regex = '''_authToken\s*=\s*\S+'''
+
+[[rules]]
+id = "google-app-password"
+description = "Google app password — four lowercase 4-char groups"
+regex = '''(?i)(password|passwd|pwd)\s*[:=]\s*["']?[a-z]{4}( [a-z]{4}){3}["']?'''
+
+[[rules]]
+id = "bare-secret-export"
+description = "export SECRET=/PASSWORD=/TOKEN= with a literal value"
+# The [^"'$] guard permits `export SECRET="$FROM_ENV"` and catches literals.
+regex = '''export\s+(SECRET|PASSWORD|TOKEN|API_KEY)\s*=\s*["'][^"'$][^"']*["']'''
+
 [[allowlists]]
 description = "GPG signing-key IDs/fingerprints are public, not secrets"
 regexTarget = "line"
-regexes = [
-  '''signingKey\s*=\s*[0-9A-Fa-f]{40}''',
-]
+regexes = ['''signingKey\s*=\s*[0-9A-Fa-f]{40}''']
 
 [[allowlists]]
-description = "Token-free glab template — real token lives in the untracked live config"
+description = "Untracked live glab config — `glab auth login` writes a token into it"
+paths = ['''glab-cli/\.config/glab-cli/config\.yml''']
+
+[[allowlists]]
+description = """
+Untracked, gitignored provisioned configs. `gitleaks dir` walks the working
+directory and does not honour .gitignore, so a real local config would fail the
+local gate forever even though it can never be committed. The committed
+.example templates are still scanned.
+"""
 paths = [
-  '''glab-cli/\.config/glab-cli/config\.yml''',
+  '''docker/\.docker/mcp/config\.yaml$''',
+  '''gh/\.config/gh/hosts\.yml$''',
 ]

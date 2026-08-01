@@ -6,7 +6,17 @@
     "MD033": false, // inline HTML
     "MD041": false, // first line must be a heading
     "MD024": { "siblings_only": true }, // duplicate headings ok across sections
-    "MD029": false // ordered-list numbering style
+    "MD029": false, // ordered-list numbering style
+    // Table pipe alignment. Off TEMPORARILY, not on principle: prettier fixes it
+    // completely (verified — README went from 9 MD060 errors to 0), but prettier
+    // has never been run over this repo, so 15 markdown files would reformat. With
+    // lefthook now actually installed and failing a commit on any remaining
+    // markdownlint error, leaving MD060 on forces that unrelated churn into every
+    // commit that happens to touch a doc.
+    //
+    // Re-enable as part of the repo-wide format pass, which adds prettier to
+    // `mise run fmt:md`. See Plans/dotfiles-format-lint-cleanup in the vault.
+    "MD060": false
   },
   // No "globs" here on purpose. markdownlint-cli2 treats a configured `globs` as
   // the file set and IGNORES the paths given on the command line, so lefthook's
@@ -18,5 +28,7 @@
   // Both callers pass their own file list: lefthook `{staged_files}`, and
   // `mise run fmt:md` uses `$(git ls-files '*.md')` for a whole-repo pass. A bare
   // `markdownlint-cli2` with no arguments now checks nothing — pass files.
-  "ignores": ["graphify-out/**", "**/node_modules/**"]
+  // graphify-out/ is gone from the repo (dropped in this branch), so its ignore
+  // entry went with it.
+  "ignores": ["**/node_modules/**"]
 }
