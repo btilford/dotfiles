@@ -671,8 +671,28 @@ exist to be published, so flagging them would fight the fix.
 **gitleaks now has a third surface:** the global `pre-commit` hook
 (`git/.config/git/hooks/pre-commit`), on top of `mise run lint:secrets` and CI.
 It stays aligned by *using the repo's own `.gitleaks.toml` when one exists*, so
-each repo's allowlists apply, rather than carrying a copy. Scopes differ on
-purpose — mise and CI scan the tree (`gitleaks dir .`), the hook scans staged
-content (`gitleaks protect --staged`). In this repo `lefthook.yml` already owns
-`pre-commit` and runs the same gitleaks command, so the template hook is skipped
-here and does not double-run.
+each repo's config applies, rather than carrying a copy. Scopes differ on
+purpose — the hook scans staged content (`gitleaks protect --staged`). In this
+repo `lefthook.yml` already owns `pre-commit` and runs the same gitleaks command,
+so the template hook is skipped here and does not double-run.
+
+**`.gitleaks.toml` has NO `paths` allowlists, and must not gain any.** A path
+allowlist matches in every scan mode, so silencing an untracked live config also
+blinds a `gitleaks git` history scan to every secret that path once held. That is
+a real regression that already bit: `glab-cli/config.yml`, `docker/mcp/config.yaml`
+and `base/.npmrc` were path-allowlisted, a full-history scan read clean, and five
+GitLab PATs plus a Nexus admin token and a Google app password sat undetected in
+the log. The untracked-config problem is instead solved at the scan boundary:
+
+- **`mise run lint:secrets`** scans **tracked content only** — `git archive HEAD`
+  into a temp dir, then `gitleaks dir` — so untracked provisioned files (real
+  tokens) are never seen and need no allowlist.
+- **`mise run audit:secrets-history`** scans full history (`gitleaks git`) with the
+  same allowlist-free config. It is the honest pre-rewrite audit and stays RED
+  until `git filter-repo` has stripped the historical blobs. Expect it to fail
+  until then.
+- **CI's `gitleaks dir .`** is inherently tracked-only — a fresh clone has no
+  untracked local files — so it needs no change and stays aligned.
+
+Only line-target `regexes` allowlists are allowed (e.g. the public GPG
+`signingKey`), because those match content, not a whole path across history.

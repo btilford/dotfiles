@@ -29,18 +29,15 @@ description = "GPG signing-key IDs/fingerprints are public, not secrets"
 regexTarget = "line"
 regexes = ['''signingKey\s*=\s*[0-9A-Fa-f]{40}''']
 
-[[allowlists]]
-description = "Untracked live glab config — `glab auth login` writes a token into it"
-paths = ['''glab-cli/\.config/glab-cli/config\.yml''']
-
-[[allowlists]]
-description = """
-Untracked, gitignored provisioned configs. `gitleaks dir` walks the working
-directory and does not honour .gitignore, so a real local config would fail the
-local gate forever even though it can never be committed. The committed
-.example templates are still scanned.
-"""
-paths = [
-  '''docker/\.docker/mcp/config\.yaml$''',
-  '''gh/\.config/gh/hosts\.yml$''',
-]
+# NO `paths` allowlists here, deliberately. A path allowlist matches on file path
+# in EVERY scan mode — `gitleaks git` (history) as well as `gitleaks dir`
+# (working tree) — so allowlisting a path to silence an untracked live config also
+# blinds the gate to every SECRET THAT FILE ONCE CONTAINED IN HISTORY. That is
+# exactly what happened: `glab-cli/config.yml`, `docker/mcp/config.yaml` and
+# `base/.npmrc` were path-allowlisted, and a full-history scan read clean while
+# five GitLab PATs, a Nexus admin token and a Google app password sat in the log.
+#
+# The untracked-live-config problem those allowlists solved is now handled at the
+# SCAN boundary instead: `mise run lint:secrets` scans TRACKED content only (via
+# `git archive HEAD`), so untracked provisioned files are never seen and need no
+# allowlist. History scans therefore see everything, honestly.
