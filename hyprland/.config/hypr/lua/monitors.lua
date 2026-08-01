@@ -7,7 +7,7 @@
 --
 -- Per machine:
 --
---   cp ~/.config/hypr/lua/monitors.local.lua.example \
+--   cp ~/.config/hypr/lua/monitors.example.lua \
 --      ~/.config/hypr/lua/monitors.local.lua
 --
 -- Find the descriptors with:  hyprctl monitors all | grep -E 'Monitor|description'
