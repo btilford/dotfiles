@@ -16,6 +16,13 @@
     path = ~/.config/git/profiles/default.gitconfig
 
 
+# The private half of the stow setup. Without this entry the clone has no
+# identity at all — there is no catch-all includeIf here — and every commit in it
+# fails with "unable to auto-detect email address".
+[includeIf "gitdir:~/private-dotfiles/"]
+    path = ~/.config/git/profiles/default.gitconfig
+
+
 [includeIf "gitdir:~/Projects/open/"]
     path = ~/.config/git/profiles/default.gitconfig
 [includeIf "gitdir:~/Projects/personal/"]
