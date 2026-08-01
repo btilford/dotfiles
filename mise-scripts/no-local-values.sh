@@ -89,7 +89,19 @@ check_pattern() {
   hits=$(printf '%s' "$content" | grep -nE "$pattern" | grep -vE 'example|placeholder|<[a-z-]+>|0\.0\.0\.0|127\.0\.0\.1|/(Users|home)/(me|user|username|you|youruser)/|SERIAL|MODEL|VENDOR|Vendor Inc' | head -5)
   if [ -n "$hits" ]; then
     echo "  ✗ $label:" >&2
-    printf '%s\n' "$hits" | sed 's/^/      /' >&2
+    if [ "$mode" = "--all" ]; then
+      # Tree mode is the one CI runs, and CI job logs are a published surface once
+      # the mirror is public. Printing the offending line there would disclose the
+      # exact value this gate exists to keep out — the failure would leak what the
+      # commit was blocked for. Location only. Fields are
+      # <stream-index>:<path>:<line>:<text> — the index comes from the grep -n in
+      # check_pattern, the path and line from the grep -nIH that built `content`.
+      printf '%s\n' "$hits" | cut -d: -f2,3 | sed 's/^/      /' >&2
+      echo "      (content withheld — run: mise-scripts/no-local-values.sh --all locally)" >&2
+    else
+      # Staged mode runs in the author's own terminal, on lines they just wrote.
+      printf '%s\n' "$hits" | sed 's/^/      /' >&2
+    fi
     status=1
   fi
 }

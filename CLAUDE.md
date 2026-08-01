@@ -525,6 +525,14 @@ Its limit is the same as the rest of half 1: **a machine with no `local.env`, an
 CI, cannot enforce it.** The name is only known to machines that declare it, so
 this catches re-introduction at the author's commit, not at the merge.
 
+**A failure must not print what it caught.** Half 1 only ever prints the variable
+name. Half 2 matches by pattern, so it can point at a location — but in `--all`
+mode, the mode CI runs, it prints `path:line` and withholds the content: CI job
+logs are a published surface once the mirror is public, and a gate that echoes the
+offending line into them discloses exactly what it blocked. Staged mode still
+prints the line, since that runs in the author's own terminal on content they just
+wrote. Keep that asymmetry if you touch `check_pattern`.
+
 **gitleaks now has a third surface:** the global `pre-commit` hook
 (`git/.config/git/hooks/pre-commit`), on top of `mise run lint:secrets` and CI.
 It stays aligned by *using the repo's own `.gitleaks.toml` when one exists*, so
