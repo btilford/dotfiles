@@ -618,9 +618,22 @@ could have caught that: the wrong identity is applied server-side, after the pus
 
 The fix is two-part and neither part is in this repo:
 
-1. **Stop new ones:** GitLab → Profile → Edit profile → *Commit email* → the
-   private `users.noreply` option. Self-service only; the `PUT /user` API is
-   admin-only. Verify with `glab api user | jq .commit_email`.
+1. **Stop new ones:** set the GitLab account's *Commit email* to the **same
+   GitHub noreply address the local profile uses**, so both forges produce one
+   canonical author. Verify with `glab api user | jq .commit_email`.
+
+   The obvious-looking choice — GitLab's own private `users.noreply` option — is
+   **wrong here**: that address embeds the instance hostname
+   (`{id}-{user}@users.noreply.<gitlab host>`), which is itself private
+   infrastructure, so it trades a personal-email leak for a hostname leak on every
+   merge commit. The gate would flag it.
+
+   GitLab normally only accepts *verified* account emails, and a noreply address
+   can never receive a confirmation mail. It works here because the instance sets
+   `email_confirmation_setting = off` and the account is an instance admin, so the
+   address can be added with `skip_confirmation`. On an instance without both,
+   the fallback is to stop merging in the web UI — merge locally and push, and
+   every commit carries the local identity.
 2. **Remove existing ones:** `git filter-repo --mailmap`, using the mailmap in the
    private repo (`git/.mailmap`). It cannot live here — a mailmap must contain the
    address it maps *from*, so committing it would publish exactly what it removes,
