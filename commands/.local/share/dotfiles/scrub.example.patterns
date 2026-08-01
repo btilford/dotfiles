@@ -26,7 +26,10 @@
 # happens to use it in prose; there is no allowlist to climb back out with.
 
 # --- examples, delete these -------------------------------------------------
+# Every example below uses the reserved fictional names acme / initech. Do NOT
+# illustrate this file with a real identifier: the examples are committed, this
+# file is published, and a comment leaks exactly as well as a live pattern.
 # acme[- ]?corp
-# REDACTED|REDACTED
+# initech|initech-inc|initechcorp
 # ~/Projects/(acme|client-[a-z]+)/
 # jdoe@acme\.com
