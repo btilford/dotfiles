@@ -78,7 +78,7 @@ fi
 check_pattern() {
   label="$1"
   pattern="$2"
-  hits=$(printf '%s' "$content" | grep -nE "$pattern" | grep -vE 'example|placeholder|<[a-z-]+>|0\.0\.0\.0|127\.0\.0\.1|/(Users|home)/(me|user|username|you|youruser)/|SERIAL|MODEL|VENDOR|Vendor Inc' | head -5)
+  hits=$(printf '%s' "$content" | grep -nE "$pattern" | grep -vE 'example|placeholder|<[a-z-]+>|0\.0\.0\.0|127\.0\.0\.1|/(Users|home)/(me|user|username|you|youruser)/|SERIAL|MODEL|VENDOR|Vendor Inc|555[-. ]?01[0-9]{2}' | head -5)
   if [ -n "$hits" ]; then
     echo "  ✗ $label:" >&2
     if [ "$mode" = "--all" ]; then
@@ -101,6 +101,20 @@ check_pattern() {
 check_pattern "RFC1918 address" '(^|[^0-9])(10\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])|192\.168)\.[0-9]{1,3}\.[0-9]{1,3}'
 check_pattern "absolute home path" '/home/[a-z][a-z0-9_-]+/|/Users/[a-z][a-z0-9_-]+/'
 check_pattern "hardware serial in a monitor descriptor" 'desc:[^"]*[A-Z0-9]{6,}'
+
+# US/NANP phone numbers, in every common written form: 212-555-0143, (212) 555-0143,
+# 212.555.0143, 212 555 0143, 2125550143, and each of those with a +1 / 1- prefix.
+#
+# Three things keep the false-positive rate at zero on this tree:
+#
+#   - NANP structure, not "ten digits": area and exchange must start [2-9]. That
+#     alone rejects unix timestamps (17xxxxxxxx) and most sequential digit runs.
+#   - Explicit boundaries rather than \b — the CI image's busybox grep cannot be
+#     relied on for it. Without them the bare 10-digit form matched INSIDE longer
+#     numbers: GLSL float matrices and git SHAs in lazy-lock.json, 31 hits.
+#   - 555-01xx is excluded above. NANP reserves it for fiction, so documentation
+#     can use an example number without failing the gate.
+check_pattern "US phone number" '(^|[^0-9A-Za-z.])(\+?1[-. ]?)?(\([2-9][0-9]{2}\)|[2-9][0-9]{2})[-. ]?[2-9][0-9]{2}[-. ]?[0-9]{4}([^0-9A-Za-z]|$)'
 
 # ---------------------------------------------------------------------------
 # 3. Local patterns

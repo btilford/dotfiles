@@ -552,7 +552,7 @@ samples — they need linting like anything else.
 content contains a *value* from `~/.config/dotfiles/local.env` (reading them at run
 time, so no private string is ever committed as a denylist — only the variable
 name is printed) or a generic private pattern (RFC1918, `/home/<user>`, `desc:`
-serials). Runs in lefthook pre-commit, `mise run lint`, GitLab CI, and GitHub
+serials, US phone numbers). Runs in lefthook pre-commit, `mise run lint`, GitLab CI, and GitHub
 Actions. CI has no `local.env`, which is why the pattern half exists; and CI is the
 real enforcement since `--no-verify` skips the hook.
 
