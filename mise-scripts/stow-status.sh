@@ -128,7 +128,13 @@ for pkg_path in "$repo_root"/*/; do
     fi
   done < <(find "$repo_root/$pkg" -type f -o -type l | sort)
 
-  [ "$n_total" -eq 0 ] && continue
+  # A package whose every file is ignored still exists — say so rather than
+  # silently dropping the row, or the package count and the rows disagree and it
+  # looks like the tool lost one.
+  if [ "$n_total" -eq 0 ]; then
+    [ "$as_json" -eq 1 ] || printf '· %-14s %-9s  (every file excluded by .stow-local-ignore)\n' "$pkg" "ignored"
+    continue
+  fi
 
   if [ "$n_linked" -eq "$n_total" ]; then
     state=stowed
