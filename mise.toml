@@ -203,7 +203,14 @@ description = "Apply all formatters to the whole repo"
 depends = ["fmt:shell", "fmt:lua", "fmt:toml", "fmt:md"]
 
 [tasks."fmt:shell"]
-run = "git ls-files '*.sh' '*.bash' | xargs -r shfmt -w -i 2 -ci -sr"
+# Same selector as lint:shell and the CI job. It used to glob '*.sh' '*.bash',
+# which diverged in both directions: it MISSED every extensionless command in
+# commands/.local/bin and git/.local/bin — which is where the formatting backlog
+# accumulated, since the formatter had never once run on them — and it HIT the two
+# files the selector excludes on purpose, __sdkman-noexport-init.sh (zsh syntax)
+# and RofiEmoji.sh (emoji data parsed as code), so `mise run fmt` exited non-zero
+# on every single run.
+run = "./mise-scripts/shell-files.sh | xargs -r shfmt -w -i 2 -ci -sr"
 
 [tasks."fmt:lua"]
 run = "stylua $(git ls-files '*.lua')"
