@@ -25,6 +25,11 @@ description = "export SECRET=/PASSWORD=/TOKEN= with a literal value"
 regex = '''export\s+(SECRET|PASSWORD|TOKEN|API_KEY)\s*=\s*["'][^"'$][^"']*["']'''
 
 [[allowlists]]
+description = "filter-repo redaction marker — a scrubbed secret, never a real one"
+regexTarget = "line"
+regexes = ['''\*\*\*REMOVED\*\*\*''']
+
+[[allowlists]]
 description = "GPG signing-key IDs/fingerprints are public, not secrets"
 regexTarget = "line"
 regexes = ['''signingKey\s*=\s*[0-9A-Fa-f]{40}''']
