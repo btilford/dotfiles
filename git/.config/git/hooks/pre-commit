@@ -20,7 +20,7 @@ command -v gitleaks > /dev/null 2>&1 || exit 0
 root=$(git rev-parse --show-toplevel 2> /dev/null) || exit 0
 
 if [ -f "$root/.gitleaks.toml" ]; then
-    exec gitleaks protect --staged -c "$root/.gitleaks.toml" --no-banner
+  exec gitleaks protect --staged -c "$root/.gitleaks.toml" --no-banner
 fi
 
 exec gitleaks protect --staged --no-banner

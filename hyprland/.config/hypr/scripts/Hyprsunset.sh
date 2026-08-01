@@ -46,16 +46,16 @@ cmd_toggle() {
   state="$(cat "$STATE_FILE" || echo off)"
 
   # Always stop any running hyprsunset first to avoid CTM manager conflicts
-  if pgrep -x hyprsunset >/dev/null 2>&1; then
+  if pgrep -x hyprsunset > /dev/null 2>&1; then
     pkill -x hyprsunset || true
     # give it a moment to release the CTM manager
     sleep 0.2
   fi
 
-if [[ "$state" == "on" ]]; then
+  if [[ "$state" == "on" ]]; then
     # Turning OFF: set identity and exit
-    if command -v hyprsunset >/dev/null 2>&1; then
-      nohup hyprsunset -i >/dev/null 2>&1 &
+    if command -v hyprsunset > /dev/null 2>&1; then
+      nohup hyprsunset -i > /dev/null 2>&1 &
       # if hyprsunset persists, stop it shortly after applying identity
       sleep 0.3 && pkill -x hyprsunset || true
     fi
@@ -63,8 +63,8 @@ if [[ "$state" == "on" ]]; then
     notify-send -u low "Hyprsunset: Disabled" || true
   else
     # Turning ON: start hyprsunset at target temp in background
-    if command -v hyprsunset >/dev/null 2>&1; then
-      nohup hyprsunset -t "$TARGET_TEMP" >/dev/null 2>&1 &
+    if command -v hyprsunset > /dev/null 2>&1; then
+      nohup hyprsunset -t "$TARGET_TEMP" > /dev/null 2>&1 &
     fi
     echo on > "$STATE_FILE"
     notify-send -u low "Hyprsunset: Enabled" "${TARGET_TEMP}K" || true
@@ -74,7 +74,7 @@ if [[ "$state" == "on" ]]; then
 cmd_status() {
   ensure_state
   # Prefer live process detection; fall back to state file
-  if pgrep -x hyprsunset >/dev/null 2>&1; then
+  if pgrep -x hyprsunset > /dev/null 2>&1; then
     onoff="on"
   else
     onoff="$(cat "$STATE_FILE" || echo off)"
@@ -97,8 +97,8 @@ cmd_init() {
   state="$(cat "$STATE_FILE" || echo off)"
 
   if [[ "$state" == "on" ]]; then
-    if command -v hyprsunset >/dev/null 2>&1; then
-      nohup hyprsunset -t "$TARGET_TEMP" >/dev/null 2>&1 &
+    if command -v hyprsunset > /dev/null 2>&1; then
+      nohup hyprsunset -t "$TARGET_TEMP" > /dev/null 2>&1 &
     fi
   fi
 }
@@ -107,5 +107,8 @@ case "${1:-}" in
   toggle) cmd_toggle ;;
   status) cmd_status ;;
   init) cmd_init ;;
-  *) echo "usage: $0 [toggle|status|init]" >&2; exit 2 ;;
- esac
+  *)
+    echo "usage: $0 [toggle|status|init]" >&2
+    exit 2
+    ;;
+esac

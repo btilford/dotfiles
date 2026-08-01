@@ -26,17 +26,17 @@ fi
 
 # Kill existing wallpaper daemons for video
 kill_wallpaper_for_video() {
-  awww kill 2>/dev/null
-  pkill mpvpaper 2>/dev/null
-  pkill swaybg 2>/dev/null
-  pkill hyprpaper 2>/dev/null
+  awww kill 2> /dev/null
+  pkill mpvpaper 2> /dev/null
+  pkill swaybg 2> /dev/null
+  pkill hyprpaper 2> /dev/null
 }
 
 # Kill existing wallpaper daemons for image
 kill_wallpaper_for_image() {
-  pkill mpvpaper 2>/dev/null
-  pkill swaybg 2>/dev/null
-  pkill hyprpaper 2>/dev/null
+  pkill mpvpaper 2> /dev/null
+  pkill swaybg 2> /dev/null
+  pkill hyprpaper 2> /dev/null
 }
 
 modify_startup_config() {
@@ -73,7 +73,7 @@ apply_image_wallpaper() {
 
   kill_wallpaper_for_image
 
-  if ! pgrep -x "awww-daemon" >/dev/null; then
+  if ! pgrep -x "awww-daemon" > /dev/null; then
     echo "Starting awww-daemon..."
     awww-daemon &
   fi
@@ -92,7 +92,7 @@ apply_video_wallpaper() {
   local video_path="$1"
 
   # Check if mpvpaper is installed
-  if ! command -v mpvpaper &>/dev/null; then
+  if ! command -v mpvpaper &> /dev/null; then
     notify-send -i "$iDIR/error.png" "E-R-R-O-R" "mpvpaper not found"
     return 1
   fi

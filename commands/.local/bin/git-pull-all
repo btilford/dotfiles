@@ -6,13 +6,15 @@ set -euo pipefail
 
 DIR="${1:-.}"
 
-ok=0; skipped=0; failed=0
+ok=0
+skipped=0
+failed=0
 
 for path in "$DIR"/*/; do
   [[ -d "$path/.git" ]] || continue
 
   name=$(basename "$path")
-  default=$(git -C "$path" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+  default=$(git -C "$path" symbolic-ref refs/remotes/origin/HEAD 2> /dev/null | sed 's|refs/remotes/origin/||')
 
   if [[ -z "$default" ]]; then
     echo "  ⚠  $name — no upstream HEAD (run: git remote set-head origin -a)"
@@ -20,20 +22,20 @@ for path in "$DIR"/*/; do
     continue
   fi
 
-  current=$(git -C "$path" symbolic-ref --short HEAD 2>/dev/null || echo "")
+  current=$(git -C "$path" symbolic-ref --short HEAD 2> /dev/null || echo "")
   if [[ "$current" != "$default" ]]; then
     echo "  ·  $name — on $current, skipping (not $default)"
     skipped=$((skipped + 1))
     continue
   fi
 
-  if ! git -C "$path" diff --quiet 2>/dev/null || ! git -C "$path" diff --cached --quiet 2>/dev/null; then
+  if ! git -C "$path" diff --quiet 2> /dev/null || ! git -C "$path" diff --cached --quiet 2> /dev/null; then
     echo "  ·  $name — dirty, skipping"
     skipped=$((skipped + 1))
     continue
   fi
 
-  if git -C "$path" pull --ff-only --quiet 2>/dev/null; then
+  if git -C "$path" pull --ff-only --quiet 2> /dev/null; then
     echo "  ✓  $name"
     ok=$((ok + 1))
   else

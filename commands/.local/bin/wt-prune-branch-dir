@@ -23,36 +23,42 @@ ROOT="${WT_WORKTREES_ROOT:-$HOME/worktrees}"
 
 WT_PATH="${1:-}"
 if [ -z "$WT_PATH" ]; then
-    echo "[wt-prune-branch-dir] no worktree path given — skipping" >&2
-    exit 0
+  echo "[wt-prune-branch-dir] no worktree path given — skipping" >&2
+  exit 0
 fi
 
 # Resolve the branch/ticket parent (…/worktrees/{branch}/{repo} -> …/{branch}).
-PARENT=$(cd "$(dirname "$WT_PATH")" 2>/dev/null && pwd -P) || {
-    echo "[wt-prune-branch-dir] parent already gone — nothing to do"
-    exit 0
+PARENT=$(cd "$(dirname "$WT_PATH")" 2> /dev/null && pwd -P) || {
+  echo "[wt-prune-branch-dir] parent already gone — nothing to do"
+  exit 0
 }
-ROOT_ABS=$(cd "$ROOT" 2>/dev/null && pwd -P) || {
-    echo "[wt-prune-branch-dir] worktrees root '$ROOT' not found — skipping" >&2
-    exit 0
+ROOT_ABS=$(cd "$ROOT" 2> /dev/null && pwd -P) || {
+  echo "[wt-prune-branch-dir] worktrees root '$ROOT' not found — skipping" >&2
+  exit 0
 }
 
 # Safety: parent must live strictly under the worktrees root, and must not BE it.
 case "$PARENT/" in
-    "$ROOT_ABS"/) echo "[wt-prune-branch-dir] refusing to prune the worktrees root"; exit 0 ;;
-    "$ROOT_ABS"/*) : ;;
-    *) echo "[wt-prune-branch-dir] '$PARENT' is outside '$ROOT_ABS' — skipping" >&2; exit 0 ;;
+  "$ROOT_ABS"/)
+    echo "[wt-prune-branch-dir] refusing to prune the worktrees root"
+    exit 0
+    ;;
+  "$ROOT_ABS"/*) : ;;
+  *)
+    echo "[wt-prune-branch-dir] '$PARENT' is outside '$ROOT_ABS' — skipping" >&2
+    exit 0
+    ;;
 esac
 
 # Drop a stray macOS .DS_Store so an otherwise-empty dir can be pruned.
 [ -f "$PARENT/.DS_Store" ] && rm -f "$PARENT/.DS_Store"
 
 # List remaining entries (including dotfiles, excluding . and ..).
-remaining=$(find "$PARENT" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')
+remaining=$(find "$PARENT" -mindepth 1 -maxdepth 1 2> /dev/null | wc -l | tr -d ' ')
 
 if [ "$remaining" -ne 0 ]; then
-    echo "[wt-prune-branch-dir] $remaining sibling worktree(s) remain under $PARENT — keeping"
-    exit 0
+  echo "[wt-prune-branch-dir] $remaining sibling worktree(s) remain under $PARENT — keeping"
+  exit 0
 fi
 
 # Confirmation gate. `wt remove` runs in the background by default (no TTY), so
@@ -61,16 +67,16 @@ fi
 # answer would just leak the dir forever. Set NONINTERACTIVE=1 to skip prompting
 # even under a TTY (auto-yes); WT_PRUNE_SKIP=1 to never prune.
 if [ "${WT_PRUNE_SKIP:-}" = "1" ]; then
-    echo "[wt-prune-branch-dir] WT_PRUNE_SKIP=1 — leaving empty dir: $PARENT"
-    exit 0
+  echo "[wt-prune-branch-dir] WT_PRUNE_SKIP=1 — leaving empty dir: $PARENT"
+  exit 0
 fi
 
 if [ -t 0 ] && [ -z "${NONINTERACTIVE:-}" ]; then
-    read -rp "[wt-prune-branch-dir] Remove empty branch dir '$PARENT'? [Y/n] " REPLY
-    if [[ "$REPLY" =~ ^[Nn]$ ]]; then
-        echo "[wt-prune-branch-dir] kept: $PARENT"
-        exit 0
-    fi
+  read -rp "[wt-prune-branch-dir] Remove empty branch dir '$PARENT'? [Y/n] " REPLY
+  if [[ "$REPLY" =~ ^[Nn]$ ]]; then
+    echo "[wt-prune-branch-dir] kept: $PARENT"
+    exit 0
+  fi
 fi
 
 rmdir "$PARENT" && echo "[wt-prune-branch-dir] pruned empty branch dir: $PARENT"

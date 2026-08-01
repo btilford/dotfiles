@@ -5,7 +5,7 @@
 # launcher's wallpaper mode. Reached via Launcher.sh wallpaper on the rofi backend.
 
 # WALLPAPERS PATH
-PICTURES_DIR="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")"
+PICTURES_DIR="$(xdg-user-dir PICTURES 2> /dev/null || echo "$HOME/Pictures")"
 wallDIR="$PICTURES_DIR/wallpapers"
 SCRIPTSDIR="$HOME/.config/hypr/scripts"
 
@@ -44,7 +44,7 @@ rofi_command="rofi -i -show -dmenu -config $rofi_theme -theme-str $rofi_override
 
 # Sorting Wallpapers
 menu() {
-  IFS=$'\n' sorted_options=($(sort <<<"${PICS[*]}"))
+  IFS=$'\n' sorted_options=($(sort <<< "${PICS[*]}"))
 
   printf "%s\x00icon\x1f%s\n" "$RANDOM_PIC_NAME" "$RANDOM_PIC"
 
@@ -100,7 +100,7 @@ main() {
 }
 
 # Check if rofi is already running
-if pidof rofi >/dev/null; then
+if pidof rofi > /dev/null; then
   pkill rofi
 fi
 

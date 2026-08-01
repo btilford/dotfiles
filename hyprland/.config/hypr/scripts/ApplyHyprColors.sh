@@ -17,7 +17,7 @@ set -uo pipefail
 colors_file="$HOME/.config/hypr/lua/colors.lua"
 
 # Quiet no-ops outside a live Hyprland session or before wallust ran
-command -v hyprctl >/dev/null 2>&1 || exit 0
+command -v hyprctl > /dev/null 2>&1 || exit 0
 [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || exit 0
 [ -s "$colors_file" ] || exit 0
 
@@ -41,8 +41,8 @@ keyword decoration:glow:color rgba(ff6600ff);\
 keyword decoration:shadow:color rgba(ff660088);\
 keyword decoration:shadow:color_inactive rgba(ff660022);\
 keyword general:col.active_border rgba(ff6600ff);\
-keyword general:col.inactive_border rgba(ff660022)" >/dev/null 2>&1; then
-  command -v notify-send >/dev/null 2>&1 && notify-send -u low -a ApplyHyprColors \
+keyword general:col.inactive_border rgba(ff660022)" > /dev/null 2>&1; then
+  command -v notify-send > /dev/null 2>&1 && notify-send -u low -a ApplyHyprColors \
     -h string:x-dunst-stack-tag:applyhyprcolors \
     "Hyprland colors" "Failed to apply theme colors via hyprctl" || true
 fi

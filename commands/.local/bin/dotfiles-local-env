@@ -107,7 +107,7 @@ cmd_pull() {
   local tmp
   tmp=$(mktemp) || die "mktemp failed"
   chmod 600 "$tmp"
-  if ! infisical export --format=dotenv --domain="$domain" --projectId="$project" > "$tmp" 2>/dev/null; then
+  if ! infisical export --format=dotenv --domain="$domain" --projectId="$project" > "$tmp" 2> /dev/null; then
     rm -f "$tmp"
     die "infisical export failed — logged in? (infisical login)"
   fi
