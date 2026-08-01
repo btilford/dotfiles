@@ -205,7 +205,7 @@ against gitlab.com and a self-hosted remote then reports `gitlab: not logged in`
 
 **GCM belongs in `~/.gitconfig.local`, not here.** Never add a `git-credential-manager` helper to any file in this package. It is machine-specific and must remain outside the dotfiles.
 
-**`config.yml` in glab-cli must never contain tokens.** The `glab-cli` stow package stows `aliases.yml` only. `config.yml` is excluded via `.stow-local-ignore` because `glab auth login` writes auth tokens into it. The dotfiles repo carries a token-free template of `config.yml` for reference only. Never commit a `config.yml` that contains a real token.
+**`config.yml` in glab-cli must never contain tokens.** The `glab-cli` stow package stows `aliases.yml` only. `config.yml` is excluded via `.stow-local-ignore` because `glab auth login` writes auth tokens into it. There is deliberately **no tracked template** of it — `glab auth login` writes the file itself, and `mise run glab:config` applies every setting worth version-controlling. `config.yml` is also gitignored and allowlisted in `.gitleaks.toml`, since `gitleaks dir` walks the working directory without honouring `.gitignore` and would otherwise fail the local scan on a real token forever. Never commit a `config.yml` that contains a real token.
 
 **IntelliJ tool paths in `commands.gitconfig` are macOS-specific.** The `difftool "intellij"` and `mergetool "intellij"` entries reference `/Applications/IntelliJ IDEA.app/...`. These are left as-is because they are not active on Linux (the active diff tool is `nvimdiff`). Do not change them to relative paths — the format is required by the application launcher.
 

@@ -15,7 +15,10 @@
 set -uo pipefail
 
 env_file="${DOTFILES_LOCAL_ENV:-$HOME/.config/dotfiles/local.env}"
-share_dir="$HOME/.local/share/dotfiles"
+# Env first, fixed path as fallback: without the override this can only read the
+# stowed copy, so a worktree or CI cannot exercise it against the branch's own
+# manifest — the repo's testability rule in CLAUDE.md.
+share_dir="${DOTFILES_SHARE_DIR:-$HOME/.local/share/dotfiles}"
 manifest="$share_dir/required-env"
 example="$share_dir/local.env.example"
 
@@ -67,6 +70,18 @@ cmd_check() {
       printf '  ⚠ %s\n' "environment.d NOT wired — vim.env vars are unset outside a shell. Fix:"
       printf '      mkdir -p ~/.config/environment.d && ln -s %s %s\n' "$env_file" "$envd"
     fi
+  fi
+
+  # Not a variable, but the same class of thing: an untracked file the scrub gate
+  # needs and silently runs without. Absent, the gate cannot catch an employer or
+  # client name, and nothing else reports that it is unarmed.
+  local patterns="${DOTFILES_SCRUB_PATTERNS:-$HOME/.config/dotfiles/scrub.patterns}"
+  if [ -r "$patterns" ]; then
+    printf '  ✓ %s (%s pattern(s))\n' "$patterns" \
+      "$(grep -cvE '^[[:space:]]*(#|$)' "$patterns")"
+  else
+    printf '  · %s absent — the scrub gate cannot match identifiers. Fix:\n' "$patterns"
+    printf '      install -m 600 -D %s %s\n' "$share_dir/scrub.patterns.example" "$patterns"
   fi
 
   echo "  ($total vars in manifest, $missing required missing, $empty_optional optional unset)"

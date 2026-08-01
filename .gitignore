@@ -45,6 +45,7 @@ bless/.config/bless/last.session
 # so a local file can never be committed by accident; mise-scripts/no-local-values.sh
 # is the second barrier.
 local.env
+scrub.patterns
 *.local
 *.local.lua
 *.local.toml

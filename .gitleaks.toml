@@ -27,15 +27,11 @@ regex = '''export\s+(SECRET|PASSWORD|TOKEN|API_KEY)\s*=\s*["'][^"'$][^"']*["']''
 [[allowlists]]
 description = "GPG signing-key IDs/fingerprints are public, not secrets"
 regexTarget = "line"
-regexes = [
-  '''signingKey\s*=\s*[0-9A-Fa-f]{40}''',
-]
+regexes = ['''signingKey\s*=\s*[0-9A-Fa-f]{40}''']
 
 [[allowlists]]
-description = "Token-free glab template — real token lives in the untracked live config"
-paths = [
-  '''glab-cli/\.config/glab-cli/config\.yml''',
-]
+description = "Untracked live glab config — `glab auth login` writes a token into it"
+paths = ['''glab-cli/\.config/glab-cli/config\.yml''']
 
 [[allowlists]]
 description = """

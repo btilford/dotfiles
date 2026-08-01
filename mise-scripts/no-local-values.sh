@@ -13,10 +13,17 @@
 #    only the VARIABLE NAME is ever printed. Side effect worth having: this also
 #    blocks committing local.env itself.
 #    Skipped when local.env is absent, e.g. in CI. That is why half 2 exists.
-#    `SCRUB_*` vars are matched with looser rules — see the case block below.
 #
 # 2. GENERIC patterns that are private by shape rather than by value, so they are
 #    safe to write down and work everywhere including CI.
+#
+# 3. LOCAL patterns from ~/.config/dotfiles/scrub.patterns — an untracked list of
+#    regexes for things private by *identity* rather than by shape or by being
+#    config: an employer name, a client, an internal project directory. No pattern
+#    can distinguish a company name from any other word, and such a name is not a
+#    value any config consumes, so halves 1 and 2 are both blind to it. Same
+#    discipline as half 1: the file is untracked and only its LINE NUMBER is ever
+#    printed, never the pattern.
 #
 # POSIX sh with only git/grep/sed: the GitLab CI image ships no extra tooling, the
 # same constraint mise-scripts/shell-files.sh works under.
@@ -24,6 +31,7 @@
 set -u
 
 env_file="${DOTFILES_LOCAL_ENV:-$HOME/.config/dotfiles/local.env}"
+patterns_file="${DOTFILES_SCRUB_PATTERNS:-$HOME/.config/dotfiles/scrub.patterns}"
 mode="${1:-staged}"
 status=0
 
@@ -50,29 +58,13 @@ if [ -r "$env_file" ]; then
     val=$(printf '%s' "$line" | sed -nE 's/^[^=]*=[[:space:]]*(.*)$/\1/p')
 
     [ -n "$var" ] || continue
+    # Short values produce false positives (a bare port, "true", an empty var).
+    [ ${#val} -ge 8 ] || continue
 
-    # SCRUB_* are identifiers — an employer name, a client, an internal project
-    # directory. They are short and get written in whatever case the author felt
-    # like, so the host/URL rules below would miss them: a 7-letter company name
-    # never clears an 8-character floor, and a case-sensitive match misses the
-    # lowercased directory form of the same word. Both were real misses.
-    case "$var" in
-      SCRUB_*)
-        [ ${#val} -ge 4 ] || continue
-        if printf '%s' "$content" | grep -qiF -- "$val"; then
-          echo "  ✗ content contains the value of \$$var" >&2
-          status=1
-        fi
-        ;;
-      *)
-        # Short values produce false positives (a bare port, "true", an empty var).
-        [ ${#val} -ge 8 ] || continue
-        if printf '%s' "$content" | grep -qF -- "$val"; then
-          echo "  ✗ content contains the value of \$$var" >&2
-          status=1
-        fi
-        ;;
-    esac
+    if printf '%s' "$content" | grep -qF -- "$val"; then
+      echo "  ✗ content contains the value of \$$var" >&2
+      status=1
+    fi
   done < "$env_file"
 else
   echo "  · $env_file not readable — value check skipped (pattern check still runs)" >&2
@@ -110,6 +102,41 @@ check_pattern "RFC1918 address" '(^|[^0-9])(10\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3
 check_pattern "absolute home path" '/home/[a-z][a-z0-9_-]+/|/Users/[a-z][a-z0-9_-]+/'
 check_pattern "hardware serial in a monitor descriptor" 'desc:[^"]*[A-Z0-9]{6,}'
 
+# ---------------------------------------------------------------------------
+# 3. Local patterns
+# ---------------------------------------------------------------------------
+if [ -r "$patterns_file" ]; then
+  pat_line=0
+  while IFS= read -r pattern; do
+    pat_line=$((pat_line + 1))
+    case "$pattern" in '' | '#'*) continue ;; esac
+
+    # A pattern that does not compile makes grep exit 2, which is neither "found"
+    # nor "clean". Left unchecked it would read as a pass and silently disable
+    # that line for good, so it is reported as a failure instead.
+    printf '' | grep -Eiq -- "$pattern" 2> /dev/null
+    if [ $? -gt 1 ]; then
+      echo "  ✗ $patterns_file:$pat_line is not a valid regex — gate cannot run it" >&2
+      status=1
+      continue
+    fi
+
+    hits=$(printf '%s' "$content" | grep -nEi -- "$pattern" | head -5)
+    [ -n "$hits" ] || continue
+
+    # The pattern itself is private — it spells out the thing being kept out of
+    # the mirror — so only its line number is named, never its text.
+    echo "  ✗ matches $patterns_file:$pat_line" >&2
+    if [ "$mode" = "--all" ]; then
+      printf '%s\n' "$hits" | cut -d: -f2,3 | sed 's/^/      /' >&2
+      echo "      (content withheld — run: mise-scripts/no-local-values.sh --all locally)" >&2
+    else
+      printf '%s\n' "$hits" | sed 's/^/      /' >&2
+    fi
+    status=1
+  done < "$patterns_file"
+fi
+
 if [ "$status" -ne 0 ]; then
   cat >&2 << 'MSG'
 
@@ -118,6 +145,8 @@ if [ "$status" -ne 0 ]; then
       environment (see commands/.local/share/dotfiles/required-env)
     - use $HOME instead of an absolute path
     - for a monitor table, use ~/.config/hypr/lua/monitors.local.lua
+    - for a name that is private by identity (employer, client, internal
+      project), add a regex to ~/.config/dotfiles/scrub.patterns
 
   This gate also runs in CI, where --no-verify cannot skip it.
 MSG

@@ -158,6 +158,16 @@ ln -s ~/.config/dotfiles/local.env ~/.config/environment.d/50-local.conf
 `mise-scripts/no-local-values.sh` (run by the pre-commit hook, `mise run
 lint:private` and CI) fails any commit whose content contains one of its values.
 
+A second untracked file, `~/.config/dotfiles/scrub.patterns`, feeds that same gate
+a list of regexes for things private by *identity* rather than by value — an
+employer, a client, an internal project name. One extended regex per line, matched
+case-insensitively, provisioned from `scrub.patterns.example`:
+
+```sh
+install -m 600 -D ~/.local/share/dotfiles/scrub.patterns.example \
+  ~/.config/dotfiles/scrub.patterns
+```
+
 ## Ignored Files
 
 `.stow-local-ignore` prevents certain files inside packages from being symlinked (uses Perl regex):

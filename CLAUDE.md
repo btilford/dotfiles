@@ -41,8 +41,16 @@ The authoritative list is `commands/.local/share/dotfiles/required-env`, which
 the code actually needs.
 
 Untracked, provision from the `.example` beside it: `docker/.docker/mcp/config.yaml`
-(holds a Google app password), `gh/.config/gh/hosts.yml` (gh writes `oauth_token:`
-into it whenever no OS keyring is available).
+(holds a Google app password), `hyprland/.config/hypr/lua/monitors.local.lua`,
+`pi-agent/.pi/agent/models.json`, `quickshell/.config/quickshell/notifications.json`.
+
+Untracked with **no example, by design** — the tool writes them itself and there is
+nothing to template: `gh/.config/gh/hosts.yml` (`gh auth login`, which stores an
+`oauth_token:` there when no OS keyring is available) and
+`glab-cli/.config/glab-cli/config.yml` (`glab auth login`, then
+`mise run glab:config` for the rest of the settings). Everything about those two
+tools that *can* be tracked already is — `gh/.config/gh/config.yml` and
+`glab-cli/.config/glab-cli/aliases.yml` are stowed normally.
 
 Out of tree entirely, in `~/.gitconfig.local` — `.gitconfig` includes it last:
 the self-hosted GitLab `[credential]` block, and the work identity profile plus
@@ -510,20 +518,36 @@ serials). Runs in lefthook pre-commit, `mise run lint`, GitLab CI, and GitHub
 Actions. CI has no `local.env`, which is why the pattern half exists; and CI is the
 real enforcement since `--no-verify` skips the hook.
 
-**`SCRUB_ORG` / `SCRUB_WORK_DIR` cover identifiers**, which neither half caught
-before: an employer name is not a value any config consumes, and it is not private
-by *shape* — no pattern can tell one company name from any other word. So they are
-declared in `local.env` purely for the gate to recognise, and matched under looser
-rules than a hostname: **case-insensitive, minimum 4 characters** instead of 8.
-Both relaxations are load-bearing — a 7-letter company name never clears the
-8-character floor, and the lowercased directory form of the same word never
-matches case-sensitively. This was found the hard way: work session entries
-re-entered `tmux/.config/sesh/sesh.toml` on master after the scrub branch was cut,
-and every existing gate passed them.
+**A third half covers identifiers:** `~/.config/dotfiles/scrub.patterns`, an
+untracked list of extended regexes, one per line, matched case-insensitively.
+Neither other half can catch an employer or client name — it is not a value any
+config consumes, and it has no *shape* distinguishing it from any other word. This
+was found the hard way: work sessions re-entered `tmux/.config/sesh/sesh.toml` on
+master after the scrub branch was cut, past every gate.
 
-Its limit is the same as the rest of half 1: **a machine with no `local.env`, and
-CI, cannot enforce it.** The name is only known to machines that declare it, so
-this catches re-introduction at the author's commit, not at the merge.
+Regexes rather than literals because one line then covers every spelling
+(`REDACTED|REDACTED`, `acme[- ]?corp`) and can anchor to a path shape. Provision from
+`scrub.patterns.example`; `dotfiles-local-env --check` reports when the file is
+absent, since a gate that silently isn't armed is worse than no gate.
+
+Two properties to preserve:
+
+- **Only the line number is printed, never the pattern.** The pattern spells out
+  the string being kept out — printing it on failure would disclose exactly what
+  was blocked. Same discipline as half 1's variable names.
+- **A pattern that does not compile fails the gate.** `grep` exits 2 on a bad
+  regex, which is neither "found" nor "clean"; treated as a pass, a typo would
+  switch that line off permanently and silently.
+
+**It matches against `path:line:text`, so it catches file *names* too.** That is
+how `kmonad/.config/kmonad/macos-REDACTED-2025.kbd` was found — the identifier was in
+the filename, and both the acceptance greps and a plain `grep -ri` over the tree
+missed it because they only ever looked at file *contents*. Renamed to
+`macos-work-2025.kbd`. When scrubbing, check names as well as content.
+
+Its limit is the same as half 1's: **a machine with no `scrub.patterns`, and CI,
+cannot enforce it.** The names are only known where they are declared, so this
+catches re-introduction at the author's commit, not at the merge.
 
 **A failure must not print what it caught.** Half 1 only ever prints the variable
 name. Half 2 matches by pattern, so it can point at a location — but in `--all`
