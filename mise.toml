@@ -44,6 +44,18 @@ description = "Build ~/.local/share/git-template (init.templateDir) from the sto
 # the generated dir holds real files so installed hooks don't dangle.
 run = "git-template-sync"
 
+[tasks.status]
+description = "Stow health: which packages are fully / partially / not stowed"
+# `stow -n` answers 'what would change for THIS package'. Nothing answered 'what
+# is already half-done' — and a partially stowed package is silent: the missing
+# drop-in simply never loads. fish sat with three unlinked conf.d files, one of
+# them the local.env reader, and nothing reported it.
+run = "./mise-scripts/stow-status.sh"
+
+[tasks.stow]
+description = "Pick packages with fzf (preview shows per-file state) and stow them"
+run = "./mise-scripts/stow-pick.sh"
+
 [tasks."setup:local-env"]
 description = "Create ~/.config/dotfiles/local.env from placeholders (fill in, never commit)"
 # Runs from a plain checkout — unlike `dotfiles-local-env --template`, which reads
