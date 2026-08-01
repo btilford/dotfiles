@@ -63,48 +63,72 @@ past all of them across the full history. `.gitleaks.toml` now carries a custom
 rule for each shape — `npmrc-authtoken`, `google-app-password`,
 `bare-secret-export`. Don't remove one without a replacement.
 
-## Worktrees, and why config needs a path seam
+## One checkout, and why config still needs a path seam
 
-`~/dotfiles` on `master` is the **single deploy checkout** — every stow symlink
-resolves there. Work happens in worktrees (`~/worktrees/dotfiles/<branch>`),
-including background agent sessions, so that a half-finished edit is never live
-on the running desktop. For a repo that *is* the running system, that insulation
-is the point.
+`~/dotfiles` is the **single checkout** — every stow symlink resolves there — and
+branches are worked **in place**, not in worktrees. The same applies to
+`~/private-dotfiles`.
 
-The consequence: a worktree edit is invisible to the running system until it is
-merged and `~/dotfiles` pulls. Whether that blocks testing depends entirely on
-whether the tool accepts a path override.
+The worktree model was dropped deliberately. It insulated the running desktop from
+half-finished edits, but the cost turned out to be higher than the protection:
 
-**Config we own resolves env first, fixed path as fallback.** Anything that can
-only be read from a hardcoded `$HOME` path is a testability bug in our config,
-not a reason to work in the live checkout — it means the component cannot be
-exercised in isolation by a harness, a nested session, or CI.
+- **Nothing was ever verified where it runs.** A worktree edit is invisible to the
+  live system until merged, so "test it" always meant "merge it first and hope" —
+  and several bugs shipped that way, including a fish reader that errored on every
+  shell start.
+- **Two checkouts drift.** A shared script fixed in one copy and not the other is
+  invisible until something disagrees; that happened to `stow-status.sh` within an
+  hour of it existing.
+- **Tooling assumes the deploy path.** Stow links, `git worktree list` ordering and
+  the status task all resolve against the primary checkout, so a worktree needed
+  special handling in each.
 
-Tools that already have a seam, and the flag to use:
+**The trade-off you are now taking on:** `git checkout <branch>` swaps live config
+instantly, because the symlinks point at this working tree. A broken commit is a
+broken desktop until you check out master again. So:
 
-| Tool | Test a worktree copy with |
+- Keep the checkout on `master` when you are not actively working.
+- Prefer `mise run status` after any checkout that adds or removes files — a
+  branch switch can leave a package partially stowed.
+- For anything that can black-screen the session (Hyprland, quickshell), still
+  verify with a path override before merging rather than by restarting the live
+  component.
+
+**Config we own resolves env first, fixed path as fallback.** That rule survives
+the worktree removal and matters more now, not less: it is what lets a component be
+exercised without pointing the live system at it.
+
+| Tool | Test a branch copy with |
 | ------ | --------------------------- |
-| quickshell | `qs -p <worktree>/quickshell/.config/quickshell/shell.qml` |
-| tmux | `tmux -L <private-socket> -f <worktree>/tmux/.tmux.conf` |
-| metapac | `metapac --config-dir <worktree>/metapac/.config/metapac` |
-| nvim | `nvim -u <worktree>/nvim/.config/nvim/init.lua` |
-| worktrunk | `wt --config <worktree>/worktrunk/.config/worktrunk/config.toml …` |
-| workmux | `workmux add <name> --dry-run --config <worktree>/workmux/.config/workmux/config.yaml` |
+| quickshell | `qs -p ~/dotfiles/quickshell/.config/quickshell/shell.qml` |
+| tmux | `tmux -L <private-socket> -f ~/dotfiles/tmux/.tmux.conf` |
+| metapac | `metapac --config-dir ~/dotfiles/metapac/.config/metapac` |
+| nvim | `nvim -u ~/dotfiles/nvim/.config/nvim/init.lua` |
+| worktrunk | `wt --config ~/dotfiles/worktrunk/.config/worktrunk/config.toml …` |
+| workmux | `workmux add <name> --dry-run --config ~/dotfiles/workmux/.config/workmux/config.yaml` |
+| local.env readers | `DOTFILES_LOCAL_ENV=<file> fish --no-config <script>` |
+| `dotfiles-local-env` | `DOTFILES_SHARE_DIR=<repo>/commands/.local/share/dotfiles …` |
+| scrub gate | `DOTFILES_SCRUB_PATTERNS=<file> ./mise-scripts/no-local-values.sh --all` |
 
 `workmux --config` *merges with* the global config rather than replacing it, so a
-worktree check reflects the merge, not the branch alone. `--dry-run` prints the
-resolved worktree path, base, tmux target and hooks without touching anything —
-use it to verify a layout change before merging.
+check reflects the merge, not the branch alone. `--dry-run` prints the resolved
+worktree path, base, tmux target and hooks without touching anything.
 
-No seam, so merge first and verify live: shell rc files (sourced from fixed `~`
-paths at login) and Hyprland's own config discovery (`-c` applies at launch
+No seam, so verify live and be ready to revert: shell rc files (sourced from fixed
+`~` paths at login) and Hyprland's own config discovery (`-c` applies at launch
 only, `hyprctl reload` always re-reads `~/.config/hypr`).
 
 `mise-scripts/visual-capture.sh` is the worked example — it defaults to the working
-tree for both the shell entry point and the tmux config, so a capture shows what
-is in the branch rather than what happens to be stowed.
+tree for both the shell entry point and the tmux config, so a capture shows what is
+in the branch rather than what happens to be stowed.
+
+**worktrunk and workmux stay installed and configured** — they are still the right
+tool for *other* repos. They are simply not used for these two.
 
 ### worktrunk and workmux share one layout
+
+Config for both is still maintained here, and both still get used — **for other
+repos**. Nothing below applies to `~/dotfiles` or `~/private-dotfiles` any more.
 
 Both tools create worktrees, and both are configured to produce **the same path**:
 `~/worktrees/<repo>/<branch>` (slashes in the branch become dashes). worktrunk gets
@@ -188,11 +212,16 @@ Hooks live in `$GIT_COMMON_DIR/hooks`, shared by every worktree of a repo, so
 workmux, or bare `git worktree add`. See `git/CLAUDE.md` for why the template dir
 must be generated rather than pointed at the stowed path.
 
-### One worktree per *stack*, not per branch
+### Stacks live in the one checkout
 
-`up`/`down`/`branch checkout` do a real `git checkout`, and restack does a real
-rebase — neither can touch a branch that is checked out in another worktree.
-Verified on 0.31.2, and the failure mode is quiet rather than loud:
+Since **these two repos no longer use worktrees**, stacking is straightforward:
+create branches with `git-spice branch create`, navigate with `up`/`down`, and
+restack from wherever you are.
+
+The hazard this replaces is worth remembering, because it applies to any *other*
+repo you do use worktrees in: `up`/`down`/`branch checkout` perform a real
+checkout, and restack a real rebase, so neither can touch a branch checked out in
+another worktree. Verified on 0.31.2, and it fails quietly:
 
 ```console
 $ git-spice upstack restack
@@ -200,19 +229,14 @@ WRN feat-c: checked out in another worktree (/…/work-wt), skipping
 INF feat-b: restacked on feat-a
 ```
 
-It **skips and carries on**, so that branch silently keeps a stale base and stays
-`(needs restack)` in `git-spice ls` — which also annotates it `[wt: <path>]`. A
-restack that reports success has not necessarily restacked the whole stack.
-Upstream worktree-scoped filtering (abhinav/git-spice#1247) is still open.
+It **skips and carries on**, so that branch keeps a stale base and stays
+`(needs restack)` in `git-spice ls` — annotated `[wt: <path>]`. A restack that
+reports success has not necessarily restacked the whole stack. Upstream
+worktree-scoped filtering (abhinav/git-spice#1247) is still open.
 
-So: cut one worktree for the stack, add branches inside it with
-`git-spice branch create`, and navigate with `up`/`down`. If a stack branch does
-end up in its own worktree, restack from *that* worktree to catch it.
-
-When you *do* want a worktree for a branch that stacks on another, pass the
-parent explicitly — `wm add foo --base parent-branch`. The default (`wm`'s
-fetch-and-use-`origin/<default>`) is right for a stack *root* and wrong for
-anything above it, which would otherwise be tracked as trunk-based.
+Stale base metadata bites the same way after a merge: a branch whose recorded base
+was deleted fails `branch onto` with a conflict rather than a clear message. Fix
+with `git-spice branch untrack` then `branch track --base master`.
 
 ## Machine-local config: the `.d/` pattern
 
@@ -330,8 +354,9 @@ Linux-only drop-in on the Mac — with no repo change and no unstowing.
 
 ## Branches
 
-- `master` — the single deploy checkout and only long-lived branch. Feature work
-  happens in worktrees off `master` (see "Worktrees" above).
+- `master` — the only long-lived branch, and what the single checkout sits on when
+  no work is in progress. Feature branches are created and worked **in place** in
+  `~/dotfiles` (see "One checkout" above); no worktrees.
 
 Platform divergence lives in per-host `metapac` tables and local-override files,
 not a platform branch — the `macos` branch was retired.
