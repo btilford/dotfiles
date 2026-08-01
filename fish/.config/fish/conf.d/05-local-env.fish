@@ -15,12 +15,21 @@
 # Format is plain KEY=VALUE, no quotes and no expansion, so systemd can consume
 # the very same file via ~/.config/environment.d/50-local.conf (a symlink to it).
 
-set -l _local_env "$HOME/.config/dotfiles/local.env"
+# Env first, fixed path as fallback — the repo's testability rule. Without it
+# this reader can only ever be exercised against the stowed copy.
+set -l _local_env (test -n "$DOTFILES_LOCAL_ENV"; and echo $DOTFILES_LOCAL_ENV; or echo "$HOME/.config/dotfiles/local.env")
 
 if test -r "$_local_env"
     while read -l line
-        # Skip blanks and comments.
-        string match -qr '^\s*(#|$)' -- $line and continue
+        # Skip blanks and comments. The `if` is required: written as
+        # `string match ... and continue`, fish parses `and continue` as two more
+        # ARGUMENTS to string match rather than as a conditional, so the skip
+        # never happens and the first comment line containing an `=` is fed to
+        # `set -gx` — which fails with "invalid variable name" on every shell
+        # start. Only visible once local.env actually exists.
+        if string match -qr '^\s*(#|$)' -- $line
+            continue
+        end
 
         set -l pair (string split -m 1 '=' -- $line)
         if test (count $pair) -eq 2
