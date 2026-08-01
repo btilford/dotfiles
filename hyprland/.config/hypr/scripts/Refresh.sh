@@ -22,7 +22,7 @@ file_exists() {
 _ps=(rofi swaync ags)
 [ "$HYPR_BAR" = "waybar" ] && _ps+=(waybar)
 for _prs in "${_ps[@]}"; do
-  if pidof "${_prs}" >/dev/null; then
+  if pidof "${_prs}" > /dev/null; then
     pkill "${_prs}"
   fi
 done
@@ -54,7 +54,7 @@ fi
 
 # relaunch swaync
 sleep 0.3
-swaync >/dev/null 2>&1 &
+swaync > /dev/null 2>&1 &
 # reload swaync
 swaync-client --reload-config
 

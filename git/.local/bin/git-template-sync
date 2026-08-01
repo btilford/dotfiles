@@ -24,9 +24,9 @@ src="${GIT_TEMPLATE_SRC:-$HOME/.config/git/templates}"
 dest="${GIT_TEMPLATE_DEST:-$HOME/.local/share/git-template}"
 
 if [ ! -d "$src" ]; then
-    echo "[git-template-sync] source not found: $src" >&2
-    echo "[git-template-sync] is the git stow package stowed?" >&2
-    exit 1
+  echo "[git-template-sync] source not found: $src" >&2
+  echo "[git-template-sync] is the git stow package stowed?" >&2
+  exit 1
 fi
 
 rm -rf "$dest"
@@ -38,15 +38,15 @@ cp -RL "$src/." "$dest/"
 # Hooks must be executable; stow-managed sources are, but be explicit rather than
 # depending on the copy preserving it.
 if [ -d "$dest/hooks" ]; then
-    find "$dest/hooks" -type f ! -name '*.sample' -exec chmod +x {} +
+  find "$dest/hooks" -type f ! -name '*.sample' -exec chmod +x {} +
 fi
 
 # A symlink surviving here means cp -L failed and every installed hook will
 # dangle. Fail loudly rather than shipping a silent no-op.
 if [ -n "$(find "$dest" -type l -print -quit)" ]; then
-    echo "[git-template-sync] symlinks present in $dest — hooks would dangle:" >&2
-    find "$dest" -type l >&2
-    exit 1
+  echo "[git-template-sync] symlinks present in $dest — hooks would dangle:" >&2
+  find "$dest" -type l >&2
+  exit 1
 fi
 
 echo "[git-template-sync] $dest"

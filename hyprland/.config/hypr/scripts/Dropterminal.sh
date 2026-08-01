@@ -79,18 +79,18 @@ animate_slide_down() {
   local step_y=$(((target_y - start_y) / SLIDE_STEPS))
 
   # Move window to start position instantly (off-screen)
-  hyprctl dispatch movewindowpixel "exact $target_x $start_y,address:$addr" >/dev/null 2>&1
+  hyprctl dispatch movewindowpixel "exact $target_x $start_y,address:$addr" > /dev/null 2>&1
   sleep 0.05
 
   # Animate slide down
   for i in $(seq 1 $SLIDE_STEPS); do
     local current_y=$((start_y + (step_y * i)))
-    hyprctl dispatch movewindowpixel "exact $target_x $current_y,address:$addr" >/dev/null 2>&1
+    hyprctl dispatch movewindowpixel "exact $target_x $current_y,address:$addr" > /dev/null 2>&1
     sleep 0.03
   done
 
   # Ensure final position is exact
-  hyprctl dispatch movewindowpixel "exact $target_x $target_y,address:$addr" >/dev/null 2>&1
+  hyprctl dispatch movewindowpixel "exact $target_x $target_y,address:$addr" > /dev/null 2>&1
 }
 
 # Function to animate window slide up (hide)
@@ -112,7 +112,7 @@ animate_slide_up() {
   # Animate slide up
   for i in $(seq 1 $SLIDE_STEPS); do
     local current_y=$((start_y - (step_y * i)))
-    hyprctl dispatch movewindowpixel "exact $start_x $current_y,address:$addr" >/dev/null 2>&1
+    hyprctl dispatch movewindowpixel "exact $start_x $current_y,address:$addr" > /dev/null 2>&1
     sleep 0.03
   done
 
@@ -156,7 +156,7 @@ calculate_dropdown_position() {
 
   # Calculate logical dimensions by dividing physical dimensions by scale
   local logical_width logical_height
-  if command -v bc >/dev/null 2>&1; then
+  if command -v bc > /dev/null 2>&1; then
     # Use bc for precise floating point calculation
     logical_width=$(echo "scale=0; $mon_width / $mon_scale" | bc | cut -d'.' -f1)
     logical_height=$(echo "scale=0; $mon_height / $mon_scale" | bc | cut -d'.' -f1)
@@ -218,7 +218,7 @@ get_terminal_monitor() {
 terminal_exists() {
   local addr=$(get_terminal_address)
   if [ -n "$addr" ]; then
-    hyprctl clients -j | jq -e --arg ADDR "$addr" 'any(.[]; .address == $ADDR)' >/dev/null 2>&1
+    hyprctl clients -j | jq -e --arg ADDR "$addr" 'any(.[]; .address == $ADDR)' > /dev/null 2>&1
   else
     return 1
   fi
@@ -228,7 +228,7 @@ terminal_exists() {
 terminal_in_special() {
   local addr=$(get_terminal_address)
   if [ -n "$addr" ]; then
-    hyprctl clients -j | jq -e --arg ADDR "$addr" 'any(.[]; .address == $ADDR and .workspace.name == "special:scratchpad")' >/dev/null 2>&1
+    hyprctl clients -j | jq -e --arg ADDR "$addr" 'any(.[]; .address == $ADDR and .workspace.name == "special:scratchpad")' > /dev/null 2>&1
   else
     return 1
   fi
@@ -283,7 +283,7 @@ spawn_terminal() {
 
   if [ -n "$new_addr" ] && [ "$new_addr" != "null" ]; then
     # Store the address and monitor name
-    echo "$new_addr $monitor_name" >"$ADDR_FILE"
+    echo "$new_addr $monitor_name" > "$ADDR_FILE"
     debug_echo "Terminal created with address: $new_addr in special workspace on monitor $monitor_name"
 
     # Small delay to ensure it's properly in special workspace
@@ -321,7 +321,7 @@ if terminal_exists; then
     hyprctl dispatch movewindowpixel "exact $target_x $target_y,address:$TERMINAL_ADDR"
     hyprctl dispatch resizewindowpixel "exact $width $height,address:$TERMINAL_ADDR"
     # Update ADDR_FILE
-    echo "$TERMINAL_ADDR $monitor_name" >"$ADDR_FILE"
+    echo "$TERMINAL_ADDR $monitor_name" > "$ADDR_FILE"
   fi
 
   if terminal_in_special; then

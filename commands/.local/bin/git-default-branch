@@ -22,14 +22,14 @@ set -uo pipefail
 bare=0
 local_only=0
 for arg in "$@"; do
-    case "$arg" in
-        --branch) bare=1 ;;
-        --local) local_only=1 ;;
-        *)
-            echo "[git-default-branch] unknown option: $arg" >&2
-            exit 2
-            ;;
-    esac
+  case "$arg" in
+    --branch) bare=1 ;;
+    --local) local_only=1 ;;
+    *)
+      echo "[git-default-branch] unknown option: $arg" >&2
+      exit 2
+      ;;
+  esac
 done
 
 git rev-parse --git-dir > /dev/null 2>&1 || exit 1
@@ -40,24 +40,24 @@ ref=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2> /dev/null || 
 # origin/HEAD is missing on clones made with --single-branch. Refreshing it needs
 # the network, so only outside --local.
 if [ -z "$ref" ] && [ "$local_only" -eq 0 ]; then
-    git remote set-head origin -a > /dev/null 2>&1 || true
-    ref=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2> /dev/null || true)
+  git remote set-head origin -a > /dev/null 2>&1 || true
+  ref=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2> /dev/null || true)
 fi
 
 # No advertised HEAD: fall back to conventional names that exist locally.
 if [ -z "$ref" ]; then
-    for candidate in origin/main origin/master; do
-        if git rev-parse --verify --quiet "$candidate" > /dev/null 2>&1; then
-            ref="$candidate"
-            break
-        fi
-    done
+  for candidate in origin/main origin/master; do
+    if git rev-parse --verify --quiet "$candidate" > /dev/null 2>&1; then
+      ref="$candidate"
+      break
+    fi
+  done
 fi
 
 [ -n "$ref" ] || exit 1
 
 if [ "$bare" -eq 1 ]; then
-    echo "${ref#origin/}"
+  echo "${ref#origin/}"
 else
-    echo "$ref"
+  echo "$ref"
 fi

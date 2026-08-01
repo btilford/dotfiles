@@ -43,20 +43,20 @@ show_music_notification() {
 
 # Get media control action from command line argument
 case "$1" in
-"--nxt")
-  play_next
-  ;;
-"--prv")
-  play_previous
-  ;;
-"--pause")
-  toggle_play_pause
-  ;;
-"--stop")
-  stop_playback
-  ;;
-*)
-  echo "Usage: $0 [--nxt|--prv|--pause|--stop]"
-  exit 1
-  ;;
+  "--nxt")
+    play_next
+    ;;
+  "--prv")
+    play_previous
+    ;;
+  "--pause")
+    toggle_play_pause
+    ;;
+  "--stop")
+    stop_playback
+    ;;
+  *)
+    echo "Usage: $0 [--nxt|--prv|--pause|--stop]"
+    exit 1
+    ;;
 esac

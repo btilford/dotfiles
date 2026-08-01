@@ -36,12 +36,12 @@ git show-ref --verify --quiet "refs/heads/$branch" || exit 0
 # (workmux and worktrunk create worktrees from their own process), and a prompt
 # would hang worktree creation rather than merely fail.
 if ! git rev-parse --verify --quiet refs/spice/data > /dev/null; then
-    trunk=$(git-default-branch --branch --local 2> /dev/null) || exit 0
-    [ -n "$trunk" ] || exit 0
-    if ! git-spice --no-prompt repo init --trunk "$trunk" --remote origin > /dev/null 2>&1; then
-        echo >&2 "[git-spice] repo init failed (trunk '$trunk'); not tracking. Run: gs repo init"
-        exit 0
-    fi
+  trunk=$(git-default-branch --branch --local 2> /dev/null) || exit 0
+  [ -n "$trunk" ] || exit 0
+  if ! git-spice --no-prompt repo init --trunk "$trunk" --remote origin > /dev/null 2>&1; then
+    echo >&2 "[git-spice] repo init failed (trunk '$trunk'); not tracking. Run: gs repo init"
+    exit 0
+  fi
 fi
 
 trunk=$(git-spice trunk -n 2> /dev/null) || exit 0
@@ -57,7 +57,7 @@ git rev-parse --verify --quiet "refs/spice/data:branches/$branch" > /dev/null &&
 echo >&2 "[git-spice] tracking '$branch'"
 # downstack, not `branch track`: picks up any untracked branches between this one
 # and trunk.
-git-spice --no-prompt downstack track "$branch" 2> /dev/null \
-    || echo >&2 "[git-spice] could not track '$branch' non-interactively. Run: gs downstack track"
+git-spice --no-prompt downstack track "$branch" 2> /dev/null ||
+  echo >&2 "[git-spice] could not track '$branch' non-interactively. Run: gs downstack track"
 
 exit 0

@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Ensure cava exists
-if ! command -v cava >/dev/null 2>&1; then
+if ! command -v cava > /dev/null 2>&1; then
   echo "cava not found in PATH" >&2
   exit 1
 fi
@@ -23,19 +23,19 @@ RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}"
 pidfile="$RUNTIME_DIR/waybar-cava.pid"
 if [[ -f "$pidfile" ]]; then
   oldpid="$(cat "$pidfile" || true)"
-  if [[ -n "$oldpid" ]] && kill -0 "$oldpid" 2>/dev/null; then
-    kill "$oldpid" 2>/dev/null || true
+  if [[ -n "$oldpid" ]] && kill -0 "$oldpid" 2> /dev/null; then
+    kill "$oldpid" 2> /dev/null || true
     sleep 0.1 || true
   fi
 fi
-printf '%d' $$ >"$pidfile"
+printf '%d' $$ > "$pidfile"
 
 # Unique temp config + cleanup on exit
 config_file="$(mktemp "$RUNTIME_DIR/waybar-cava.XXXXXX.conf")"
 cleanup() { rm -f "$config_file" "$pidfile"; }
 trap cleanup EXIT INT TERM
 
-cat >"$config_file" <<EOF
+cat > "$config_file" << EOF
 [general]
 framerate = 30
 bars = 10
