@@ -13,6 +13,7 @@
 #    only the VARIABLE NAME is ever printed. Side effect worth having: this also
 #    blocks committing local.env itself.
 #    Skipped when local.env is absent, e.g. in CI. That is why half 2 exists.
+#    `SCRUB_*` vars are matched with looser rules — see the case block below.
 #
 # 2. GENERIC patterns that are private by shape rather than by value, so they are
 #    safe to write down and work everywhere including CI.
@@ -49,13 +50,29 @@ if [ -r "$env_file" ]; then
     val=$(printf '%s' "$line" | sed -nE 's/^[^=]*=[[:space:]]*(.*)$/\1/p')
 
     [ -n "$var" ] || continue
-    # Short values produce false positives (a bare port, "true", an empty var).
-    [ ${#val} -ge 8 ] || continue
 
-    if printf '%s' "$content" | grep -qF -- "$val"; then
-      echo "  ✗ content contains the value of \$$var" >&2
-      status=1
-    fi
+    # SCRUB_* are identifiers — an employer name, a client, an internal project
+    # directory. They are short and get written in whatever case the author felt
+    # like, so the host/URL rules below would miss them: a 7-letter company name
+    # never clears an 8-character floor, and a case-sensitive match misses the
+    # lowercased directory form of the same word. Both were real misses.
+    case "$var" in
+      SCRUB_*)
+        [ ${#val} -ge 4 ] || continue
+        if printf '%s' "$content" | grep -qiF -- "$val"; then
+          echo "  ✗ content contains the value of \$$var" >&2
+          status=1
+        fi
+        ;;
+      *)
+        # Short values produce false positives (a bare port, "true", an empty var).
+        [ ${#val} -ge 8 ] || continue
+        if printf '%s' "$content" | grep -qF -- "$val"; then
+          echo "  ✗ content contains the value of \$$var" >&2
+          status=1
+        fi
+        ;;
+    esac
   done < "$env_file"
 else
   echo "  · $env_file not readable — value check skipped (pattern check still runs)" >&2

@@ -510,6 +510,21 @@ serials). Runs in lefthook pre-commit, `mise run lint`, GitLab CI, and GitHub
 Actions. CI has no `local.env`, which is why the pattern half exists; and CI is the
 real enforcement since `--no-verify` skips the hook.
 
+**`SCRUB_ORG` / `SCRUB_WORK_DIR` cover identifiers**, which neither half caught
+before: an employer name is not a value any config consumes, and it is not private
+by *shape* — no pattern can tell one company name from any other word. So they are
+declared in `local.env` purely for the gate to recognise, and matched under looser
+rules than a hostname: **case-insensitive, minimum 4 characters** instead of 8.
+Both relaxations are load-bearing — a 7-letter company name never clears the
+8-character floor, and the lowercased directory form of the same word never
+matches case-sensitively. This was found the hard way: work session entries
+re-entered `tmux/.config/sesh/sesh.toml` on master after the scrub branch was cut,
+and every existing gate passed them.
+
+Its limit is the same as the rest of half 1: **a machine with no `local.env`, and
+CI, cannot enforce it.** The name is only known to machines that declare it, so
+this catches re-introduction at the author's commit, not at the merge.
+
 **gitleaks now has a third surface:** the global `pre-commit` hook
 (`git/.config/git/hooks/pre-commit`), on top of `mise run lint:secrets` and CI.
 It stays aligned by *using the repo's own `.gitleaks.toml` when one exists*, so

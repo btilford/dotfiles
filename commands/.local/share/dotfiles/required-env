@@ -18,5 +18,7 @@ OLLAMA_URL	optional	commands/.local/bin/sync-litellm-models
 OLLAMA_HOST	optional	nvim/.config/nvim/lua/plugins/ai.lua	read via vim.env, so needs environment.d
 NEOVIM_API_KEY	required	nvim/.config/nvim/lua/plugins/ai.lua	CREDENTIAL — degrades to the literal string "missing-NEOVIM_API_KEY"
 HERMES_TUI_GATEWAY_URL	optional	fish/.config/fish/conf.d/hermes.fish	defaults to http://localhost:8642
-VOL_SCREENSHOT_ARCHIVE	optional	scripts/visuals	
-DOTFILES_SCREENSHOT_ARCHIVE	optional	scripts/visual-archive.sh	
+VOL_SCREENSHOT_ARCHIVE	optional	mise-scripts/visuals	
+DOTFILES_SCREENSHOT_ARCHIVE	optional	mise-scripts/visual-archive.sh	
+SCRUB_ORG	optional	mise-scripts/no-local-values.sh	employer/client name — blocks it from being committed (case-insensitive)
+SCRUB_WORK_DIR	optional	mise-scripts/no-local-values.sh	internal project dir name, e.g. the dir under ~/Projects
