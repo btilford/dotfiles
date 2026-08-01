@@ -10,7 +10,7 @@
 #   set -gx NAS_SHARE_ROOT  /mnt/shares          # path exported by the NAS
 #   set -gx NAS_MOUNT_ROOT  ~/nas              # optional, defaults to ~/nas
 #   set -gx NAS_SHARES      'user-data library images'   # optional
-#   set -gx HOME_NET_PREFIXES '10\.(33|101)'   # optional, ERE alternation
+#   set -gx HOME_NET_PREFIXES '10\.(0|1)'   # optional, ERE alternation
 #
 # Each share in NAS_SHARES is mounted from NAS_SHARE_ROOT/<name> to
 # NAS_MOUNT_ROOT/<name>.
@@ -22,7 +22,7 @@ set -uo pipefail
 
 NAS_MOUNT_ROOT="${NAS_MOUNT_ROOT:-${HOME}/nas}"
 NAS_SHARES="${NAS_SHARES:-user-data library images}"
-HOME_NET_PREFIXES="${HOME_NET_PREFIXES:-10\\.(0|1|2|3)}"
+HOME_NET_PREFIXES="${HOME_NET_PREFIXES:-10\\.(0|1)}"
 
 HOME_NET="$(ip -j a | jq -r --arg re "^${HOME_NET_PREFIXES}\\.[0-9]{1,3}\\.[0-9]{1,3}\$" \
   '.[].addr_info[].local | select(. | test($re))')"
