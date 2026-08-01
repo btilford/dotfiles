@@ -1,6 +1,6 @@
 # desktop-arch — Arch/CachyOS desktop hosts.
 #
-# Bootstrapped from `metapac unmanaged` on cachyos-fwd, 2026-07-26: the full
+# Bootstrapped from `metapac unmanaged` on the Arch host, 2026-07-26: the full
 # explicit package set was declared as-is so `unmanaged` reports clean and
 # `metapac clean` is a no-op. Pruning genuine cruft from this list is a
 # deliberate follow-up — remove an entry here, then let `clean` uninstall it.

@@ -8,9 +8,9 @@ Replaced `pug`, whose gist-syncing pacman hook had been broken since 2024.
 
 ## Layout
 
-```
+```text
 .config/metapac/
-  config.toml              per-host enabled backends + groups (hostname tables)
+  config.toml              per-host enabled backends + groups (OS-key tables)
   groups/core.toml         cross-platform: cargo, bun (installable on every host)
   groups/desktop-arch.toml Arch/CachyOS only: arch, flatpak, mise, cargo, uv, bun
   groups/macos.toml        macOS only: brew, mise, cargo, bun
@@ -22,8 +22,8 @@ in separate stow packages.
 
 | Host | Backends | Groups |
 |------|----------|--------|
-| `cachyos-fwd` (Arch) | `arch`, `bun`, `cargo`, `flatpak`, `mise`, `uv` | `core`, `desktop-arch` |
-| `example-macos-host.local` (macOS) | `brew`, `cargo`, `mise`, `uv`, `bun` | `core`, `macos` |
+| `arch` (Linux/Arch) | `arch`, `bun`, `cargo`, `flatpak`, `mise`, `uv` | `core`, `desktop-arch` |
+| `macos` (macOS) | `brew`, `cargo`, `mise`, `uv`, `bun` | `core`, `macos` |
 
 **Moving a package `core` → `desktop-arch` is Arch-neutral** (Arch enables both
 groups) and drops it only from the Mac's set — the safe way to make a shared
@@ -39,9 +39,12 @@ entry Arch-only. The reverse (`core` → `macos`) makes it macOS-only.
 2. **Stow.** `stow --no-folding metapac` from `~/dotfiles` (one package at a time
    with `--no-folding`, per repo rules).
 3. **macOS only — bridge the config path (REQUIRED, see gotcha below):**
+
    ```sh
    ln -s ~/.config/metapac ~/"Library/Application Support/metapac"
+
    ```
+
 4. **Set the hostname rows** in `config.toml` if this is a new host (`hostname`
    shows the name metapac detects; `metapac --hostname <name>` overrides for tests).
 5. **Bootstrap** an empty group: `metapac unmanaged >> groups/<host>.toml`, then

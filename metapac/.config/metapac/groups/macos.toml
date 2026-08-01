@@ -1,4 +1,4 @@
-# macos — macOS-only packages (host: example-macos-host.local).
+# macos — macOS-only packages (host key: macos, via --hostname).
 # Bootstrapped from `metapac unmanaged`, 2026-07-27 (brew formulae + casks
 # merged; metapac installs/removes either by name). mise is per-host; bun is
 # declared here so the shared bun backend (hunkdiff, markdownlint-cli2 in core)

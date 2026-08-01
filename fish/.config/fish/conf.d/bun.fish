@@ -12,7 +12,10 @@ end
 # declared names, and `metapac clean` offers to uninstall every bun package.
 # FORCE_COLOR=0 is the only switch bun honors.
 if command -q metapac
-    function metapac --wraps metapac --description "metapac (bun color workaround)"
-        FORCE_COLOR=0 command metapac $argv
+    function metapac --wraps metapac --description "metapac: bun color workaround + OS-derived --hostname"
+        # config.toml keys tables by generic OS name, not real hostname (public repo).
+        set -l key arch
+        test (uname) = Darwin; and set key macos
+        FORCE_COLOR=0 command metapac --hostname $key $argv
     end
 end
