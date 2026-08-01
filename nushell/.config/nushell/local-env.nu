@@ -1,7 +1,8 @@
 # Load machine-local values from ~/.config/dotfiles/local.env.
 #
-# That file is untracked and machine-specific: hostnames, gateway URLs, and one
-# credential (NEOVIM_API_KEY). Nothing private belongs in THIS file — it is
+# That file is untracked and machine-specific: hostnames and gateway URLs. It
+# holds NO credentials — those are fetched at point of use by dotfiles-secrets, so
+# nothing here ever calls infisical. Nothing private belongs in THIS file — it is
 # published. Manifest: commands/.local/share/dotfiles/required-env.
 # Find what is missing with: dotfiles-local-env --check
 #

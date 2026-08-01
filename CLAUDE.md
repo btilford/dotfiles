@@ -263,6 +263,44 @@ shell readers in place, the API key silently becomes the literal string
   would never apply.
 - `99-local` — *behaviour* overrides, must load **last** to win.
 
+### Secrets are never in the environment
+
+`local.env` holds **no credentials**. Nothing exports one, nothing caches one to
+disk, and **no shell calls infisical at startup** — that last point is a hard
+constraint, not a preference: a network call in `conf.d` hangs every new terminal
+when the daemon is unreachable or the keyring is locked.
+
+Checking token validity first is not a way around it. The CLI has no local expiry
+check — `infisical token` only *renews* universal-auth tokens, over the network —
+and the user token lives in the OS keyring, so even reading it can raise an unlock
+prompt. A validity check is a network call plus a possible prompt, which is
+strictly worse at startup than the cache it would replace.
+
+So `commands/.local/bin/dotfiles-secrets` is the single accessor, and there are
+three ways a secret reaches a consumer:
+
+| Path | For | Lifetime |
+| ------ | ------ | ------ |
+| `--get NAME` | consumers we control (nvim `ai.lua`) | one call |
+| `--run -- CMD` | third-party tools needing real env vars (opencode, aider) | that process only |
+| `secrets-load` | a shell session, when `--run` is impractical | until the shell exits |
+
+`--run` is a thin wrapper over `infisical run`, which injects into the child and
+nothing else. `secrets-load` is defined in every shell (`06-secrets` for fish,
+bash and zsh; `secrets.nu` for nushell) and **is never called automatically** —
+those files define functions and run nothing.
+
+Every failure is printed to stderr *and* appended to
+`~/.local/state/dotfiles/secrets.log`, with the reason distinguished — missing
+binary, unconfigured, timed out, logged out, or no such secret. The log exists for
+nvim, which swallows stderr; without it a failed fetch there would be a silent
+missing key. Values are never logged. Calls are bounded by `timeout` and run with
+`</dev/null`, so they can neither prompt nor stall a caller.
+
+The old failure mode this replaces: `api_key = vim.env.NEOVIM_API_KEY or
+"missing-NEOVIM_API_KEY"` evaluated at config load, which sent the literal string
+`missing-NEOVIM_API_KEY` as a credential whenever nvim started outside a shell.
+
 **Reserved names**, in both `.gitignore` and `.stow-local-ignore`: `local.env`,
 `*.local`, `*.local.{lua,toml,fish}`, `NN-local*`. A local file therefore cannot be
 committed by accident, and `mise-scripts/no-local-values.sh` is the second barrier.
@@ -526,7 +564,7 @@ was found the hard way: work sessions re-entered `tmux/.config/sesh/sesh.toml` o
 master after the scrub branch was cut, past every gate.
 
 Regexes rather than literals because one line then covers every spelling
-(`REDACTED|REDACTED`, `acme[- ]?corp`) and can anchor to a path shape. Provision from
+(`acme|acme[- ]?corp|acmeco`) and can anchor to a path shape. Provision from
 `scrub.patterns.example`; `dotfiles-local-env --check` reports when the file is
 absent, since a gate that silently isn't armed is worse than no gate.
 
@@ -540,10 +578,15 @@ Two properties to preserve:
   switch that line off permanently and silently.
 
 **It matches against `path:line:text`, so it catches file *names* too.** That is
-how `kmonad/.config/kmonad/macos-REDACTED-2025.kbd` was found — the identifier was in
-the filename, and both the acceptance greps and a plain `grep -ri` over the tree
-missed it because they only ever looked at file *contents*. Renamed to
+how a kmonad keymap under `kmonad/.config/kmonad/` was found — the client name was
+in the *filename*, and both the acceptance greps and a plain `grep -ri` over the
+tree missed it because they only ever looked at file *contents*. Renamed to
 `macos-work-2025.kbd`. When scrubbing, check names as well as content.
+
+**Write about a scrubbed string without spelling it.** This paragraph originally
+named that file in full, so the commit documenting the scrub re-introduced the
+identifier into a published file — and the gate caught it on the next run. Say
+"the client name", not the name.
 
 Its limit is the same as half 1's: **a machine with no `scrub.patterns`, and CI,
 cannot enforce it.** The names are only known where they are declared, so this

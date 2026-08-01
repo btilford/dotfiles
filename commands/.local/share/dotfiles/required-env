@@ -6,6 +6,11 @@
 # manifest next to the code means the audit and the consumers cannot drift.
 #
 # Values live in ~/.config/dotfiles/local.env — untracked, chmod 600, never here.
+#
+# SECRETS ARE NOT IN THIS MANIFEST. Nothing exports a credential into the
+# environment: consumers fetch from Infisical at the point of use via
+# `dotfiles-secrets --get NAME`. NEOVIM_API_KEY used to be listed here and is not
+# any more — see commands/.local/bin/dotfiles-secrets.
 DOTFILES_GITLAB_HOST	optional	mise.toml (glab:config task)	task skips the line when unset
 NAS_HOST	required	commands/.local/bin/mount-library.sh	mount fails on the :? guard when unset
 NAS_MOUNT_ROOT	optional	commands/.local/bin/mount-library.sh	defaults to $HOME/nas
@@ -16,7 +21,6 @@ LITELLM_GATEWAY	required	sync-litellm-models, nvim ai.lua	nvim falls back to htt
 LEMONADE_URL	optional	commands/.local/bin/sync-litellm-models	
 OLLAMA_URL	optional	commands/.local/bin/sync-litellm-models	
 OLLAMA_HOST	optional	nvim/.config/nvim/lua/plugins/ai.lua	read via vim.env, so needs environment.d
-NEOVIM_API_KEY	required	nvim/.config/nvim/lua/plugins/ai.lua	CREDENTIAL — degrades to the literal string "missing-NEOVIM_API_KEY"
 HERMES_TUI_GATEWAY_URL	optional	fish/.config/fish/conf.d/hermes.fish	defaults to http://localhost:8642
 VOL_SCREENSHOT_ARCHIVE	optional	mise-scripts/visuals	
 DOTFILES_SCREENSHOT_ARCHIVE	optional	mise-scripts/visual-archive.sh	
