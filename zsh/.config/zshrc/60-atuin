@@ -1,0 +1,31 @@
+# atuin — shell history in sqlite, with search, sync and an AI assistant.
+#
+# Numbered 60 so it loads AFTER 50-custom, which runs `source <(fzf --zsh)` and
+# binds Ctrl+R to fzf's history widget. Last one to bind wins, so an earlier
+# number would leave Ctrl+R on fzf and the integration would look installed while
+# doing nothing. Still ahead of the reserved 99-local slot.
+#
+# `atuin init zsh` binds Ctrl+R, Up and `?` (the AI assistant). It needs zle, not
+# compinit, so it is fine here — .zshrc sources these drop-ins before compinit
+# (which is why git-spice's completion had to move out of one).
+
+if command -v atuin > /dev/null 2>&1; then
+    # Drop any set-but-EMPTY ATUIN_* variable. atuin reads settings from the
+    # config file first and the environment second, and an empty value is not
+    # "unset" — it is parsed, fails, and takes settings loading down for the
+    # whole binary:
+    #
+    #   Error: could not load client settings
+    #   Caused by: failed to deserialize: relative URL without a base: ""
+    #              for key `sync_address`
+    #
+    # Every atuin command then errors, including the eval below. The
+    # machine-local files in this repo are generated with empty placeholders, so
+    # this is a live hazard, not a theoretical one.
+    for _atuin_var in ATUIN_SYNC_ADDRESS ATUIN_AUTO_SYNC ATUIN_AI__ENABLED ATUIN_AI__ENDPOINT ATUIN_AI__MODEL; do
+        [[ -z ${(P)_atuin_var} ]] && unset "$_atuin_var"
+    done
+    unset _atuin_var
+
+    eval "$(atuin init zsh)"
+fi

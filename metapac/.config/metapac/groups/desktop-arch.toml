@@ -26,6 +26,7 @@ arch = { packages = [
   "archlinux-xdg-menu",
   "ark",
   "atop",
+  "atuin",
   "aur-scanner",
   "aurscan-manticore-release-git",
   "awesome-terminal-fonts",

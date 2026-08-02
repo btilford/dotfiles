@@ -1,0 +1,64 @@
+# Atuin client config — shared across every machine.
+#
+# WHAT IS DELIBERATELY MISSING FROM THIS FILE
+#
+# Atuin has no include mechanism, so there is no `.d/` split and no second file
+# to layer on top. The seam is the environment instead: atuin reads
+# `ATUIN_<KEY>` for top-level keys and `ATUIN_<SECTION>__<KEY>` (double
+# underscore) for nested ones.
+#
+# The precedence is the part that matters, and it is the opposite of what you
+# would expect: **the config file beats the environment.** Verified on 18.18.1 —
+# with `search_mode` set here, `ATUIN_SEARCH_MODE=prefix` has no effect; with the
+# key absent, it applies. So a key that varies by profile MUST NOT appear in this
+# file at all. Setting it to a "default" here silently disables the override.
+#
+# Absent on purpose, supplied from ~/.config/dotfiles/local.env (see
+# commands/.local/share/dotfiles/required-env):
+#
+#   sync_address   ATUIN_SYNC_ADDRESS    self-hosted sync server; personal only
+#   auto_sync      ATUIN_AUTO_SYNC       false on the work machine
+#   ai.enabled     ATUIN_AI__ENABLED     needs an atuin-ai-server to be useful
+#   ai.endpoint    ATUIN_AI__ENDPOINT    private infra URL — never in this repo
+#   ai.model       ATUIN_AI__MODEL
+#
+# The split is personal-vs-work, not Linux-vs-macOS, which is why it rides
+# local.env rather than a per-host stow package.
+#
+# `ai.api_token` is a credential and is in neither place: nothing exports one.
+# See commands/.local/bin/dotfiles-secrets.
+#
+# WRITING THROUGH THE SYMLINK
+#
+# `atuin config set …`, `atuin setup` and `atuin default-config > …` all write to
+# this path, which stow has pointed at the repo. An interactive tweak therefore
+# edits the tracked file in place and shows up in `git status`. That is usually
+# what you want; just do not run `atuin config set` on a profile-varying key —
+# it would write the key into the file and kill the env override for good.
+
+## Immediately run the selected command on Enter; Tab puts it on the prompt for
+## editing instead.
+enter_accept = true
+
+## The daemon owns the sqlite writes, so a slow disk cannot stall the prompt.
+## `daemon-fuzzy` runs the search in the daemon rather than in the shell process.
+search_mode = "daemon-fuzzy"
+
+## Do not record commands that failed to even start, and strip the trailing
+## whitespace that a paste tends to leave behind.
+strip_trailing_whitespace = true
+
+## Built-in regex screen for AWS keys, GitHub PATs, Slack tokens/webhooks and
+## Stripe keys. On by default; stated explicitly because this repo's whole
+## posture is that a secret must never reach a file that syncs.
+secrets_filter = true
+
+[daemon]
+enabled = true
+autostart = true
+
+[stats]
+## `sudo` prefixes are noise in the stats, and cd/ls/vi dominate the counts
+## without saying anything.
+common_prefix = ["sudo"]
+ignored_commands = ["cd", "ls", "vi"]
