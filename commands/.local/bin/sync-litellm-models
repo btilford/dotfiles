@@ -133,15 +133,13 @@ LLAMASWAP_URL = os.environ.get("LLAMASWAP_URL") or "http://localhost:8090"
 # (0.18 s warm, versus a cold reload on every alternating request under
 # Lemonade's one-model limit).
 #
-# reasoning STAYS ON LEMONADE, and not for want of the weights: Qwen3.6-35B-MTP
-# was copied into /srv/models, and the toolbox's llama.cpp cannot load it —
+# All three roles now resolve on llama-swap. LEMONADE IS NO LONGER IN THE PATH
+# and can be retired, freeing its ~530 GB private store.
 #
-#   llama_model_load: error loading model: missing tensor 'blk.40.ssm_conv1d.weight'
-#
-# The model uses SSM/Mamba-style layers that build 8940 (78433f606) still lacks;
-# pulling a fresh toolbox image from 8833 did not help. Lemonade runs a newer or
-# patched llama.cpp. Retry after a future toolbox rebuild — Lemonade cannot be
-# retired until this loads.
+# reasoning was blocked for a while on `missing tensor blk.40.ssm_conv1d.weight`,
+# which looked like a model or kernel problem and was neither: the toolbox image
+# was pinned to the ABANDONED rocm-7.2.1 tag at llama.cpp b8940 while upstream
+# was at b10235. Switching to the maintained rocm-7.14 tag fixed it outright.
 ROLE_ALIASES = {
     "role/completion": f"{LLAMASWAP_PREFIX}/qwen2.5-coder-7b",
     # NOT gemma3. Gemma's chat template enforces strict user/assistant
@@ -155,7 +153,7 @@ ROLE_ALIASES = {
     # extra memory. Qwen3-4B-Instruct-2507 is the better long-term choice
     # (Apache 2.0, CLI-heavy training, 2.4 GB) once imported from Lemonade.
     "role/assistant": f"{LLAMASWAP_PREFIX}/qwen3-4b-instruct",
-    "role/reasoning": f"{LEMONADE_PREFIX}/Qwen3.6-35B-A3B-MTP-GGUF",
+    "role/reasoning": f"{LLAMASWAP_PREFIX}/qwen3.6-35b-mtp",
 }
 
 HOME = Path.home()

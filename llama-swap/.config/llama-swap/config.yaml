@@ -12,7 +12,20 @@
 #
 # Building llama.cpp for gfx1151 (Strix Halo) is fiddly enough that the
 # kyuz0/amd-strix-halo-toolboxes images exist specifically to get it right, and
-# they are rebuilt against llama.cpp master. Running the tested container beats
+# they are rebuilt against llama.cpp master.
+#
+# USE A LIVE TAG. `rocm-7.2.1` looked reasonable and is ABANDONED — re-pulling it
+# yielded llama.cpp b8940 while upstream was at b10235, and Qwen3.6-35B-MTP
+# failed to load with `missing tensor 'blk.40.ssm_conv1d.weight'` purely because
+# of that age. The maintained tags (rocm-7.14, rocm-6.4.4, therock-nightly,
+# vulkan-radv, vulkan-amdvlk) rebuild several times a day; check
+# hub.docker.com/v2/repositories/kyuz0/amd-strix-halo-toolboxes/tags before
+# assuming a pull is current.
+#
+# A container cannot change the kernel — it shares the host's. Kernel-level
+# concerns (amdgpu, ROCm's kernel driver, GTT sizing via amdgpu.gttsize, amdxdna)
+# are host-only and already in place here; everything the toolbox provides is
+# userspace. Running the tested container beats
 # maintaining a host build. Verified working: ROCm sees the iGPU as
 # `Radeon 8060S Graphics, gfx1151`, 131072 MiB, and gemma3-4b benchmarks at
 # pp64 1678 t/s / tg16 49 t/s from inside the container.
@@ -57,7 +70,7 @@ models:
       --security-opt seccomp=unconfined
       -p 127.0.0.1:${PORT}:${PORT}
       -v /srv/models:/models:ro
-      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.2.1
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
       llama-server --host 0.0.0.0 --port ${PORT}
       -m /models/qwen2.5-coder-7b-instruct-q4_k_m.gguf
       -ngl 99 --flash-attn on -c 8192
@@ -84,7 +97,7 @@ models:
       --security-opt seccomp=unconfined
       -p 127.0.0.1:${PORT}:${PORT}
       -v /srv/models:/models:ro
-      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.2.1
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
       llama-server --host 0.0.0.0 --port ${PORT}
       -m /models/gemma3-4b-it-qat/gemma-3-4b-it-q4_0.gguf
       -ngl 99 --flash-attn on -c 8192
@@ -105,7 +118,7 @@ models:
       --security-opt seccomp=unconfined
       -p 127.0.0.1:${PORT}:${PORT}
       -v /srv/models:/models:ro
-      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.2.1
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
       llama-server --host 0.0.0.0 --port ${PORT}
       -m /models/gemma3-27b-it-qat/gemma-3-27b-it-q4_0.gguf
       -ngl 99 --flash-attn on -c 16384
@@ -131,7 +144,7 @@ models:
       --security-opt seccomp=unconfined
       -p 127.0.0.1:${PORT}:${PORT}
       -v /srv/models:/models:ro
-      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.2.1
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
       llama-server --host 0.0.0.0 --port ${PORT}
       -m /models/hf/hub/models--unsloth--Qwen3-4B-Instruct-2507-GGUF/snapshots/a06e946bb6b655725eafa393f4a9745d460374c9/Qwen3-4B-Instruct-2507-Q4_K_M.gguf
       -ngl 99 --flash-attn on -c 8192
@@ -154,7 +167,7 @@ models:
       --security-opt seccomp=unconfined
       -p 127.0.0.1:${PORT}:${PORT}
       -v /srv/models:/models:ro
-      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.2.1
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
       llama-server --host 0.0.0.0 --port ${PORT}
       -m /models/hf/hub/models--unsloth--Qwen3.6-35B-A3B-MTP-GGUF/snapshots/5bc3e238d916f48a861bac2f8a1990a0e9b7e98d/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
       -ngl 99 --flash-attn on -c 16384
