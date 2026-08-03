@@ -91,6 +91,12 @@ TIMEOUT = 20
 # ATUIN_* variables documented in the repo CLAUDE.md.
 LEMONADE_PREFIX = os.environ.get("DOTFILES_LEMONADE_PREFIX") or "lemonade"
 OLLAMA_PREFIX = os.environ.get("DOTFILES_OLLAMA_PREFIX") or "ollama"
+LLAMASWAP_PREFIX = os.environ.get("DOTFILES_LLAMASWAP_PREFIX") or "llamaswap"
+
+# llama-swap is the replacement for Lemonade: it holds several models resident
+# at once, which Lemonade cannot (max_models.llm = 1). Both are registered
+# during the migration so nothing breaks while roles move across.
+LLAMASWAP_URL = os.environ.get("LLAMASWAP_URL") or "http://localhost:8090"
 
 # --- role aliases ---------------------------------------------------------
 #
@@ -122,9 +128,15 @@ OLLAMA_PREFIX = os.environ.get("DOTFILES_OLLAMA_PREFIX") or "ollama"
 # each other on every alternating request. There is also no small FIM-capable
 # coder on that host yet — the smallest is 17 GiB. Both problems are fixed by
 # the same change: llama-swap, which can hold the two warm together.
+#
+# completion and assistant moved to llama-swap once it was serving: it holds both
+# resident at the same time (0.18 s warm, versus a cold reload on every
+# alternating request under Lemonade's one-model limit). reasoning stays on
+# Lemonade because Qwen3.6-35B-MTP lives in Lemonade's own private store and has
+# not been re-pulled into the shared /srv/models yet.
 ROLE_ALIASES = {
-    "role/completion": f"{LEMONADE_PREFIX}/Qwen3-Coder-30B-A3B-Instruct-GGUF",
-    "role/assistant": f"{LEMONADE_PREFIX}/Qwen3-4B-Instruct-2507-GGUF",
+    "role/completion": f"{LLAMASWAP_PREFIX}/qwen2.5-coder-7b",
+    "role/assistant": f"{LLAMASWAP_PREFIX}/gemma3-4b",
     "role/reasoning": f"{LEMONADE_PREFIX}/Qwen3.6-35B-A3B-MTP-GGUF",
 }
 
@@ -187,6 +199,11 @@ def provider_specs(keys) -> list[dict]:
          "models_url": f"{LEMONADE_URL}/v1/models", "token": None,
          "litellm": lambda mid: {"model": f"openai/{mid}",
                                  "api_base": f"{LEMONADE_URL}/v1",
+                                 "api_key": "none"}},
+        {"prefix": LLAMASWAP_PREFIX, "label": "llama-swap",
+         "models_url": f"{LLAMASWAP_URL}/v1/models", "token": None,
+         "litellm": lambda mid: {"model": f"openai/{mid}",
+                                 "api_base": f"{LLAMASWAP_URL}/v1",
                                  "api_key": "none"}},
         {"prefix": OLLAMA_PREFIX, "label": "Ollama",
          "models_url": f"{OLLAMA_URL}/v1/models", "token": None,
@@ -267,6 +284,31 @@ def sync_gateway(specs, fetched, master, dry_run):
     # Re-fetch AFTER deleting wildcards so phantom expansions are gone; only
     # then are the genuinely-registered model_names trustworthy for dedup.
     current = current_map()
+
+    # Role aliases are reconciled by VALUE, not by presence, so they are always
+    # dropped and rebuilt from ROLE_ALIASES above.
+    #
+    # Everything else in this function is add-if-missing, which is right for
+    # concrete models: the name pins the model, so a name that already exists is
+    # already correct. A role is the opposite — the whole point is that its
+    # TARGET changes while the name stays put. Add-if-missing therefore made
+    # retargeting a no-op: the roles kept pointing at Lemonade after moving to
+    # llama-swap, silently, and the sync reported success.
+    #
+    # Deleting all three and re-adding is cheaper than diffing litellm_params,
+    # and cannot drift. The gap where a role is unregistered is milliseconds on a
+    # LAN gateway.
+    stale_roles = {n: i for n, i in current.items() if n.startswith("role/")}
+    for mid in filter(None, stale_roles.values()):
+        try:
+            http_json(f"{GATEWAY}/model/delete", token=master,
+                      method="POST", body={"id": mid})
+        except urllib.error.HTTPError:
+            pass
+    if stale_roles:
+        print(f"  roles: rebuilt {len(stale_roles)} alias(es)")
+        current = current_map()
+
     to_add = {n: p for n, p in desired.items() if n not in current}
     for name, params in to_add.items():
         http_json(f"{GATEWAY}/model/new", token=master, method="POST",

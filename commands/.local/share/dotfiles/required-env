@@ -29,3 +29,5 @@ DOTFILES_OLLAMA_PREFIX	optional	commands/.local/bin/sync-litellm-models	host-qua
 DOTFILES_PROFILE	optional	nvim plugins/ai.lua (and future profile gates)	"personal" enables local AI; ANY other value or unset = work, i.e. off
 HF_HOME	optional	shared model store (lemonade, llama.cpp toolbox, llama-swap)	unset = each tool caches separately, which is how the stores diverged
 HF_HUB_CACHE	optional	shared model store	same
+DOTFILES_LLAMASWAP_PREFIX	optional	commands/.local/bin/sync-litellm-models	host-qualified prefix, e.g. <host>.llamaswap; falls back to "llamaswap"
+LLAMASWAP_URL	optional	commands/.local/bin/sync-litellm-models	defaults to http://localhost:8090
