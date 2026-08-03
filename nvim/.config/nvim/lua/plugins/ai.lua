@@ -1,7 +1,28 @@
--- LiteLLM gateway host is machine-local — set LITELLM_GATEWAY in
--- ~/.config/dotfiles/local.env. Falls back to a local gateway so a machine
--- without one still loads; the adapters just fail to reach it.
-local litellm = vim.env.LITELLM_GATEWAY or "http://localhost:4000"
+-- WORK MACHINES GET NO LOCAL AI. This is a hard requirement, not a preference:
+-- the homelab gateway, its models and its hostnames must not be reached from,
+-- or named on, the work laptop.
+--
+-- The gate is explicit rather than inferred. It defaults to "work", so a machine
+-- that has not opted in gets nothing — the safe direction for a rule whose
+-- failure mode is "private infrastructure contacted from a work device". Set
+-- DOTFILES_PROFILE=personal in ~/.config/dotfiles/local.env to enable.
+--
+-- This replaced an inferred gate that was actively harmful:
+--
+--   local litellm = vim.env.LITELLM_GATEWAY or "http://localhost:4000"
+--
+-- With LITELLM_GATEWAY unset — exactly the work-machine case — that did not
+-- disable anything. It loaded every adapter pointed at localhost:4000, so the
+-- plugins appeared installed and failed only at the moment of use, with an
+-- error that looks like a network fault rather than a machine that was never
+-- meant to have them. Absence of a value must mean OFF, not "try somewhere
+-- else". Same rule as the empty ATUIN_* variables in the repo CLAUDE.md.
+local profile = vim.env.DOTFILES_PROFILE or "work"
+local local_ai = profile == "personal"
+
+-- Only meaningful when local_ai is true; the specs that use it do not load
+-- otherwise. No fallback on purpose — see above.
+local litellm = vim.env.LITELLM_GATEWAY
 
 -- The API key is NOT read from the environment. Nothing exports it, nothing
 -- caches it to disk, and no shell calls infisical at startup — see
@@ -32,6 +53,8 @@ end
 return {
   {
     "NickvanDyke/opencode.nvim",
+    -- Personal machines only; see DOTFILES_PROFILE at the top of this file.
+    cond = local_ai,
     dependencies = {
       -- Recommended for `ask()` and `select()`.
       -- Required for `snacks` provider.
@@ -113,6 +136,8 @@ return {
   {
     -- ka codium
     "David-Kunz/gen.nvim",
+    -- Personal machines only; see DOTFILES_PROFILE at the top of this file.
+    cond = local_ai,
     opts = {
       model = "qwen3-coder-next", -- The default model to use.
       quit_map = "q", -- set keymap to close the response window
@@ -168,6 +193,8 @@ return {
   -- },
   {
     "olimorris/codecompanion.nvim",
+    -- Personal machines only; see DOTFILES_PROFILE at the top of this file.
+    cond = local_ai,
     dependencies = {
       "nvim-lua/plenary.nvim",
       "nvim-treesitter/nvim-treesitter",
@@ -207,7 +234,7 @@ return {
                 chat_url = "/v1/chat/completions",
               },
               schema = {
-                model = { default = "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF" },
+                model = { default = "role/reasoning" },
                 max_tokens = { default = 8192 },
                 temperature = { default = 0.6 },
               },
@@ -223,7 +250,7 @@ return {
                 chat_url = "/v1/chat/completions",
               },
               schema = {
-                model = { default = "local/qwen2.5-coder-7b" },
+                model = { default = "role/completion" },
                 max_tokens = { default = 2048 },
                 temperature = { default = 0.2 },
               },
@@ -260,13 +287,15 @@ return {
 
   {
     "milanglacier/minuet-ai.nvim",
+    -- Personal machines only; see DOTFILES_PROFILE at the top of this file.
+    cond = local_ai,
     dependencies = { "nvim-lua/plenary.nvim" },
     config = function()
       require("minuet").setup({
         provider = "openai_compatible",
         provider_options = {
           openai_compatible = {
-            model = "local/qwen2.5-coder-7b",
+            model = "role/completion",
             end_point = litellm .. "/v1/chat/completions",
             api_key = neovim_api_key,
             stream = true,

@@ -75,6 +75,25 @@ if [ -r "$env_file" ]; then
     val=$(printf '%s' "$line" | sed -nE 's/^[^=]*=[[:space:]]*(.*)$/\1/p')
 
     [ -n "$var" ] || continue
+
+    # Variables whose values are not private by nature, and which therefore MUST
+    # be allowed to appear in tracked files. This list is about false positives,
+    # not exemptions: nothing here identifies a machine, a network or a person.
+    #
+    #   DOTFILES_PROFILE  is literally "personal" or "work". "personal" is eight
+    #                     characters, so it clears the length floor below, and it
+    #                     is an ordinary English word that appears in prose and
+    #                     comments constantly — it would fail every commit.
+    #   HF_HOME           a filesystem path to a model store. Discloses nothing,
+    #   HF_HUB_CACHE      and the example file needs to show the real shape.
+    #
+    # Keep this list SHORT and justify each addition. A variable belongs here
+    # only if publishing its value is harmless; if in doubt, leave it out and
+    # change the value instead.
+    case "$var" in
+      DOTFILES_PROFILE | HF_HOME | HF_HUB_CACHE) continue ;;
+    esac
+
     # Short values produce false positives (a bare port, "true", an empty var).
     [ ${#val} -ge 8 ] || continue
 

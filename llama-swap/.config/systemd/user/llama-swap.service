@@ -1,0 +1,64 @@
+[Unit]
+Description=llama-swap — multi-model llama.cpp front end
+Documentation=https://github.com/mostlygeek/llama-swap
+After=network-online.target
+
+# A USER UNIT, DELIBERATELY, AND IT MUST STAY ONE.
+#
+# A *system* unit with ProtectHome=yes gets /home mounted as an empty tmpfs
+# inside its namespace, so anything under /home is invisible to it whatever the
+# ownership — files fail with EACCES before permissions are consulted. That
+# exact behaviour took Lemonade down twice on 2026-08-02 while its uid, gid and
+# mode were correct the whole time.
+#
+# The model store now lives at /srv/models specifically to be outside /home, so
+# a system unit *would* work today. It stays a user unit anyway, because:
+#
+#   * podman runs rootless as this user, and the containers need the
+#     ai-models group membership that a user session already carries;
+#   * nothing here needs to start before login — every consumer (nvim, atuin,
+#     the agents) is interactive;
+#   * it removes the whole class of sandboxing surprise rather than relying on
+#     the store never moving back under /home.
+#
+# If it ever must become a system unit, check `systemctl cat` for Protect*/
+# Private* first, and add ReadWritePaths=/srv/models as needed.
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/llama-swap --config %h/.config/llama-swap/config.yaml --listen 0.0.0.0:8090
+
+# THE FIREWALL IS THE ACCESS CONTROL HERE, NOT THE BIND ADDRESS.
+#
+# llama-swap has no authentication: anything that can open the port can run
+# inference and read model names. It binds 0.0.0.0 because LiteLLM — the single
+# front door for every consumer — runs off-host and cannot reach 127.0.0.1 on
+# this machine.
+#
+# This mirrors Lemonade, which already listens on 0.0.0.0:13305 under exactly
+# the same arrangement, so the trust boundary is unchanged rather than widened.
+#
+# The bind address is NOT read from an env var. A machine-local variable that is
+# set-but-empty would silently produce a broken or wide-open listen address, and
+# this repo has already been bitten by that failure mode twice (empty ATUIN_*
+# values, and the localhost fallback in nvim's ai.lua). A literal here plus an
+# explicit ufw rule fails visibly instead.
+#
+# REQUIRED companion rule, scoped to the LiteLLM host only — never a blanket
+# `ufw allow 8090`:
+#
+#   sudo ufw allow from <litellm-host>/32 to any port 8090 proto tcp \
+#     comment 'llama-swap <- litellm'
+#
+# Mirror the source of the existing 13305 rule: `sudo ufw status numbered`.
+
+Restart=on-failure
+RestartSec=5
+
+# Stopping llama-swap must also stop the llama-server containers it spawned;
+# without this a `systemctl --user stop` leaves them holding the GPU.
+KillMode=mixed
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

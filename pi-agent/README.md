@@ -30,8 +30,8 @@ Stow package for the Pi terminal AI agent.
          "api": "openai-completions",
          "apiKey": "YOUR_API_KEY_HERE",
          "models": [
-           { "id": "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF", "name": "Qwen3.6-35B-MTP (Lemonade)" },
-           { "id": "x870eglacial/qwen2.5-coder:7b", "name": "Qwen2.5-Coder-7B (Ollama)" },
+           { "id": "role/reasoning", "name": "Reasoning (role alias)" },
+           { "id": "role/completion", "name": "Fast completion (role alias)" },
            { "id": "zen/kimi-k2.5", "name": "Kimi K2.5 (Zen)" },
            { "id": "zen/claude-opus-4-7", "name": "Claude Opus 4.7 (Zen)" },
            { "id": "zen/claude-sonnet-4-6", "name": "Claude Sonnet 4.6 (Zen)" },
@@ -58,7 +58,7 @@ Stow package for the Pi terminal AI agent.
 
 | File | Tracked | Notes |
 |------|---------|-------|
-| `.pi/agent/settings.json` | ✅ Yes | Safe to share across machines. Default model: `cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF`. |
+| `.pi/agent/settings.json` | ✅ Yes | Safe to share across machines. Default model: `role/reasoning`. |
 | `.pi/agent/models.json` | ❌ No | **Contains API keys.** Ignored by git. Each machine maintains its own copy. |
 | `.pi/agent/models.example.json` | ✅ Yes | Template with placeholder key. |
 

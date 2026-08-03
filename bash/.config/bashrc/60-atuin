@@ -1,0 +1,61 @@
+# atuin — shell history in sqlite, with search, sync and an AI assistant.
+#
+# Numbered 60 so it loads AFTER 50-custom, which runs `eval "$(fzf --bash)"` and
+# binds Ctrl+R to fzf's history widget. Last one to bind wins, so an earlier
+# number would leave Ctrl+R on fzf and the integration would look installed while
+# doing nothing. Still ahead of the reserved 99-local slot.
+#
+# `atuin init bash` binds Ctrl+R, Up and `?` (the AI assistant), and bundles
+# bash-preexec (set ATUIN_NO_BUILTIN_PREEXEC=1 to opt out). It carries its own
+# interactive-shell and include guards.
+
+if command -v atuin > /dev/null 2>&1; then
+    # Drop any set-but-EMPTY ATUIN_* variable. atuin reads settings from the
+    # config file first and the environment second, and an empty value is not
+    # "unset" — it is parsed, fails, and takes settings loading down for the
+    # whole binary:
+    #
+    #   Error: could not load client settings
+    #   Caused by: failed to deserialize: relative URL without a base: ""
+    #              for key `sync_address`
+    #
+    # Every atuin command then errors, including the eval below. The
+    # machine-local files in this repo are generated with empty placeholders, so
+    # this is a live hazard, not a theoretical one.
+    for _atuin_var in ATUIN_SYNC_ADDRESS ATUIN_AUTO_SYNC ATUIN_AI__ENABLED ATUIN_AI__ENDPOINT ATUIN_AI__MODEL; do
+        [ -z "${!_atuin_var-}" ] && unset "$_atuin_var"
+    done
+    unset _atuin_var
+
+
+    # WORK MACHINES TALK TO NO SERVER. Local sqlite only.
+    #
+    # This has to be asserted, not assumed. atuin's own defaults are
+    # sync_address = https://api.atuin.sh/ and auto_sync = true, and neither
+    # appears in the tracked config.toml (they are profile-varying, so they are
+    # deliberately absent to keep the env override working). Today a work
+    # machine syncs nothing only because it is not logged in — an accident of
+    # state, not a guarantee. One `atuin login` would silently start shipping
+    # work shell history to a third party.
+    #
+    # Derived from DOTFILES_PROFILE rather than set per machine, defaulting to
+    # work, so a new machine is safe before anyone remembers to configure it.
+    # Same direction as the nvim AI gate: absence means off.
+    #
+    # The agent hooks and local history are unaffected — they need no server,
+    # which is the whole point of giving work atuin at all.
+    if [ "${DOTFILES_PROFILE:-work}" != "personal" ]; then
+        export ATUIN_AUTO_SYNC=false
+        unset ATUIN_SYNC_ADDRESS ATUIN_AI__ENABLED ATUIN_AI__ENDPOINT
+    elif [ -z "${ATUIN_SYNC_ADDRESS-}" ]; then
+        # Personal, but no sync server configured yet. Force sync OFF rather
+        # than letting atuin fall back to its upstream default of
+        # https://api.atuin.sh/ — an unconfigured or stale shell would otherwise
+        # silently ship personal shell history to a third party. This is not
+        # hypothetical: it happened, from a terminal opened before the variable
+        # was added to local.env.
+        export ATUIN_AUTO_SYNC=false
+    fi
+
+    eval "$(atuin init bash)"
+fi

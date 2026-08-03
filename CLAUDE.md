@@ -345,9 +345,68 @@ outright (`[[ -f $c ]] && source $c || source $f`). Neither `custom/` dir exists
 yet. That is the clean way to neutralise one stowed file on one machine — e.g. a
 Linux-only drop-in on the Mac — with no repo change and no unstowing.
 
+## atuin: a personal/work split that is not an OS split
+
+`atuin` (shell history, sync, AI) is the first package whose config varies by
+**profile** — personal vs work — rather than by OS. It gets no second stow
+package and no per-host file. atuin has no include mechanism, so the seam is the
+environment, and three properties of it are load-bearing.
+
+**1. The config file beats the environment.** atuin reads `ATUIN_<KEY>`, and
+`ATUIN_<SECTION>__<KEY>` (double underscore) for nested keys — but a key present
+in `config.toml` cannot be overridden by the env. Verified on 18.18.1. So every
+profile-varying key is *deliberately absent* from the tracked
+`atuin/.config/atuin/config.toml`; writing a "sensible default" for one there
+silently switches its override off forever. The five: `sync_address`,
+`auto_sync`, `ai.enabled`, `ai.endpoint`, `ai.model`. `ai.api_token` is a
+credential and is in neither place.
+
+**2. These do NOT go in `local.env`, and must not be added to `required-env`.**
+An empty `ATUIN_*` value is not read as "unset" — it is parsed, it fails, and it
+takes down settings loading for the whole binary:
+
+```console
+$ ATUIN_SYNC_ADDRESS= atuin status
+Error: could not load client settings
+Caused by: failed to deserialize: relative URL without a base: "" for key `sync_address`
+```
+
+`gen-local-env.sh` builds `local.env` from the manifest and emits an **empty
+placeholder** for every variable in it, so listing these there would break every
+atuin command on any freshly provisioned machine. They live in the untracked
+`99-local` drop-in instead — which is anyway the repo's documented slot for a
+value that differs *between* machines, and personal-vs-work is exactly that. The
+tracked shell drop-ins still unset any set-but-empty `ATUIN_*` before init, so a
+hand-written empty line cannot brick the shell either.
+
+**3. In fish, no `conf.d` file can win Ctrl+R.** fish sources all of `conf.d`
+*before* `config.fish`, whose first line sources `env.fish` → `fzf --fish |
+source`, which binds Ctrl+R. So atuin's init lives in
+`fish/.config/fish/keybinds.fish` (sourced late from `config.fish`), not in a
+drop-in like every other integration in that package.
+
+Two naming traps found on the way there, both worth remembering beyond atuin:
+
+- **fish `conf.d` loads in byte order, and digits sort before letters.**
+  `90-atuin.fish` ran *ahead* of `fzf.fish`, not after it. The numbered-drop-in
+  intuition from `~/.config/bashrc` does not transfer — and by the same token the
+  reserved **`99-local` slot does not load last in fish**, though it does in bash
+  and zsh.
+- **There are two fzf integrations here**, both binding Ctrl+R: the fisher plugin
+  `fzf.fish` (`_fzf_search_history`) and upstream `fzf --fish`
+  (`fzf-history-widget`). Both had to be dealt with. The plugin's binding is
+  released properly via `fzf_configure_bindings --history=` — editing the
+  plugin's own `conf.d` file would be reverted by `fisher update` — and atuin
+  simply rebinds over the upstream one. fzf keeps Ctrl+T, Alt+C and its five
+  Alt+Ctrl widgets.
+
+bash and zsh are ordinary: `60-atuin` in each, numbered above `50-custom` because
+that is where `fzf --bash` / `fzf --zsh` bind Ctrl+R. nushell **is** supported by
+`atuin init nu` and is not wired up yet.
+
 ## Structure
 
-- **Cross-platform**: `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`, `workmux`, `tuicr`, `gh`, `gh-dash`
+- **Cross-platform**: `atuin`, `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`, `workmux`, `tuicr`, `gh`, `gh-dash`
 - **macOS-only**: `ghostty`, `macos`
 - **Linux-only**: `hyprland`, `rofi`, `konsole`, `kmonad`, `terminator`, `yakuake`, `brave-linux`, `xdg`
 - **Shared base**: `base`
@@ -450,7 +509,19 @@ need interactive auth:
 gh extension install dlvhdr/gh-dash        # gh-dash (no package backend)
 mise run hooks                             # lefthook -> .git/hooks, PER CLONE
 mise run setup:git-spice                   # git-spice: template, forge URL, auth, hooks
+atuin hook install claude-code             # atuin agent hooks, one per agent
+atuin hook install codex
+atuin hook install pi
 ```
+
+**The atuin agent hooks write files this repo deliberately does not track.**
+`atuin hook install <agent>` edits `~/.claude/settings.json`, `~/.codex/hooks.json`
+and writes `~/.pi/agent/extensions/atuin.ts` — generated content, reinstalled
+idempotently (it prints `already installed, skipping` and leaves the file alone),
+so tracking a copy would just go stale. The hooks record every Bash tool call the
+agent makes — command, cwd, exit code, duration — into the same history the shell
+writes to. They need no server, which is why they are the one part of the atuin
+setup the work machine gets in full.
 
 **`mise run hooks` is per clone and nothing runs it for you.** This repo went a
 long time without it, so `lefthook.yml`'s formatters (shfmt, stylua, taplo,

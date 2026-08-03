@@ -11,11 +11,35 @@
 # is unset — so values must load BEFORE them. Behaviour overrides belong in a
 # `99-local` file instead, which loads last and wins.
 #
-# `set -a` exports everything the file defines; the format is plain KEY=VALUE with
-# no quotes and no expansion, so systemd's environment.d can read the same file.
+# PARSED, NOT SOURCED.
+#
+# This used to be `set -a; . local.env; set +a`, which evaluates the file as
+# shell. The format is deliberately plain KEY=VALUE with no quotes — so that
+# systemd's environment.d can read the very same file — and a value containing
+# shell metacharacters is therefore both legal and fatal. A real one did it:
+#
+#   HOME_NET_PREFIXES=<a regex alternation with unquoted parentheses>
+#
+# Unquoted parentheses are a syntax error, the source aborts at that line, and
+# EVERY VARIABLE DEFINED AFTER IT SILENTLY NEVER LOADS. No error is visible in a
+# login shell. fish and nushell parse the file properly and were unaffected, so
+# the same machine had different environments depending on the shell — which is
+# how it went unnoticed.
+#
+# Splitting on the first `=` with no evaluation matches what the fish reader
+# does, and cannot execute anything the file contains.
 
 if [ -r "$HOME/.config/dotfiles/local.env" ]; then
-  set -a
-  . "$HOME/.config/dotfiles/local.env"
-  set +a
+  while IFS= read -r _le_line || [ -n "$_le_line" ]; do
+    case "$_le_line" in '' | '#'*) continue ;; esac
+    _le_key=${_le_line%%=*}
+    _le_val=${_le_line#*=}
+    # Skip anything that is not a plain variable name, so a stray line cannot
+    # turn into an export.
+    case "$_le_key" in
+      '' | *[!A-Za-z0-9_]* | [0-9]*) continue ;;
+    esac
+    export "$_le_key=$_le_val"
+  done < "$HOME/.config/dotfiles/local.env"
+  unset _le_line _le_key _le_val
 fi

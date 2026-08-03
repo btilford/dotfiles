@@ -24,3 +24,10 @@ OLLAMA_HOST	optional	nvim/.config/nvim/lua/plugins/ai.lua	read via vim.env, so n
 HERMES_TUI_GATEWAY_URL	optional	fish/.config/fish/conf.d/hermes.fish	defaults to http://localhost:8642
 VOL_SCREENSHOT_ARCHIVE	optional	mise-scripts/visuals	
 DOTFILES_SCREENSHOT_ARCHIVE	optional	mise-scripts/visual-archive.sh	
+DOTFILES_LEMONADE_PREFIX	optional	commands/.local/bin/sync-litellm-models	host-qualified model prefix, e.g. <host>.lemonade; falls back to "lemonade"
+DOTFILES_OLLAMA_PREFIX	optional	commands/.local/bin/sync-litellm-models	host-qualified model prefix, e.g. <host>.ollama; falls back to "ollama"
+DOTFILES_PROFILE	optional	nvim plugins/ai.lua (and future profile gates)	"personal" enables local AI; ANY other value or unset = work, i.e. off
+HF_HOME	optional	shared model store (lemonade, llama.cpp toolbox, llama-swap)	unset = each tool caches separately, which is how the stores diverged
+HF_HUB_CACHE	optional	shared model store	same
+DOTFILES_LLAMASWAP_PREFIX	optional	commands/.local/bin/sync-litellm-models	host-qualified prefix, e.g. <host>.llamaswap; falls back to "llamaswap"
+LLAMASWAP_URL	optional	commands/.local/bin/sync-litellm-models	defaults to http://localhost:8090

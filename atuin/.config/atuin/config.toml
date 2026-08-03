@@ -1,0 +1,105 @@
+# Atuin client config — shared across every machine.
+#
+# WHAT IS DELIBERATELY MISSING FROM THIS FILE
+#
+# Atuin has no include mechanism, so there is no `.d/` split and no second file
+# to layer on top. The seam is the environment instead: atuin reads
+# `ATUIN_<KEY>` for top-level keys and `ATUIN_<SECTION>__<KEY>` (double
+# underscore) for nested ones.
+#
+# The precedence is the part that matters, and it is the opposite of what you
+# would expect: **the config file beats the environment.** Verified on 18.18.1 —
+# with `search_mode` set here, `ATUIN_SEARCH_MODE=prefix` has no effect; with the
+# key absent, it applies. So a key that varies by profile MUST NOT appear in this
+# file at all. Setting it to a "default" here silently disables the override.
+#
+# Absent on purpose, supplied from ~/.config/dotfiles/local.env (see
+# commands/.local/share/dotfiles/required-env):
+#
+#   sync_address   ATUIN_SYNC_ADDRESS    self-hosted sync server; personal only
+#   auto_sync      ATUIN_AUTO_SYNC       false on the work machine
+#   ai.enabled     ATUIN_AI__ENABLED     needs an atuin-ai-server to be useful
+#   ai.endpoint    ATUIN_AI__ENDPOINT    private infra URL — never in this repo
+#   ai.model       ATUIN_AI__MODEL
+#
+# The split is personal-vs-work, not Linux-vs-macOS, which is why it rides
+# local.env rather than a per-host stow package.
+#
+# `ai.api_token` is a credential and is in neither place: nothing exports one.
+# See commands/.local/bin/dotfiles-secrets.
+#
+# WRITING THROUGH THE SYMLINK
+#
+# `atuin config set …`, `atuin setup` and `atuin default-config > …` all write to
+# this path, which stow has pointed at the repo. An interactive tweak therefore
+# edits the tracked file in place and shows up in `git status`. That is usually
+# what you want; just do not run `atuin config set` on a profile-varying key —
+# it would write the key into the file and kill the env override for good.
+
+## Enter EDITS, it does not execute.
+##
+## With this false, both Enter and Tab place the selected command on the prompt
+## for editing, and nothing runs until you press Enter again at the prompt. That
+## is the safer default for a history search: the highlighted entry when you
+## stop typing is not always the one you meant, and a stale `rm -rf` or a
+## destructive one-liner is one keystroke away otherwise.
+##
+## WANTED BUT NOT POSSIBLE: Ctrl+Enter to execute directly. atuin 18.18 has no
+## keybinding map — the whole [keys] section is five booleans and none of them
+## binds a key to "accept". Even upstream support would not be enough on its
+## own, because most terminals send the same byte (0x0d) for Enter and
+## Ctrl+Enter; telling them apart needs the Kitty keyboard protocol or
+## modifyOtherKeys, which ghostty/kitty/wezterm have and alacritty/konsole
+## largely do not.
+##
+## So the accept path is: Enter to pull it onto the prompt, Enter again to run.
+enter_accept = false
+
+## The daemon owns the sqlite writes, so a slow disk cannot stall the prompt.
+## `daemon-fuzzy` runs the search in the daemon rather than in the shell process.
+search_mode = "daemon-fuzzy"
+
+## Do not record commands that failed to even start, and strip the trailing
+## whitespace that a paste tends to leave behind.
+strip_trailing_whitespace = true
+
+## Built-in regex screen for AWS keys, GitHub PATs, Slack tokens/webhooks and
+## Stripe keys. On by default; stated explicitly because this repo's whole
+## posture is that a secret must never reach a file that syncs.
+secrets_filter = true
+
+## Commands never written to history.
+##
+## secrets_filter above only matches known TOKEN SHAPES. It cannot catch a
+## password passed as an argument, because a password looks like any other
+## string — so these have to be named explicitly.
+##
+## `atuin register -p` is the motivating case: the credential for the history
+## server would otherwise be stored in the history it syncs, and then uploaded.
+##
+## Unanchored regexes, so they match anywhere in the command — that is atuin's
+## behaviour, not a mistake. `^` where a command must be at the start.
+##
+## RETROACTIVE CLEANUP: this only affects commands recorded from now on. To
+## apply it to history you already have:
+##
+##     atuin history prune          # deletes existing entries matching these
+##
+## Not profile-varying, so unlike sync_address and the ai.* keys this belongs in
+## the tracked file rather than the environment.
+history_filter = [
+  "^ *atuin (register|login|account)",
+  "^ *(export|set -x) .*(TOKEN|SECRET|PASSWORD|API_KEY)",
+  "--password[= ]",
+  "^ *infisical (login|secrets set)",
+]
+
+[daemon]
+enabled = true
+autostart = true
+
+[stats]
+## `sudo` prefixes are noise in the stats, and cd/ls/vi dominate the counts
+## without saying anything.
+common_prefix = ["sudo"]
+ignored_commands = ["cd", "ls", "vi"]

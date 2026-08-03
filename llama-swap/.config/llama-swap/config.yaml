@@ -1,0 +1,189 @@
+# llama-swap — the serving layer that replaces Lemonade.
+#
+# WHY THIS EXISTS
+#
+# Lemonade serves exactly one LLM at a time (`max_models.llm = 1`), so the
+# completion model and the assistant model evict each other on every alternating
+# request. That single fact is what makes inline completion unusable and is the
+# whole reason for this file. llama-swap keeps a group of models resident
+# together and swaps only the ones it must.
+#
+# WHY EVERY COMMAND IS A `podman run`
+#
+# Building llama.cpp for gfx1151 (Strix Halo) is fiddly enough that the
+# kyuz0/amd-strix-halo-toolboxes images exist specifically to get it right, and
+# they are rebuilt against llama.cpp master.
+#
+# USE A LIVE TAG. `rocm-7.2.1` looked reasonable and is ABANDONED — re-pulling it
+# yielded llama.cpp b8940 while upstream was at b10235, and Qwen3.6-35B-MTP
+# failed to load with `missing tensor 'blk.40.ssm_conv1d.weight'` purely because
+# of that age. The maintained tags (rocm-7.14, rocm-6.4.4, therock-nightly,
+# vulkan-radv, vulkan-amdvlk) rebuild several times a day; check
+# hub.docker.com/v2/repositories/kyuz0/amd-strix-halo-toolboxes/tags before
+# assuming a pull is current.
+#
+# A container cannot change the kernel — it shares the host's. Kernel-level
+# concerns (amdgpu, ROCm's kernel driver, GTT sizing via amdgpu.gttsize, amdxdna)
+# are host-only and already in place here; everything the toolbox provides is
+# userspace. Running the tested container beats
+# maintaining a host build. Verified working: ROCm sees the iGPU as
+# `Radeon 8060S Graphics, gfx1151`, 131072 MiB, and gemma3-4b benchmarks at
+# pp64 1678 t/s / tg16 49 t/s from inside the container.
+#
+# The commands are written out per model rather than shared through a macro. It
+# is repetitive on purpose — macro support varies between llama-swap releases,
+# and a config that fails to parse takes every model down at once.
+#
+# MODEL PATHS ARE INSIDE THE CONTAINER
+#
+# /srv/models is bind-mounted read-only at /models. The store is deliberately
+# NOT under /home: see the ProtectHome note below.
+
+healthCheckTimeout: 300
+logLevel: info
+
+# Well clear of the other local services: LiteLLM 4000, docker-model-runner
+# 12434, Lemonade 13305.
+startPort: 9200
+
+models:
+  # ---------------------------------------------------------------------------
+  # role/completion — inline completion in nvim and JetBrains.
+  #
+  # Qwen2.5-Coder is chosen for FILL-IN-THE-MIDDLE. Inline completion gives the
+  # model a prefix AND a suffix and asks it to bridge the gap; an instruct/chat
+  # model cannot do that properly no matter how capable it is — it narrates
+  # instead of completing. This is also why the assistant model below is not a
+  # candidate for this role.
+  #
+  # Latency budget is roughly 300 ms to first token. Keep the context modest:
+  # prefill time scales with it, and completion sees only the surrounding lines.
+  # ---------------------------------------------------------------------------
+  "qwen2.5-coder-7b":
+    # Explicit IPv4: llama-swap proxies to `localhost`, which resolves to ::1
+    # first, while podman publishes IPv4 only — every request was reset.
+    proxy: "http://127.0.0.1:${PORT}"
+    cmd: >
+      podman run --rm -i --name llamaswap-qwen25-coder-7b
+      --device /dev/kfd --device /dev/dri
+      --group-add keep-groups
+      --security-opt seccomp=unconfined
+      -p 127.0.0.1:${PORT}:${PORT}
+      -v /srv/models:/models:ro
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
+      llama-server --host 0.0.0.0 --port ${PORT}
+      -m /models/qwen2.5-coder-7b-instruct-q4_k_m.gguf
+      -ngl 99 --flash-attn on -c 8192
+    # Never unload: an inline completion model that has to cold-start has already
+    # missed its latency budget.
+    ttl: 0
+
+  # ---------------------------------------------------------------------------
+  # role/assistant — atuin's `?` prompt and quick shell questions.
+  #
+  # Provisional. Qwen3-4B-Instruct-2507 would be the better default on licence
+  # (Apache 2.0, which matters because this config reaches a work machine) and on
+  # CLI-heavy training, but its weights are in Lemonade's private store and not
+  # yet re-pulled into /srv/models. gemma-3-4b is what is on disk today.
+  # ---------------------------------------------------------------------------
+  "gemma3-4b":
+    # Explicit IPv4: llama-swap proxies to `localhost`, which resolves to ::1
+    # first, while podman publishes IPv4 only — every request was reset.
+    proxy: "http://127.0.0.1:${PORT}"
+    cmd: >
+      podman run --rm -i --name llamaswap-gemma3-4b
+      --device /dev/kfd --device /dev/dri
+      --group-add keep-groups
+      --security-opt seccomp=unconfined
+      -p 127.0.0.1:${PORT}:${PORT}
+      -v /srv/models:/models:ro
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
+      llama-server --host 0.0.0.0 --port ${PORT}
+      -m /models/gemma3-4b-it-qat/gemma-3-4b-it-q4_0.gguf
+      -ngl 99 --flash-attn on -c 8192
+    ttl: 0
+
+  # ---------------------------------------------------------------------------
+  # Quality on demand. Not in the warm group — 16 GiB is affordable to hold but
+  # pointless to pin for something used occasionally.
+  # ---------------------------------------------------------------------------
+  "gemma3-27b":
+    # Explicit IPv4: llama-swap proxies to `localhost`, which resolves to ::1
+    # first, while podman publishes IPv4 only — every request was reset.
+    proxy: "http://127.0.0.1:${PORT}"
+    cmd: >
+      podman run --rm -i --name llamaswap-gemma3-27b
+      --device /dev/kfd --device /dev/dri
+      --group-add keep-groups
+      --security-opt seccomp=unconfined
+      -p 127.0.0.1:${PORT}:${PORT}
+      -v /srv/models:/models:ro
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
+      llama-server --host 0.0.0.0 --port ${PORT}
+      -m /models/gemma3-27b-it-qat/gemma-3-27b-it-q4_0.gguf
+      -ngl 99 --flash-attn on -c 16384
+    ttl: 900
+
+  # ---------------------------------------------------------------------------
+  # role/assistant — replaces gemma3-4b, which CANNOT serve this role.
+  #
+  # Gemma's chat template enforces strict user/assistant alternation and rejects
+  # consecutive user messages ("Conversation roles must alternate ..."). atuin-ai
+  # sends context and query as two user messages, so Gemma fails no matter how it
+  # is configured. Qwen's template is permissive.
+  #
+  # Also Apache 2.0 rather than Gemma's use policy, which matters because this
+  # config reaches a work machine.
+  # ---------------------------------------------------------------------------
+  "qwen3-4b-instruct":
+    proxy: "http://127.0.0.1:${PORT}"
+    cmd: >
+      podman run --rm -i --name llamaswap-qwen3-4b-instruct
+      --device /dev/kfd --device /dev/dri
+      --group-add keep-groups
+      --security-opt seccomp=unconfined
+      -p 127.0.0.1:${PORT}:${PORT}
+      -v /srv/models:/models:ro
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
+      llama-server --host 0.0.0.0 --port ${PORT}
+      -m /models/hf/hub/models--unsloth--Qwen3-4B-Instruct-2507-GGUF/snapshots/a06e946bb6b655725eafa393f4a9745d460374c9/Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+      -ngl 99 --flash-attn on -c 8192
+    ttl: 0
+
+  # ---------------------------------------------------------------------------
+  # role/reasoning — the best local model measured on this box, and the LAST
+  # thing tying anything to Lemonade. Once this serves, Lemonade can be retired
+  # and its ~530 GB private store deleted.
+  #
+  # Not in the warm group: 21 GiB is affordable to hold but pointless to pin for
+  # a model used deliberately rather than continuously.
+  # ---------------------------------------------------------------------------
+  "qwen3.6-35b-mtp":
+    proxy: "http://127.0.0.1:${PORT}"
+    cmd: >
+      podman run --rm -i --name llamaswap-qwen3.6-35b-mtp
+      --device /dev/kfd --device /dev/dri
+      --group-add keep-groups
+      --security-opt seccomp=unconfined
+      -p 127.0.0.1:${PORT}:${PORT}
+      -v /srv/models:/models:ro
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
+      llama-server --host 0.0.0.0 --port ${PORT}
+      -m /models/hf/hub/models--unsloth--Qwen3.6-35B-A3B-MTP-GGUF/snapshots/5bc3e238d916f48a861bac2f8a1990a0e9b7e98d/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
+      -ngl 99 --flash-attn on -c 16384
+    ttl: 900
+
+groups:
+  # THE POINT OF THE WHOLE EXERCISE. `swap: false` lets these two run at the same
+  # time instead of evicting each other, which is exactly what Lemonade cannot
+  # do. Together they are ~7.3 GiB against 128 GiB of unified memory, so holding
+  # both costs nothing worth measuring.
+  #
+  # `exclusive: false` so loading gemma3-27b on demand does not tear this group
+  # down.
+  warm:
+    swap: false
+    exclusive: false
+    members:
+      - "qwen2.5-coder-7b"
+      - "qwen3-4b-instruct"
