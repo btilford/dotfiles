@@ -53,6 +53,32 @@ strip_trailing_whitespace = true
 ## posture is that a secret must never reach a file that syncs.
 secrets_filter = true
 
+## Commands never written to history.
+##
+## secrets_filter above only matches known TOKEN SHAPES. It cannot catch a
+## password passed as an argument, because a password looks like any other
+## string — so these have to be named explicitly.
+##
+## `atuin register -p` is the motivating case: the credential for the history
+## server would otherwise be stored in the history it syncs, and then uploaded.
+##
+## Unanchored regexes, so they match anywhere in the command — that is atuin's
+## behaviour, not a mistake. `^` where a command must be at the start.
+##
+## RETROACTIVE CLEANUP: this only affects commands recorded from now on. To
+## apply it to history you already have:
+##
+##     atuin history prune          # deletes existing entries matching these
+##
+## Not profile-varying, so unlike sync_address and the ai.* keys this belongs in
+## the tracked file rather than the environment.
+history_filter = [
+  "^ *atuin (register|login|account)",
+  "^ *(export|set -x) .*(TOKEN|SECRET|PASSWORD|API_KEY)",
+  "--password[= ]",
+  "^ *infisical (login|secrets set)",
+]
+
 [daemon]
 enabled = true
 autostart = true
