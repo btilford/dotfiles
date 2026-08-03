@@ -111,6 +111,55 @@ models:
       -ngl 99 --flash-attn on -c 16384
     ttl: 900
 
+  # ---------------------------------------------------------------------------
+  # role/assistant — replaces gemma3-4b, which CANNOT serve this role.
+  #
+  # Gemma's chat template enforces strict user/assistant alternation and rejects
+  # consecutive user messages ("Conversation roles must alternate ..."). atuin-ai
+  # sends context and query as two user messages, so Gemma fails no matter how it
+  # is configured. Qwen's template is permissive.
+  #
+  # Also Apache 2.0 rather than Gemma's use policy, which matters because this
+  # config reaches a work machine.
+  # ---------------------------------------------------------------------------
+  "qwen3-4b-instruct":
+    proxy: "http://127.0.0.1:${PORT}"
+    cmd: >
+      podman run --rm -i --name llamaswap-qwen3-4b-instruct
+      --device /dev/kfd --device /dev/dri
+      --group-add keep-groups
+      --security-opt seccomp=unconfined
+      -p 127.0.0.1:${PORT}:${PORT}
+      -v /srv/models:/models:ro
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.2.1
+      llama-server --host 0.0.0.0 --port ${PORT}
+      -m /models/hf/hub/models--unsloth--Qwen3-4B-Instruct-2507-GGUF/snapshots/a06e946bb6b655725eafa393f4a9745d460374c9/Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+      -ngl 99 --flash-attn on -c 8192
+    ttl: 0
+
+  # ---------------------------------------------------------------------------
+  # role/reasoning — the best local model measured on this box, and the LAST
+  # thing tying anything to Lemonade. Once this serves, Lemonade can be retired
+  # and its ~530 GB private store deleted.
+  #
+  # Not in the warm group: 21 GiB is affordable to hold but pointless to pin for
+  # a model used deliberately rather than continuously.
+  # ---------------------------------------------------------------------------
+  "qwen3.6-35b-mtp":
+    proxy: "http://127.0.0.1:${PORT}"
+    cmd: >
+      podman run --rm -i --name llamaswap-qwen3.6-35b-mtp
+      --device /dev/kfd --device /dev/dri
+      --group-add keep-groups
+      --security-opt seccomp=unconfined
+      -p 127.0.0.1:${PORT}:${PORT}
+      -v /srv/models:/models:ro
+      docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.2.1
+      llama-server --host 0.0.0.0 --port ${PORT}
+      -m /models/hf/hub/models--unsloth--Qwen3.6-35B-A3B-MTP-GGUF/snapshots/5bc3e238d916f48a861bac2f8a1990a0e9b7e98d/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
+      -ngl 99 --flash-attn on -c 16384
+    ttl: 900
+
 groups:
   # THE POINT OF THE WHOLE EXERCISE. `swap: false` lets these two run at the same
   # time instead of evicting each other, which is exactly what Lemonade cannot
@@ -124,4 +173,4 @@ groups:
     exclusive: false
     members:
       - "qwen2.5-coder-7b"
-      - "gemma3-4b"
+      - "qwen3-4b-instruct"

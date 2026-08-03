@@ -129,14 +129,32 @@ LLAMASWAP_URL = os.environ.get("LLAMASWAP_URL") or "http://localhost:8090"
 # coder on that host yet — the smallest is 17 GiB. Both problems are fixed by
 # the same change: llama-swap, which can hold the two warm together.
 #
-# completion and assistant moved to llama-swap once it was serving: it holds both
-# resident at the same time (0.18 s warm, versus a cold reload on every
-# alternating request under Lemonade's one-model limit). reasoning stays on
-# Lemonade because Qwen3.6-35B-MTP lives in Lemonade's own private store and has
-# not been re-pulled into the shared /srv/models yet.
+# completion and assistant are on llama-swap, which holds both resident at once
+# (0.18 s warm, versus a cold reload on every alternating request under
+# Lemonade's one-model limit).
+#
+# reasoning STAYS ON LEMONADE, and not for want of the weights: Qwen3.6-35B-MTP
+# was copied into /srv/models, and the toolbox's llama.cpp cannot load it —
+#
+#   llama_model_load: error loading model: missing tensor 'blk.40.ssm_conv1d.weight'
+#
+# The model uses SSM/Mamba-style layers that build 8940 (78433f606) still lacks;
+# pulling a fresh toolbox image from 8833 did not help. Lemonade runs a newer or
+# patched llama.cpp. Retry after a future toolbox rebuild — Lemonade cannot be
+# retired until this loads.
 ROLE_ALIASES = {
     "role/completion": f"{LLAMASWAP_PREFIX}/qwen2.5-coder-7b",
-    "role/assistant": f"{LLAMASWAP_PREFIX}/gemma3-4b",
+    # NOT gemma3. Gemma's chat template enforces strict user/assistant
+    # alternation and rejects consecutive user messages with
+    # "Conversation roles must alternate user/assistant/...". atuin-ai sends
+    # context and query as two user messages, so Gemma can never serve this
+    # role however it is configured. Verified: system+user succeeds on gemma3,
+    # system+user+user fails on gemma3 and succeeds on qwen.
+    #
+    # qwen2.5-coder-7b is already warm for role/completion, so this costs no
+    # extra memory. Qwen3-4B-Instruct-2507 is the better long-term choice
+    # (Apache 2.0, CLI-heavy training, 2.4 GB) once imported from Lemonade.
+    "role/assistant": f"{LLAMASWAP_PREFIX}/qwen3-4b-instruct",
     "role/reasoning": f"{LEMONADE_PREFIX}/Qwen3.6-35B-A3B-MTP-GGUF",
 }
 
