@@ -63,6 +63,14 @@ if command -q atuin
         set -e ATUIN_SYNC_ADDRESS
         set -e ATUIN_AI__ENABLED
         set -e ATUIN_AI__ENDPOINT
+    else if not set -q ATUIN_SYNC_ADDRESS
+        # Personal, but no sync server configured yet. Force sync OFF rather
+        # than letting atuin fall back to its upstream default of
+        # https://api.atuin.sh/ — an unconfigured or stale shell would otherwise
+        # silently ship personal shell history to a third party. This is not
+        # hypothetical: it happened, from a terminal opened before the variable
+        # was added to local.env.
+        set -gx ATUIN_AUTO_SYNC false
     end
 
     # Two separate fzf integrations bind Ctrl+R to a history widget, and atuin

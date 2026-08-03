@@ -47,6 +47,14 @@ if command -v atuin > /dev/null 2>&1; then
     if [ "${DOTFILES_PROFILE:-work}" != "personal" ]; then
         export ATUIN_AUTO_SYNC=false
         unset ATUIN_SYNC_ADDRESS ATUIN_AI__ENABLED ATUIN_AI__ENDPOINT
+    elif [ -z "${ATUIN_SYNC_ADDRESS-}" ]; then
+        # Personal, but no sync server configured yet. Force sync OFF rather
+        # than letting atuin fall back to its upstream default of
+        # https://api.atuin.sh/ — an unconfigured or stale shell would otherwise
+        # silently ship personal shell history to a third party. This is not
+        # hypothetical: it happened, from a terminal opened before the variable
+        # was added to local.env.
+        export ATUIN_AUTO_SYNC=false
     fi
 
     eval "$(atuin init bash)"
