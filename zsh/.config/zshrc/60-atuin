@@ -27,5 +27,27 @@ if command -v atuin > /dev/null 2>&1; then
     done
     unset _atuin_var
 
+
+    # WORK MACHINES TALK TO NO SERVER. Local sqlite only.
+    #
+    # This has to be asserted, not assumed. atuin's own defaults are
+    # sync_address = https://api.atuin.sh/ and auto_sync = true, and neither
+    # appears in the tracked config.toml (they are profile-varying, so they are
+    # deliberately absent to keep the env override working). Today a work
+    # machine syncs nothing only because it is not logged in — an accident of
+    # state, not a guarantee. One `atuin login` would silently start shipping
+    # work shell history to a third party.
+    #
+    # Derived from DOTFILES_PROFILE rather than set per machine, defaulting to
+    # work, so a new machine is safe before anyone remembers to configure it.
+    # Same direction as the nvim AI gate: absence means off.
+    #
+    # The agent hooks and local history are unaffected — they need no server,
+    # which is the whole point of giving work atuin at all.
+    if [ "${DOTFILES_PROFILE:-work}" != "personal" ]; then
+        export ATUIN_AUTO_SYNC=false
+        unset ATUIN_SYNC_ADDRESS ATUIN_AI__ENABLED ATUIN_AI__ENDPOINT
+    fi
+
     eval "$(atuin init zsh)"
 fi
