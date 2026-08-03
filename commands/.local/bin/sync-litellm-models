@@ -285,28 +285,43 @@ def sync_gateway(specs, fetched, master, dry_run):
     # then are the genuinely-registered model_names trustworthy for dedup.
     current = current_map()
 
-    # Role aliases are reconciled by VALUE, not by presence, so they are always
-    # dropped and rebuilt from ROLE_ALIASES above.
+    # Reconcile by VALUE, not by presence.
     #
-    # Everything else in this function is add-if-missing, which is right for
-    # concrete models: the name pins the model, so a name that already exists is
-    # already correct. A role is the opposite — the whole point is that its
-    # TARGET changes while the name stays put. Add-if-missing therefore made
-    # retargeting a no-op: the roles kept pointing at Lemonade after moving to
-    # llama-swap, silently, and the sync reported success.
+    # This function used to be add-if-missing throughout, on the assumption that
+    # a model_name pins everything about an entry. It does not — `api_base` and
+    # `model` can both change under a stable name, and when they do the sync
+    # silently did nothing and still reported success. Seen twice in one day:
     #
-    # Deleting all three and re-adding is cheaper than diffing litellm_params,
-    # and cannot drift. The gap where a role is unregistered is milliseconds on a
-    # LAN gateway.
-    stale_roles = {n: i for n, i in current.items() if n.startswith("role/")}
-    for mid in filter(None, stale_roles.values()):
+    #   * role/* kept pointing at Lemonade after their targets moved to
+    #     llama-swap — which defeats the entire purpose of a role alias;
+    #   * every llama-swap entry kept api_base=localhost:8090 after
+    #     LLAMASWAP_URL changed to the LAN address, so the gateway was pointing
+    #     at itself.
+    #
+    # Anything whose registered params differ from what we want is deleted here
+    # and recreated by the add pass below. Comparing only the keys we set, so a
+    # field LiteLLM adds server-side does not cause an infinite rebuild.
+    def params_differ(name, want):
+        have = current_params.get(name)
+        if have is None:
+            return False
+        return any(str(have.get(k)) != str(v) for k, v in want.items()
+                   if k in ("model", "api_base"))
+
+    info = http_json(f"{GATEWAY}/model/info", token=master)
+    current_params = {m.get("model_name"): (m.get("litellm_params") or {})
+                      for m in info.get("data", [])}
+
+    outdated = {n: current[n] for n, p in desired.items()
+                if n in current and params_differ(n, p)}
+    for mid in filter(None, outdated.values()):
         try:
             http_json(f"{GATEWAY}/model/delete", token=master,
                       method="POST", body={"id": mid})
         except urllib.error.HTTPError:
             pass
-    if stale_roles:
-        print(f"  roles: rebuilt {len(stale_roles)} alias(es)")
+    if outdated:
+        print(f"  retargeted: {len(outdated)} entr(ies) whose params changed")
         current = current_map()
 
     to_add = {n: p for n, p in desired.items() if n not in current}
