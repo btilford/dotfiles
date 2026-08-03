@@ -36,9 +36,24 @@
 # what you want; just do not run `atuin config set` on a profile-varying key —
 # it would write the key into the file and kill the env override for good.
 
-## Immediately run the selected command on Enter; Tab puts it on the prompt for
-## editing instead.
-enter_accept = true
+## Enter EDITS, it does not execute.
+##
+## With this false, both Enter and Tab place the selected command on the prompt
+## for editing, and nothing runs until you press Enter again at the prompt. That
+## is the safer default for a history search: the highlighted entry when you
+## stop typing is not always the one you meant, and a stale `rm -rf` or a
+## destructive one-liner is one keystroke away otherwise.
+##
+## WANTED BUT NOT POSSIBLE: Ctrl+Enter to execute directly. atuin 18.18 has no
+## keybinding map — the whole [keys] section is five booleans and none of them
+## binds a key to "accept". Even upstream support would not be enough on its
+## own, because most terminals send the same byte (0x0d) for Enter and
+## Ctrl+Enter; telling them apart needs the Kitty keyboard protocol or
+## modifyOtherKeys, which ghostty/kitty/wezterm have and alacritty/konsole
+## largely do not.
+##
+## So the accept path is: Enter to pull it onto the prompt, Enter again to run.
+enter_accept = false
 
 ## The daemon owns the sqlite writes, so a slow disk cannot stall the prompt.
 ## `daemon-fuzzy` runs the search in the daemon rather than in the shell process.
