@@ -1,11 +1,11 @@
 {
   "lastChangelogVersion": "0.79.1",
   "defaultProvider": "litellm",
-  "defaultModel": "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
+  "defaultModel": "role/reasoning",
   "defaultThinkingLevel": "medium",
   "enabledModels": [
-    "x870eglacial/qwen2.5-coder:7b",
-    "cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF",
+    "role/completion",
+    "role/reasoning",
     "zen/claude-opus-4-7",
     "zen/claude-sonnet-4-6",
     "zen/kimi-k2.7-code",

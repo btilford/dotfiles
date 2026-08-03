@@ -70,6 +70,64 @@ LEMONADE_URL = os.environ.get("LEMONADE_URL", "http://localhost:13305")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 TIMEOUT = 20
 
+# --- model naming ---------------------------------------------------------
+#
+# A model name is "<where it runs>/<model id>". For a local runner the prefix is
+# "<host>.<runner>", so two runners on ONE box stay distinguishable — which is
+# the whole point once llama-swap sits beside Lemonade on the same machine.
+#
+# Use "." between host and runner, never "-": hostnames contain hyphens
+# already, so "<host>-<runner>" cannot be parsed back apart. Keep exactly ONE
+# "/" — some OpenAI clients split the model string on the first slash.
+#
+# The host half is machine-local and comes from the environment, because this
+# file is published and a hostname is infrastructure disclosure. The fallback is
+# the bare runner name, which is safe to publish and still correct — it only
+# loses the host qualifier on a machine that has not set the variable.
+#
+# `or` rather than a get() default on purpose: an empty value in local.env must
+# behave as unset. A get() default would yield a prefix of "" and silently
+# produce model names beginning with "/". Same class of bug as the empty
+# ATUIN_* variables documented in the repo CLAUDE.md.
+LEMONADE_PREFIX = os.environ.get("DOTFILES_LEMONADE_PREFIX") or "lemonade"
+OLLAMA_PREFIX = os.environ.get("DOTFILES_OLLAMA_PREFIX") or "ollama"
+
+# --- role aliases ---------------------------------------------------------
+#
+# Consumers (nvim, atuin, agents with a fixed config) reference a ROLE, never a
+# concrete model. The role is a stable name; what it resolves to changes freely
+# as models are benchmarked and replaced.
+#
+# This exists because the concrete names are not stable and never will be. The
+# `local/qwen2.5-coder-7b` that nvim still points at was real once and vanished
+# when the gateway's model DB was rebuilt — inline completion has been dead ever
+# since, silently. A role alias turns that class of breakage into one line here
+# instead of a grep across every agent config.
+#
+# It also keeps hostnames out of published config: "role/completion" discloses
+# nothing, so the tracked dotfiles never name a machine.
+#
+# Values are concrete model names as registered below. A role whose target is
+# not currently registered is skipped with a warning rather than failing the
+# run, so an unreachable provider cannot take the whole sync down.
+#
+# Targets must live on an ALWAYS-ON host. The Ollama workstation is powered off
+# routinely, and an unreachable provider means the alias is skipped on that run —
+# so a role pointed there would vanish and reappear, taking inline completion
+# down intermittently with no visible cause. Everything below therefore resolves
+# on the Lemonade box.
+#
+# role/completion is a placeholder and a known-bad one. Lemonade serves exactly
+# one LLM at a time (`max_models.llm = 1`), so completion and reasoning evict
+# each other on every alternating request. There is also no small FIM-capable
+# coder on that host yet — the smallest is 17 GiB. Both problems are fixed by
+# the same change: llama-swap, which can hold the two warm together.
+ROLE_ALIASES = {
+    "role/completion": f"{LEMONADE_PREFIX}/Qwen3-Coder-30B-A3B-Instruct-GGUF",
+    "role/assistant": f"{LEMONADE_PREFIX}/Qwen3-4B-Instruct-2507-GGUF",
+    "role/reasoning": f"{LEMONADE_PREFIX}/Qwen3.6-35B-A3B-MTP-GGUF",
+}
+
 HOME = Path.home()
 PI_MODELS = HOME / ".pi/agent/models.json"
 OPENCODE_JSON = HOME / ".config/opencode/opencode.jsonc"
@@ -125,12 +183,12 @@ def provider_specs(keys) -> list[dict]:
          "litellm": lambda mid: {"model": f"openai/{mid}",
                                  "api_base": "https://opencode.ai/zen/v1",
                                  "api_key": keys["ZEN"]}},
-        {"prefix": "cachyos-fwd", "label": "Lemonade",
+        {"prefix": LEMONADE_PREFIX, "label": "Lemonade",
          "models_url": f"{LEMONADE_URL}/v1/models", "token": None,
          "litellm": lambda mid: {"model": f"openai/{mid}",
                                  "api_base": f"{LEMONADE_URL}/v1",
                                  "api_key": "none"}},
-        {"prefix": "x870eglacial", "label": "Ollama",
+        {"prefix": OLLAMA_PREFIX, "label": "Ollama",
          "models_url": f"{OLLAMA_URL}/v1/models", "token": None,
          "litellm": lambda mid: {"model": f"ollama/{mid}",
                                  "api_base": OLLAMA_URL,
@@ -156,6 +214,25 @@ def sync_gateway(specs, fetched, master, dry_run):
         if ok:
             for mid in ids:
                 desired[f"{spec['prefix']}/{mid}"] = spec["litellm"](mid)
+
+    # Role aliases resolve to the SAME upstream params as their target, rather
+    # than chaining a gateway call through a second gateway entry. One hop, and
+    # a role cannot be left pointing at a model that is itself an alias.
+    #
+    # A role whose target is missing (provider offline this run, or the model
+    # was renamed upstream) is reported and skipped. Failing the whole sync
+    # instead would mean one dead model takes down every other route.
+    for role, target in ROLE_ALIASES.items():
+        params = desired.get(target)
+        if params is None:
+            print(f"  ! {role} -> {target} not registered — skipping alias")
+            continue
+        desired[role] = params
+
+    # Role names are never deleted by the reconciliation below, because it only
+    # considers names whose prefix matches a provider that was reachable, and
+    # "role" is not a provider. Stated explicitly so a future change to the
+    # delete predicate does not quietly start garbage-collecting them.
 
     def current_map():
         info = http_json(f"{GATEWAY}/model/info", token=master)
@@ -200,7 +277,17 @@ def sync_gateway(specs, fetched, master, dry_run):
 # --- client configs -------------------------------------------------------
 
 def catalog(specs, fetched):
-    out = []
+    # Roles first, so the picker's top entries are the stable names that follow
+    # whichever model currently wins its benchmark. Only roles whose target is
+    # actually available this run are offered.
+    available = set()
+    for spec in specs:
+        ids, ok = fetched[spec["prefix"]]
+        if ok:
+            available |= {f"{spec['prefix']}/{mid}" for mid in ids}
+
+    out = [(role, "Role") for role, target in ROLE_ALIASES.items()
+           if target in available]
     for spec in specs:
         ids, ok = fetched[spec["prefix"]]
         if ok:
