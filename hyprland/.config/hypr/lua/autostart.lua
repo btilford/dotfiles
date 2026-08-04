@@ -78,8 +78,33 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("kwalletd6")
   hl.exec_cmd("kded6")
 
-  -- GNOME keyring
-  hl.exec_cmd("gnome-keyring-daemon --start --components=secrets")
+  -- Unlock the wallet from the password PAM already captured at login.
+  --
+  -- The Secret Service here is ksecretd, which is D-Bus activated and therefore
+  -- needs no autostart of its own — it starts on demand in any session. What does
+  -- NOT happen on its own is the unlock: pam_kwallet5.so writes the login password
+  -- to a socket at session time, and something must then run pam_kwallet_init to
+  -- hand it over. Plasma does that via this unit; Hyprland has no equivalent, and
+  -- /etc/xdg/autostart is not read here either. That is the whole reason the
+  -- keyring felt "hit or miss" — it worked only when something had already
+  -- prompted earlier in the session.
+  --
+  -- `static` means it cannot be enabled, but it can be started, which is the
+  -- supported shape for a unit a session activates. Starting an already-active
+  -- unit is a no-op, so this stays harmless in a KDE session where Plasma
+  -- started it.
+  --
+  -- NOTE: this does not cover dotfiles-secrets.service. That unit reaches
+  -- default.target before Hyprland runs its first exec_cmd, so it declares its own
+  -- Wants=/After= on this unit instead. This line is for everything else in the
+  -- session that wants an unlocked wallet.
+  hl.exec_cmd("systemctl --user start plasma-kwallet-pam.service")
+
+  -- No gnome-keyring: the package is not installed, so the exec that used to be
+  -- here was dead. Worth keeping absent rather than merely unused — if it is ever
+  -- pulled in as a dependency it would race ksecretd for org.freedesktop.secrets,
+  -- and whichever wins the name is non-deterministic. Same class of bug as the
+  -- clipborg double-daemon and the swaync/quickshell notification race above.
 
   -- GTK/XDG settings — color-scheme synced across gsettings/dconf/kdeglobals/qt6ct
   hl.exec_cmd('sh -c "$HOME/.config/hypr/scripts/SyncColorScheme.sh"')
