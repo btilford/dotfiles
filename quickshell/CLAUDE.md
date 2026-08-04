@@ -118,8 +118,15 @@ the terminal clients need the model to exist without a window.
 - **Opt-in per machine:** `HYPR_NOTIFY=quickshell` in `~/.config/hypr/shell.local.env`. The
   `NotificationServer` sits in a `Loader` gated on it, so a machine that hasn't opted in never
   claims the D-Bus name. Only one process can own that name — start order decides, and while qs
-  holds it swaync cannot be D-Bus activated back. Swap backends: set the key, then
-  `pkill swaync` (or `systemctl --user stop swaync`) and restart `qs`.
+  holds it swaync cannot be D-Bus activated back. Swap backends: set the key, run
+  `~/.config/hypr/scripts/StartNotify.sh`, then restart `qs`.
+- **The other half of the switch is in the `hyprland` package.** `autostart.lua` used to exec
+  `swaync` unconditionally next to the qs daemon, so on a host set to quickshell the two raced
+  every login and swaync won by ~1s (observed 2026-08-03): the qs server never got the name and
+  popups silently disappeared, while swaync's own drawer kept working and hid the fault.
+  `scripts/StartNotify.sh` now dispatches on `HYPR_NOTIFY` and, for quickshell, **stops and masks
+  `swaync.service`** — swaync ships a D-Bus activation file pointing at that unit, so killing the
+  process alone lets the next `notify-send` start it again.
 - **Capabilities are advertised honestly.** `GetCapabilities` returns `body` + `icon-static` and
   nothing else. Do not flip `actionsSupported` / `bodyMarkupSupported` / `inlineReplySupported`
   until those stories actually render them — clients change what they send based on this.

@@ -28,7 +28,11 @@ hl.on("hyprland.start", function()
   hl.exec_cmd('sh -c "$HOME/.config/hypr/scripts/StartBar.sh"')
   -- Bring up the quickshell daemon when any component (bar/launcher) selects quickshell.
   hl.exec_cmd('sh -c "$HOME/.config/hypr/scripts/StartShell.sh --if-selected"')
-  hl.exec_cmd("swaync")
+  -- Notification daemon per $HYPR_NOTIFY. NOT an unconditional `swaync`: only one
+  -- process can own org.freedesktop.Notifications, and starting swaync here raced
+  -- the qs daemon on hosts set to quickshell — swaync won, so quickshell popups
+  -- never appeared while swaync's drawer kept working.
+  hl.exec_cmd('sh -c "$HOME/.config/hypr/scripts/StartNotify.sh"')
 
   -- System applets
   hl.exec_cmd("nm-applet")
