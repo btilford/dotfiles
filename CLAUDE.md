@@ -287,12 +287,53 @@ shell readers in place, the API key silently becomes the literal string
   would never apply.
 - `99-local` — *behaviour* overrides, must load **last** to win.
 
-### Secrets are never in the environment
+### Secrets reach the shell from a tmpfs cache — never from a startup fetch
 
-`local.env` holds **no credentials**. Nothing exports one, nothing caches one to
-disk, and **no shell calls infisical at startup** — that last point is a hard
-constraint, not a preference: a network call in `conf.d` hangs every new terminal
-when the daemon is unreachable or the keyring is locked.
+`local.env` holds **no credentials**, and **no shell calls infisical at startup** —
+that second point is a hard constraint, not a preference: a network call in
+`conf.d` hangs every new terminal when the gateway is unreachable or the wallet is
+locked.
+
+**Secrets ARE in the shell environment, and that is deliberate.** The earlier rule
+("nothing reaches the environment automatically; `secrets-load` is never called for
+you") was reversed: consumers that can only take an environment variable — clipborg
+expands `${ENV}` at config load and hard-errors on an unset one; opencode, aider and
+nvim are the same shape — do not work in a plain terminal otherwise, and wrapping
+every entry point was not practical.
+
+The constraint above survives the reversal because the fetch moved **off** the
+shell's path rather than into it:
+
+- `dotfiles-secrets.service` (systemd **user** unit) fetches **once at login** and
+  writes `$XDG_RUNTIME_DIR/dotfiles/secrets.env` — tmpfs, dir 0700, file 0600,
+  destroyed at logout. Not disk: no backup picks it up, nothing survives a reboot.
+- Every shell drop-in does a **plain read of that local file**. No network, no
+  infisical, no keyring, nothing that can block or prompt. A terminal opens at the
+  same speed whether the gateway is up, down, or was never configured here.
+- Other user units read the same file with `EnvironmentFile=-%t/dotfiles/secrets.env`
+  (the leading `-` keeps a unit startable on a machine with no secrets at all).
+
+The honest cost, stated plainly: secrets are now in the environment of every shell
+and everything it spawns, not just a command you named. Same-user exposure only —
+the mode bits stop other users, and root could read process memory regardless — but
+it is strictly more surface than point-of-use was. `--run` remains preferable for
+anything that does not need the variable ambiently.
+
+**The unit must be ordered after the wallet unlock.** infisical's own CLI token
+lives in the Secret Service (here `ksecretd`, D-Bus activated), and the wallet
+holding it starts *locked*. Under Plasma `plasma-kwallet-pam.service` unlocks it
+from the password PAM captured at login; under Hyprland nothing pulls that unit in.
+Without `Wants=`/`After=plasma-kwallet-pam.service` the login fetch runs against a
+locked wallet and silently produces no cache — observed 2026-08-03, where the first
+symptom was `git-spice` failing hours later for an apparently unrelated reason.
+Ordering it from `autostart.lua` does **not** work for this consumer: the unit
+reaches `default.target` before Hyprland runs its first `exec_cmd`.
+
+**A failed fetch must fail the unit.** `SuccessExitStatus` covers **78**
+(`EX_CONFIG`) only — "this machine has no infisical and no `INFISICAL_*`", which is
+a normal state. It used to cover `1`, and since `die()` is the script's only exit
+that made a locked wallet, an unreachable gateway and a logged-out CLI all report
+success while writing nothing.
 
 Checking token validity first is not a way around it. The CLI has no local expiry
 check — `infisical token` only *renews* universal-auth tokens, over the network —
@@ -301,18 +342,29 @@ prompt. A validity check is a network call plus a possible prompt, which is
 strictly worse at startup than the cache it would replace.
 
 So `commands/.local/bin/dotfiles-secrets` is the single accessor, and there are
-three ways a secret reaches a consumer:
+four ways a secret reaches a consumer:
 
 | Path | For | Lifetime |
 | ------ | ------ | ------ |
-| `--get NAME` | consumers we control (nvim `ai.lua`) | one call |
-| `--run -- CMD` | third-party tools needing real env vars (opencode, aider) | that process only |
-| `secrets-load` | a shell session, when `--run` is impractical | until the shell exits |
+| the session cache | any tool needing ambient env vars (clipborg, opencode, aider, nvim) | the login session |
+| `--get NAME` | consumers we control, at point of use | one call |
+| `--run -- CMD` | narrowing exposure back to one process | that process only |
+| `secrets-load` | re-reading the cache into a running shell | until the shell exits |
 
 `--run` is a thin wrapper over `infisical run`, which injects into the child and
-nothing else. `secrets-load` is defined in every shell (`06-secrets` for fish,
-bash and zsh; `secrets.nu` for nushell) and **is never called automatically** —
-those files define functions and run nothing.
+nothing else.
+
+**Every shell reads the cache at startup, and none of them fetch.** The drop-ins
+are `06-secrets` (fish, bash, zsh) and `secrets.nu` (nushell); each reads
+`$XDG_RUNTIME_DIR/dotfiles/secrets.env` if it exists and is a no-op if it does not.
+In nushell that read is an `export-env` block — the only construct in a module that
+runs at `use` time *and* whose env changes reach the caller's scope.
+
+They also define `secrets-load` (re-read the cache; falls back to a live fetch only
+if there is no cache) and `secrets-refresh` (restart the unit, then reload — what to
+run after rotating a key). Keep the four in step: fish diverged for a while as the
+only shell that auto-loaded, which left bash, zsh and nushell fetching over the
+network in `secrets-load` and never touching the cache at all.
 
 Every failure is printed to stderr *and* appended to
 `~/.local/state/dotfiles/secrets.log`, with the reason distinguished — missing
