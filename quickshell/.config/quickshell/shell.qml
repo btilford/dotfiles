@@ -23,6 +23,10 @@ ShellRoot {
     // fullscreen keymap cheatsheet; state lives in the Keymap singleton
     KeymapOverlay {}
 
+    // which-key hints for the active Hyprland submap. Passive surface: no keyboard focus and
+    // an empty input mask, so it can never take a key away from the submap or eat a click.
+    SubmapHints {}
+
     // org.freedesktop.Notifications popups. The D-Bus server itself lives in the Notifications
     // singleton and only claims the name when HYPR_NOTIFY=quickshell, so it never fights swaync.
     NotificationOverlay {}
