@@ -1,0 +1,13 @@
+# Interactive shells only
+[[ $- == *i* ]] || return
+
+# grype completion. Unlike the tools in 50-custom, this sources a committed
+# generated file instead of `source <(grype completion bash)` — a grype
+# subprocess on every shell start is real latency for a scanner binary, and zsh
+# already takes the committed route via ~/.zfunc/_grype.
+#
+# Regenerate after a grype upgrade; see the header in the file itself.
+if command -v grype >/dev/null 2>&1; then
+    [[ -f "${HOME}/.bash_completions/grype.bash" ]] &&
+        source "${HOME}/.bash_completions/grype.bash"
+fi

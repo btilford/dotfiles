@@ -163,6 +163,35 @@ git archive HEAD | tar -x -C "$tmp"
 gitleaks dir "$tmp" -c .gitleaks.toml --no-banner
 """
 
+[tasks."lint:vuln"]
+description = "grype — scan TRACKED content for known vulnerabilities (fail at high)"
+# Deliberately NOT in `lint`'s depends list. It needs the network (grype
+# auto-updates its ~200MB vulnerability DB, rate-limited to every 2h) and runs
+# ~30s, so folding it into the fast gate would make every `mise run lint` both
+# slower and offline-fragile. Run it on demand, or on a schedule.
+#
+# Scans `git archive HEAD` rather than the working tree, for the same reason as
+# lint:secrets: `grype dir .` walks untracked local state — here that means
+# .opencode/node_modules, a few thousand packages that can never be committed
+# and whose CVEs are not this repo's to fix.
+#
+# Honest note on current yield: tracked content catalogs exactly THREE
+# components, all pinned GitHub Actions from .github/workflows/lint.yml, with
+# zero matches. This repo has no dependency manifests. The gate earns its keep
+# on the day one lands (or a pinned action turns out to be vulnerable), not
+# today — that is why it is a task rather than a CI job.
+#
+# Severity threshold comes from grype/.config/grype/config.yaml (fail-on-severity:
+# high) once that package is stowed; -f high is passed explicitly so an unstowed
+# checkout and CI get the same behaviour instead of grype's default of never
+# failing.
+run = """
+tmp=$(mktemp -d) || exit 1
+trap 'rm -rf "$tmp"' EXIT
+git archive HEAD | tar -x -C "$tmp"
+grype dir:"$tmp" -f high --name dotfiles
+"""
+
 [tasks."audit:secrets-history"]
 description = "gitleaks over FULL history — the honest pre-rewrite audit (no path allowlists)"
 # The counterpart to lint:secrets. lint gates the tracked HEAD; this surfaces every
