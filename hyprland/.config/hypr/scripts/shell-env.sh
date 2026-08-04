@@ -14,3 +14,6 @@
 
 HYPR_BAR="${HYPR_BAR:-waybar}"
 HYPR_LAUNCHER="${HYPR_LAUNCHER:-rofi}"
+# Which process owns org.freedesktop.Notifications. Only one can, so this is a
+# selector, not a preference — see StartNotify.sh and quickshell's config/Shell.qml.
+HYPR_NOTIFY="${HYPR_NOTIFY:-swaync}"
