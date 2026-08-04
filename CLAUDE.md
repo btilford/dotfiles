@@ -348,11 +348,22 @@ four ways a secret reaches a consumer:
 | ------ | ------ | ------ |
 | the session cache | any tool needing ambient env vars (clipborg, opencode, aider, nvim) | the login session |
 | `--get NAME` | consumers we control, at point of use | one call |
+| `--get --fresh NAME` | bypassing a stale cache after a rotation | one call |
 | `--run -- CMD` | narrowing exposure back to one process | that process only |
 | `secrets-load` | re-reading the cache into a running shell | until the shell exits |
 
 `--run` is a thin wrapper over `infisical run`, which injects into the child and
 nothing else.
+
+**`--get` resolves environment → cache → network, in that order.** It used to go
+straight to the network every time, which made it a *blocking ten-second stall* for
+its most important caller: nvim's `ai.lua` fetches `NEOVIM_API_KEY` through
+`vim.fn.system()`, which is synchronous. Measured 2026-08-03 — 10.0s (the full
+timeout) versus 4ms reading the same value from the cache the login unit had
+already written. The trade-off is staleness after a rotation, which is what
+`--fresh` is for. The secret name is validated against `[A-Za-z0-9_]` before it
+reaches the `eval` that reads the environment — that is a security boundary, not a
+nicety.
 
 **Every shell reads the cache at startup, and none of them fetch.** The drop-ins
 are `06-secrets` (fish, bash, zsh) and `secrets.nu` (nushell); each reads
