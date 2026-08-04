@@ -44,6 +44,12 @@ description = "Build ~/.local/share/git-template (init.templateDir) from the sto
 # the generated dir holds real files so installed hooks don't dangle.
 run = "git-template-sync"
 
+[tasks."gen:luacheck-hl-std"]
+description = "Regenerate the luacheck field spec for hyprland's `hl` global from its stubs"
+# Run after a hyprland upgrade and commit the result: /usr/share/hypr/stubs/hl.meta.lua
+# is regenerated per release, and a hand-maintained copy would drift silently.
+run = "./mise-scripts/gen-luacheck-hl-std.sh"
+
 [tasks.status]
 description = "Stow health: which packages are fully / partially / not stowed"
 # `stow -n` answers 'what would change for THIS package'. Nothing answered 'what
@@ -205,15 +211,20 @@ exit $rc
 """
 
 [tasks."lint:lua"]
-description = "luacheck the quickshell rules engine and shipped rule files"
-# Scoped to quickshell/ on purpose. hyprland/.config/hypr/lua/ is written against the
-# `hl` global the compositor injects, so a bare luacheck run reports ~350 undefined-global
-# warnings there — real work to silence properly (a luacheck std file), not this story's.
-# CI does not carry this gate: the runner cannot reach GitHub for mise's aqua installs and
-# there is no luacheck-bundled image in use — same deliberate divergence as the rest.
+description = "luacheck every tracked lua file"
+# Scope is all tracked lua, not just quickshell/. Each package is written against a
+# host that injects globals — hyprland `hl`, neovim `vim`, yazi `ya`/`cx`/`ui` — which
+# is what kept this gate narrow: undeclared, they produced ~810 undefined-global
+# warnings. .luacheckrc declares them per path instead of silencing them, so a typo
+# like `hl.dsp.window.clos` is still caught. See .luacheckrc.
+#
+# GitLab CI still does not carry this gate — its runner cannot reach GitHub for mise's
+# aqua installs and no luacheck-bundled image is in use, the same divergence as the
+# rest. GitHub Actions already apt-installs lua-check and runs the full suite, so the
+# widened scope reaches the strict gate with no workflow change.
 run = """
 if command -v luacheck >/dev/null 2>&1; then
-  git ls-files 'quickshell/**/*.lua' | xargs -r luacheck --no-color
+  git ls-files '*.lua' | xargs -r luacheck --no-color
 else
   echo "luacheck not installed — skipping lua lint"
 fi
