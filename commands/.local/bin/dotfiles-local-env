@@ -72,6 +72,60 @@ cmd_check() {
     fi
   fi
 
+  # --- hygiene checks on local.env itself -----------------------------------
+  #
+  # All three of these describe states the file was ACTUALLY in on 2026-08-03, none
+  # of which anything reported. The manifest check above only asks "is each variable
+  # set?", so a file can pass it while being world-readable, holding a credential,
+  # and having silently diverged from the copy a second machine would clone.
+  if [ -r "$env_file" ]; then
+    # 1. Mode. It is 600 by design; --template and gen-local-env.sh both create it
+    #    that way, but an editor that writes-and-renames can reset it to 644.
+    local mode
+    # -L dereferences: this path is normally a stow SYMLINK, and a symlink's own
+    # mode is always 777, so without it every correctly-linked machine fails here.
+    mode=$(stat -L -c '%a' "$env_file" 2> /dev/null || stat -L -f '%Lp' "$env_file" 2> /dev/null || echo '')
+    case "$mode" in
+      600 | '') : ;;
+      *) printf '  ⚠ %s is mode %s, expected 600 — fix: chmod 600 %s\n' "$env_file" "$mode" "$env_file" ;;
+    esac
+
+    # 2. Credentials. This file is values, never secrets: secrets live in Infisical
+    #    and arrive via the session cache. A token here is both a plaintext
+    #    credential on disk AND, since the file is tracked in the private repo,
+    #    a credential heading into git history.
+    local creds
+    creds=$(grep -oE '^[[:space:]]*[A-Za-z_]*(TOKEN|API_KEY|APIKEY|PASSWORD|SECRET|PASSWD)[A-Za-z_]*' "$env_file" 2> /dev/null | tr -d ' ' || true)
+    if [ -n "$creds" ]; then
+      printf '  ✗ %s holds credential-shaped keys — move them to Infisical:\n' "$env_file"
+      printf '      %s\n' $creds
+      printf '      then: dotfiles-secrets --get <NAME>, or let the session cache export it\n'
+      missing=$((missing + 1))
+    fi
+
+    # 3. ATUIN_*. These must never be here — see the atuin section of CLAUDE.md.
+    #    gen-local-env.sh emits an EMPTY placeholder for everything in the manifest,
+    #    and an empty ATUIN_* is not "unset": it is parsed, it fails, and it takes
+    #    down settings loading for the whole binary. They belong in `99-local`.
+    local atuin
+    atuin=$(grep -oE '^[[:space:]]*ATUIN_[A-Za-z0-9_]*' "$env_file" 2> /dev/null | tr -d ' ' || true)
+    if [ -n "$atuin" ]; then
+      printf '  ✗ %s holds ATUIN_* keys — an empty one breaks every atuin command:\n' "$env_file"
+      printf '      %s\n' $atuin
+      printf '      move them to ~/.config/{fish/conf.d/99-local.fish,bashrc/99-local,zshrc/99-local}\n'
+      missing=$((missing + 1))
+    fi
+
+    # 4. Drift. The file is TRACKED in the private dotfiles repo and reaches $HOME
+    #    as a stow symlink. A real file here still works, so nothing complains —
+    #    while edits stop reaching the repo, never get backed up, and never reach a
+    #    second machine. Found this way: the live file had drifted 9 keys ahead.
+    if [ ! -L "$env_file" ]; then
+      printf '  ⚠ %s is a REAL FILE, not a stow symlink — edits cannot reach any repo.\n' "$env_file"
+      printf '      Reconcile it into the private dotfiles repo, then replace it with a link.\n'
+    fi
+  fi
+
   # Not a variable, but the same class of thing: an untracked file the scrub gate
   # needs and silently runs without. Absent, the gate cannot catch an employer or
   # client name, and nothing else reports that it is unarmed.
