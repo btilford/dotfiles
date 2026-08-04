@@ -138,6 +138,23 @@ cmd_check() {
     printf '      install -m 600 -D %s %s\n' "$share_dir/scrub.example.patterns" "$patterns"
   fi
 
+  # Same class again: an untracked file whose ABSENCE is silent and looks like
+  # success. Without it dotfiles-secrets falls back to the CLI's own vault — which
+  # works on a machine whose wallet happens to be unlocked, and fails at login on
+  # the machine that prompted the migration. Reporting the fallback by name is the
+  # only way that distinction is ever visible.
+  local identity="${DOTFILES_INFISICAL_IDENTITY:-$HOME/.config/dotfiles/infisical-identity}"
+  if [ -r "$identity" ]; then
+    if grep -qE '^[[:space:]]*INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET[[:space:]]*=[[:space:]]*.' "$identity"; then
+      printf '  ✓ %s (machine identity — infisical needs no keyring)\n' "$identity"
+    else
+      printf '  ⚠ %s exists but the client secret is empty — infisical will fall back to the keyring\n' "$identity"
+    fi
+  else
+    printf '  · %s absent — infisical uses its own vault (keyring), which starts locked. Fix:\n' "$identity"
+    printf '      install -m 600 -D %s %s\n' "$share_dir/infisical-identity.example" "$identity"
+  fi
+
   echo "  ($total vars in manifest, $missing required missing, $empty_optional optional unset)"
   [ "$missing" -eq 0 ]
 }
