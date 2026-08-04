@@ -37,19 +37,19 @@ files = true
 # not rejected. That is what lets this committed base name things a given machine lacks
 # while config.local.toml switches them off.
 [features]
-registers = true             # vim/nvim register ingest (TUI `R` popup, dialog tab)
+registers = true # vim/nvim register ingest (TUI `R` popup, dialog tab)
 pinning = true
-actions = true               # the action menu ([[actions]])
-filters = true               # the blocklists below
+actions = true   # the action menu ([[actions]])
+filters = true   # the blocklists below
 
 [features.llm]
-enabled = true               # master switch for every LLM affordance
-harnesses = true             # subprocess backends ([[llm.harnesses]])
-api = true                   # HTTPS providers ([[llm.providers]])
-tmux = true                  # the tmux mode this config defaults to
-foreground = true            # hand the terminal to the harness
-edit_before_send = true      # honour a prompt's edit_before_send
-backend_picker = true        # `h` in the prompt picker: override the backend per run
+enabled = true          # master switch for every LLM affordance
+harnesses = true        # subprocess backends ([[llm.harnesses]])
+api = true              # HTTPS providers ([[llm.providers]])
+tmux = true             # the tmux mode this config defaults to
+foreground = true       # hand the terminal to the harness
+edit_before_send = true # honour a prompt's edit_before_send
+backend_picker = true   # `h` in the prompt picker: override the backend per run
 
 [filters]
 # Block saving to history entirely. app_id/class match is case-insensitive
@@ -58,7 +58,38 @@ backend_picker = true        # `h` in the prompt picker: override the backend pe
 # x-kde-passwordManagerHint (KeePassXC and similar) are always skipped
 # regardless of these filters.
 apps = []
-content_regex = []
+
+# Forge access tokens must never reach the history database. Copying a PAT out of
+# a GitLab or GitHub page is a routine act, and clipborg's store is sqlite on real
+# disk with retention measured in weeks — so without this a token outlives the
+# five seconds it was meant to exist for, gets backed up, and is one `clipborg
+# list` away from a terminal. Blocked here means the copy still works normally;
+# only the *recording* of it is skipped.
+#
+# CAREFUL: config.local.toml's `content_regex` REPLACES this array, it does not
+# extend it — tables merge key by key, but every array outside [[actions]] and
+# [[llm.*]] replaces. A machine whose local file sets content_regex for any other
+# reason silently loses these patterns. Verified the hard way 2026-08-03: with the
+# rules only here, a copied glpat-/ghp_ string was still recorded, because the
+# local file had an unrelated blocklist. Restate them there, or drop the local key.
+#
+# Matched against the copied text as a regex. Prefixes rather than exact lengths:
+# GitLab has widened glpat- twice, and a rule that misses a longer token is worse
+# than one that occasionally blocks a string merely shaped like a token. There is
+# no cost to a false positive here — one clipboard entry is not recorded.
+#
+#   gl(pat|ptt|rt|dt|soat|imt|agent|ffct|oas)- : GitLab personal / pipeline-trigger /
+#                                                runner / deploy / SCIM / incoming-mail /
+#                                                agent / feed / OAuth tokens
+#   gh[pousr]_                                 : GitHub classic PAT, OAuth, user-to-server,
+#                                                server-to-server, refresh
+#   github_pat_                                : GitHub fine-grained PAT
+content_regex = [
+  "gl(pat|ptt|rt|dt|soat|imt|agent|ffct|oas)-[0-9A-Za-z_-]{16,}",
+  "gh[pousr]_[0-9A-Za-z]{16,}",
+  "github_pat_[0-9A-Za-z_]{16,}",
+]
+
 title_regex = []
 
 # Terminal-only: what the TUI *draws*. The quickshell dialog ignores everything under [tui]
