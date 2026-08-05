@@ -108,7 +108,28 @@ EOF
     value=$(placeholder_of "$var" || true)
     printf '\n# %s — %s\n' "${req:-optional}" "${consumer:-unknown consumer}"
     [ -n "${note:-}" ] && printf '#   %s\n' "$note"
-    printf '%s=%s\n' "$var" "$value"
+    # An empty placeholder is emitted COMMENTED OUT, because this file is also read
+    # by systemd: ~/.config/environment.d/50-local.conf is a symlink to it, and
+    # systemd's environment generator rejects a bare `VAR=` —
+    #
+    #   50-local.conf:29: invalid syntax (around "NAS_MOUNT_ROOT"), ignoring.
+    #
+    # It drops that one assignment and keeps the rest of the file (verified
+    # 2026-08-04 against `systemctl --user show-environment` — every other variable
+    # was present), so this was never the outage it looks like in the journal. It is
+    # still noise on every boot for a variable that was unset either way, and it
+    # trains you to ignore a parser warning that would matter if a real value ever
+    # tripped it.
+    #
+    # Commented is also the more honest state: every consumer of an optional
+    # variable uses `${VAR:-default}`, so unset and empty already mean the same
+    # thing to them, and `dotfiles-local-env --check` reports it as "optional unset"
+    # either way.
+    if [ -n "$value" ]; then
+      printf '%s=%s\n' "$var" "$value"
+    else
+      printf '#%s=\n' "$var"
+    fi
   done < "$manifest"
 }
 
