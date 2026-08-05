@@ -130,7 +130,14 @@ PanelWindow {
         // Glass: the slab is mostly the desktop behind it (blurred by the compositor), and the
         // rows below carry their own, much higher opacity. Atmosphere in the background,
         // content in the foreground.
-        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, NotifyConfig.drawer.opacity)
+        //
+        // Theme.glass(), not Theme.surface directly. surface is #2a1010 under warmBase — a warm
+        // maroon, not a neutral dark — so using it raw tinted everything behind the slab
+        // red-brown at any alpha. Theme.glass desaturates toward the brightest channel (a
+        // luminance mix collapses this colour to near-black) and lifts toward white so the blur
+        // has contrast to read against. Shared with the submap hints so the two glass surfaces
+        // cannot drift apart.
+        color: Theme.glass(NotifyConfig.drawer.opacity)
 
         // 0 = off screen right, 1 = fully out. The panel slides; the modal fades and scales,
         // matching what each shape does everywhere else in this shell.

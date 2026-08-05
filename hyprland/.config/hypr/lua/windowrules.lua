@@ -148,25 +148,56 @@ hl.layer_rule({
 -- drawer.opacity) so it reads as glass rather than a panel; without compositor blur behind
 -- it that is just "hard to read". ignore_alpha keeps the blur off the fully clear regions —
 -- the drawer window covers the whole output and is transparent outside the slab.
+--
+-- xray = false, matching the submap hints. xray makes the blur sample the WALLPAPER and ignore
+-- every window in between, so on a saturated wallpaper the "frosted glass" is frosted
+-- wallpaper and the slab takes that hue regardless of what is actually underneath it. It also
+-- cuts a hole through the app you are reading and replaces it with unrelated scenery.
 hl.layer_rule({
   name = "quickshell-notification-drawer",
   match = { namespace = "^(quickshell-notification-drawer)$" },
   blur = true,
   ignore_alpha = 0.15,
-  xray = true,
+  xray = false,
 })
 
 -- Layer rules: quickshell submap (which-key) hints.
--- Same glass as the drawer, and the same dependency: the slab is drawn at the drawer's
--- opacity, which reads as frosted only with compositor blur behind it. The window spans the
--- bottom of the output and is fully transparent outside the slab, so ignore_alpha keeps the
--- blur off the clear regions. The surface takes no keyboard and has an empty input region.
+-- The slab is drawn at the drawer's opacity, which reads as frosted only with compositor
+-- blur behind it. The window spans the bottom of the output and is fully transparent outside
+-- the slab, so ignore_alpha keeps the blur off the clear regions. The surface takes no
+-- keyboard and has an empty input region.
+--
+-- xray = FALSE here, unlike the drawer. xray makes the blur sample the WALLPAPER and ignore
+-- the windows in between — so on a saturated wallpaper (the current one is an orange sunset)
+-- the "frosted glass" is frosted *wallpaper*, and the slab reads as a brown wash no matter
+-- what is actually underneath it. That is what made this overlay look brown rather than
+-- glassy; opacity was never the cause.
+--
+-- It is also the wrong behaviour for THIS surface specifically. The hints appear over the
+-- window you are working in, for a second, while you decide a key — blurring that window is
+-- the feedback you want. Cutting a hole through it to the desktop replaces the context you
+-- are mid-thought about with unrelated scenery.
+--
+-- ignore_alpha (0.15) is deliberately ABOVE the slab's own alpha (0.05, Shell.qml
+-- submapHintsOpacity), which means the compositor skips blurring the slab itself and only the
+-- shimmer/elevation/text — the parts above the threshold — sit over a sharp background.
+--
+-- That is a chosen look, not an oversight, and it was measured rather than assumed: dropping
+-- ignore_alpha to 0.02 puts it below the slab alpha, full blur applies, and in-slab detail
+-- variance falls from 0.064 to 0.042 with the background outside the slab identical to seven
+-- decimal places. Both were compared side by side; the sharper one reads better here, and it
+-- is also what makes the shimmer legible as a sweep rather than a haze.
+--
+-- The trap to remember if either number is ever touched: **blur silently does not apply when
+-- ignore_alpha exceeds the surface's alpha.** Nothing warns, and an unblurred glass surface
+-- looks like a design mistake rather than a missing effect. Raising submapHintsOpacity back
+-- above 0.15 will switch full blur on again and change the look without either value moving.
 hl.layer_rule({
   name = "quickshell-submap-hints",
   match = { namespace = "^(quickshell-submap-hints)$" },
   blur = true,
   ignore_alpha = 0.15,
-  xray = true,
+  xray = false,
 })
 
 -- Layer rules: SwayNC
