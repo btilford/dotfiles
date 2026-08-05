@@ -56,7 +56,7 @@ FRAME_INTERVAL="0.06"
 GIF_FPS=15
 GIF_WIDTH=960
 
-ALL_SCENES=(bar drawer modal popup tmux)
+ALL_SCENES=(bar drawer modal popup submap tmux)
 
 log() { printf '\033[1;36m[capture]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[capture]\033[0m %s\n' "$*" >&2; }
@@ -102,6 +102,7 @@ while [ $# -gt 0 ]; do
         drawer "launcher drawer — quickshell IPC" \
         modal "session/power overlay — quickshell IPC" \
         popup "notification popups — both anchor presets, dwell + overflow" \
+        submap "which-key submap hints — sparse, typical and dense maps" \
         tmux "terminal surface — vhs tape if installed, else foot + grim"
       exit 0
       ;;
@@ -560,6 +561,20 @@ popup_overflow() {
 # live tmux server would (a) put whatever they are actually working on into a
 # capture destined for the vault, and (b) let this harness kill sessions out
 # from under them — a background agent lives in that server.
+# The overlay is driven by real Hyprland submap state, which sway cannot produce,
+# so it is fed through the preview IPC instead — see the header of SubmapHints.qml.
+# Three entry counts because the layout is width-driven: the interesting cases are a
+# map too sparse to fill one row, one that fills it, and one that has to wrap.
+scene_submap() {
+  for n in 4 12 28; do
+    ipc submapHints preview resize "$n"
+    settle
+    still "submap-$n"
+  done
+  ipc submapHints hide
+  settle 0.6
+}
+
 scene_tmux() {
   if command -v vhs > /dev/null 2>&1; then
     local dest="$OUT/tmux-motion-$TS.gif"
