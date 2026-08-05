@@ -493,7 +493,7 @@ active bar/launcher per machine in `~/.config/hypr/shell.local.env` (not stowed)
 | `HYPR_NOTIFY` | `swaync` (default) \| `quickshell` | which process owns `org.freedesktop.Notifications` |
 | `QS_SUBMAP_HINTS` | `1` (default) \| `0` | which-key hints for the active submap (`components/SubmapHints.qml`) |
 | `QS_SUBMAP_HINTS_DELAY` | ms (default `250`) | how long a submap must stay active before the hints appear |
-| `QS_SUBMAP_HINTS_OPACITY` | `0.05`–`1` (default `0.35`) | hints slab surface opacity. Its own knob, not the drawer's. Out-of-range falls back to the default — `0` is a valid float that would leave the slab invisible while the text still drew |
+| `QS_SUBMAP_HINTS_OPACITY` | `0.05`–`1` (default `0.1`) | hints slab surface opacity. Its own knob, not the drawer's. Out-of-range falls back to the default — `0` is a valid float that would leave the slab invisible while the text still drew |
 | `QS_EFFECTS` | `full` (default) \| `low` \| `off` | `off` = shaders never instantiated (Loader-gated); static themed fallbacks: accent Rectangle/Shape borders, flat accent fills, no shimmer/reflection/glyph lava. `low` reserved, currently = `full`. |
 
 Border weights are Theme tokens: `Theme.borderThickness` (energy borders) and `Theme.borderThin`
