@@ -19,7 +19,7 @@ The `git` stow package provides the complete git configuration for all machines.
 | `aliases.gitconfig` | Short-form and descriptive aliases. Aliases that shell out use the `!sh -c '...'` pattern. |
 | `commands.gitconfig` | Push/pull/fetch/merge/diff behavior. Configures merge and diff tools (nvimdiff, IntelliJ, meld). Note: IntelliJ tool paths are macOS-specific absolute paths and should not be changed to relative. |
 | `flow.gitconfig` | Branch prefix conventions for git-flow (`feature-`, `release-`, `hotfix-`, `bug-`, `poc-`, `spike-`). |
-| `shell.gitconfig` | Color output, rebase sequence editor (`interactive-rebase-tool`), and notes refs config (`+refs/notes/*:refs/notes/*` on fetch and push — do not remove). |
+| `shell.gitconfig` | Color output, rebase sequence editor (`interactive-rebase-tool`), and notes refs config (`+refs/notes/*:refs/notes/*` on fetch and push — do not remove). **`push = HEAD` must stay alongside the notes push refspec** — see below. |
 | `spice.gitconfig` | git-spice: `spice.log.*`, `spice.submit.navigationComment`, `spice.branchDelete.restack`. Forge URLs are machine-specific and live in `~/.gitconfig.local`. |
 | `templates/hooks/post-checkout`, `templates/hooks/pre-commit` | Identical shims installed into new repos by `init.templateDir`. They derive the hook name from `$0` and delegate to `hooks/<name>`. |
 | `hooks/post-checkout` | Real logic: auto-init + auto-track branches with git-spice. Exits 0 on every path. |
@@ -176,6 +176,44 @@ the wrapper and orphan the `.chained` file; re-running the installer restores it
 **`pre-commit` is never chained.** lefthook and the pre-commit framework already
 run gitleaks in repos configured for them (this repo does, via `lefthook.yml`), so
 chaining would scan twice. The installer reports and skips.
+
+## `remote.origin.push` replaces the default — it does not add to it
+
+`shell.gitconfig` syncs git notes to every origin. The push half of that has a
+trap that cost a silent no-op push, and both halves of the fix must stay:
+
+```ini
+[remote "origin"]
+    fetch = +refs/notes/*:refs/notes/*
+    push = HEAD
+    push = +refs/notes/*:refs/notes/*
+```
+
+**`push = HEAD` is not optional.** Setting `remote.<name>.push` at all replaces
+git's default push refspec, so with only the notes line present `git push` pushed
+notes and *nothing else* — reporting `Everything up-to-date` on a branch a commit
+ahead of its upstream. It does not fail and it does not warn, and
+`push.default = current` from `commands.gitconfig` is ignored outright, because an
+explicit refspec always beats `push.default`. `HEAD` restores that behaviour
+explicitly. This is global config under `[remote "origin"]`, so it applied to every
+repo on the machine.
+
+**Never single-quote a config value.** git config is not shell: double quotes are
+syntax git strips, single quotes are literal characters that end up *inside* the
+value. Both entries here were single-quoted, so the configured refspec was
+literally `'+refs/notes/*:refs/notes/*'` — leading quote included, matching no ref
+ever. `notes.displayRef` had the same defect, so `git log` never displayed a note.
+The `fetch` line was unquoted and correct throughout, which is exactly why the
+breakage was lopsided and survived so long.
+
+Verify after touching either:
+
+```console
+$ git config --get-all remote.origin.push   # no quote characters in the output
+HEAD
++refs/notes/*:refs/notes/*
+$ git push --dry-run                        # must name the current branch
+```
 
 ## Machine-local git config
 
