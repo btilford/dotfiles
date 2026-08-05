@@ -190,9 +190,11 @@ PanelWindow {
         width: Math.min(win.slabWidth, win.width - Theme.pad * 2)
         height: body.implicitHeight + Theme.pad * 2
         radius: Theme.radius
-        // Glass, at the notification drawer's opacity (NotifyConfig.drawer.opacity). Borderless
-        // on purpose: this is paper that landed on the desktop, not a dialog.
-        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, NotifyConfig.drawer.opacity)
+        // Glass. Borderless on purpose: this is paper that landed on the desktop, not a
+        // dialog. The opacity is this component's OWN setting — it used to read
+        // NotifyConfig.drawer.opacity, which coupled two unrelated surfaces, so tuning the
+        // hints for legibility over a bright window restyled the notification drawer too.
+        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Shell.submapHintsOpacity)
 
         opacity: win.wantShown ? 1 : 0
         Behavior on opacity {

@@ -38,6 +38,12 @@ Singleton {
     // must stay active before they appear — a map you pass straight through never flashes.
     property bool submapHintsEnabled: true
     property int submapHintsDelay: 250
+    // Surface opacity of the hints slab. Its own knob rather than borrowing
+    // NotifyConfig.drawer.opacity, which is what it used to read: the two surfaces have
+    // nothing to do with each other, and sharing the value meant tuning the hints for
+    // legibility would silently restyle the notification drawer as well. 0.35 is the
+    // value it inherited, so the default is a no-op.
+    property real submapHintsOpacity: 0.35
 
     // shaders render only when effects aren't switched off; "low" reserved, treated as full
     readonly property bool effectsOn: effectsMode !== "off"
@@ -59,6 +65,7 @@ Singleton {
         let notify = "swaync";
         let hints = "1";
         let hintsDelay = "250";
+        let hintsOpacity = "0.35";
         if (t) {
             for (const line of t.split("\n")) {
                 const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
@@ -78,6 +85,8 @@ Singleton {
                     hints = m[2];
                 else if (m[1] === "QS_SUBMAP_HINTS_DELAY")
                     hintsDelay = m[2];
+                else if (m[1] === "QS_SUBMAP_HINTS_OPACITY")
+                    hintsOpacity = m[2];
             }
         }
         // environment overrides the file, key by key — an unset var leaves the file's value alone
@@ -92,6 +101,11 @@ Singleton {
         // a garbage delay must not mean "never show" — fall back rather than trust it
         const delay = parseInt(envOr("QS_SUBMAP_HINTS_DELAY", hintsDelay), 10);
         root.submapHintsDelay = (isNaN(delay) || delay < 0) ? 250 : delay;
+        // Same guard as the delay, plus a floor: 0 is a valid float and would render the
+        // slab fully invisible while the text still drew, which reads as a broken overlay
+        // rather than as a setting. Clamped to something still recognisably a surface.
+        const hOpacity = parseFloat(envOr("QS_SUBMAP_HINTS_OPACITY", hintsOpacity));
+        root.submapHintsOpacity = (isNaN(hOpacity) || hOpacity < 0.05 || hOpacity > 1) ? 0.35 : hOpacity;
     }
 
     // Quickshell.env returns undefined for an unset variable and "" for an empty one; treat both
