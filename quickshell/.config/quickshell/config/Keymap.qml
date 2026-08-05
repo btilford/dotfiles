@@ -56,6 +56,13 @@ Singleton {
         function onRawEvent(event) {
             if (event.name === "submap")
                 root.currentSubmap = event.data;
+            // Binds only ever change when the Hyprland config is reloaded, so the cache is
+            // invalidated on that event rather than by a TTL (which is either too short —
+            // pointless subprocesses — or too long — stale hints). SubmapHints reads `binds`
+            // on the critical path of entering a submap and cannot afford a `hyprctl` round
+            // trip there; KeymapOverlay still reloads on every open(), which it can afford.
+            else if (event.name === "configreloaded")
+                root.load();
         }
     }
 

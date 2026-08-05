@@ -10,6 +10,7 @@ import Quickshell.Io
 //
 // Keys: HYPR_BAR=waybar|quickshell  HYPR_LAUNCHER=rofi|quickshell  HYPR_BAR_DEV=1
 //       QS_EFFECTS=full|low|off  HYPR_NOTIFY=swaync|quickshell
+//       QS_SUBMAP_HINTS=1|0  QS_SUBMAP_HINTS_DELAY=<ms>
 // HYPR_BAR_DEV renders the qs bar at the BOTTOM (no exclusive zone) for side-by-side testing
 // against waybar during development.
 // QS_EFFECTS=off swaps every shader (energy borders, fills, shimmer, reflections) for static
@@ -33,6 +34,10 @@ Singleton {
     property bool barDev: false
     property string effectsMode: "full"
     property string notifyBackend: "swaync"
+    // which-key hints for the active submap (components/SubmapHints.qml), and how long a submap
+    // must stay active before they appear — a map you pass straight through never flashes.
+    property bool submapHintsEnabled: true
+    property int submapHintsDelay: 250
 
     // shaders render only when effects aren't switched off; "low" reserved, treated as full
     readonly property bool effectsOn: effectsMode !== "off"
@@ -52,6 +57,8 @@ Singleton {
         let dev = false;
         let effects = "full";
         let notify = "swaync";
+        let hints = "1";
+        let hintsDelay = "250";
         if (t) {
             for (const line of t.split("\n")) {
                 const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
@@ -67,6 +74,10 @@ Singleton {
                     effects = m[2];
                 else if (m[1] === "HYPR_NOTIFY")
                     notify = m[2];
+                else if (m[1] === "QS_SUBMAP_HINTS")
+                    hints = m[2];
+                else if (m[1] === "QS_SUBMAP_HINTS_DELAY")
+                    hintsDelay = m[2];
             }
         }
         // environment overrides the file, key by key — an unset var leaves the file's value alone
@@ -76,6 +87,11 @@ Singleton {
         root.barDev = (devRaw === "1" || devRaw === "true");
         root.effectsMode = envOr("QS_EFFECTS", effects);
         root.notifyBackend = envOr("HYPR_NOTIFY", notify);
+        const hintsRaw = envOr("QS_SUBMAP_HINTS", hints);
+        root.submapHintsEnabled = !(hintsRaw === "0" || hintsRaw === "off" || hintsRaw === "false");
+        // a garbage delay must not mean "never show" — fall back rather than trust it
+        const delay = parseInt(envOr("QS_SUBMAP_HINTS_DELAY", hintsDelay), 10);
+        root.submapHintsDelay = (isNaN(delay) || delay < 0) ? 250 : delay;
     }
 
     // Quickshell.env returns undefined for an unset variable and "" for an empty one; treat both

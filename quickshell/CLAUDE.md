@@ -108,6 +108,33 @@ Search + flat/tree list + preview pane + actions/llm/pin/delete/bulk-delete. Sta
   injects real keys into an exclusive layer (`hyprctl send_shortcut` can't). See the
   `quickshell-exclusive-grab-lockout` memory.
 
+## Submap hints (which-key)
+
+`components/SubmapHints.qml` — entering a Hyprland submap pops a translucent slab at the bottom
+of the focused monitor listing that map's binds. Complements the bar badge
+(`components/bar/Submap.qml`), which stays: the badge is persistent ambient state ("you are in a
+submap") and survives the show-delay; the overlay is the transient detail.
+
+- **The surface is passive, and that is the whole design.** `WlrKeyboardFocus.None` *and*
+  `mask: Region {}`. Hyprland owns the keys while a submap is active — a grab would stop the
+  submap's own binds firing, and an exclusive grab resets the live submap outright (that is why
+  `KeymapOverlay` has to snapshot `Keymap.filterSubmap`). Keyboard focus is only half of it: a
+  layer surface with a default input region swallows every pointer event over its area, and this
+  one lies across the bottom of the screen. Nothing in it is clickable, so nothing is carved out.
+- **Binds are cached, invalidated on `configreloaded`** in `Keymap.qml`'s existing `onRawEvent`
+  block — not a TTL, which is either too short (pointless subprocesses) or too long (stale
+  hints). `Keymap.load()` runs `hyprctl binds -j`, a subprocess round trip that the fullscreen
+  cheatsheet can afford on every `open()` and this surface cannot, since it must appear the
+  instant a submap is entered. Belt-and-braces: an empty `binds` when a submap opens loads on
+  demand.
+- Borderless glass at `NotifyConfig.drawer.opacity` (0.35), depth from `Elevation` — so it
+  carries the same **compositor-blur dependency as the drawer**: the layer rule for
+  `quickshell-submap-hints` in `hypr/lua/windowrules.lua` is what makes 0.35 frosted rather
+  than unreadable.
+- Binds entering a *nested* submap are rendered as which-key `+prefix` groups via
+  `Keymap.submapEntry(b)`.
+- Config: `QS_SUBMAP_HINTS` / `QS_SUBMAP_HINTS_DELAY` in `shell.local.env` (see below).
+
 ## Notifications
 
 `org.freedesktop.Notifications` server (story: notif-dbus-server, first of the notifications
@@ -456,6 +483,8 @@ active bar/launcher per machine in `~/.config/hypr/shell.local.env` (not stowed)
 | `HYPR_LAUNCHER` | `rofi` \| `quickshell` | which launcher `Launcher.sh` targets |
 | `HYPR_BAR_DEV` | `1` | qs bar at the bottom, no exclusive zone, alongside waybar |
 | `HYPR_NOTIFY` | `swaync` (default) \| `quickshell` | which process owns `org.freedesktop.Notifications` |
+| `QS_SUBMAP_HINTS` | `1` (default) \| `0` | which-key hints for the active submap (`components/SubmapHints.qml`) |
+| `QS_SUBMAP_HINTS_DELAY` | ms (default `250`) | how long a submap must stay active before the hints appear |
 | `QS_EFFECTS` | `full` (default) \| `low` \| `off` | `off` = shaders never instantiated (Loader-gated); static themed fallbacks: accent Rectangle/Shape borders, flat accent fills, no shimmer/reflection/glyph lava. `low` reserved, currently = `full`. |
 
 Border weights are Theme tokens: `Theme.borderThickness` (energy borders) and `Theme.borderThin`
