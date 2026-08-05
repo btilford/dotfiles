@@ -91,8 +91,16 @@ PanelWindow {
         left: true
         right: true
     }
-    // the dev-mode bar sits at the BOTTOM; ExclusionMode.Ignore means nothing moves us off it
-    margins.bottom: Theme.pad + (Shell.barVisible && Shell.barDevMode ? Theme.barHeightHub : 0)
+    // Lifted off the bottom edge rather than hugging it. ExclusionMode.Ignore means nothing
+    // reflows out of the way, so at Theme.pad the slab landed straight on top of whatever
+    // occupies the last rows of a full-height terminal — a tmux status line and the prompt
+    // below it — and the hints competed with that text instead of sitting clear of it.
+    //
+    // Expressed in text rows so it tracks the font rather than a pixel count that stops
+    // being right the moment either changes.
+    //
+    // The dev-mode bar sits at the BOTTOM, so its height still stacks on top of this.
+    margins.bottom: Theme.pad + win.textSize * 6 + (Shell.barVisible && Shell.barDevMode ? Theme.barHeightHub : 0)
 
     implicitHeight: slab.height + Theme.pad * 2
 
@@ -118,7 +126,11 @@ PanelWindow {
         return out;
     }
 
-    readonly property int rowHeight: Theme.fontSize + 10
+    // Two points up on the shell's base size. This overlay is read in a glance while a chord
+    // is half-entered, at whatever distance the monitor happens to be — it is not body text,
+    // and the -1 it used to run at made it the smallest thing on screen.
+    readonly property int textSize: Theme.fontSize + 1
+    readonly property int rowHeight: win.textSize + 10
 
     // Which-key's shape: a WIDE, short slab across the bottom.
     //
@@ -132,8 +144,9 @@ PanelWindow {
     // is read by scanning DOWN a column of chords. The cost is a hard elide on a
     // long action name, which is the right trade for a hint overlay.
     readonly property real slabWidth: Math.round((win.screen ? win.screen.width : 1920) * 0.94)
-    readonly property int chordWidth: 74
-    readonly property int hintWidth: win.chordWidth + Math.round(Theme.fontSize * 13)
+    // scales with the text, so a font bump cannot start clipping "SUPER+SHIFT+j"
+    readonly property int chordWidth: Math.round(win.textSize * 5.3)
+    readonly property int hintWidth: win.chordWidth + Math.round(win.textSize * 13)
     readonly property int columnCount: Math.max(1, Math.min(win.entries.length, Math.floor((win.slabWidth - Theme.pad * 2 + Theme.pad) / (win.hintWidth + Theme.pad))))
     readonly property int rowCount: Math.max(1, Math.ceil(win.entries.length / win.columnCount))
 
@@ -213,7 +226,7 @@ PanelWindow {
                 text: win.submap
                 color: Theme.accent
                 font.family: Theme.fontMono
-                font.pixelSize: Theme.fontSize - 1
+                font.pixelSize: win.textSize
                 font.bold: true
             }
 
@@ -241,7 +254,7 @@ PanelWindow {
                             text: hint.modelData.chord
                             color: Theme.accent
                             font.family: Theme.fontMono
-                            font.pixelSize: Theme.fontSize - 1
+                            font.pixelSize: win.textSize
                             elide: Text.ElideLeft
                         }
                         Text {
@@ -250,7 +263,7 @@ PanelWindow {
                             text: "→"
                             color: Theme.subtext
                             font.family: Theme.fontMono
-                            font.pixelSize: Theme.fontSize - 2
+                            font.pixelSize: win.textSize - 1
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
@@ -262,7 +275,7 @@ PanelWindow {
                             // a group reads like which-key's "+prefix": accent, not body text
                             color: hint.modelData.group ? Theme.accent : Theme.fg
                             font.family: Theme.fontUi
-                            font.pixelSize: Theme.fontSize - 1
+                            font.pixelSize: win.textSize
                         }
                     }
                 }

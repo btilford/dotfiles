@@ -127,10 +127,18 @@ submap") and survives the show-delay; the overlay is the transient detail.
   cheatsheet can afford on every `open()` and this surface cannot, since it must appear the
   instant a submap is entered. Belt-and-braces: an empty `binds` when a submap opens loads on
   demand.
-- Borderless glass at `NotifyConfig.drawer.opacity` (0.35), depth from `Elevation` — so it
+- Borderless glass at `Shell.submapHintsOpacity` (0.35), depth from `Elevation` — so it
   carries the same **compositor-blur dependency as the drawer**: the layer rule for
   `quickshell-submap-hints` in `hypr/lua/windowrules.lua` is what makes 0.35 frosted rather
-  than unreadable.
+  than unreadable. It read `NotifyConfig.drawer.opacity` until 2026-08-04; that coupled two
+  unrelated surfaces, so tuning the hints for legibility restyled the notification drawer too.
+- **Wide and short, and lifted off the bottom edge.** Layout is driven by width — as many
+  columns as fit across 94% of the monitor, rows falling out of that — because the
+  height-driven original rendered a normal map as one tall narrow column, the shape which-key
+  exists to avoid. `ExclusionMode.Ignore` means nothing reflows out of the way, so
+  `margins.bottom` also clears ~6 text rows: at `Theme.pad` the slab landed on top of a
+  full-height terminal's prompt and tmux status line. Both the margin and the cell widths are
+  expressed in `textSize` units so a font change cannot silently break either.
 - Binds entering a *nested* submap are rendered as which-key `+prefix` groups via
   `Keymap.submapEntry(b)`.
 - Config: `QS_SUBMAP_HINTS` / `QS_SUBMAP_HINTS_DELAY` in `shell.local.env` (see below).
@@ -485,6 +493,7 @@ active bar/launcher per machine in `~/.config/hypr/shell.local.env` (not stowed)
 | `HYPR_NOTIFY` | `swaync` (default) \| `quickshell` | which process owns `org.freedesktop.Notifications` |
 | `QS_SUBMAP_HINTS` | `1` (default) \| `0` | which-key hints for the active submap (`components/SubmapHints.qml`) |
 | `QS_SUBMAP_HINTS_DELAY` | ms (default `250`) | how long a submap must stay active before the hints appear |
+| `QS_SUBMAP_HINTS_OPACITY` | `0.05`–`1` (default `0.35`) | hints slab surface opacity. Its own knob, not the drawer's. Out-of-range falls back to the default — `0` is a valid float that would leave the slab invisible while the text still drew |
 | `QS_EFFECTS` | `full` (default) \| `low` \| `off` | `off` = shaders never instantiated (Loader-gated); static themed fallbacks: accent Rectangle/Shape borders, flat accent fills, no shimmer/reflection/glyph lava. `low` reserved, currently = `full`. |
 
 Border weights are Theme tokens: `Theme.borderThickness` (energy borders) and `Theme.borderThin`
