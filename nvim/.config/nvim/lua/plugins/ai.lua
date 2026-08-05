@@ -156,7 +156,8 @@ return {
       end,
       -- Function to initialize Ollama
       command = function(options)
-        local body = { model = options.model, stream = true }
+        -- `$body` below is gen.nvim's own placeholder — the plugin builds and
+        -- shellescapes the JSON payload itself, so nothing is constructed here.
         return string.format(
           "curl --silent --no-buffer -X POST http://%s:%s/api/chat -d $body",
           options.host,
