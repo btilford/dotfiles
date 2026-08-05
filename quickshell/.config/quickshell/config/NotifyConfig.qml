@@ -100,7 +100,13 @@ Singleton {
             // (hypr/lua/windowrules.lua layer rule on the quickshell-notification-drawer
             // namespace). The ROWS are much more opaque — the background is atmosphere, the
             // notifications are the content, and content has to stay readable over a terminal.
-            opacity: 0.35,
+            //
+            // 0.05, down from 0.35, matching the submap hints. Slab alpha is not a legibility
+            // control: it is a Rectangle fill and the rows above it carry their own itemOpacity,
+            // so raising it never made content more readable — it only stacked more tint between
+            // you and the desktop until the panel stopped reading as glass. See
+            // Shell.submapHintsOpacity, where the same mistake is written up at length.
+            opacity: 0.05,
             itemOpacity: 0.82
         })
 

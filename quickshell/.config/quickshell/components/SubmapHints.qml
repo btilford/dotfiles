@@ -126,49 +126,10 @@ PanelWindow {
         return out;
     }
 
-    // Theme.surface is #2a1010 — a warm MAROON, not a neutral dark. That is deliberate for the
-    // shell at large: the surfaces are meant to match ghostty's terminal base rather than go
-    // cold. But red is 2.6x green and blue there, so at any alpha the hue tints everything
-    // behind the slab red-brown, and that is independent of the blur. Fine for a panel you
-    // opened on purpose; wrong for a strip that lands on top of what you are reading.
-    //
-    // Desaturate toward the grey of the BRIGHTEST channel: 0 keeps Theme.surface exactly, 1 is
-    // fully neutral at the same weight.
-    //
-    // Mixing toward a *luminance* grey — the obvious choice — is wrong for a colour like this
-    // and was tried first. #2a1010 gets almost all of its brightness from red, so its luminance
-    // grey is about #161616: desaturating pulls R down 42 -> 22 and the slab goes nearly black.
-    // The max channel is already the perceived weight of the colour, so lifting green and blue
-    // up to meet it drops the hue while leaving the surface exactly as light as it was.
-    readonly property real slabDesaturate: 0.7
-
-    // ...then LIFT it toward white.
-    //
-    // Blur alone does not read as frost. Frost is visible when there is something behind it to
-    // diffuse, and the drawer only looks glassy because xray hands it a bright wallpaper to
-    // blur. With xray off this surface sits over whatever window you are in — usually a dark
-    // terminal — so a dark tint over dark content composites to a flat, barely-there panel no
-    // matter how the hue is adjusted.
-    //
-    // This is the luminosity layer that acrylic/vibrancy implementations add on top of the
-    // tint for exactly this reason: it lifts the surface off its background so the blur has
-    // contrast to be seen against, instead of relying on the background to supply the light.
-    readonly property real slabLift: 0.3
-    readonly property color slabColor: {
-        const s = Theme.surface;
-        const m = Math.max(s.r, s.g, s.b);
-        const k = win.slabDesaturate;
-        const n = win.slabLift;
-        const r = s.r + (m - s.r) * k;
-        const g = s.g + (m - s.g) * k;
-        const b = s.b + (m - s.b) * k;
-        return Qt.rgba(r + (1 - r) * n, g + (1 - g) * n, b + (1 - b) * n, Shell.submapHintsOpacity);
-    }
-
-    // Two points up on the shell's base size. This overlay is read in a glance while a chord
+    // Three points up on the shell's base size. This overlay is read in a glance while a chord
     // is half-entered, at whatever distance the monitor happens to be — it is not body text,
     // and the -1 it used to run at made it the smallest thing on screen.
-    readonly property int textSize: Theme.fontSize + 1
+    readonly property int textSize: Theme.fontSize + 3
     readonly property int rowHeight: win.textSize + 10
 
     // Which-key's shape: a WIDE, short slab across the bottom.
@@ -246,7 +207,7 @@ PanelWindow {
         // dialog. The opacity is this component's OWN setting — it used to read
         // NotifyConfig.drawer.opacity, which coupled two unrelated surfaces, so tuning the
         // hints for legibility over a bright window restyled the notification drawer too.
-        color: win.slabColor
+        color: Theme.glass(Shell.submapHintsOpacity)
 
         opacity: win.wantShown ? 1 : 0
         Behavior on opacity {

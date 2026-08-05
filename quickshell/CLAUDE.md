@@ -329,12 +329,32 @@ Three separate knobs, because these surfaces answer different questions:
 | surface | default | why |
 |---|---|---|
 | popup card / pill (`surface.cardOpacity`, `surface.pillOpacity`) | 0.80 / 0.85 | lands over whatever you are working in for a few seconds; must be readable instantly |
-| drawer slab (`drawer.opacity`) | 0.35 | glass — you opened it deliberately, and it covers a third of the screen |
+| drawer slab (`drawer.opacity`) | 0.05 | glass — atmosphere only; the rows above carry the legibility |
 | drawer rows (`drawer.itemOpacity`) | 0.82 | the content inside the glass; a row over a terminal still has to be legible |
 
 The drawer's translucency only works because Hyprland blurs its namespace — the layer rule for
-`quickshell-notification-drawer` lives in `hypr/lua/windowrules.lua`. Without it, 0.35 is not
-frosted glass, it is unreadable.
+`quickshell-notification-drawer` lives in `hypr/lua/windowrules.lua`. Without it the slab is not
+frosted glass, it is a flat tint.
+
+**Slab alpha is not a legibility control, and treating it as one is the trap this section used
+to set.** The slab is a `Rectangle` fill; its alpha does not touch child items, so rows and text
+are fully opaque at any value. Raising it never makes content more readable — it only stacks
+more tint between you and the desktop, and `Theme.surface` is a warm maroon (`#2a1010` under
+`warmBase`), so past a certain point every glass surface reads as a brown wash. Both slabs are
+now 0.05 and take their colour from **`Theme.glass()`**, which desaturates `surface` toward its
+brightest channel — a luminance mix collapses that colour to near-black — and lifts it toward
+white so the blur has contrast to be seen against.
+
+**`ignore_alpha` must sit BELOW a surface's alpha or the compositor silently skips blurring it.**
+Both rules keep `ignore_alpha = 0.15` against a 0.05 slab, so the slab itself is deliberately
+unblurred and only the shimmer, elevation and text sit over a sharp background. That is a chosen
+look, measured: dropping it to 0.02 enables full blur and in-slab detail variance falls from
+0.064 to 0.042. Nothing warns either way, and an unblurred glass surface reads as a design
+mistake rather than a missing effect.
+
+**Known artifact:** at 0.05 the `Shimmer` sweep reads dark rather than light, and much more
+strongly than on the opaque bar sections. Accepted for now — see the
+`quickshell-shimmer-inverts-on-glass` task.
 
 ### Collapsed stickies dock in the bar (story: notif-presentation)
 
@@ -493,7 +513,7 @@ active bar/launcher per machine in `~/.config/hypr/shell.local.env` (not stowed)
 | `HYPR_NOTIFY` | `swaync` (default) \| `quickshell` | which process owns `org.freedesktop.Notifications` |
 | `QS_SUBMAP_HINTS` | `1` (default) \| `0` | which-key hints for the active submap (`components/SubmapHints.qml`) |
 | `QS_SUBMAP_HINTS_DELAY` | ms (default `250`) | how long a submap must stay active before the hints appear |
-| `QS_SUBMAP_HINTS_OPACITY` | `0.05`–`1` (default `0.1`) | hints slab surface opacity. Its own knob, not the drawer's. Out-of-range falls back to the default — `0` is a valid float that would leave the slab invisible while the text still drew |
+| `QS_SUBMAP_HINTS_OPACITY` | `0.05`–`1` (default `0.05`) | hints slab surface opacity. Its own knob, not the drawer's. Out-of-range falls back to the default — `0` is a valid float that would leave the slab invisible while the text still drew |
 | `QS_EFFECTS` | `full` (default) \| `low` \| `off` | `off` = shaders never instantiated (Loader-gated); static themed fallbacks: accent Rectangle/Shape borders, flat accent fills, no shimmer/reflection/glyph lava. `low` reserved, currently = `full`. |
 
 Border weights are Theme tokens: `Theme.borderThickness` (energy borders) and `Theme.borderThin`

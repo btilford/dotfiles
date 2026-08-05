@@ -38,6 +38,42 @@ Singleton {
     readonly property color urgent: palette.color9 ? palette.color9 : fbUrgent
     readonly property color border: accent
 
+    // --- glass ---
+    //
+    // The tint for translucent slabs (submap hints, notification drawer). NOT `surface` used
+    // directly, which is what these read before and is the reason they looked like a brown
+    // wash rather than glass.
+    //
+    // Two corrections on top of `surface`, both measured on the submap hints (2026-08-04):
+    //
+    // 1. Desaturate toward the BRIGHTEST channel, not toward luminance. `surface` is #2a1010
+    //    under warmBase and carries nearly all its brightness in red, so a luminance-grey mix
+    //    drops R 42 -> 22 and the slab collapses to near-black. Mixing toward the max channel
+    //    lifts green and blue up to meet red: the hue goes, the weight stays.
+    // 2. Lift toward white. Blur only reads as frost where there is contrast to see it
+    //    against, and these surfaces usually sit over a dark terminal, which supplies none.
+    //    Same layer acrylic/vibrancy implementations put above the tint, for the same reason.
+    //
+    // Slab alpha is per-surface and much lower than it looks like it should be — see
+    // Shell.submapHintsOpacity for why raising it does NOT improve legibility (it is a
+    // Rectangle fill; child Text is opaque at any value).
+    readonly property real glassDesaturate: 0.7
+    readonly property real glassLift: 0.3
+    readonly property color glassBase: {
+        const s = surface;
+        const m = Math.max(s.r, s.g, s.b);
+        const k = glassDesaturate;
+        const n = glassLift;
+        const r = s.r + (m - s.r) * k;
+        const g = s.g + (m - s.g) * k;
+        const b = s.b + (m - s.b) * k;
+        return Qt.rgba(r + (1 - r) * n, g + (1 - g) * n, b + (1 - b) * n, 1);
+    }
+    // glass fill at a given alpha — the one call site for every translucent slab
+    function glass(alpha: real): color {
+        return Qt.rgba(glassBase.r, glassBase.g, glassBase.b, alpha);
+    }
+
     // --- shader / energy-border tokens (warm palette) ---
     readonly property color energy: accent      // normal energy glow (#ff6600)
     // active/high-energy glow — pinned warm with the accent; wallust's color9 can be

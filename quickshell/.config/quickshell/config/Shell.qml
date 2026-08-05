@@ -49,7 +49,7 @@ Singleton {
     // So this only controls how much tint sits between you and the background, and raising
     // it does not make the hints more readable — it just tints everything behind them with
     // Theme.surface until the panel reads as a solid brown slab rather than glass.
-    property real submapHintsOpacity: 0.1
+    property real submapHintsOpacity: 0.05
 
     // shaders render only when effects aren't switched off; "low" reserved, treated as full
     readonly property bool effectsOn: effectsMode !== "off"
@@ -71,7 +71,7 @@ Singleton {
         let notify = "swaync";
         let hints = "1";
         let hintsDelay = "250";
-        let hintsOpacity = "0.1";
+        let hintsOpacity = "0.05";
         if (t) {
             for (const line of t.split("\n")) {
                 const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
@@ -111,7 +111,7 @@ Singleton {
         // slab fully invisible while the text still drew, which reads as a broken overlay
         // rather than as a setting. Clamped to something still recognisably a surface.
         const hOpacity = parseFloat(envOr("QS_SUBMAP_HINTS_OPACITY", hintsOpacity));
-        root.submapHintsOpacity = (isNaN(hOpacity) || hOpacity < 0.05 || hOpacity > 1) ? 0.1 : hOpacity;
+        root.submapHintsOpacity = (isNaN(hOpacity) || hOpacity < 0.05 || hOpacity > 1) ? 0.05 : hOpacity;
     }
 
     // Quickshell.env returns undefined for an unset variable and "" for an empty one; treat both
