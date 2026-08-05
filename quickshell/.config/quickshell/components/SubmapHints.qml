@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import "../config"
@@ -24,8 +25,49 @@ import "../config"
 PanelWindow {
     id: win
 
+    // --- preview override, for the headless capture rig -------------------------
+    //
+    // This overlay is driven by real Hyprland submap state, and the capture rig runs
+    // sway (Hyprland 0.56 cannot start headless), so there is no way to make it appear
+    // there. It shipped with no capture scene at all as a result — the repo's own rule
+    // that quickshell changes are verified headless, never in the live session, could
+    // not actually be met for this component.
+    //
+    // These two properties are the seam that fixes that. Nothing sets them in normal
+    // operation, so the live path is unchanged and costs one null check.
+    //
+    //   qs ipc call submapHints preview resize 14
+    //   qs ipc call submapHints hide
+    property var previewEntries: null
+    property string previewSubmap: ""
+
+    IpcHandler {
+        target: "submapHints"
+
+        // Fake `count` entries for map `name`, with labels long enough to exercise the
+        // elide, so a capture shows the worst case rather than a tidy one.
+        function preview(name: string, count: int): void {
+            const out = [];
+            const chords = ["h", "j", "k", "l", "SUPER+h", "SUPER+SHIFT+j", "1", "2", "3", "4", "5", "f", "b", "n", "p", "g", "d", "y"];
+            for (let i = 0; i < count; i++) {
+                out.push({
+                    "chord": chords[i % chords.length],
+                    "label": i % 5 === 0 ? "+nested group" : "action with a deliberately long name " + i,
+                    "group": i % 5 === 0
+                });
+            }
+            win.previewEntries = out;
+            win.previewSubmap = name;
+        }
+
+        function hide(): void {
+            win.previewEntries = null;
+            win.previewSubmap = "";
+        }
+    }
+
     // the map being described; "" = default map, nothing to show
-    readonly property string submap: Keymap.currentSubmap
+    readonly property string submap: win.previewSubmap.length ? win.previewSubmap : Keymap.currentSubmap
     // delay elapsed — a submap you pass straight through never gets to flash
     property bool armed: false
     // what should be on screen right now
@@ -57,6 +99,8 @@ PanelWindow {
     // [{chord, label, group}] for the active submap. A bind that enters a NESTED submap is
     // rendered as a which-key "+prefix" group rather than by its dispatcher.
     readonly property var entries: {
+        if (win.previewEntries)
+            return win.previewEntries;
         const out = [];
         if (!win.submap.length)
             return out;
@@ -75,16 +119,31 @@ PanelWindow {
     }
 
     readonly property int rowHeight: Theme.fontSize + 10
-    // a tall map wraps into columns instead of climbing the screen
-    readonly property int maxRows: Math.max(1, Math.floor((win.screen ? win.screen.height * 0.4 : 400) / win.rowHeight))
-    readonly property int columnCount: Math.max(1, Math.ceil(win.entries.length / win.maxRows))
+
+    // Which-key's shape: a WIDE, short slab across the bottom.
+    //
+    // The layout is driven by width and the row count falls out of it. The first
+    // version did the opposite — it capped rows at 40% of screen height and let
+    // columns accumulate — which on a small map produced one tall narrow column
+    // hugging the bottom edge, the shape nvim's which-key deliberately avoids.
+    //
+    // Fixed-width cells rather than implicit ones, because columns that each size
+    // to their own longest label do not line up vertically, and a which-key panel
+    // is read by scanning DOWN a column of chords. The cost is a hard elide on a
+    // long action name, which is the right trade for a hint overlay.
+    readonly property real slabWidth: Math.round((win.screen ? win.screen.width : 1920) * 0.94)
+    readonly property int chordWidth: 74
+    readonly property int hintWidth: win.chordWidth + Math.round(Theme.fontSize * 13)
+    readonly property int columnCount: Math.max(1, Math.min(win.entries.length, Math.floor((win.slabWidth - Theme.pad * 2 + Theme.pad) / (win.hintWidth + Theme.pad))))
     readonly property int rowCount: Math.max(1, Math.ceil(win.entries.length / win.columnCount))
 
     onSubmapChanged: {
         if (win.submap.length) {
             // first submap after startup, if nothing has populated the cache yet — otherwise
-            // the binds are already loaded and entering a submap costs no subprocess at all
-            if (Keymap.binds.length === 0)
+            // the binds are already loaded and entering a submap costs no subprocess at all.
+            // Skipped under preview: the entries are supplied, and Keymap.load() shells out to
+            // hyprctl, which does not exist in the capture rig.
+            if (!win.previewEntries && Keymap.binds.length === 0)
                 Keymap.load();
             showDelay.restart();
         } else {
@@ -125,7 +184,10 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Theme.pad
-        width: Math.min(body.implicitWidth + Theme.pad * 2, win.width - Theme.pad * 4)
+        // Fixed near-full width, not the content's implicit width: the panel should
+        // be the same size every time it appears, so its position is muscle memory
+        // rather than something that jumps with the size of the map.
+        width: Math.min(win.slabWidth, win.width - Theme.pad * 2)
         height: body.implicitHeight + Theme.pad * 2
         radius: Theme.radius
         // Glass, at the notification drawer's opacity (NotifyConfig.drawer.opacity). Borderless
@@ -166,12 +228,13 @@ PanelWindow {
                     Row {
                         id: hint
                         required property var modelData
+                        width: win.hintWidth
                         height: win.rowHeight
                         spacing: 6
 
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            width: 74
+                            width: win.chordWidth
                             horizontalAlignment: Text.AlignRight
                             text: hint.modelData.chord
                             color: Theme.accent
@@ -180,6 +243,7 @@ PanelWindow {
                             elide: Text.ElideLeft
                         }
                         Text {
+                            id: arrow
                             anchors.verticalCenter: parent.verticalCenter
                             text: "→"
                             color: Theme.subtext
@@ -188,7 +252,11 @@ PanelWindow {
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
+                            // fills the rest of the fixed cell, so long labels elide instead of
+                            // pushing the next column out of alignment
+                            width: hint.width - win.chordWidth - arrow.width - hint.spacing * 2
                             text: hint.modelData.label
+                            elide: Text.ElideRight
                             // a group reads like which-key's "+prefix": accent, not body text
                             color: hint.modelData.group ? Theme.accent : Theme.fg
                             font.family: Theme.fontUi
