@@ -1,0 +1,48 @@
+# Infisical machine identity for this machine.
+#
+# Install as ~/.config/dotfiles/infisical-identity, mode 600, NEVER committed:
+#
+#   install -m 600 -D ~/.local/share/dotfiles/infisical-identity.example \
+#     ~/.config/dotfiles/infisical-identity
+#
+# WHY THIS FILE EXISTS, AND WHY IT IS NOT local.env
+#
+# `infisical login` stores a user token in the OS keyring, and the keyring starts
+# locked. That put the wallet on the LOGIN path: dotfiles-secrets.service needed an
+# ordering dependency on a KDE-only unit, had to be deferred to
+# graphical-session.target, and still failed intermittently — leaving every shell
+# in the session with no secrets. A machine identity is exchanged for a
+# short-lived access token over the network, so no local credential store is
+# consulted and there is nothing to unlock.
+#
+# It is not local.env because local.env is built from required-env, and
+# gen-local-env.sh emits an EMPTY PLACEHOLDER for every variable in that manifest.
+# An empty client secret would fail every infisical call on a freshly provisioned
+# machine — the same trap already documented for ATUIN_*. Secrets do not belong in
+# that manifest at all.
+#
+# PROVISIONING (Infisical UI, once per machine)
+#
+#   1. Organization -> Access Control -> Identities -> Create identity
+#      Name it after the machine, so it can be revoked without touching any other.
+#   2. Auth method: Universal Auth. Create a client secret; the value is shown
+#      ONCE. Set a TTL if the machine is not permanent.
+#   3. Project -> Access Control -> add the identity, scoped to THIS project and
+#      the `prod` environment only, read-only.
+#   4. Paste the two values below.
+#
+# Verify with `dotfiles-secrets --check` — it prints which auth path is live, and
+# reports `machine identity (no keyring)` when this file has taken effect. If it
+# still says `CLI vault`, this file was not found or one half is missing.
+#
+# ROTATION: replace the client secret here and restart the fetch:
+#   systemctl --user restart dotfiles-secrets.service && secrets-load
+#
+# HONEST LIMIT: the client secret is on disk, readable by this user. Against a
+# same-user attacker that is no better than the plaintext it replaces. What it buys
+# is blast radius — this credential is scoped to one project and one environment,
+# is revocable for this machine alone from the Infisical UI, and yields only a
+# short-lived token. A leaked user token is the whole account.
+
+INFISICAL_UNIVERSAL_AUTH_CLIENT_ID=
+INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET=
