@@ -1,0 +1,52 @@
+---
+# grype — vulnerability scanner (anchore). User-level defaults for every
+# invocation on this machine; per-scan flags still override.
+#
+# WHERE GRYPE LOOKS FOR THIS FILE (verified against source, grype 0.116.1 /
+# fangs / adrg-xdg, not assumed — see CLAUDE.md for why that mattered):
+#
+#   1. ./.grype.<ext>                      (cwd)
+#   2. ./.grype/config.<ext>               (cwd subdir)
+#   3. ~/.grype.<ext>
+#   4. $XDG_CONFIG_HOME/grype/config.<ext>
+#   5. each of $XDG_CONFIG_DIRS as <dir>/grype/config.<ext>
+#
+# Step 5 is the load-bearing one on macOS. adrg/xdg does NOT define
+# XDG_CONFIG_HOME as ~/.config there — its darwin defaults are:
+#
+#     configHome = ~/Library/Application Support
+#     configDirs = [ ~/Library/Preferences, /Library/Application Support,
+#                    /Library/Preferences, ~/.config ]
+#
+# so this stowed file is found on macOS via the LAST configDirs entry, not via
+# configHome. No bridge symlink is needed — unlike metapac, which has no such
+# fallback and silently loads an empty default (see the metapac note in
+# CLAUDE.md). Confirm on a Mac with `grype config locations`.
+#
+# The one way this breaks: exporting XDG_CONFIG_DIRS overrides the whole
+# default list rather than prepending to it, so a value that omits ~/.config
+# takes this file out of the search path on macOS. Nothing here sets it.
+
+# Explicit rather than inherited: grype's defaults have moved before, and an
+# unpinned default is a silent behaviour change on a version bump.
+
+# Fail (exit 2) when a match at or above this severity is found. `high` matches
+# the GitLab CI policy so a local scan and a pipeline scan agree.
+# options: negligible, low, medium, high, critical
+fail-on-severity: high
+
+# Human-readable by default; machine formats are per-invocation (`-o json`).
+output:
+  - table
+
+# No phone-home for a new grype release on every run — the version is owned by
+# metapac (grype-bin on Arch, grype on macOS), not by grype itself.
+check-for-app-update: false
+
+db:
+  # Vulnerability data must be fresh; this is the one network call worth making.
+  # Rate-limited by max-update-check-frequency (2h), so it is not per-run.
+  auto-update: true
+  # Refuse to report "no vulnerabilities" off a stale database — a scan that
+  # quietly matched five-day-old data is worse than one that errors.
+  validate-age: true

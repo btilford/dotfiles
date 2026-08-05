@@ -1,5 +1,10 @@
 #compdef grype
 
+# GENERATED FILE — do not hand-edit.
+#   grype completion zsh > zsh/.zfunc/_grype
+# Regenerate after a grype upgrade. Siblings: fish/.config/fish/completions/grype.fish,
+# bash/.bash_completions/grype.bash (sourced by bash/.config/bashrc/55-grype).
+
 # zsh completion for grype                                -*- shell-script -*-
 
 __grype_debug()
