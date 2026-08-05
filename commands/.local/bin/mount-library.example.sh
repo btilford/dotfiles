@@ -3,14 +3,21 @@
 # Mount the NAS shares, but only when on the home network.
 #
 # Host and subnets are machine-local — they identify private infrastructure, so
-# they are not committed. Set them in ~/.config/fish/conf.d/local.fish (or the
-# shell equivalent), which is untracked:
+# they are not committed. They live in ~/.config/dotfiles/local.env, which is
+# untracked and read by every shell plus the systemd user session.
 #
-#   set -gx NAS_HOST        nas.example.lan
-#   set -gx NAS_SHARE_ROOT  /mnt/shares          # path exported by the NAS
-#   set -gx NAS_MOUNT_ROOT  ~/nas              # optional, defaults to ~/nas
-#   set -gx NAS_SHARES      'user-data library images'   # optional
-#   set -gx HOME_NET_PREFIXES '10\.(0|1)'   # optional, ERE alternation
+# Plain KEY=VALUE, no quotes and no expansion — systemd's environment.d reads
+# this same file verbatim and supports neither. That is also why an optional
+# variable is COMMENTED OUT rather than left empty: systemd rejects a bare `VAR=`.
+#
+#   NAS_HOST=nas.example.lan
+#   NAS_SHARE_ROOT=/mnt/pool0             # path exported by the NAS
+#   #NAS_MOUNT_ROOT=                      # optional, defaults to ~/nas
+#   #NAS_SHARES=                          # optional, space separated
+#   #HOME_NET_PREFIXES=                   # optional, ERE alternation e.g. 192\.168\.(1|2)
+#
+# `dotfiles-local-env --check` reports which of these are set, against the
+# manifest in commands/.local/share/dotfiles/required-env.
 #
 # Each share in NAS_SHARES is mounted from NAS_SHARE_ROOT/<name> to
 # NAS_MOUNT_ROOT/<name>.
