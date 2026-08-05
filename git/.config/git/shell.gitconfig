@@ -4,12 +4,46 @@
 [sequence]
 	editor = interactive-rebase-tool
 
+# Sync git notes to every origin, on both fetch and push.
+#
+# TWO THINGS HERE ARE LOAD-BEARING, and both were wrong until 2026-08-04.
+#
+# 1. `push = HEAD` MUST come first, and must not be removed.
+#
+#    `remote.<name>.push` REPLACES the default push refspec — it does not add to
+#    it. With only the notes line present, `git push` pushed notes and nothing
+#    else, reporting "Everything up-to-date" on a branch that was a commit ahead.
+#    It does not fail, it does not warn, and `push.default = current` (set in
+#    commands.gitconfig) is ignored outright, because an explicit refspec always
+#    wins over push.default. Found when a pushed-looking commit was still local.
+#
+#    `HEAD` restores the push.default = current behaviour as an explicit refspec:
+#    push the current branch to the branch of the same name on the remote. It is
+#    listed first only for readability; refspec order does not matter.
+#
+# 2. NO QUOTES around either value.
+#
+#    git config is not shell. Double quotes are syntax git strips; SINGLE quotes
+#    are literal characters that end up inside the value. Both of these were
+#    single-quoted, so the actual configured refspec was
+#
+#        '+refs/notes/*:refs/notes/*'
+#
+#    leading quote included — a refspec that can never match a ref, so notes were
+#    never pushed by this. `notes.displayRef` had the same defect, so `git log`
+#    never displayed a note either. The fetch line was unquoted and correct the
+#    whole time, which is what made the breakage lopsided and hard to spot.
+#
+# Verify both with `git config --get-all remote.origin.push` — the output must
+# contain no quote characters — and `git push --dry-run`, which must name the
+# current branch and not just refs/notes.
 [remote "origin"]
     fetch = +refs/notes/*:refs/notes/*
-    push = '+refs/notes/*:refs/notes/*'
+    push = HEAD
+    push = +refs/notes/*:refs/notes/*
 
 [notes]
-    displayRef = 'refs/notes/*'
+    displayRef = refs/notes/*
 
 
 
