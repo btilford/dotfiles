@@ -157,16 +157,27 @@ hl.layer_rule({
 })
 
 -- Layer rules: quickshell submap (which-key) hints.
--- Same glass as the drawer, and the same dependency: the slab is drawn at the drawer's
--- opacity, which reads as frosted only with compositor blur behind it. The window spans the
--- bottom of the output and is fully transparent outside the slab, so ignore_alpha keeps the
--- blur off the clear regions. The surface takes no keyboard and has an empty input region.
+-- The slab is drawn at the drawer's opacity, which reads as frosted only with compositor
+-- blur behind it. The window spans the bottom of the output and is fully transparent outside
+-- the slab, so ignore_alpha keeps the blur off the clear regions. The surface takes no
+-- keyboard and has an empty input region.
+--
+-- xray = FALSE here, unlike the drawer. xray makes the blur sample the WALLPAPER and ignore
+-- the windows in between — so on a saturated wallpaper (the current one is an orange sunset)
+-- the "frosted glass" is frosted *wallpaper*, and the slab reads as a brown wash no matter
+-- what is actually underneath it. That is what made this overlay look brown rather than
+-- glassy; opacity was never the cause.
+--
+-- It is also the wrong behaviour for THIS surface specifically. The hints appear over the
+-- window you are working in, for a second, while you decide a key — blurring that window is
+-- the feedback you want. Cutting a hole through it to the desktop replaces the context you
+-- are mid-thought about with unrelated scenery.
 hl.layer_rule({
   name = "quickshell-submap-hints",
   match = { namespace = "^(quickshell-submap-hints)$" },
   blur = true,
   ignore_alpha = 0.15,
-  xray = true,
+  xray = false,
 })
 
 -- Layer rules: SwayNC
