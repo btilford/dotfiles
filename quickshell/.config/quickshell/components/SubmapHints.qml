@@ -217,6 +217,17 @@ PanelWindow {
             }
         }
 
+        // cursor-lit glass, same as the notification drawer, the bar sections and the launcher.
+        // This is the other half of "frosted": the drawer reads as glass at 0.35 because of the
+        // compositor blur AND this, not because of surface opacity. Raising the opacity instead
+        // just tints everything behind the slab with Theme.surface, which on a warm palette is
+        // a strong brown wash.
+        Shimmer {
+            anchors.fill: parent
+            radius: parent.radius
+            z: 10
+        }
+
         Column {
             id: body
             anchors.centerIn: parent
