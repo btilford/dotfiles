@@ -287,7 +287,35 @@ Singleton {
             Notifications.expand(entry);
             return;
         }
+        // Enter fires the client's `default` action when there is one — activating a
+        // notification is what that action means, and it is the same thing clicking the card
+        // does. With no default action there is nothing to fire, so Enter falls back to
+        // unfolding an elided body, which is what it did before actions existed.
+        const def = Notifications.defaultActionFor(entry);
+        if (def) {
+            def.invoke();
+            if (!entry.resident)
+                Notifications.dismiss(entry);
+            return;
+        }
         root.expandRequested(entry.nid);
+    }
+
+    // Number keys fire the selected card's actions by hint. Digits rather than letters because
+    // focus mode is vim-shaped and owns j/k/d/y/s/o/g — see the hint assignment in
+    // Notifications.actionsFor.
+    function invokeActionByKey(digit) {
+        const entry = root.selected;
+        if (!entry)
+            return false;
+        const list = Notifications.actionsFor(entry);
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].key === digit) {
+                Notifications.invokeAction(entry, list[i], "");
+                return true;
+            }
+        }
+        return false;
     }
 
     // `c` copies summary + body, `C` the body alone — the summary is a label, and half the time

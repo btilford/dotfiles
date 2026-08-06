@@ -326,7 +326,9 @@ Rectangle {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             visible: chip.modelData.key.length > 0
-                            text: chip.modelData.key
+                            // ^r, the terminal spelling of Ctrl+R — this shell is
+                            // terminal-flavoured and it is two glyphs instead of six
+                            text: "^" + chip.modelData.key
                             color: Theme.accent
                             font.family: Theme.fontMono
                             font.pixelSize: Theme.fontSize - 3

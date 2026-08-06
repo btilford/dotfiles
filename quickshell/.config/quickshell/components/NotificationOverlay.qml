@@ -171,7 +171,13 @@ Scope {
                         NotifyFocus.snoozeSelected(15 * 60 * 1000);
                     else if (event.key === Qt.Key_R)
                         NotifyFocus.snoozeSelected(0); // "remind me at ___" — prompt is notif-actions
-                    else if (event.key === Qt.Key_O || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    else if ((event.modifiers & Qt.ControlModifier) && event.key >= Qt.Key_A && event.key <= Qt.Key_Z) {
+                        // Action hints are Ctrl+<letter>: focus mode owns the bare alphabet, and
+                        // Ctrl is otherwise unused here. If nothing answers the combo, fall
+                        // through as unhandled rather than swallowing it.
+                        if (!NotifyFocus.invokeActionByKey(String.fromCharCode(event.key).toLowerCase()))
+                            return;
+                    } else if (event.key === Qt.Key_O || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                         if (event.key === Qt.Key_O)
                             NotifyFocus.openDrawer();
                         else

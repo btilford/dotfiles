@@ -654,19 +654,46 @@ Singleton {
             });
         }
 
-        // Assign hints. A declared key wins if it is still free; everything else takes the
-        // next unused letter from the sequence. Spec actions are first in `out`, so they get
-        // first refusal by construction.
+        // Assign hints as CTRL + LETTER.
+        //
+        // Bare letters are not available: focus mode is vim-shaped and owns j/k/d/x/D/y/Y/s/r/
+        // o/g/G/a, and losing `d` to an action would break dismiss while a card is selected.
+        // Digits were the first fix and worked, but they are positional — "3" tells you nothing
+        // about what it does, and the config in AD-012 declares mnemonic keys (`r` for Reply,
+        // `o` for Open MR, `l` for Logs) that had to be thrown away to use them.
+        //
+        // Ctrl is untouched by the focus-mode scheme (its only modifier is Shift), so
+        // Ctrl+<letter> keeps the mnemonics AND collides with nothing. A declared key is used
+        // as-is; otherwise the first free letter OF THE LABEL is preferred, so "Reply" gets
+        // Ctrl+R without anyone configuring it.
         const used = {};
         for (let i = 0; i < out.length; i++) {
-            const want = out[i].key;
-            if (want.length === 1 && !used[want]) {
+            const want = String(out[i].key).toLowerCase();
+            if (want.length === 1 && want >= "a" && want <= "z" && !used[want]) {
+                out[i].key = want;
                 used[want] = true;
             } else {
+                if (want.length)
+                    console.warn("notifications: action", out[i].label, "requested key", want,
+                        "— already taken or not a letter, falling back to a derived hint");
                 out[i].key = "";
             }
         }
-        const seq = "asdfghjklqwertyuiopzxcvbnm";
+        // mnemonic pass: first unused letter of the label
+        for (let i = 0; i < out.length; i++) {
+            if (out[i].key.length)
+                continue;
+            const label = String(out[i].label).toLowerCase();
+            for (let j = 0; j < label.length; j++) {
+                const c = label.charAt(j);
+                if (c >= "a" && c <= "z" && !used[c]) {
+                    out[i].key = c;
+                    used[c] = true;
+                    break;
+                }
+            }
+        }
+        const seq = "abcdefghijklmnopqrstuvwxyz";
         for (let i = 0; i < out.length; i++) {
             if (out[i].key.length)
                 continue;
