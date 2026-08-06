@@ -472,26 +472,49 @@ flips on failure. Don't "simplify" that back to a single string.
   everywhere this config lands, and a rules engine that fails to start over a missing rock would
   take notifications with it.
 
-### Actions — design settled, not built (story: notif-actions)
+### Actions, prompts & snooze (story: notif-actions — BUILT)
 
-The shape is decided (spike `notif-actions-config-spike`, AD-012, design note
-`Projects/hyprland-dotfiles/features/notification-actions-design` in the notes vault). Build to
-it rather than re-deciding:
+Built to AD-012. `actionsSupported` and `inlineReplySupported` are both true;
+`GetCapabilities` returns `body, actions, icon-static, inline-reply`.
 
-- **Custom actions carry their own matchers** — a flat list of
-  `match = { app, category, urgency, summary, body, hint.* } → label, key, run | prompt`, read
-  like the hyprland keybind table. The Lua rules engine may **veto** actions
-  (`presentation.actions = false`); it never defines them.
-- **Spec actions and custom actions render identically** and share one key-hint sequence, spec
-  actions first, so a client's own "Reply" never loses its key to a config rule.
-- **Substitutions are argv elements** (`{id}`, `{summary}`, `{input}`, `{hint:NAME}`) — no
-  `sh -c`, ever. Any app on the session bus can set a summary, so this is a security boundary.
-- **Prompts** are inline on the card, offered only for a client inline-reply hint, an allowlisted
-  category (`im.received`, `email.arrived`, `x-vault.reminder`), or an action that declares one.
-- **Snooze is a store row**, not a second scheduler: `state = 'snoozed'` + `wake_at`, one armed
-  timer, elapsed rows fired at startup beside the existing `orphaned` sweep.
-- `actionsSupported` / `inlineReplySupported` flip true **in that story and not before** —
-  advertising a capability we don't render makes clients send content we display as garbage.
+- **Two kinds, one key scheme.** A *spec* action came in the D-Bus `actions` array and is
+  handed back to the client via `invoke()`; a *custom* action is matched from
+  `NotifyConfig.actions` and run here as a subprocess. They render identically. Hints are
+  assigned spec-first so a client's own "Reply" never loses its key to a config rule.
+- **`default` gets no button and no key.** Clicking the card, or Enter in focus mode, IS that
+  action — giving it a chip would say otherwise.
+- **Hints are `Ctrl+<letter>`, not bare letters or digits.** Focus mode and the drawer are both
+  vim-shaped and own the bare alphabet (j/k/d/x/D/y/Y/s/r/o/g/G/a/f/c); losing `d` to an action
+  would break dismiss. Resolution order: a declared free letter, else the first free letter *of
+  the label* (so "Reply" → `^r` with nothing configured), else the next free letter.
+- **Substitutions are argv elements, never a shell string**, and no `sh -c` is added anywhere on
+  this path. Any app on the session bus can set a summary, so this is a security boundary.
+  A bad matcher regex fails CLOSED — matching everything would fire an action on every
+  notification.
+- **A failing action raises a critical notification** rather than doing nothing, routed through
+  `notify-send` so it lands in the popup stack *and* the store by the same path as everything
+  else.
+- **Prompts** appear on a client inline-reply hint, an allowlisted category
+  (`im.received`, `email.arrived`, `x-vault.reminder`), or an action declaring `prompt`. The
+  field is on the card — the reply keeps what it is replying to on screen. Opening one pauses
+  the entry through the same path hover-pause uses, so a card cannot expire mid-sentence.
+  Taking focus is safe *here only* because a prompt is opened by a deliberate act, never by a
+  notification arriving (AD-011 intact).
+- **Snooze is a row state**, `wake_at` (schema v3), with ONE armed timer for the earliest wake
+  and overdue rows fired at startup — so it survives a restart and a reboot with no second
+  scheduler. `s` snoozes for `snooze.defaultMs`; `r` prompts in time mode (`20m`, `2h`, `17:30`)
+  and REJECTS what it cannot parse rather than guessing.
+- **Nothing may read its own enqueued write.** Store writes batch through a subprocess ~200ms
+  later, so `snooze()` and `fireDueSnoozes()` cannot see their own effect. Arming the timer from
+  a stale read stopped it (snooze never fired) in one direction and re-fired the same row in a
+  tight loop in the other — 100+ duplicate notifications in seconds. Re-arming now happens on
+  the writer's exit, guarded by an in-memory set of dispatched row ids, the same ids excluded in
+  SQL, and a one-second interval floor.
+- **Drawer rows get custom actions only.** A spec action needs a live client, and by the time a
+  row is history that process has usually exited.
+- Migrations are a LIST run one statement per process: the sqlite3 CLI aborts on first error, so
+  a concatenated migration would never reach v3 on a database that already had v2.
+- IPC: `qs ipc call notifications snooze <ms>` and `... snoozed`.
 
 ### Testing notifications without a Hyprland session
 
