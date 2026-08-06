@@ -301,6 +301,17 @@ Singleton {
         root.expandRequested(entry.nid);
     }
 
+    // Open the inline prompt on the selected card. `i` because this shell is vim-shaped
+    // everywhere else and that is what "start typing" means; it is a no-op on a card that
+    // does not qualify for a prompt (see Notifications.promptable).
+    function promptSelected() {
+        const entry = root.selected;
+        if (!entry || !Notifications.promptable(entry))
+            return false;
+        Notifications.beginPrompt(entry, null);
+        return true;
+    }
+
     // Number keys fire the selected card's actions by hint. Digits rather than letters because
     // focus mode is vim-shaped and owns j/k/d/y/s/o/g — see the hint assignment in
     // Notifications.actionsFor.

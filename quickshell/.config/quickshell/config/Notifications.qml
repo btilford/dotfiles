@@ -807,6 +807,69 @@ Singleton {
         }
     }
 
+
+    // --- prompts / inline reply (AD-012 §3) -------------------------------------------------
+    //
+    // A prompt is offered where a text reply is the notification's NATURAL response and the
+    // reply has somewhere to go. Three ways to qualify, and no fourth:
+    //   1. the client asked for one (inline-reply hint), or
+    //   2. the category is on the written allowlist, or
+    //   3. a matching custom action declares `prompt`.
+    // "Build failed" gets actions, not a prompt — there is no recipient. Adding one anywhere
+    // else is a deliberate config edit, which is the whole point of writing the list down.
+    function promptable(entry) {
+        if (!entry || !entry.actionsAllowed)
+            return false;
+        if (entry.hasInlineReply)
+            return true;
+        const cats = NotifyConfig.prompt.categories;
+        if (entry.category.length && cats.indexOf(entry.category) >= 0)
+            return true;
+        return false;
+    }
+
+    function beginPrompt(entry, action) {
+        if (!entry)
+            return;
+        entry.promptAction = action || null;
+        entry.prompting = true;
+        // A card you are typing into must not expire underneath you. This reuses the hover
+        // pause rather than inventing a second freeze, so there is still one clock.
+        root.pause(entry);
+    }
+
+    function cancelPrompt(entry) {
+        if (!entry)
+            return;
+        entry.prompting = false;
+        entry.promptAction = null;
+        root.resume(entry);
+    }
+
+    function submitPrompt(entry, text) {
+        if (!entry)
+            return;
+        const action = entry.promptAction;
+        entry.prompting = false;
+        entry.promptAction = null;
+        if (action) {
+            // a custom action with a prompt: {input} carries the typed text
+            root.invokeAction(entry, action, text);
+            return;
+        }
+        // the client's own inline reply
+        if (entry.notification && entry.hasInlineReply) {
+            try {
+                entry.notification.sendInlineReply(text);
+            } catch (e) {
+                console.warn("notifications: inline reply failed —", e);
+            }
+        }
+        root.resume(entry);
+        if (!entry.resident)
+            root.dismiss(entry);
+    }
+
     function dismiss(entry) {
         if (!entry)
             return;
@@ -935,6 +998,12 @@ Singleton {
             // AD-012: a Lua rule may set presentation.actions = false to suppress this
             // notification's actions. Defaults true; only an explicit false flips it.
             property bool actionsAllowed: true
+            // the client asked for a reply field (x-kde-reply / inline-reply hint)
+            readonly property bool hasInlineReply: entry.notification ? entry.notification.hasInlineReply : false
+            // an inline prompt is open on this card, and which action opened it (null = the
+            // client's own inline reply rather than a custom action)
+            property bool prompting: false
+            property var promptAction: null
             // recorded but never popped (durationMs < 0) — see the duration vocabulary above
             readonly property bool drawerOnly: entry.durationMs < 0
             // already added to `unread`; drawer-only entries are counted on arrival, once
@@ -1033,7 +1102,7 @@ Singleton {
             bodyImagesSupported: false
             actionsSupported: true
             actionIconsSupported: false
-            inlineReplySupported: false
+            inlineReplySupported: true
             imageSupported: true
             // flipped on by the SQLite store story — until then nothing survives a restart
             persistenceSupported: false

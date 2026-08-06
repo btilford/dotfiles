@@ -347,8 +347,69 @@ Rectangle {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Notifications.invokeAction(card.entry, chip.modelData, "")
+                        onClicked: {
+                            // an action that declares a prompt opens the field instead of
+                            // firing immediately — {input} is part of what it runs
+                            if (chip.modelData.prompt)
+                                Notifications.beginPrompt(card.entry, chip.modelData);
+                            else
+                                Notifications.invokeAction(card.entry, chip.modelData, "");
+                        }
                     }
+                }
+            }
+        }
+
+        // Inline prompt (AD-012 §5): the reply keeps the thing it is replying to on screen,
+        // which is the whole reason this is on the card rather than in a centred overlay or
+        // the launcher's input. The card is frozen while it is open (beginPrompt pauses the
+        // clock) so it cannot expire mid-sentence.
+        Rectangle {
+            id: promptBox
+            width: parent.width
+            height: promptInput.implicitHeight + 12
+            radius: Theme.radius / 2
+            visible: card.entry.prompting
+            color: Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, 0.14)
+            border.width: Theme.borderThin
+            border.color: promptInput.activeFocus ? Theme.accent : "transparent"
+
+            TextInput {
+                id: promptInput
+                anchors.fill: parent
+                anchors.leftMargin: 8
+                anchors.rightMargin: 8
+                verticalAlignment: TextInput.AlignVCenter
+                color: Theme.fg
+                font.family: Theme.fontUi
+                font.pixelSize: Theme.fontSize - 1
+                selectByMouse: true
+                clip: true
+
+                // Taking focus the moment the field appears is safe here and only here: the
+                // prompt is opened by a deliberate act (a click or a hint key), never by a
+                // notification arriving. That is AD-011's rule intact — a card that shows up
+                // while you are typing still cannot capture a keystroke.
+                onVisibleChanged: if (visible)
+                    forceActiveFocus()
+
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Escape) {
+                        Notifications.cancelPrompt(card.entry);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        Notifications.submitPrompt(card.entry, promptInput.text);
+                        promptInput.text = "";
+                        event.accepted = true;
+                    }
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: promptInput.text.length === 0
+                    text: NotifyConfig.prompt.placeholder
+                    color: Theme.subtext
+                    font: promptInput.font
                 }
             }
         }

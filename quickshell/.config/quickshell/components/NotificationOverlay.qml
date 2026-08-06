@@ -171,7 +171,12 @@ Scope {
                         NotifyFocus.snoozeSelected(15 * 60 * 1000);
                     else if (event.key === Qt.Key_R)
                         NotifyFocus.snoozeSelected(0); // "remind me at ___" — prompt is notif-actions
-                    else if ((event.modifiers & Qt.ControlModifier) && event.key >= Qt.Key_A && event.key <= Qt.Key_Z) {
+                    else if (event.key === Qt.Key_I && !(event.modifiers & Qt.ControlModifier)) {
+                        // `i` starts a reply on the selected card, vim-style. Unhandled when
+                        // the card does not qualify, so it does not silently eat the key.
+                        if (!NotifyFocus.promptSelected())
+                            return;
+                    } else if ((event.modifiers & Qt.ControlModifier) && event.key >= Qt.Key_A && event.key <= Qt.Key_Z) {
                         // Action hints are Ctrl+<letter>: focus mode owns the bare alphabet, and
                         // Ctrl is otherwise unused here. If nothing answers the combo, fall
                         // through as unhandled rather than swallowing it.
