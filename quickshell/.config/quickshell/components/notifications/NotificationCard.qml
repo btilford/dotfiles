@@ -297,13 +297,19 @@ Rectangle {
         // Action buttons (story: notif-actions, AD-012). Spec actions and custom actions render
         // identically and answer the same key hints — the user does not care which side of
         // D-Bus a verb lives on. Hidden while collapsed: a shrunk pill is not a control surface.
-        Row {
+        // Flow, not Row, and bounded to the card: several verbs with long labels ran straight
+        // past the 420px card instead of wrapping. A notification is a fixed-width surface, so
+        // the chips have to fold into it rather than define their own width.
+        Flow {
             id: actionRow
+            width: parent.width
             // Recomputed rather than cached: `actions` binds through entry.notification, so a
             // replaces_id update that changes the verbs is picked up like every other field.
             readonly property var list: Notifications.actionsFor(card.entry)
             visible: actionRow.list.length > 0 && !card.entry.collapsed
             spacing: 6
+            // vertical gap when they wrap; Flow uses `spacing` for both axes otherwise
+            padding: 0
 
             Repeater {
                 model: actionRow.list

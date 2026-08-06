@@ -104,10 +104,21 @@ Singleton {
                 root.fail("write failed (exit " + exitCode + ")", writer.stderr.text.trim());
                 return;
             }
-            if (root.pending.length)
+            if (root.pending.length) {
                 root.flush();
-            else
-                root.refreshRecent();
+                return;
+            }
+            root.refreshRecent();
+            // Re-arm HERE, not at the call site. snooze() and fireDueSnoozes() both enqueue a
+            // write and cannot read their own effect: the batch flushes through this
+            // subprocess ~200ms later. Arming before it landed read MIN(wake_at) as NULL and
+            // stopped the timer, so a snooze never fired on its own and only went off on the
+            // next restart (observed 2026-08-05). The write completing is the only moment the
+            // schedule is knowable.
+            if (root.rearmAfterFlush) {
+                root.rearmAfterFlush = false;
+                root.armSnoozeTimer();
+            }
         }
     }
 
@@ -230,7 +241,7 @@ Singleton {
         if (!NotifyConfig.store.enabled)
             return;
         root.enqueue("UPDATE notifications SET state = 'snoozed', wake_at = " + Math.round(wakeAt) + "\n" + "WHERE row_id = (SELECT MAX(row_id) FROM notifications WHERE nid = " + Number(nid) + " AND state = 'active');");
-        root.armSnoozeTimer();
+        root.rearmAfterFlush = true;
     }
 
     // Rows already due. Fired one signal each so the caller can re-pop them carrying the
@@ -238,7 +249,7 @@ Singleton {
     function fireDueSnoozes() {
         // -separator so a body containing the default pipe cannot split the row; \x1f is the
         // ASCII unit separator and cannot appear in notification text that survived JSON.
-        dueProc.command = ["sqlite3", "-readonly", "-noheader", "-separator", "\x1f", root.dbPath, "SELECT row_id, app_name, summary, replace(body, char(10), ' '), urgency FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL AND wake_at <= " + Date.now() + ";"];
+        dueProc.command = ["sqlite3", "-readonly", "-noheader", "-separator", "\x1f", root.dbPath, "SELECT row_id, app_name, summary, replace(body, char(10), ' '), urgency FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL AND wake_at <= " + Date.now() + " AND row_id NOT IN (" + root.firedIdList() + ");"];
         dueProc.running = true;
     }
 
@@ -262,9 +273,27 @@ Singleton {
         }
     }
 
+    // Row ids already dispatched this session. THE WRITE THAT CLEARS wake_at IS ENQUEUED, not
+    // synchronous — writes batch through a subprocess so they can never block a popup — so for
+    // a moment after firing, the row still reads as due. Re-arming off that read computed a
+    // zero interval, fired the same row again, and span: 100+ duplicate notifications in
+    // seconds until the process was killed (observed 2026-08-05).
+    //
+    // Tracking what has fired in memory is what actually breaks the cycle; excluding those ids
+    // from the query below is the same guard expressed in SQL. Belt and braces on purpose,
+    // because the failure mode is a notification storm rather than a missed reminder.
+    property var firedRows: ({})
+    // set by anything that enqueues a wake_at change; consumed by the writer's exit
+    property bool rearmAfterFlush: false
+
+    function firedIdList() {
+        const ids = Object.keys(root.firedRows);
+        return ids.length ? ids.join(",") : "-1";
+    }
+
     function armSnoozeTimer() {
         root.refreshSnoozed();
-        nextProc.command = ["sqlite3", "-readonly", "-noheader", root.dbPath, "SELECT MIN(wake_at) FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL;"];
+        nextProc.command = ["sqlite3", "-readonly", "-noheader", root.dbPath, "SELECT MIN(wake_at) FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL AND row_id NOT IN (" + root.firedIdList() + ");"];
         nextProc.running = true;
     }
 
@@ -275,12 +304,18 @@ Singleton {
                 const rows = this.text.trim().split("\n").filter(l => l.length);
                 for (let i = 0; i < rows.length; i++) {
                     const f = rows[i].split("\x1f");
+                    if (root.firedRows[f[0]])
+                        continue;
+                    root.firedRows[f[0]] = true;
                     // clear the snooze BEFORE re-popping: a crash between the two would
                     // otherwise re-fire the same row on every start, forever
                     root.enqueue("UPDATE notifications SET state = 'expired', wake_at = NULL WHERE row_id = " + f[0] + ";");
                     root.snoozeElapsed(f[1] || "", f[2] || "", f[3] || "", parseInt(f[4], 10) || 1);
                 }
-                root.armSnoozeTimer();
+                if (rows.length)
+                    root.rearmAfterFlush = true;
+                else
+                    root.armSnoozeTimer();
             }
         }
     }
@@ -298,7 +333,10 @@ Singleton {
                 // Qt caps an interval at 2^31-1 ms (~24 days), written hex because the decimal
                 // literal is ten digits and trips lint:private's US-phone-number pattern; a longer snooze re-arms when the
                 // timer next fires rather than silently overflowing to something immediate.
-                snoozeTimer.interval = Math.max(0, Math.min(due, 0x7fffffff));
+                // Floor of one second. Both guards above should make a zero interval
+                // impossible; this makes a notification STORM impossible even if they are
+                // wrong, which is the failure worth engineering against.
+                snoozeTimer.interval = Math.max(1000, Math.min(due, 0x7fffffff));
                 snoozeTimer.restart();
             }
         }
