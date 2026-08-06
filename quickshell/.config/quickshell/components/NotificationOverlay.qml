@@ -168,7 +168,7 @@ Scope {
                     else if (event.key === Qt.Key_Y)
                         NotifyFocus.copySelected(false);
                     else if (event.key === Qt.Key_S)
-                        NotifyFocus.snoozeSelected(15 * 60 * 1000);
+                        NotifyFocus.snoozeSelected(NotifyConfig.snooze.defaultMs);
                     else if (event.key === Qt.Key_R)
                         NotifyFocus.snoozeSelected(0); // "remind me at ___" — prompt is notif-actions
                     else if (event.key === Qt.Key_I && !(event.modifiers & Qt.ControlModifier)) {

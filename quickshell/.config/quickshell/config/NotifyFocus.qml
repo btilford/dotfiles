@@ -342,11 +342,21 @@ Singleton {
     property var drawerHook: null   // function()
     property var groupHook: null    // function(entry) — dismiss everything in the group
 
+    // `s` snoozes for the configured default; `r` (ms = 0) is "remind me at ___", which opens
+    // the prompt in TIME mode rather than guessing an interval.
     function snoozeSelected(ms) {
-        if (root.snoozeHook && root.selected)
-            root.snoozeHook(root.selected, ms);
-        else
-            console.info("notifications: snooze needs the actions story (notif-actions)");
+        const entry = root.selected;
+        if (!entry)
+            return;
+        if (root.snoozeHook) {
+            root.snoozeHook(entry, ms);
+            return;
+        }
+        if (ms > 0) {
+            Notifications.snooze(entry, ms);
+            return;
+        }
+        Notifications.beginPrompt(entry, null, true);
     }
 
     function dismissGroup() {

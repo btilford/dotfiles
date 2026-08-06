@@ -828,9 +828,50 @@ Singleton {
         return false;
     }
 
-    function beginPrompt(entry, action) {
+    // Snooze: hand the row to the store and let the popup go. The store owns the schedule
+    // (AD-012 §4) — one armed timer for the earliest wake_at, rows already due fired at start —
+    // so nothing here has to survive a restart.
+    function snooze(entry, ms) {
         if (!entry)
             return;
+        const wake = Date.now() + Math.max(0, Math.round(ms));
+        NotifyStore.snooze(entry.nid, wake);
+        // forget(), not dismiss(): dismiss would write state = 'dismissed' over the
+        // 'snoozed' row the store just set, and the notification would never come back.
+        // The popup goes; the row is what remembers.
+        root.forget(entry);
+        root.reflow();
+    }
+
+    // "20m", "2h", "90s", "17:30". Returns null for anything it cannot read — AD-012 is
+    // explicit that this rejects rather than guesses.
+    function parseDelay(text) {
+        const t = String(text).trim().toLowerCase();
+        if (!t.length)
+            return null;
+        let m = t.match(/^([0-9]+)\s*([smhd])$/);
+        if (m) {
+            const n = parseInt(m[1], 10);
+            const unit = { s: 1000, m: 60000, h: 3600000, d: 86400000 }[m[2]];
+            return Math.min(n * unit, NotifyConfig.snooze.maxMs);
+        }
+        m = t.match(/^([0-9]{1,2}):([0-9]{2})$/);
+        if (m) {
+            const now = new Date();
+            const at = new Date(now);
+            at.setHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
+            // a time already past today means tomorrow, which is what a human means by it
+            if (at.getTime() <= now.getTime())
+                at.setDate(at.getDate() + 1);
+            return Math.min(at.getTime() - now.getTime(), NotifyConfig.snooze.maxMs);
+        }
+        return null;
+    }
+
+    function beginPrompt(entry, action, timeMode) {
+        if (!entry)
+            return;
+        entry.promptTimeMode = timeMode === true;
         entry.promptAction = action || null;
         entry.prompting = true;
         // A card you are typing into must not expire underneath you. This reuses the hover
@@ -850,8 +891,24 @@ Singleton {
         if (!entry)
             return;
         const action = entry.promptAction;
+        const timeMode = entry.promptTimeMode;
         entry.prompting = false;
         entry.promptAction = null;
+        entry.promptTimeMode = false;
+
+        if (timeMode) {
+            const ms = root.parseDelay(text);
+            if (ms === null) {
+                // reject rather than guess: silently snoozing for the wrong interval is worse
+                // than saying the input was not understood
+                Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
+                        "Snooze", "could not parse \"" + text + "\" — try 20m, 2h or 17:30"]);
+                root.resume(entry);
+                return;
+            }
+            root.snooze(entry, ms);
+            return;
+        }
         if (action) {
             // a custom action with a prompt: {input} carries the typed text
             root.invokeAction(entry, action, text);
@@ -1004,6 +1061,8 @@ Singleton {
             // client's own inline reply rather than a custom action)
             property bool prompting: false
             property var promptAction: null
+            // "remind me at ___": the field parses a delay instead of sending a reply
+            property bool promptTimeMode: false
             // recorded but never popped (durationMs < 0) — see the duration vocabulary above
             readonly property bool drawerOnly: entry.durationMs < 0
             // already added to `unread`; drawer-only entries are counted on arrival, once

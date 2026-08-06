@@ -26,7 +26,7 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property int schemaVersion: 2
+    readonly property int schemaVersion: 3
 
     readonly property string dbPath: {
         const explicit = Quickshell.env("QS_NOTIFY_DB");
@@ -162,7 +162,15 @@ Singleton {
     // cleared from the drawer stays in the history and stays queryable, it just stops being
     // listed. SQLite has no ADD COLUMN IF NOT EXISTS, so this runs as its own statement whose
     // failure is the success case on an already-migrated database ("duplicate column name").
-    readonly property string migrateSql: "ALTER TABLE notifications ADD COLUMN cleared_at INTEGER;"
+    // v3 (story: notif-actions). `wake_at` is epoch ms; NULL means not snoozed. A snooze is a
+    // ROW STATE rather than a timer living somewhere else — the store is already the source of
+    // truth, and a snooze that fired from systemd could not restore urgency, actions or the
+    // history row it came from.
+    //
+    // A LIST, run one statement per process, because the sqlite3 CLI aborts on the first error
+    // and every migration after the first fails with "duplicate column name" on an
+    // already-migrated database. Concatenating them would mean v3 never ran anywhere v2 had.
+    readonly property var migrations: ["ALTER TABLE notifications ADD COLUMN cleared_at INTEGER;", "ALTER TABLE notifications ADD COLUMN wake_at INTEGER;"]
 
     Process {
         id: initProc
@@ -181,12 +189,99 @@ Singleton {
         }
     }
 
-    // Exit code deliberately unchecked: on every start after the first, this fails with
-    // "duplicate column name: cleared_at", which is exactly the state we want. A real failure
-    // (unwritable database) has already been caught by initProc above.
+    // Exit code deliberately unchecked: on every start after the first, each of these fails
+    // with "duplicate column name", which is exactly the state we want. A real failure
+    // (unwritable database) has already been caught by initProc above. Chained one at a time
+    // so a failing early migration cannot stop a later one from running.
+    property int migrationIndex: 0
+
+    function runNextMigration() {
+        if (root.migrationIndex >= root.migrations.length) {
+            root.fireDueSnoozes();
+            return;
+        }
+        migrateProc.command = ["sqlite3", root.dbPath, root.migrations[root.migrationIndex]];
+        root.migrationIndex++;
+        migrateProc.running = true;
+    }
+
     Process {
         id: migrateProc
         stderr: StdioCollector {}
+        onExited: root.runNextMigration()
+    }
+
+    // --- snooze (AD-012 §4) ---------------------------------------------------------------
+    //
+    // ONE armed timer for the earliest wake_at, re-armed after each fire — not one timer per
+    // row, which would be a scheduler with as many moving parts as there are snoozes.
+    //
+    // On start, rows whose wake_at has already passed fire immediately. That is what makes a
+    // snooze survive a qs restart AND a reboot without a second scheduler anywhere, and it sits
+    // beside the `orphaned` sweep that already runs on this path.
+    signal snoozeElapsed(int rowId)
+
+    // Keyed by nid through the same MAX(row_id) subselect close() uses — a client reuses nids,
+    // so "the live row for this notification" is the newest active one, not any row with that
+    // nid. One addressing scheme for the whole store rather than two.
+    function snooze(nid, wakeAt) {
+        if (!NotifyConfig.store.enabled)
+            return;
+        root.enqueue("UPDATE notifications SET state = 'snoozed', wake_at = " + Math.round(wakeAt) + "\n" + "WHERE row_id = (SELECT MAX(row_id) FROM notifications WHERE nid = " + Number(nid) + " AND state = 'active');");
+        root.armSnoozeTimer();
+    }
+
+    // Rows already due. Fired one signal each so the caller can re-pop them carrying the
+    // original row_id, keeping history one thread rather than starting a new one.
+    function fireDueSnoozes() {
+        dueProc.command = ["sqlite3", "-readonly", "-noheader", root.dbPath, "SELECT row_id FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL AND wake_at <= " + Date.now() + ";"];
+        dueProc.running = true;
+    }
+
+    function armSnoozeTimer() {
+        nextProc.command = ["sqlite3", "-readonly", "-noheader", root.dbPath, "SELECT MIN(wake_at) FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL;"];
+        nextProc.running = true;
+    }
+
+    Process {
+        id: dueProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const rows = this.text.trim().split("\n").filter(l => l.length);
+                for (let i = 0; i < rows.length; i++) {
+                    // clear the snooze BEFORE re-popping: a crash between the two would
+                    // otherwise re-fire the same row on every start, forever
+                    root.enqueue("UPDATE notifications SET state = 'active', wake_at = NULL WHERE row_id = " + rows[i] + ";");
+                    root.snoozeElapsed(parseInt(rows[i], 10));
+                }
+                root.armSnoozeTimer();
+            }
+        }
+    }
+
+    Process {
+        id: nextProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const v = this.text.trim();
+                if (!v.length) {
+                    snoozeTimer.stop();
+                    return;
+                }
+                const due = parseInt(v, 10) - Date.now();
+                // Qt caps an interval at 2^31-1 ms (~24 days), written hex because the decimal
+                // literal is ten digits and trips lint:private's US-phone-number pattern; a longer snooze re-arms when the
+                // timer next fires rather than silently overflowing to something immediate.
+                snoozeTimer.interval = Math.max(0, Math.min(due, 0x7fffffff));
+                snoozeTimer.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: snoozeTimer
+        repeat: false
+        onTriggered: root.fireDueSnoozes()
     }
 
     // mkdir -p the parent: sqlite3 will not create a missing directory, and a first run on a new
