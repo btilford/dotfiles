@@ -98,5 +98,91 @@
     "limit": 200,
     "opacity": 0.35,
     "itemOpacity": 0.82
-  }
+  },
+  "prompt": {
+    "_comment": "A prompt is offered on a client inline-reply hint, on one of these categories, or when a matching action declares `prompt`. The list is written down rather than left to taste: a prompt belongs where a text reply is the notification's natural response AND the reply has somewhere to go. 'Build failed' gets actions, not a prompt.",
+    "categories": [
+      "im.received",
+      "email.arrived",
+      "x-vault.reminder"
+    ],
+    "placeholder": "Reply…"
+  },
+  "snooze": {
+    "_comment": "`s` in focus mode snoozes for defaultMs; `r` prompts for a delay (20m, 2h, 90s, 17:30). maxMs bounds a parsed value rather than trusting it. A snooze is a row in the history store, so it survives a qs restart and a reboot.",
+    "defaultMs": 900000,
+    "maxMs": 604800000
+  },
+  "actions": [
+    {
+      "_comment": "AGENT / CI. Matcher keys: app, category, urgency, summary, body, hint.<name>. A `~` prefix is a regex, anything else is exact and case-insensitive. `run` is argv — {id} {app} {summary} {body} {input} {hint:NAME} are substituted as ELEMENTS, never spliced into a shell string, so a summary containing `; rm -rf` is an argument.",
+      "match": {
+        "summary": "~agent|session"
+      },
+      "label": "Attach",
+      "key": "a",
+      "run": [
+        "ghostty",
+        "-e",
+        "tmux",
+        "attach",
+        "-t",
+        "{hint:session}"
+      ]
+    },
+    {
+      "match": {
+        "summary": "~build failed|pipeline failed"
+      },
+      "label": "Logs",
+      "key": "l",
+      "run": [
+        "ghostty",
+        "-e",
+        "journalctl",
+        "-u",
+        "builder",
+        "-n",
+        "200"
+      ]
+    },
+    {
+      "_comment": "HOMELAB. Opening a runbook or dashboard is the common case; ack goes through whatever CLI the alerting stack provides.",
+      "match": {
+        "app": "alertmanager"
+      },
+      "label": "Runbook",
+      "key": "r",
+      "run": [
+        "xdg-open",
+        "{hint:runbook_url}"
+      ]
+    },
+    {
+      "match": {
+        "category": "vcs"
+      },
+      "label": "Open MR",
+      "key": "o",
+      "run": [
+        "xdg-open",
+        "{hint:url}"
+      ]
+    },
+    {
+      "_comment": "VAULT. Capture into Inbox/ with the notification as the body. A prompt turns it into 'capture with a note' — {input} is what you typed.",
+      "match": {},
+      "label": "Capture",
+      "key": "c",
+      "prompt": {
+        "placeholder": "Note…"
+      },
+      "run": [
+        "dotfiles-vault-capture",
+        "{summary}",
+        "{body}",
+        "{input}"
+      ]
+    }
+  ]
 }
