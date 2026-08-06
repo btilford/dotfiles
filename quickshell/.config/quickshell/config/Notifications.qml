@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Notifications
 
 // org.freedesktop.Notifications server for the shell.
@@ -104,7 +105,10 @@ Singleton {
             durationMs: entry.durationMs,
             screenName: entry.screenName,
             anchorH: entry.anchorH,
-            anchorV: entry.anchorV
+            anchorV: entry.anchorV,
+            // AD-012: the rules engine may VETO actions, never define them. Presentation is
+            // where/how-long/how-loud; an action is not presentation.
+            actions: entry.actionsAllowed
         };
     }
 
@@ -123,6 +127,10 @@ Singleton {
             entry.anchorH = presentation.anchorH;
         if (["top", "center", "bottom"].indexOf(presentation.anchorV) >= 0)
             entry.anchorV = presentation.anchorV;
+        // only an explicit `false` suppresses; anything else leaves actions alone, so a rule
+        // that forgets the key cannot accidentally strip a client's own verbs
+        if (presentation.actions === false)
+            entry.actionsAllowed = false;
     }
 
     // In-process JS hook, kept alongside the Lua engine: it is what tests and a nested
@@ -545,6 +553,233 @@ Singleton {
     // client gets its NotificationClosed with the right reason.
     // ---------------------------------------------------------------------------------------
 
+
+    // ---------------------------------------------------------------------------------------
+    // Actions (story: notif-actions; shape settled in AD-012)
+    //
+    // TWO KINDS, ONE KEY SCHEME. A **spec** action arrived in the D-Bus `actions` array and is
+    // invoked by handing it back to the client; a **custom** action came from
+    // NotifyConfig.actions and is run here as a subprocess. They render identically on the card
+    // because the user does not care which side of D-Bus a verb lives on.
+    //
+    // Hints are assigned SPEC FIRST, then custom, so a client's own "Reply" never has its key
+    // stolen by a config rule.
+    // ---------------------------------------------------------------------------------------
+
+    // `~foo` is a regex; anything else is an exact, case-insensitive compare. Same vocabulary
+    // the Lua rules engine matches on, so there is one thing to learn.
+    function matchOne(pattern, value) {
+        const v = String(value === undefined || value === null ? "" : value);
+        const pat = String(pattern);
+        if (pat.length > 1 && pat.charAt(0) === "~") {
+            try {
+                return new RegExp(pat.substring(1), "i").test(v);
+            } catch (e) {
+                // a bad regex must not match everything — that would fire an action on every
+                // notification. Fail closed and say so once.
+                console.warn("notifications: action matcher", pat, "is not a valid regex —", e);
+                return false;
+            }
+        }
+        return v.toLowerCase() === pat.toLowerCase();
+    }
+
+    // All present keys must match (AND). An empty matcher matches everything, which is a
+    // legitimate way to declare a global action.
+    function actionMatches(match, entry) {
+        if (!match)
+            return true;
+        for (const key in match) {
+            const want = match[key];
+            let have;
+            if (key === "app")
+                have = entry.appName;
+            else if (key === "category")
+                have = entry.category;
+            else if (key === "urgency")
+                have = entry.urgency;
+            else if (key === "summary")
+                have = entry.summary;
+            else if (key === "body")
+                have = entry.body;
+            else if (key.indexOf("hint.") === 0)
+                have = entry.hints[key.substring(5)];
+            else {
+                console.warn("notifications: unknown action matcher key", key, "— never matches");
+                return false;
+            }
+            if (!root.matchOne(want, have))
+                return false;
+        }
+        return true;
+    }
+
+    // The merged, key-hinted list the card renders and the keyboard answers.
+    function actionsFor(entry) {
+        const out = [];
+        if (!entry || !entry.actionsAllowed)
+            return out;
+
+        // Spec actions. quickshell exposes NotificationAction { identifier, text, invoke() }.
+        // The `default` identifier is the click-the-card action and is NOT given a key or a
+        // button — it is what activating the card itself means.
+        const spec = entry.notification ? entry.notification.actions : [];
+        for (let i = 0; i < spec.length; i++) {
+            const a = spec[i];
+            if (String(a.identifier) === "default")
+                continue;
+            out.push({
+                kind: "spec",
+                label: String(a.text).length ? String(a.text) : String(a.identifier),
+                key: "",
+                spec: a,
+                run: null,
+                prompt: null
+            });
+        }
+
+        // Custom actions, in config order.
+        const cfg = NotifyConfig.actions;
+        for (let i = 0; i < cfg.length; i++) {
+            const c = cfg[i];
+            if (!root.actionMatches(c.match, entry))
+                continue;
+            out.push({
+                kind: "custom",
+                label: c.label,
+                key: c.key,
+                spec: null,
+                run: c.run,
+                prompt: c.prompt
+            });
+        }
+
+        // Assign hints. A declared key wins if it is still free; everything else takes the
+        // next unused letter from the sequence. Spec actions are first in `out`, so they get
+        // first refusal by construction.
+        const used = {};
+        for (let i = 0; i < out.length; i++) {
+            const want = out[i].key;
+            if (want.length === 1 && !used[want]) {
+                used[want] = true;
+            } else {
+                out[i].key = "";
+            }
+        }
+        const seq = "asdfghjklqwertyuiopzxcvbnm";
+        for (let i = 0; i < out.length; i++) {
+            if (out[i].key.length)
+                continue;
+            for (let j = 0; j < seq.length; j++) {
+                if (!used[seq.charAt(j)]) {
+                    out[i].key = seq.charAt(j);
+                    used[seq.charAt(j)] = true;
+                    break;
+                }
+            }
+        }
+        return out;
+    }
+
+    // The default action, if the client supplied one: what clicking the card means.
+    function defaultActionFor(entry) {
+        if (!entry || !entry.actionsAllowed || !entry.notification)
+            return null;
+        const spec = entry.notification.actions;
+        for (let i = 0; i < spec.length; i++) {
+            if (String(spec[i].identifier) === "default")
+                return spec[i];
+        }
+        return null;
+    }
+
+    // Substitutions produce ARGV ELEMENTS. This is the security boundary in AD-012: any app on
+    // the session bus can set a summary, so a value is only ever one argument — never spliced
+    // into a shell string, and no `sh -c` wrapper is added anywhere on this path.
+    function substituteArgv(argv, entry, input) {
+        const map = {
+            "{id}": String(entry.nid),
+            "{app}": entry.appName,
+            "{summary}": entry.summary,
+            "{body}": entry.body,
+            "{input}": input === undefined || input === null ? "" : String(input)
+        };
+        const out = [];
+        for (let i = 0; i < argv.length; i++) {
+            let a = String(argv[i]);
+            for (const k in map)
+                a = a.split(k).join(map[k]);
+            a = a.replace(/\{hint:([^}]+)\}/g, (m, name) => {
+                const v = entry.hints[name];
+                return v === undefined || v === null ? "" : String(v);
+            });
+            out.push(a);
+        }
+        return out;
+    }
+
+    // A failing action has to say so. Silently doing nothing is indistinguishable from a
+    // missed keypress, and the user has already moved on.
+    function actionFailed(entry, action, reason) {
+        console.warn("notifications: action", action.label, "failed —", reason);
+        // Round-trip through notify-send rather than synthesising an entry directly: this
+        // shell IS the server, so the failure lands in the popup stack AND the history store
+        // by the same path as everything else, instead of being a special case that only
+        // exists on screen. argv, never a shell string — the label came from config and the
+        // reason can contain anything the process printed.
+        Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
+                "Action failed", action.label + " — " + reason]);
+    }
+
+    function invokeAction(entry, action, input) {
+        if (!entry || !action)
+            return;
+        if (action.kind === "spec") {
+            // Hand it back to the client. `resident` decides whether the notification survives;
+            // that is the client's call, not ours (see the entry property of the same name).
+            try {
+                action.spec.invoke();
+            } catch (e) {
+                root.actionFailed(entry, action, String(e));
+                return;
+            }
+            if (!entry.resident)
+                root.dismiss(entry);
+            return;
+        }
+
+        const argv = root.substituteArgv(action.run, entry, input);
+        const runner = runnerComponent.createObject(root, {
+            "command": argv,
+            "entry": entry,
+            "action": action
+        });
+        if (!runner) {
+            root.actionFailed(entry, action, "could not start");
+            return;
+        }
+        runner.running = true;
+        if (!entry.resident)
+            root.dismiss(entry);
+    }
+
+    // One Process per invocation, destroyed on exit. A pool would be premature: actions are
+    // user-initiated and rare, and a shared Process would serialise two of them.
+    Component {
+        id: runnerComponent
+
+        Process {
+            id: runner
+            property var entry: null
+            property var action: null
+            onExited: (code, status) => {
+                if (code !== 0)
+                    root.actionFailed(runner.entry, runner.action, "exit " + code);
+                runner.destroy();
+            }
+        }
+    }
+
     function dismiss(entry) {
         if (!entry)
             return;
@@ -670,6 +905,9 @@ Singleton {
             // the rules engine has answered for this entry (or failed open): until then it is
             // in the model but on no screen — see refresh()
             property bool resolved: false
+            // AD-012: a Lua rule may set presentation.actions = false to suppress this
+            // notification's actions. Defaults true; only an explicit false flips it.
+            property bool actionsAllowed: true
             // recorded but never popped (durationMs < 0) — see the duration vocabulary above
             readonly property bool drawerOnly: entry.durationMs < 0
             // already added to `unread`; drawer-only entries are counted on arrival, once
@@ -753,14 +991,20 @@ Singleton {
             // silently swallow whatever was on screen.
             keepOnReload: true
 
-            // Advertise ONLY what is implemented. Actions, action icons, inline reply and
-            // markup bodies each have their own story; claiming them here would make clients
+            // Advertise ONLY what is implemented. Action icons, inline reply and markup
+            // bodies each still have their own story; claiming them here would make clients
             // send us content we render as literal garbage.
+            //
+            // `actions` flips true with the actions story (AD-012): spec actions render as
+            // buttons on the card with key hints, the `default` action is what clicking the
+            // card means, and an invocation that fails raises a critical notification rather
+            // than doing nothing. Clients DO change what they send based on this — that is
+            // the point, and it is also why it stayed false until the rendering existed.
             bodySupported: true
             bodyMarkupSupported: false
             bodyHyperlinksSupported: false
             bodyImagesSupported: false
-            actionsSupported: false
+            actionsSupported: true
             actionIconsSupported: false
             inlineReplySupported: false
             imageSupported: true

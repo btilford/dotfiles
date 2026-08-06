@@ -68,12 +68,23 @@ Rectangle {
         // (and its collapse clock) until it leaves again
         onEntered: Notifications.pause(card.entry)
         onExited: Notifications.resume(card.entry)
-        // a resident notification is explicitly asking to survive interaction, so clicking the
-        // body doesn't close it (default-action handling belongs to the actions story)
+        // A resident notification is explicitly asking to survive interaction, so clicking the
+        // body doesn't close it. Clicking the card IS the spec's `default` action when the
+        // client supplied one — that is what activating a notification means, which is why the
+        // default action gets no button and no key of its own.
         onClicked: mouse => {
             if (card.entry.collapsed) {
                 Notifications.expand(card.entry); // one click brings a shrunk critical back
                 return;
+            }
+            if (mouse.button === Qt.LeftButton) {
+                const def = Notifications.defaultActionFor(card.entry);
+                if (def) {
+                    def.invoke();
+                    if (!card.entry.resident)
+                        Notifications.dismiss(card.entry);
+                    return;
+                }
             }
             if (mouse.button === Qt.MiddleButton || !card.entry.resident)
                 Notifications.dismiss(card.entry);
@@ -279,6 +290,63 @@ Rectangle {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: Notifications.copy(card.entry, false)
+                }
+            }
+        }
+
+        // Action buttons (story: notif-actions, AD-012). Spec actions and custom actions render
+        // identically and answer the same key hints — the user does not care which side of
+        // D-Bus a verb lives on. Hidden while collapsed: a shrunk pill is not a control surface.
+        Row {
+            id: actionRow
+            // Recomputed rather than cached: `actions` binds through entry.notification, so a
+            // replaces_id update that changes the verbs is picked up like every other field.
+            readonly property var list: Notifications.actionsFor(card.entry)
+            visible: actionRow.list.length > 0 && !card.entry.collapsed
+            spacing: 6
+
+            Repeater {
+                model: actionRow.list
+
+                delegate: Rectangle {
+                    id: chip
+                    required property var modelData
+                    height: chipRow.implicitHeight + 6
+                    width: chipRow.implicitWidth + 14
+                    radius: Theme.radius / 2
+                    color: chipMa.containsMouse
+                        ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
+                        : Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, 0.12)
+
+                    Row {
+                        id: chipRow
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: chip.modelData.key.length > 0
+                            text: chip.modelData.key
+                            color: Theme.accent
+                            font.family: Theme.fontMono
+                            font.pixelSize: Theme.fontSize - 3
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: chip.modelData.label
+                            color: chipMa.containsMouse ? Theme.accent : Theme.fg
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.fontSize - 2
+                        }
+                    }
+
+                    MouseArea {
+                        id: chipMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Notifications.invokeAction(card.entry, chip.modelData, "")
+                    }
                 }
             }
         }

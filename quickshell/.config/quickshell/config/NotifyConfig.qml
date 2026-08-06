@@ -110,6 +110,38 @@ Singleton {
             itemOpacity: 0.82
         })
 
+    // Custom actions — a flat list read like the hyprland keybind table:
+    // matcher -> label -> key -> what it does. Settled in AD-012; see
+    // Projects/hyprland-dotfiles/features/notification-actions-design.
+    //
+    // Matcher keys: app, category, urgency, summary, body, hint.<name>. All present keys
+    // must match (AND). A `~` prefix makes the value a regex; anything else is an exact,
+    // case-insensitive compare — the same vocabulary the Lua rules engine matches on, so
+    // there is one thing to learn.
+    //
+    // `run` substitutions ({id} {app} {summary} {body} {input} {hint:NAME}) are passed as
+    // ARGV ELEMENTS and never spliced into a shell string. A summary containing `; rm -rf`
+    // is an argument, not a command. That is a security boundary, not a style choice.
+    readonly property var defaultActions: []
+
+    // A prompt is an inline field on the card. It appears on a client inline-reply hint, on
+    // an allowlisted category, or when a matching custom action declares one.
+    //
+    // The allowlist is written down rather than left to per-rule taste: a prompt is offered
+    // only where a text reply is the notification's natural response AND the reply has
+    // somewhere to go. "Build failed" gets actions, not a prompt — there is no recipient.
+    readonly property var defaultPrompt: ({
+            categories: ["im.received", "email.arrived", "x-vault.reminder"],
+            placeholder: "Reply\u2026"
+        })
+
+    // Snooze. `s` uses defaultMs; `r` opens the prompt in time mode ("20m", "17:30",
+    // "tomorrow 9am"). maxMs bounds a parsed value rather than trusting it.
+    readonly property var defaultSnooze: ({
+            defaultMs: 900000,
+            maxMs: 604800000
+        })
+
     // Surface opacity for the popup cards and the docked pills. Separate from the drawer's
     // (which is deliberately glass — see defaultDrawer): a card sits over whatever you are
     // working in for a few seconds and has to be readable immediately, so it stays mostly
@@ -161,6 +193,10 @@ Singleton {
     property var drawer: root.clone(root.defaultDrawer)
     property var collapse: root.clone(root.defaultCollapse)
     property var surface: root.clone(root.defaultSurface)
+    // a LIST, not an object — cloned per reload so bindings re-evaluate
+    property var actions: root.defaultActions.slice()
+    property var prompt: root.clone(root.defaultPrompt)
+    property var snooze: root.clone(root.defaultSnooze)
 
     readonly property string configPath: root.envOr("QS_NOTIFY_CONFIG", Quickshell.env("HOME") + "/.config/quickshell/notifications.json")
 
@@ -308,6 +344,52 @@ Singleton {
         root.surface = {
             cardOpacity: root.pickReal(su, "cardOpacity", root.defaultSurface.cardOpacity, 0.05, 1),
             pillOpacity: root.pickReal(su, "pillOpacity", root.defaultSurface.pillOpacity, 0.05, 1)
+        };
+
+        // Actions. A malformed entry is DROPPED with a log line rather than taken
+        // partially: an action with a matcher but no `run` would silently do nothing when
+        // pressed, which is worse than not offering the key at all. `run` is normalised to
+        // an argv array here so nothing downstream has to decide how to split it.
+        const acts = [];
+        const rawActs = Array.isArray(cfg.actions) ? cfg.actions : [];
+        for (let i = 0; i < rawActs.length; i++) {
+            const a = rawActs[i];
+            if (!a || typeof a !== "object") {
+                console.warn("notifications: config actions[" + i + "] is not an object — ignored");
+                continue;
+            }
+            const label = (typeof a.label === "string") ? a.label : "";
+            if (!label.length) {
+                console.warn("notifications: config actions[" + i + "] has no label — ignored");
+                continue;
+            }
+            let run = a.run;
+            if (typeof run === "string")
+                run = run.length ? run.split(/\s+/) : [];
+            if (!Array.isArray(run) || run.length === 0) {
+                console.warn("notifications: config actions[" + i + "] (" + label + ") has no run — ignored");
+                continue;
+            }
+            acts.push({
+                match: (a.match && typeof a.match === "object") ? a.match : ({}),
+                label: label,
+                key: (typeof a.key === "string" && a.key.length === 1) ? a.key : "",
+                run: run,
+                prompt: (a.prompt && typeof a.prompt === "object") ? a.prompt : null
+            });
+        }
+        root.actions = acts;
+
+        const pr = cfg.prompt;
+        root.prompt = {
+            categories: Array.isArray(pr && pr.categories) ? pr.categories.filter(c => typeof c === "string") : root.defaultPrompt.categories.slice(),
+            placeholder: (pr && typeof pr.placeholder === "string") ? pr.placeholder : root.defaultPrompt.placeholder
+        };
+
+        const sn = cfg.snooze;
+        root.snooze = {
+            defaultMs: root.pickInt(sn, "defaultMs", root.defaultSnooze.defaultMs, 1000),
+            maxMs: root.pickInt(sn, "maxMs", root.defaultSnooze.maxMs, 1000)
         };
 
         const co = cfg.collapse;
