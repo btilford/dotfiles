@@ -90,7 +90,13 @@ PanelWindow {
                 NotifyDrawer.clearSelected();
             else if (event.key === Qt.Key_A && (event.modifiers & Qt.ShiftModifier))
                 NotifyDrawer.clearAll();
-            else if (event.key === Qt.Key_F)
+            else if ((event.modifiers & Qt.ControlModifier) && event.key >= Qt.Key_A && event.key <= Qt.Key_Z) {
+                // Same scheme as the popup stack: Ctrl+<letter> fires an action on the selected
+                // row. Bare letters are taken here too (j/k/d/x/y/f/c/g), and one scheme across
+                // both surfaces means a verb answers the same keys wherever you meet it.
+                if (!NotifyDrawer.invokeActionByKey(String.fromCharCode(event.key).toLowerCase()))
+                    return;
+            } else if (event.key === Qt.Key_F)
                 NotifyDrawer.cycleRange();
             // `y`/`Y` yank, as in vim — and it frees `c` to keep meaning clear-filters here
             else if (event.key === Qt.Key_Y && (event.modifiers & Qt.ShiftModifier))
@@ -299,6 +305,29 @@ PanelWindow {
                             duration: Theme.animFast
                             easing.type: Theme.easing
                         }
+                    }
+
+                    // Action hints on the SELECTED row only. A hint line rather than chips: the
+                    // drawer is a dense list and a row of buttons on every entry would compete
+                    // with the content it is listing. The verbs are invoked with Ctrl+<letter>,
+                    // the same scheme the popup stack uses.
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: Theme.pad
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 4
+                        z: 3
+                        visible: entry.selected && !entry.isGroup && NotifyDrawer.selectedActions.length > 0
+                        text: {
+                            const list = NotifyDrawer.selectedActions;
+                            const parts = [];
+                            for (let i = 0; i < list.length; i++)
+                                parts.push("^" + list[i].key + " " + list[i].label);
+                            return parts.join("   ");
+                        }
+                        color: Theme.subtext
+                        font.family: Theme.fontMono
+                        font.pixelSize: Theme.fontSize - 4
                     }
 
                     // Row surface. Opaque enough to read over a terminal even though the slab

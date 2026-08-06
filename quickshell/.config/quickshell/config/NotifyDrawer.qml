@@ -179,6 +179,28 @@ Singleton {
 
     readonly property var selected: root.selectedIndex >= 0 ? root.items[root.selectedIndex] : null
 
+    // Custom actions available on the selected row. Custom ONLY — a spec action is invoked by
+    // handing it back to the client, and by the time a row is history that process has usually
+    // exited. See Notifications.actionsForRow.
+    readonly property var selectedActions: {
+        const sel = root.selected;
+        if (!sel || sel.kind === "group")
+            return [];
+        return Notifications.actionsForRow(sel.row ? sel.row : sel);
+    }
+
+    function invokeActionByKey(letter) {
+        const list = root.selectedActions;
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].key === letter) {
+                const sel = root.selected;
+                Notifications.invokeRowAction(sel.row ? sel.row : sel, list[i], "");
+                return true;
+            }
+        }
+        return false;
+    }
+
     function reselect() {
         if (root.selectedIndex >= 0)
             return;
