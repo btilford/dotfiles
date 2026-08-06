@@ -162,9 +162,20 @@ the terminal clients need the model to exist without a window.
   `scripts/StartNotify.sh` now dispatches on `HYPR_NOTIFY` and, for quickshell, **stops and masks
   `swaync.service`** — swaync ships a D-Bus activation file pointing at that unit, so killing the
   process alone lets the next `notify-send` start it again.
-- **Capabilities are advertised honestly.** `GetCapabilities` returns `body` + `icon-static` and
-  nothing else. Do not flip `actionsSupported` / `bodyMarkupSupported` / `inlineReplySupported`
-  until those stories actually render them — clients change what they send based on this.
+- **Capabilities are advertised honestly**, but `actions` is now among them. `GetCapabilities`
+  returns `body` + `actions` + `icon-static`. Do not flip `bodyMarkupSupported` /
+  `inlineReplySupported` / `actionIconsSupported` until those stories render them — clients
+  change what they send based on this.
+- **`actions` is load-bearing for every Chromium client, and its absence fails silently.**
+  Chromium (Brave, Chrome) calls `GetCapabilities` **once at startup** and, if `actions` is
+  missing, refuses the system notifier for the whole process lifetime and uses its internal
+  message centre instead. No error, no log, no retry. On Hyprland those internal windows have
+  **no class and no title**, so no window rule matches and they tile full-screen, one per
+  monitor — which reads as "notifications broke" and points nowhere near a capability string.
+  Confirmed 2026-08-05 by `dbus-monitor`: zero `Notify` calls from Brave for days, then
+  `GetCapabilities` → `Notify` immediately after `actionsSupported` flipped and Brave was
+  restarted. Note that closing Brave's window does **not** restart it (a push service worker
+  holds the process group); `pkill -x brave` and check `pgrep -c brave` first.
 - **Entry fields are bindings, not copies (load-bearing).** `replaces_id` does *not* re-emit the
   `notification` signal: quickshell mutates the existing `Notification` object in place. An entry
   that copied `summary`/`body`/hints at creation shows the first revision forever (progress bars
