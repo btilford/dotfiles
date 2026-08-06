@@ -708,6 +708,57 @@ Singleton {
         return out;
     }
 
+    // --- actions on STORED rows (the drawer) ------------------------------------------------
+    //
+    // Custom actions only, and that is a property of the world rather than a shortcut: a spec
+    // action is invoked by handing it back to the client over D-Bus, and by the time a row is
+    // history the process that offered "Reply" has usually exited. There is nothing to hand it
+    // to. Custom actions run here, so they work on a row from last week.
+    //
+    // A drawer row is a plain object from SQLite, not an entry, so it is adapted to the shape
+    // the matcher and the substituter already expect rather than duplicating either.
+    function rowAsEntry(row) {
+        return {
+            nid: row.nid !== undefined ? row.nid : 0,
+            appName: row.app_name !== undefined ? row.app_name : "",
+            summary: row.summary !== undefined ? row.summary : "",
+            body: row.body !== undefined ? row.body : "",
+            category: row.category !== undefined ? row.category : "",
+            urgency: row.urgency !== undefined ? row.urgency : 1,
+            // hints are not stored per column; a matcher on hint.* simply never matches a
+            // stored row, which is honest rather than a silent partial match
+            hints: ({}),
+            actionsAllowed: true,
+            resident: true // nothing to dismiss: the popup is long gone
+        };
+    }
+
+    function actionsForRow(row) {
+        const entry = root.rowAsEntry(row);
+        const out = [];
+        const cfg = NotifyConfig.actions;
+        for (let i = 0; i < cfg.length; i++) {
+            const c = cfg[i];
+            if (!root.actionMatches(c.match, entry))
+                continue;
+            out.push({
+                kind: "custom",
+                label: c.label,
+                key: c.key,
+                spec: null,
+                run: c.run,
+                prompt: c.prompt
+            });
+        }
+        return out;
+    }
+
+    function invokeRowAction(row, action, input) {
+        if (!action || action.kind !== "custom")
+            return;
+        root.invokeAction(root.rowAsEntry(row), action, input);
+    }
+
     // The default action, if the client supplied one: what clicking the card means.
     function defaultActionFor(entry) {
         if (!entry || !entry.actionsAllowed || !entry.notification)
