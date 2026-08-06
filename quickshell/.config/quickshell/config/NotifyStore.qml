@@ -219,7 +219,9 @@ Singleton {
     // On start, rows whose wake_at has already passed fire immediately. That is what makes a
     // snooze survive a qs restart AND a reboot without a second scheduler anywhere, and it sits
     // beside the `orphaned` sweep that already runs on this path.
-    signal snoozeElapsed(int rowId)
+    // Carries the row's CONTENT, not just its id: the original Notification object died with
+    // the client (or with the last qs), so whatever re-pops it has to rebuild from the store.
+    signal snoozeElapsed(string appName, string summary, string body, int urgency)
 
     // Keyed by nid through the same MAX(row_id) subselect close() uses — a client reuses nids,
     // so "the live row for this notification" is the newest active one, not any row with that
@@ -234,11 +236,34 @@ Singleton {
     // Rows already due. Fired one signal each so the caller can re-pop them carrying the
     // original row_id, keeping history one thread rather than starting a new one.
     function fireDueSnoozes() {
-        dueProc.command = ["sqlite3", "-readonly", "-noheader", root.dbPath, "SELECT row_id FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL AND wake_at <= " + Date.now() + ";"];
+        // -separator so a body containing the default pipe cannot split the row; \x1f is the
+        // ASCII unit separator and cannot appear in notification text that survived JSON.
+        dueProc.command = ["sqlite3", "-readonly", "-noheader", "-separator", "\x1f", root.dbPath, "SELECT row_id, app_name, summary, replace(body, char(10), ' '), urgency FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL AND wake_at <= " + Date.now() + ";"];
         dueProc.running = true;
     }
 
+    // Pending reminders, newest wake first. Synchronous from the recent-rows cache is not an
+    // option here — snoozed rows are deliberately NOT in it — so this is a blocking read of a
+    // handful of rows, which is what an IPC call can afford and a popup path could not.
+    function snoozedSummary() {
+        return snoozedProc.lastText;
+    }
+
+    function refreshSnoozed() {
+        snoozedProc.command = ["sqlite3", "-readonly", "-noheader", "-separator", " \u2014 ", root.dbPath, "SELECT datetime(wake_at/1000,'unixepoch','localtime'), app_name, summary FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL ORDER BY wake_at ASC LIMIT 50;"];
+        snoozedProc.running = true;
+    }
+
+    Process {
+        id: snoozedProc
+        property string lastText: ""
+        stdout: StdioCollector {
+            onStreamFinished: snoozedProc.lastText = this.text.trim()
+        }
+    }
+
     function armSnoozeTimer() {
+        root.refreshSnoozed();
         nextProc.command = ["sqlite3", "-readonly", "-noheader", root.dbPath, "SELECT MIN(wake_at) FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL;"];
         nextProc.running = true;
     }
@@ -249,10 +274,11 @@ Singleton {
             onStreamFinished: {
                 const rows = this.text.trim().split("\n").filter(l => l.length);
                 for (let i = 0; i < rows.length; i++) {
+                    const f = rows[i].split("\x1f");
                     // clear the snooze BEFORE re-popping: a crash between the two would
                     // otherwise re-fire the same row on every start, forever
-                    root.enqueue("UPDATE notifications SET state = 'active', wake_at = NULL WHERE row_id = " + rows[i] + ";");
-                    root.snoozeElapsed(parseInt(rows[i], 10));
+                    root.enqueue("UPDATE notifications SET state = 'expired', wake_at = NULL WHERE row_id = " + f[0] + ";");
+                    root.snoozeElapsed(f[1] || "", f[2] || "", f[3] || "", parseInt(f[4], 10) || 1);
                 }
                 root.armSnoozeTimer();
             }

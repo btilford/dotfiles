@@ -808,6 +808,24 @@ Singleton {
     }
 
 
+    // An elapsed snooze comes back as a fresh notification, rebuilt from the stored row and
+    // re-emitted through notify-send — the same round-trip actionFailed uses.
+    //
+    // It cannot be the ORIGINAL notification: that object died with the client, or with the
+    // last qs. So the reminder is honestly a new one, tagged so it reads as a reminder rather
+    // than as the app having spoken again. Actions are lost with the client, which is inherent
+    // — by the time a snooze fires, the process that offered "Reply" may not exist.
+    //
+    // Sticky (-t 0) on purpose: you asked to be reminded, so it waits to be dealt with.
+    Connections {
+        target: NotifyStore
+
+        function onSnoozeElapsed(appName, summary, body, urgency) {
+            const urg = urgency >= 2 ? "critical" : (urgency <= 0 ? "low" : "normal");
+            Quickshell.execDetached(["notify-send", "-t", "0", "-u", urg, "-a", appName.length ? appName : "quickshell", "-h", "string:category:x-vault.reminder", summary.length ? summary : "Reminder", body]);
+        }
+    }
+
     // --- prompts / inline reply (AD-012 §3) -------------------------------------------------
     //
     // A prompt is offered where a text reply is the notification's NATURAL response and the

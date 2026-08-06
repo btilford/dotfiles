@@ -111,6 +111,13 @@ ShellRoot {
         // sqlite3's own `-json` rows, newest first, served from the cache the store refreshes
         // after every write — an IPC call cannot wait on a subprocess, and a client that wants
         // an arbitrary query has the database file and its documented schema.
+        // Pending reminders. Cached rather than queried on demand — an IpcHandler function must
+        // return immediately and cannot wait on a subprocess, the same constraint history() has.
+        // Refreshed whenever the snooze timer re-arms, which is every time the set changes.
+        function snoozed(): string {
+            return NotifyStore.snoozedSummary();
+        }
+
         function history(limit: int): string {
             return NotifyStore.recentJson(limit);
         }
