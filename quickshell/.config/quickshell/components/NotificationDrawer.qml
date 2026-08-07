@@ -449,7 +449,15 @@ PanelWindow {
                             elide: Text.ElideRight
                             // 2 lines in the list, the whole thing (bounded) once Enter unfolds
                             // it — a drawer row is a summary of a summary until you ask
-                            maximumLineCount: entry.row && NotifyDrawer.isExpanded(entry.row.row_id) ? 24 : 2
+                            // Touch expandedRows so QML tracks it: dependencies are not
+                            // discovered through a function call, so binding on isExpanded()
+                            // alone evaluated once and never re-ran. Enter/Tab flipped the
+                            // state correctly and nothing on screen moved — the same failure
+                            // that hid the action chips.
+                            maximumLineCount: {
+                                NotifyDrawer.expandedRows;
+                                return entry.row && NotifyDrawer.isExpanded(entry.row.row_id) ? 24 : 2;
+                            }
                             wrapMode: Text.Wrap
                             color: Theme.subtext
                             font.family: Theme.fontUi

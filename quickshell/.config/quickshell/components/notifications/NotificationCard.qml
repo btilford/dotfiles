@@ -391,19 +391,23 @@ Rectangle {
         Rectangle {
             id: promptBox
             width: parent.width
-            height: promptInput.implicitHeight + 12
+            // grows with the text, capped so a long draft cannot push the card off screen
+            height: Math.min(promptInput.implicitHeight + 12, card.width * 0.6)
             radius: Theme.radius / 2
             visible: card.entry.prompting
             color: Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, 0.14)
             border.width: Theme.borderThin
             border.color: promptInput.activeFocus ? Theme.accent : "transparent"
 
-            TextInput {
+            // TextEdit, not TextInput: replies are multi-line, and an agent draft especially so.
+            // TextEdit is in QtQuick, so this needs no QtQuick.Controls import.
+            TextEdit {
                 id: promptInput
                 anchors.fill: parent
+                anchors.margins: 6
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
-                verticalAlignment: TextInput.AlignVCenter
+                wrapMode: TextEdit.Wrap
                 color: Theme.fg
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.fontSize - 1
@@ -435,16 +439,22 @@ Rectangle {
                         Notifications.cancelPrompt(card.entry);
                         event.accepted = true;
                     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                        Notifications.submitPrompt(card.entry, promptInput.text);
-                        promptInput.text = "";
-                        event.accepted = true;
+                        // Ctrl+Enter sends, bare Enter inserts a newline. The other way round is
+                        // what every chat client does, and it is wrong for a field an agent
+                        // drafts INTO: the first thing you do to a draft is edit it, and losing
+                        // it to a stray Enter mid-edit is unrecoverable.
+                        if (event.modifiers & Qt.ControlModifier) {
+                            Notifications.submitPrompt(card.entry, promptInput.text);
+                            promptInput.text = "";
+                            event.accepted = true;
+                        }
                     }
                 }
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: promptInput.text.length === 0
-                    text: NotifyConfig.prompt.placeholder
+                    text: NotifyConfig.prompt.placeholder + "  (Ctrl+Enter sends, Esc cancels)"
                     color: Theme.subtext
                     font: promptInput.font
                 }
