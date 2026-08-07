@@ -183,6 +183,8 @@ Singleton {
     // handing it back to the client, and by the time a row is history that process has usually
     // exited. See Notifications.actionsForRow.
     readonly property var selectedActions: {
+        // see NotificationCard: touch the config so the binding re-runs when TOML lands
+        NotifyConfig.actions;
         const sel = root.selected;
         if (!sel || sel.kind === "group")
             return [];

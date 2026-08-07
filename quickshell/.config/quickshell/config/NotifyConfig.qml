@@ -467,9 +467,12 @@ Singleton {
         onLoaded: root.convertToml()
         onFileChanged: root.convertToml()
         onLoadFailed: {
-            // no TOML on this machine: JSON (or defaults) is the answer, silently
-            root.tomlCfg = null;
-            root.rebuild();
+            // The BASE file is absent — which does not mean there is no TOML config. A machine
+            // may have only notifications.local.toml, or only drop-ins in notifications.d/,
+            // and gating the conversion on this file existing meant those were never read at
+            // all: no error, no chips, nothing in the log. Convert anyway and let the layering
+            // decide there is nothing to load.
+            root.convertToml();
         }
     }
 
@@ -548,5 +551,10 @@ Singleton {
         }
     }
 
-    Component.onCompleted: rebuild()
+    Component.onCompleted: {
+        // Unconditional: the base FileView only reports on ITS file, and the local/drop-in
+        // layers exist independently of it.
+        root.convertToml();
+        root.rebuild();
+    }
 }

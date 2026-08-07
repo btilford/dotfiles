@@ -305,7 +305,15 @@ Rectangle {
             width: parent.width
             // Recomputed rather than cached: `actions` binds through entry.notification, so a
             // replaces_id update that changes the verbs is picked up like every other field.
-            readonly property var list: Notifications.actionsFor(card.entry)
+            readonly property var list: {
+                // Touch NotifyConfig.actions so QML tracks it. Dependencies are not discovered
+                // through a function call into another singleton, and TOML config loads
+                // ASYNCHRONOUSLY (tomlq is a subprocess) — so without this the binding
+                // evaluates once against an empty action list and never re-runs. The chips
+                // simply never appear, with nothing in the log to say why.
+                NotifyConfig.actions;
+                return Notifications.actionsFor(card.entry);
+            }
             visible: actionRow.list.length > 0 && !card.entry.collapsed
             spacing: 6
             // vertical gap when they wrap; Flow uses `spacing` for both axes otherwise
