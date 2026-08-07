@@ -200,6 +200,28 @@ Singleton {
 
     readonly property string configPath: root.envOr("QS_NOTIFY_CONFIG", Quickshell.env("HOME") + "/.config/quickshell/notifications.json")
 
+    // TOML is preferred and JSON is the fallback, in that order.
+    //
+    // JSON was chosen originally because QML parses it natively and reading anything else meant
+    // a build step between the user and a preference. That reasoning holds for a *build* step;
+    // it does not hold for a converter run at LOAD, which is what this is. The file is still
+    // edited directly and still hot-reloads on save.
+    //
+    // The cost of JSON was being paid in `_comment` keys — a config format that needs a
+    // convention to fake comments is telling you something. TOML also matches every other
+    // config in this repo (clipborg, mise, metapac, worktrunk), and AD-012 wrote its action
+    // examples in TOML before any of this existed:
+    //
+    //     [[actions]]
+    //     match = { app = "Slack" }
+    //
+    // `tomlq` (from the `yq` package) does the conversion. If it is missing the TOML file is
+    // ignored with one log line and JSON/defaults still apply — a missing converter must not
+    // take the shell's notifications with it.
+    readonly property string tomlPath: root.envOr("QS_NOTIFY_CONFIG_TOML", Quickshell.env("HOME") + "/.config/quickshell/notifications.toml")
+    // parsed TOML, or null when there is no usable TOML file
+    property var tomlCfg: null
+
     // ---------------------------------------------------------------------------------------
 
     function clone(o) {
@@ -257,13 +279,17 @@ Singleton {
 
     function rebuild() {
         let cfg = {};
-        try {
-            const t = configFile.text();
-            if (t && t.trim().length)
-                cfg = JSON.parse(t);
-        } catch (e) {
-            console.warn("notifications: config file unreadable, using defaults —", e);
-            cfg = {};
+        if (root.tomlCfg) {
+            cfg = root.tomlCfg;
+        } else {
+            try {
+                const t = configFile.text();
+                if (t && t.trim().length)
+                    cfg = JSON.parse(t);
+            } catch (e) {
+                console.warn("notifications: config file unreadable, using defaults —", e);
+                cfg = {};
+            }
         }
         if (!cfg || typeof cfg !== "object")
             cfg = {};
@@ -410,6 +436,55 @@ Singleton {
         onLoadFailed: root.rebuild()
         onFileChanged: {
             reload();
+            root.rebuild();
+        }
+    }
+
+    // Watches the TOML for changes only — its text is never parsed here, tomlq does that.
+    FileView {
+        id: tomlFile
+        path: root.tomlPath
+        watchChanges: true
+        printErrors: false
+        onLoaded: root.convertToml()
+        onFileChanged: root.convertToml()
+        onLoadFailed: {
+            // no TOML on this machine: JSON (or defaults) is the answer, silently
+            root.tomlCfg = null;
+            root.rebuild();
+        }
+    }
+
+    function convertToml() {
+        tomlProc.command = ["tomlq", "-c", ".", root.tomlPath];
+        tomlProc.running = true;
+    }
+
+    Process {
+        id: tomlProc
+        stderr: StdioCollector {}
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const t = this.text.trim();
+                if (!t.length)
+                    return;
+                try {
+                    root.tomlCfg = JSON.parse(t);
+                } catch (e) {
+                    console.warn("notifications: tomlq produced unparseable output —", e);
+                    root.tomlCfg = null;
+                }
+                root.rebuild();
+            }
+        }
+        onExited: exitCode => {
+            if (exitCode === 0)
+                return;
+            // 127 = no tomlq on this machine. Anything else is a broken TOML file, and the
+            // user wants to know which line — tomlq already said so on stderr.
+            const why = exitCode === 127 ? "tomlq not found (install the yq package)" : tomlProc.stderr.text.trim();
+            console.warn("notifications: could not read", root.tomlPath, "—", why, "— falling back to JSON/defaults");
+            root.tomlCfg = null;
             root.rebuild();
         }
     }
