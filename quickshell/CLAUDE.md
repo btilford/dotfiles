@@ -540,10 +540,14 @@ Built to AD-012. `actionsSupported` and `inlineReplySupported` are both true;
   the output into the reply field", and a row invoked *as a row* has no reply channel — offering
   the verb would spend a model call on text that vanishes. Compose re-associates a live entry
   when one exists and then uses `actionsFor()`, which does offer them.
-- **`rowAsEntry` is an adapter, not an entry**, and now says so with `stored: true`. `pause()`,
+- **`rowAsEntry` is an adapter, not an entry**, and now says so with `isRow: true`. `pause()`,
   `resume()` and `submitPrompt()` all assumed a live entry; a capturing action invoked from the
   drawer died on `entry.expiryTimer` with a TypeError in the log and no action run. Each of the
-  three tests the flag.
+  three tests the flag. It is **not** called `stored` — a live entry already has a property of
+  that name meaning "a history row exists for this one", true of nearly every card a few hundred
+  ms after it appears. The first version reused the word, so `pause()` returned early for every
+  live notification and the composed card expired under the compose surface. A one-word name for
+  a new flag on a shared object is worth grepping for first.
 - Migrations are a LIST run one statement per process: the sqlite3 CLI aborts on first error, so
   a concatenated migration would never reach v3 on a database that already had v2.
 - IPC: `qs ipc call notifications snooze <ms>` and `... snoozed`.

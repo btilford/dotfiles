@@ -439,7 +439,13 @@ Singleton {
         entry.runToken++; // tells the card to restart its countdown indicator from the top
         // a card that arrives while the stack is keyboard-focused starts out frozen like the
         // rest of them, rather than being the one card that can vanish mid-read
-        if (root.keyboardHold)
+        //
+        // The same for the card being composed, and this is the path that actually bit: every
+        // refresh() lands here, `paused` is cleared unconditionally two lines up, and a store
+        // write or an in-place update is enough to re-arm the clock under a surface the user is
+        // typing into. Freezing has to be re-asserted wherever the clock is armed, not only where
+        // it is stopped.
+        if (root.keyboardHold || NotifyCompose.owns(entry))
             root.pause(entry, true);
     }
 
@@ -450,8 +456,8 @@ Singleton {
     function pause(entry, force) {
         if (!entry || entry.paused || entry.leaving)
             return;
-        if (entry.stored)
-            return; // a stored row has no clock to freeze (see rowAsEntry)
+        if (entry.isRow)
+            return; // an adapted database row has no clock to freeze (see rowAsEntry)
         if (!force && !timing.hoverPause)
             return;
         if (entry.expiryTimer.running) {
@@ -479,7 +485,13 @@ Singleton {
     }
 
     function resume(entry) {
-        if (!entry || !entry.paused || root.keyboardHold || entry.stored)
+        if (!entry || !entry.paused || root.keyboardHold || entry.isRow)
+            return;
+        // Being composed freezes the clock as hard as keyboardHold does, and for a sharper
+        // reason: opening compose puts a full-window scrim over the stack, which the card below
+        // reads as the POINTER LEAVING — so the card resumed its own countdown the instant the
+        // compose surface appeared and expired underneath it mid-sentence.
+        if (NotifyCompose.owns(entry))
             return;
         entry.paused = false;
         if (entry.leaving || entry.queued || entry.durationMs <= 0) {
@@ -743,7 +755,12 @@ Singleton {
             // tests this flag — pause(), resume() and submitPrompt() all took a live entry for
             // granted, and a capturing action invoked from the drawer died on the first
             // `entry.expiryTimer` with a TypeError in the log and no action run.
-            stored: true,
+            //
+            // NOT named `stored`: a live entry already has a property of that name meaning "a
+            // history row exists for this one", which is true of nearly every card a few hundred
+            // milliseconds after it appears. Reusing the word made pause() return early for every
+            // live notification, so the card being composed expired under the compose surface.
+            isRow: true,
             // plain fields so the paths that write them are harmless here
             paused: false,
             leaving: false,
@@ -1059,7 +1076,7 @@ Singleton {
         // action runs here — but an inline reply does, so say so instead of dropping the text on
         // the floor. The compose surface already refuses to offer the field in this case; this
         // catches the path that reaches here anyway (a `capture = "reply"` action on a row).
-        if (entry.stored) {
+        if (entry.isRow) {
             Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
                     "Reply not sent", "no live client for this notification — it is history"]);
             return;
