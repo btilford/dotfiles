@@ -71,7 +71,12 @@ PanelWindow {
 
         Keys.onPressed: event => {
             let g = false;
-            if (event.key === Qt.Key_Escape)
+            // Ctrl+<letter> first: the bare-letter branches below carry no modifier guard, so
+            // Ctrl+D would clear the row instead of firing its action.
+            if ((event.modifiers & Qt.ControlModifier) && event.key >= Qt.Key_A && event.key <= Qt.Key_Z) {
+                if (!NotifyDrawer.invokeActionByKey(String.fromCharCode(event.key).toLowerCase()))
+                    return;
+            } else if (event.key === Qt.Key_Escape)
                 NotifyDrawer.close();
             else if (event.key === Qt.Key_J || event.key === Qt.Key_Down)
                 NotifyDrawer.move(1);
@@ -90,13 +95,7 @@ PanelWindow {
                 NotifyDrawer.clearSelected();
             else if (event.key === Qt.Key_A && (event.modifiers & Qt.ShiftModifier))
                 NotifyDrawer.clearAll();
-            else if ((event.modifiers & Qt.ControlModifier) && event.key >= Qt.Key_A && event.key <= Qt.Key_Z) {
-                // Same scheme as the popup stack: Ctrl+<letter> fires an action on the selected
-                // row. Bare letters are taken here too (j/k/d/x/y/f/c/g), and one scheme across
-                // both surfaces means a verb answers the same keys wherever you meet it.
-                if (!NotifyDrawer.invokeActionByKey(String.fromCharCode(event.key).toLowerCase()))
-                    return;
-            } else if (event.key === Qt.Key_F)
+else if (event.key === Qt.Key_F)
                 NotifyDrawer.cycleRange();
             // `y`/`Y` yank, as in vim — and it frees `c` to keep meaning clear-filters here
             else if (event.key === Qt.Key_Y && (event.modifiers & Qt.ShiftModifier))
