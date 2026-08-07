@@ -508,8 +508,8 @@ Built to AD-012. `actionsSupported` and `inlineReplySupported` are both true;
 - **`default` gets no button and no key.** Clicking the card, or Enter in focus mode, IS that
   action — giving it a chip would say otherwise.
 - **Hints are `Ctrl+<letter>`, not bare letters or digits.** Focus mode and the drawer are both
-  vim-shaped and own the bare alphabet (j/k/d/x/D/y/Y/s/r/o/g/G/a/f/c); losing `d` to an action
-  would break dismiss. Resolution order: a declared free letter, else the first free letter *of
+  vim-shaped and own the bare alphabet (j/k/d/x/D/y/Y/s/r/o/p/g/G/a/f/c — `p` is compose); losing
+  `d` to an action would break dismiss. Resolution order: a declared free letter, else the first free letter *of
   the label* (so "Reply" → `^r` with nothing configured), else the next free letter.
 - **Substitutions are argv elements, never a shell string**, and no `sh -c` is added anywhere on
   this path. Any app on the session bus can set a summary, so this is a security boundary.
@@ -534,11 +534,67 @@ Built to AD-012. `actionsSupported` and `inlineReplySupported` are both true;
   tight loop in the other — 100+ duplicate notifications in seconds. Re-arming now happens on
   the writer's exit, guarded by an in-memory set of dispatched row ids, the same ids excluded in
   SQL, and a one-second interval floor.
-- **Drawer rows get custom actions only.** A spec action needs a live client, and by the time a
-  row is history that process has usually exited.
+- **Drawer rows get custom actions only, minus the capturing ones.** A spec action needs a live
+  client, and by the time a row is history that process has exited. `capture` actions are
+  filtered out of `actionsForRow` for the same reason one step further on: capture means "write
+  the output into the reply field", and a row invoked *as a row* has no reply channel — offering
+  the verb would spend a model call on text that vanishes. Compose re-associates a live entry
+  when one exists and then uses `actionsFor()`, which does offer them.
+- **`rowAsEntry` is an adapter, not an entry**, and now says so with `stored: true`. `pause()`,
+  `resume()` and `submitPrompt()` all assumed a live entry; a capturing action invoked from the
+  drawer died on `entry.expiryTimer` with a TypeError in the log and no action run. Each of the
+  three tests the flag.
 - Migrations are a LIST run one statement per process: the sqlite3 CLI aborts on first error, so
   a concatenated migration would never reach v3 on a database that already had v2.
 - IPC: `qs ipc call notifications snooze <ms>` and `... snoozed`.
+
+**The action object must carry every field `invokeAction` reads.** `actionsFor` built its
+entries field by field and simply never copied `capture`, so `action.capture` was `undefined`
+everywhere and **every `capture = "draft"` / `"reply"` action ran as fire-and-forget** — the
+command ran, exited 0, and its stdout was dropped. Nothing failed, so nothing logged. That is the
+shape of bug to expect from hand-built plain objects crossing a module boundary; if you add a
+config key to an action, add it to both builders (`actionsFor` and `actionsForRow`) and to
+`NotifyConfig`'s validator.
+
+### Compose: one notification, centred, with room to write
+
+`config/NotifyCompose.qml` (state) + `components/notifications/ComposeSurface.qml` (view). `p`
+opens it, from popup focus mode and from a drawer row; `qs ipc call notifications compose [id]`
+does the same, and `composeState` reports what it would send.
+
+- **It is a STATE, not a window.** AD-012 §5 rejected a dedicated centred overlay because it adds
+  a third focus-grabbing surface. So the surface is instantiated inside a window that already has
+  the grab: the popup stack's `flightHost` layer (the full-window layer the dwell reparents into)
+  or the drawer. `NotifyCompose.host` names which, and each host renders it only when named — the
+  stack additionally checks the entry belongs to *its* (monitor, anchor) pair.
+- **Composing counts as focused.** The stack window takes the keyboard while compose is open even
+  with focus mode off, because a text field on a surface with no grab silently eats nothing. It is
+  only ever opened by a deliberate act, so AD-011 holds. When focus mode was *not* already
+  holding the keyboard, compose remembers and restores the previous toplevel itself.
+- **Closed means zero-sized, not just invisible.** The stack window masks input to the items that
+  may be clicked, and a full-window item that is merely `visible: false` still contributes its
+  geometry to that `Region` — which would make the notification layer swallow every click on the
+  desktop.
+- **It is not a NotificationCard with a bigger prompt box**, though that was the shorter route. A
+  card binds `paused`/`collapsed`/`remainingMs`/`runToken` and the notification behind them, and
+  half of compose is a stored SQLite row with none of those. The chips ARE shared, via
+  `components/notifications/ActionChips.qml`, so a verb cannot look different on the two surfaces.
+
+**Replying from a stored row: the answer is re-associate, then be honest.** `openRow` looks for a
+live entry for that `nid` (rows still `active`), and composing then behaves exactly like composing
+from the stack — that is what makes "reply from the drawer" work for something still on screen.
+With no live entry there are three routes and the surface says which one it is in:
+
+| route | field | what sending does |
+| --- | --- | --- |
+| `reply` | shown | `sendInlineReply()` to the client |
+| `action` | shown | the text becomes `{input}` in an argv this shell runs — works on a row from last week |
+| `none` | **not shown** | nothing; the surface says why, and points at the verbs |
+
+A reply field that silently goes nowhere is worse than no field, so `none` renders a note instead
+of a box. The same rule was applied to the path that already existed: a prompt opened on an
+**allowlisted category** whose client does not support inline reply used to drop the text in
+silence, and now raises a critical "Reply not sent" the same way a failing action does.
 
 ### Testing notifications without a Hyprland session
 

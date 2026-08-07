@@ -105,6 +105,29 @@ ShellRoot {
         function drawerHide(): void {
             NotifyDrawer.close();
         }
+        // Compose: one notification, centred, with room to write. `id` picks a live popup;
+        // with no id (0) it takes the newest. It is hosted by whichever window already holds the
+        // keyboard, so this never creates a surface of its own — see config/NotifyCompose.qml.
+        //
+        // It exists over IPC and not only on a key because that is how it gets TESTED: driving
+        // the live session with `wtype` types into whatever has focus, which on a locked screen
+        // is the password field.
+        function compose(id: int): bool {
+            const entry = id > 0 ? Notifications.entryForId(id) : (Notifications.popups.length ? Notifications.popups[0] : null);
+            if (!entry)
+                return false;
+            return NotifyCompose.openEntry(entry, NotifyDrawer.shown ? "drawer" : "stack");
+        }
+        function composeClose(): void {
+            NotifyCompose.close();
+        }
+        // What the surface would send, and by which route ("reply" over D-Bus to the client,
+        // "action" into a command's {input}, or "none"). Readable without a screenshot.
+        function composeState(): string {
+            if (!NotifyCompose.active)
+                return "closed";
+            return NotifyCompose.host + " " + NotifyCompose.route + (NotifyCompose.fromHistory ? " history" : " live");
+        }
         function dbPath(): string {
             return NotifyStore.dbPath;
         }

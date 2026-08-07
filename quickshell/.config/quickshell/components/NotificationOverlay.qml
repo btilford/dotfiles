@@ -94,7 +94,12 @@ Scope {
             // This window holds the keyboard: focus mode is on and the selected card is in THIS
             // stack. Exactly one window at a time, because two exclusive layer surfaces on one
             // output fight over the grab and the loser silently stops receiving keys.
-            readonly property bool focused: NotifyFocus.active && NotifyFocus.focusedKey === win.modelData
+            //
+            // Composing counts as focused even when focus mode is off: the compose surface has a
+            // text field, and a field on a surface with no keyboard grab is a field that silently
+            // eats nothing. It is opened only by a deliberate act (a key, or the `compose` IPC
+            // call), so AD-011 is intact — nothing about an arriving notification reaches it.
+            readonly property bool focused: (NotifyFocus.active && NotifyFocus.focusedKey === win.modelData) || compose.shown
 
             WlrLayershell.layer: WlrLayer.Overlay
             // Popups never take the keyboard on arrival — that would eat keystrokes out of
@@ -116,8 +121,16 @@ Scope {
             }
             exclusiveZone: 0
             exclusionMode: ExclusionMode.Ignore
+            // The compose surface is part of the clickable region while it is open — it has a
+            // text field and a click-away backdrop. It is zero-sized when closed (see
+            // ComposeSurface), so this adds nothing to the mask the rest of the time.
             mask: Region {
-                item: column
+                Region {
+                    item: column
+                }
+                Region {
+                    item: compose
+                }
             }
 
             // ExclusionMode.Ignore also means the bar no longer pushes us off its strip, so a
@@ -184,7 +197,13 @@ Scope {
                         // the card does not qualify, so it does not silently eat the key.
                         if (!NotifyFocus.promptSelected())
                             return;
-                                        } else if (event.key === Qt.Key_O || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                                        } else if (event.key === Qt.Key_P) {
+                        // `p` pulls the card out into the centred compose surface. It renders in
+                        // this window's flight layer, so the grab does not move and focus mode
+                        // stays on underneath it.
+                        if (!NotifyFocus.composeSelected())
+                            return;
+                    } else if (event.key === Qt.Key_O || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                         if (event.key === Qt.Key_O)
                             NotifyFocus.openDrawer();
                         else
@@ -197,7 +216,9 @@ Scope {
             }
 
             // The grab is a compositor-level thing; Qt still has to be told which item reads it.
-            onFocusedChanged: if (win.focused)
+            // While composing, the field is the reader — asking the stack's handler to take focus
+            // would pull it out from under the text being typed.
+            onFocusedChanged: if (win.focused && !compose.shown)
                 keys.forceActiveFocus()
 
             // Leaving cards are reparented here for their exit: a full-window layer above the
@@ -207,6 +228,18 @@ Scope {
                 id: flightHost
                 anchors.fill: parent
                 z: 1
+
+                // Compose: one notification, centred and wide enough to write in. It lives HERE
+                // rather than in a window of its own — AD-012 §5 rejected a third focus-grabbing
+                // surface, and this layer already exists and already covers the whole output.
+                // Only the window holding the composed entry's stack renders it.
+                ComposeSurface {
+                    id: compose
+                    hosted: NotifyCompose.host === "stack" && NotifyCompose.live !== null && Notifications.stackKey(NotifyCompose.live) === win.modelData
+                    // hand the keyboard back to the stack's key handler
+                    onClosed: if (win.focused)
+                        keys.forceActiveFocus()
+                }
             }
 
             Column {
@@ -284,7 +317,7 @@ Scope {
                 Text {
                     id: legendText
                     anchors.centerIn: parent
-                    text: (NotifyFocus.indexOfSelected() + 1) + "/" + NotifyFocus.order.length + " · [j/k] move · [\u21b5] expand · [y] yank · [d] dismiss · [D] app · [A] all · [o] drawer · [Esc] release"
+                    text: (NotifyFocus.indexOfSelected() + 1) + "/" + NotifyFocus.order.length + " · [j/k] move · [\u21b5] expand · [p] compose · [y] yank · [d] dismiss · [D] app · [A] all · [o] drawer · [Esc] release"
                     color: Theme.subtext
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize - 3

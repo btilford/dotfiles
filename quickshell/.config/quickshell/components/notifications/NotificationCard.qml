@@ -300,12 +300,12 @@ Rectangle {
         // Flow, not Row, and bounded to the card: several verbs with long labels ran straight
         // past the 420px card instead of wrapping. A notification is a fixed-width surface, so
         // the chips have to fold into it rather than define their own width.
-        Flow {
+        ActionChips {
             id: actionRow
             width: parent.width
             // Recomputed rather than cached: `actions` binds through entry.notification, so a
             // replaces_id update that changes the verbs is picked up like every other field.
-            readonly property var list: {
+            list: {
                 // Touch NotifyConfig.actions so QML tracks it. Dependencies are not discovered
                 // through a function call into another singleton, and TOML config loads
                 // ASYNCHRONOUSLY (tomlq is a subprocess) — so without this the binding
@@ -314,63 +314,15 @@ Rectangle {
                 NotifyConfig.actions;
                 return Notifications.actionsFor(card.entry);
             }
+            activeAction: card.entry.promptAction
             visible: actionRow.list.length > 0 && !card.entry.collapsed
-            spacing: 6
-            // vertical gap when they wrap; Flow uses `spacing` for both axes otherwise
-            padding: 0
-
-            Repeater {
-                model: actionRow.list
-
-                delegate: Rectangle {
-                    id: chip
-                    required property var modelData
-                    height: chipRow.implicitHeight + 6
-                    width: chipRow.implicitWidth + 14
-                    radius: Theme.radius / 2
-                    color: chipMa.containsMouse
-                        ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
-                        : Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, 0.12)
-
-                    Row {
-                        id: chipRow
-                        anchors.centerIn: parent
-                        spacing: 6
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: chip.modelData.key.length > 0
-                            // ^r, the terminal spelling of Ctrl+R — this shell is
-                            // terminal-flavoured and it is two glyphs instead of six
-                            text: "^" + chip.modelData.key
-                            color: Theme.accent
-                            font.family: Theme.fontMono
-                            font.pixelSize: Theme.fontSize - 3
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: chip.modelData.label
-                            color: chipMa.containsMouse ? Theme.accent : Theme.fg
-                            font.family: Theme.fontUi
-                            font.pixelSize: Theme.fontSize - 2
-                        }
-                    }
-
-                    MouseArea {
-                        id: chipMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            // an action that declares a prompt opens the field instead of
-                            // firing immediately — {input} is part of what it runs
-                            if (chip.modelData.prompt)
-                                Notifications.beginPrompt(card.entry, chip.modelData);
-                            else
-                                Notifications.invokeAction(card.entry, chip.modelData, "");
-                        }
-                    }
-                }
+            onTriggered: action => {
+                // an action that declares a prompt opens the field instead of firing
+                // immediately — {input} is part of what it runs
+                if (action.prompt)
+                    Notifications.beginPrompt(card.entry, action);
+                else
+                    Notifications.invokeAction(card.entry, action, "");
             }
         }
 

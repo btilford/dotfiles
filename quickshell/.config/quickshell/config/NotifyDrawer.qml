@@ -203,6 +203,16 @@ Singleton {
         return false;
     }
 
+    // `p` opens the selected ROW in the centred compose surface, hosted by this window so the
+    // drawer keeps the keyboard grab. A row still on screen re-associates to its live entry in
+    // NotifyCompose.openRow, which is the only way a reply from history can reach a client.
+    function composeSelected() {
+        const sel = root.selected;
+        if (!sel || sel.kind === "group")
+            return false;
+        return NotifyCompose.openRow(sel.row, "drawer");
+    }
+
     function reselect() {
         if (root.selectedIndex >= 0)
             return;

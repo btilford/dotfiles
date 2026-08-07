@@ -450,6 +450,8 @@ Singleton {
     function pause(entry, force) {
         if (!entry || entry.paused || entry.leaving)
             return;
+        if (entry.stored)
+            return; // a stored row has no clock to freeze (see rowAsEntry)
         if (!force && !timing.hoverPause)
             return;
         if (entry.expiryTimer.running) {
@@ -477,7 +479,7 @@ Singleton {
     }
 
     function resume(entry) {
-        if (!entry || !entry.paused || root.keyboardHold)
+        if (!entry || !entry.paused || root.keyboardHold || entry.stored)
             return;
         entry.paused = false;
         if (entry.leaving || entry.queued || entry.durationMs <= 0) {
@@ -634,7 +636,8 @@ Singleton {
                 key: "",
                 spec: a,
                 run: null,
-                prompt: null
+                prompt: null,
+                capture: ""
             });
         }
 
@@ -650,7 +653,12 @@ Singleton {
                 key: c.key,
                 spec: null,
                 run: c.run,
-                prompt: c.prompt
+                prompt: c.prompt,
+                // WITHOUT THIS the whole capture feature is dead: invokeAction tests
+                // `action.capture`, and an action object that never carried the field left every
+                // `capture = "draft"` / `"reply"` action running as fire-and-forget. Nothing
+                // logged, because nothing failed — the command ran and its stdout was dropped.
+                capture: c.capture
             });
         }
 
@@ -729,7 +737,20 @@ Singleton {
             // stored row, which is honest rather than a silent partial match
             hints: ({}),
             actionsAllowed: true,
-            resident: true // nothing to dismiss: the popup is long gone
+            resident: true, // nothing to dismiss: the popup is long gone
+            // This is an adapter over a database row, NOT a live entry: it has no timers, no
+            // notification object and no place in `popups`. Everything that would touch those
+            // tests this flag — pause(), resume() and submitPrompt() all took a live entry for
+            // granted, and a capturing action invoked from the drawer died on the first
+            // `entry.expiryTimer` with a TypeError in the log and no action run.
+            stored: true,
+            // plain fields so the paths that write them are harmless here
+            paused: false,
+            leaving: false,
+            prompting: false,
+            promptAction: null,
+            promptTimeMode: false,
+            awaitingCapture: false
         };
     }
 
@@ -741,13 +762,22 @@ Singleton {
             const c = cfg[i];
             if (!root.actionMatches(c.match, entry))
                 continue;
+            // A CAPTURING action is offered here only when it has somewhere to put its output,
+            // and on a stored row it does not: `capture` means "write this into the reply field",
+            // and a row invoked as a row has no live client to send that reply to. Offering the
+            // verb anyway would spend a model call to produce text that vanishes. Compose
+            // re-associates a live entry when one exists and then uses actionsFor(), which does
+            // offer them — so this only hides what genuinely cannot work.
+            if (c.capture)
+                continue;
             out.push({
                 kind: "custom",
                 label: c.label,
                 key: c.key,
                 spec: null,
                 run: c.run,
-                prompt: c.prompt
+                prompt: c.prompt,
+                capture: ""
             });
         }
         return out;
@@ -879,6 +909,10 @@ Singleton {
                         root.resume(entry);
                     } else if (action.capture === "reply") {
                         root.submitPrompt(entry, text);
+                    } else if (NotifyCompose.owns(entry)) {
+                        // the compose surface is open on this notification: the draft belongs in
+                        // the field the user is looking at, not in the card behind it
+                        NotifyCompose.loadDraft(text);
                     } else {
                         // draft: open the field pre-filled so it is read before it is sent
                         root.beginPrompt(entry, null, false);
@@ -1021,6 +1055,15 @@ Singleton {
             root.invokeAction(entry, action, text);
             return;
         }
+        // A stored row has no client to answer. Nothing above this line needed one — a custom
+        // action runs here — but an inline reply does, so say so instead of dropping the text on
+        // the floor. The compose surface already refuses to offer the field in this case; this
+        // catches the path that reaches here anyway (a `capture = "reply"` action on a row).
+        if (entry.stored) {
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
+                    "Reply not sent", "no live client for this notification — it is history"]);
+            return;
+        }
         // the client's own inline reply
         if (entry.notification && entry.hasInlineReply) {
             try {
@@ -1028,6 +1071,14 @@ Singleton {
             } catch (e) {
                 console.warn("notifications: inline reply failed —", e);
             }
+        } else if (text.length) {
+            // The field can also be opened on an ALLOWLISTED CATEGORY (NotifyConfig.prompt), and
+            // a client in one of those categories need not support inline reply — notify-send
+            // certainly does not. That is the client's limit rather than a bug here, but text
+            // typed into a field and then dropped in silence is indistinguishable from a bug, so
+            // it is reported by the same route a failing action is.
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
+                    "Reply not sent", (entry.appName.length ? entry.appName : "this client") + " offers no reply channel — use an action with a prompt"]);
         }
         root.resume(entry);
         if (!entry.resident)

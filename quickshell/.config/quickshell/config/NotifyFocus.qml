@@ -312,6 +312,16 @@ Singleton {
         return true;
     }
 
+    // `p` pulls the selected notification out into the centred compose surface — same window,
+    // same grab (it renders in the stack window's flight layer), so focus mode stays on and the
+    // selection is still this entry when it closes.
+    function composeSelected() {
+        const entry = root.selected;
+        if (!entry)
+            return false;
+        return NotifyCompose.openEntry(entry, "stack");
+    }
+
     // Number keys fire the selected card's actions by hint. Digits rather than letters because
     // focus mode is vim-shaped and owns j/k/d/y/s/o/g — see the hint assignment in
     // Notifications.actionsFor.
