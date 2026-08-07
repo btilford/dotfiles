@@ -57,8 +57,8 @@ Singleton {
     //       0   sticky: stays until dismissed (matches expire_timeout = 0 on the wire)
     //     < 0   drawer-only: recorded and counted unread, never popped
     readonly property var defaultTiming: ({
-            low: 3000,
-            normal: 6000,
+            low: 8000,
+            normal: 11000,
             critical: 0,            // sticky, then collapses to a pill (criticalCollapseMs)
             respectAppTimeout: true,
             hoverPause: true,       // pointer over a card freezes its countdown
