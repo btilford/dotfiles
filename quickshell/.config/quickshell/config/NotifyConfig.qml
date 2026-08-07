@@ -411,6 +411,14 @@ Singleton {
                 label: label,
                 key: (typeof a.key === "string" && a.key.length === 1) ? a.key : "",
                 run: run,
+                // What to do with the command's STDOUT:
+                //   ""       fire and forget (the default)
+                //   "draft"  put it in the reply field for review, then you press Enter
+                //   "reply"  send it as the inline reply immediately
+                // "draft" is the one to reach for when a language model writes the text. A
+                // model that replies to your colleagues with no one reading it first is a
+                // different product than one that drafts, and the difference is one word here.
+                capture: (a.capture === "draft" || a.capture === "reply") ? a.capture : "",
                 prompt: (a.prompt && typeof a.prompt === "object") ? a.prompt : null
             });
         }

@@ -837,6 +837,15 @@ Singleton {
             return;
         }
         runner.running = true;
+        // A capturing action OWNS the card until it answers — its whole point is to put text
+        // back into this notification, so dismissing it here would throw away the destination.
+        // The card is also frozen, because a model takes seconds and the dwell would expire
+        // underneath it.
+        if (action.capture) {
+            entry.awaitingCapture = true;
+            root.pause(entry);
+            return;
+        }
         if (!entry.resident)
             root.dismiss(entry);
     }
@@ -850,9 +859,33 @@ Singleton {
             id: runner
             property var entry: null
             property var action: null
+            stdout: StdioCollector {}
             onExited: (code, status) => {
-                if (code !== 0)
-                    root.actionFailed(runner.entry, runner.action, "exit " + code);
+                const entry = runner.entry;
+                const action = runner.action;
+                if (entry)
+                    entry.awaitingCapture = false;
+                if (code !== 0) {
+                    root.actionFailed(entry, action, "exit " + code);
+                    if (entry)
+                        root.resume(entry);
+                    runner.destroy();
+                    return;
+                }
+                if (action && action.capture && entry) {
+                    const text = runner.stdout.text.trim();
+                    if (!text.length) {
+                        root.actionFailed(entry, action, "produced no output");
+                        root.resume(entry);
+                    } else if (action.capture === "reply") {
+                        root.submitPrompt(entry, text);
+                    } else {
+                        // draft: open the field pre-filled so it is read before it is sent
+                        root.beginPrompt(entry, null, false);
+                        root.draftText = text;
+                        root.draftToken++;
+                    }
+                }
                 runner.destroy();
             }
         }
@@ -936,6 +969,11 @@ Singleton {
         }
         return null;
     }
+
+    // Text an action produced, waiting to be loaded into the reply field. draftToken ticks on
+    // every new draft so the field reloads even when two drafts happen to be identical.
+    property string draftText: ""
+    property int draftToken: 0
 
     function beginPrompt(entry, action, timeMode) {
         if (!entry)
@@ -1128,6 +1166,8 @@ Singleton {
             readonly property bool hasInlineReply: entry.notification ? entry.notification.hasInlineReply : false
             // an inline prompt is open on this card, and which action opened it (null = the
             // client's own inline reply rather than a custom action)
+            // a capturing action is running and this card is waiting for its output
+            property bool awaitingCapture: false
             property bool prompting: false
             property var promptAction: null
             // "remind me at ___": the field parses a delay instead of sending a reply

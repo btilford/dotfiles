@@ -366,6 +366,16 @@ Rectangle {
             }
         }
 
+        // A capturing action is running — usually a language model, which takes seconds. Say so,
+        // or the card looks like it swallowed the keypress.
+        Text {
+            visible: card.entry.awaitingCapture
+            text: "  working…"
+            color: Theme.subtext
+            font.family: Theme.fontMono
+            font.pixelSize: Theme.fontSize - 3
+        }
+
         // Inline prompt (AD-012 §5): the reply keeps the thing it is replying to on screen,
         // which is the whole reason this is on the card rather than in a centred overlay or
         // the launcher's input. The card is frozen while it is open (beginPrompt pauses the
@@ -398,6 +408,19 @@ Rectangle {
                 // while you are typing still cannot capture a keystroke.
                 onVisibleChanged: if (visible)
                     forceActiveFocus()
+
+                // A drafting action fills the field rather than sending. The token, not the
+                // text, is the trigger: two identical drafts in a row must still load.
+                Connections {
+                    target: Notifications
+                    function onDraftTokenChanged() {
+                        if (!card.entry.prompting)
+                            return;
+                        promptInput.text = Notifications.draftText;
+                        promptInput.selectAll();
+                        promptInput.forceActiveFocus();
+                    }
+                }
 
                 Keys.onPressed: event => {
                     if (event.key === Qt.Key_Escape) {

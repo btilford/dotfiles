@@ -193,12 +193,36 @@ the terminal clients need the model to exist without a window.
 
 ### Placement & motion (story: notif-placement-motion)
 
-User config, not QML constants: `~/.config/quickshell/notifications.json`, parsed by the
-`NotifyConfig` singleton and hot-reloaded on save (`notifications.example.json` in this package
-is the annotated template). `QS_NOTIFY_CONFIG=<path>` overrides the path — the seam the capture
-harness uses to switch presets without touching the user's file — and `QS_NOTIFY_PRESET=<name>`
-overrides the preset alone. **Every key falls back to the constants in `NotifyConfig`**, so a
-missing or broken file can never take the shell down; bad values log once and keep the default.
+User config, not QML constants. **TOML is preferred, JSON is the fallback**, layered lowest
+precedence first:
+
+```text
+~/.config/quickshell/notifications.toml        base
+~/.config/quickshell/notifications.d/*.toml    drop-ins, lexical order
+~/.config/quickshell/notifications.local.toml  machine-local, always wins
+~/.config/quickshell/notifications.json        used only when no TOML exists
+```
+
+`notifications.example.toml` is the annotated template and is generated from the JSON one, so
+the two cannot drift while both exist. `QS_NOTIFY_CONFIG_TOML=<path>` / `QS_NOTIFY_CONFIG=<path>`
+override the base path — the seam the capture harness uses — and `QS_NOTIFY_PRESET=<name>`
+overrides the preset alone.
+
+**Why not JSON any more:** the original argument was that QML parses JSON natively and anything
+else meant a build step between the user and a preference. That holds for a *build* step, not
+for a converter run at load — the file is still edited directly and still hot-reloads on save.
+Meanwhile the cost of JSON was being paid in `_comment` keys, and AD-012 had already written its
+action examples in TOML. `tomlq` (from the `yq` package) does the conversion; one call slurps
+every layer in order.
+
+**Merge rules:** tables merge key by key recursively; **arrays concatenate**, so `[[actions]]` in
+a drop-in ADDS a verb rather than replacing the base's list; scalars are last-wins. The trade is
+that a drop-in cannot *remove* a base action — edit the base file for that.
+
+**Fails open on every path.** No `tomlq` (exit 127), a syntax error, or unparseable output each
+log one line and fall back to JSON/defaults; verified against a deliberately broken file. Every
+key still falls back to the constants in `NotifyConfig`, so a missing or broken file can never
+take the shell down.
 
 - Presets: `right-center` (default), `bottom-center`, `top-right`. Default is deliberately not a
   top corner — that is where application toolbars and window buttons live.

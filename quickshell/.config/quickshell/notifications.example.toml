@@ -117,3 +117,68 @@ label = "Capture"
 key = "c"
 prompt = { placeholder = "Note…" }
 run = ["dotfiles-vault-capture", "{summary}", "{body}", "{input}"]
+
+# ---------------------------------------------------------------------------------------
+# AGENT ACTIONS — hand a notification to a coding agent instead of answering it yourself.
+#
+# `capture` decides what happens to the command's stdout:
+#   (unset)   fire and forget
+#   "draft"   load it into the reply field for review; you press Enter to send
+#   "reply"   send it as the inline reply immediately
+#
+# Prefer "draft". A model that replies to your colleagues with nobody reading it first is
+# a different product from one that drafts, and the difference is one word here.
+#
+# A capturing action freezes the card while it runs (a model takes seconds and the dwell
+# would expire underneath it) and shows "working…" so it does not look like a swallowed
+# keypress.
+#
+# HARNESS NAMES ARE MACHINE-LOCAL. clipborg keeps its `[[llm.harnesses]]` in
+# config.local.toml because the binaries differ per machine; do the same here and put the
+# actions that name a harness in notifications.local.toml or notifications.d/.
+# ---------------------------------------------------------------------------------------
+
+# Agent drafts a reply to a chat message. Substitutions are argv elements, so the message
+# text is an argument and never part of a command line.
+[[actions]]
+match = { category = "im.received" }
+label = "Draft"
+key = "d"
+capture = "draft"
+run = [
+  "claude",
+  "-p",
+  "Reply briefly, in my voice, to this message. Output only the reply text, no preamble.\n\nFrom: {app}\n{summary}\n{body}",
+]
+
+# Homelab outage: start an investigation in a detached tmux session. Fire and forget — no
+# `capture`, because the answer is a session to attach to rather than a line of text. Pair
+# it with the "Attach" action above, which opens the session the agent is running in.
+[[actions]]
+match = { app = "alertmanager" }
+label = "Investigate"
+key = "i"
+run = [
+  "tmux",
+  "new-session",
+  "-d",
+  "-s",
+  "investigate-{id}",
+  "claude",
+  "Investigate this homelab alert. Start from the affected host, check systemd units, recent journal errors and disk/memory pressure, then summarise the likely cause.\n\nAlert: {summary}\n{body}",
+]
+
+# Same shape for a failed build or pipeline: dispatch, then attach when you are ready.
+[[actions]]
+match = { summary = "~build failed|pipeline failed" }
+label = "Triage"
+key = "t"
+run = [
+  "tmux",
+  "new-session",
+  "-d",
+  "-s",
+  "triage-{id}",
+  "claude",
+  "Triage this failure: read the recent build log, identify the failing step and the most likely cause, and propose a fix.\n\n{summary}\n{body}",
+]
