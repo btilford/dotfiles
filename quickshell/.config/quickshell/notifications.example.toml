@@ -1,0 +1,184 @@
+# Notification configuration for the quickshell shell.
+#
+# Read from ~/.config/quickshell/notifications.toml, converted with `tomlq` (yq package).
+# TOML is preferred; notifications.json still works and is used when this file is absent.
+# Overrides: QS_NOTIFY_CONFIG_TOML=<path>, QS_NOTIFY_PRESET=<name>.
+#
+# EVERY key falls back to a constant in config/NotifyConfig.qml. A missing file, a
+# truncated file, a syntax error or one bad value never breaks the shell — it logs and
+# keeps the default. Delete anything you do not want to override.
+
+preset = "right-center"
+
+[placement]
+anchorH = "right"
+anchorV = "center"
+stack = "down"
+margin = 24
+spacing = 12
+cardWidth = 420
+maxVisible = 5
+screenName = ""
+
+[motion]
+entrance = "slide"
+exit = "dwell"
+entranceMs = 260
+exitMs = 200
+dwellMs = 460
+reflowMs = 200
+
+[timing]
+low = 8000
+normal = 11000
+critical = 0
+respectAppTimeout = true
+hoverPause = true
+showRemaining = true
+burstAt = 0
+burstMs = 2500
+criticalCollapseMs = 15000
+
+[store]
+enabled = true
+retentionDays = 30
+retentionCount = 2000
+
+[rules]
+enabled = true
+path = ""
+timeoutMs = 50
+
+[surface]
+cardOpacity = 0.8
+pillOpacity = 0.85
+
+[collapse]
+home = "bar"
+maxPills = 3
+
+[drawer]
+mode = "panel"
+width = 460
+limit = 200
+opacity = 0.35
+itemOpacity = 0.82
+
+# A prompt is offered on a client inline-reply hint, on one of these categories, or when
+# a matching action declares `prompt`. The list is written down rather than left to
+# taste: a prompt belongs where a text reply is the notification's natural response AND
+# the reply has somewhere to go. 'Build failed' gets actions, not a prompt.
+[prompt]
+categories = ["im.received", "email.arrived", "x-vault.reminder"]
+placeholder = "Reply…"
+
+# `s` in focus mode snoozes for defaultMs; `r` prompts for a delay (20m, 2h, 90s,
+# 17:30). maxMs bounds a parsed value rather than trusting it. A snooze is a row in the
+# history store, so it survives a qs restart and a reboot.
+[snooze]
+defaultMs = 900000
+maxMs = 604800000
+
+# AGENT / CI. Matcher keys: app, category, urgency, summary, body, hint.<name>. A `~`
+# prefix is a regex, anything else is exact and case-insensitive. `run` is argv — {id}
+# {app} {summary} {body} {input} {hint:NAME} are substituted as ELEMENTS, never spliced
+# into a shell string, so a summary containing `; rm -rf` is an argument.
+[[actions]]
+match = { summary = "~agent|session" }
+label = "Attach"
+key = "a"
+run = ["ghostty", "-e", "tmux", "attach", "-t", "{hint:session}"]
+
+[[actions]]
+match = { summary = "~build failed|pipeline failed" }
+label = "Logs"
+key = "l"
+run = ["ghostty", "-e", "journalctl", "-u", "builder", "-n", "200"]
+
+# HOMELAB. Opening a runbook or dashboard is the common case; ack goes through whatever
+# CLI the alerting stack provides.
+[[actions]]
+match = { app = "alertmanager" }
+label = "Runbook"
+key = "r"
+run = ["xdg-open", "{hint:runbook_url}"]
+
+[[actions]]
+match = { category = "vcs" }
+label = "Open MR"
+key = "o"
+run = ["xdg-open", "{hint:url}"]
+
+# VAULT. Capture into Inbox/ with the notification as the body. A prompt turns it into
+# 'capture with a note' — {input} is what you typed.
+[[actions]]
+match = {}
+label = "Capture"
+key = "c"
+prompt = { placeholder = "Note…" }
+run = ["dotfiles-vault-capture", "{summary}", "{body}", "{input}"]
+
+# ---------------------------------------------------------------------------------------
+# AGENT ACTIONS — hand a notification to a coding agent instead of answering it yourself.
+#
+# `capture` decides what happens to the command's stdout:
+#   (unset)   fire and forget
+#   "draft"   load it into the reply field for review; you press Enter to send
+#   "reply"   send it as the inline reply immediately
+#
+# Prefer "draft". A model that replies to your colleagues with nobody reading it first is
+# a different product from one that drafts, and the difference is one word here.
+#
+# A capturing action freezes the card while it runs (a model takes seconds and the dwell
+# would expire underneath it) and shows "working…" so it does not look like a swallowed
+# keypress.
+#
+# HARNESS NAMES ARE MACHINE-LOCAL. clipborg keeps its `[[llm.harnesses]]` in
+# config.local.toml because the binaries differ per machine; do the same here and put the
+# actions that name a harness in notifications.local.toml or notifications.d/.
+# ---------------------------------------------------------------------------------------
+
+# Agent drafts a reply to a chat message. Substitutions are argv elements, so the message
+# text is an argument and never part of a command line.
+[[actions]]
+match = { category = "im.received" }
+label = "Draft"
+key = "d"
+capture = "draft"
+run = [
+  "claude",
+  "-p",
+  "Reply briefly, in my voice, to this message. Output only the reply text, no preamble.\n\nFrom: {app}\n{summary}\n{body}",
+]
+
+# Homelab outage: start an investigation in a detached tmux session. Fire and forget — no
+# `capture`, because the answer is a session to attach to rather than a line of text. Pair
+# it with the "Attach" action above, which opens the session the agent is running in.
+[[actions]]
+match = { app = "alertmanager" }
+label = "Investigate"
+key = "i"
+run = [
+  "tmux",
+  "new-session",
+  "-d",
+  "-s",
+  "investigate-{id}",
+  "claude",
+  "Investigate this homelab alert. Start from the affected host, check systemd units, recent journal errors and disk/memory pressure, then summarise the likely cause.\n\nAlert: {summary}\n{body}",
+]
+
+# Same shape for a failed build or pipeline: dispatch, then attach when you are ready.
+[[actions]]
+match = { summary = "~build failed|pipeline failed" }
+label = "Triage"
+key = "t"
+run = [
+  "tmux",
+  "new-session",
+  "-d",
+  "-s",
+  "triage-{id}",
+  "claude",
+  "Triage this failure: read the recent build log, identify the failing step and the most likely cause, and propose a fix.\n\n{summary}\n{body}",
+]

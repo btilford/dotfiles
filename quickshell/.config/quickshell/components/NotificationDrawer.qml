@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Services.Notifications
 import "../config"
+import "notifications"
 
 // Notification drawer: the history, grouped and searchable. A view over NotifyDrawer, which
 // is a view over the SQLite store — no notification state lives in this file.
@@ -71,7 +72,12 @@ PanelWindow {
 
         Keys.onPressed: event => {
             let g = false;
-            if (event.key === Qt.Key_Escape)
+            // Ctrl+<letter> first: the bare-letter branches below carry no modifier guard, so
+            // Ctrl+D would clear the row instead of firing its action.
+            if ((event.modifiers & Qt.ControlModifier) && event.key >= Qt.Key_A && event.key <= Qt.Key_Z) {
+                if (!NotifyDrawer.invokeActionByKey(String.fromCharCode(event.key).toLowerCase()))
+                    return;
+            } else if (event.key === Qt.Key_Escape)
                 NotifyDrawer.close();
             else if (event.key === Qt.Key_J || event.key === Qt.Key_Down)
                 NotifyDrawer.move(1);
@@ -90,7 +96,7 @@ PanelWindow {
                 NotifyDrawer.clearSelected();
             else if (event.key === Qt.Key_A && (event.modifiers & Qt.ShiftModifier))
                 NotifyDrawer.clearAll();
-            else if (event.key === Qt.Key_F)
+else if (event.key === Qt.Key_F)
                 NotifyDrawer.cycleRange();
             // `y`/`Y` yank, as in vim — and it frees `c` to keep meaning clear-filters here
             else if (event.key === Qt.Key_Y && (event.modifiers & Qt.ShiftModifier))
@@ -99,7 +105,12 @@ PanelWindow {
                 NotifyDrawer.copySelected(false);
             else if (event.key === Qt.Key_C)
                 NotifyDrawer.clearFilters();
-            else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+            // `p` opens the centred compose surface on the selected row — hosted by THIS window,
+            // so the drawer keeps the grab and nothing new takes the keyboard.
+            else if (event.key === Qt.Key_P) {
+                if (!NotifyDrawer.composeSelected())
+                    return;
+            } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
                 NotifyDrawer.activate();
             else if (event.key === Qt.Key_Slash || event.key === Qt.Key_I)
                 search.forceActiveFocus();
@@ -259,7 +270,7 @@ PanelWindow {
                         anchors.fill: parent
                         visible: !search.text.length
                         verticalAlignment: Text.AlignVCenter
-                        text: "Search…  [/] search · [j/k] move · [\u21b5] expand · [y] yank · [d] clear · [D] group · [f] range · [Esc] close"
+                        text: "Search…  [/] search · [j/k] move · [\u21b5] expand · [p] compose · [y] yank · [d] clear · [D] group · [f] range · [Esc] close"
                         color: Theme.subtext
                         font: search.font
                         elide: Text.ElideRight
@@ -420,11 +431,44 @@ PanelWindow {
                             elide: Text.ElideRight
                             // 2 lines in the list, the whole thing (bounded) once Enter unfolds
                             // it — a drawer row is a summary of a summary until you ask
-                            maximumLineCount: entry.row && NotifyDrawer.isExpanded(entry.row.row_id) ? 24 : 2
+                            // Touch expandedRows so QML tracks it: dependencies are not
+                            // discovered through a function call, so binding on isExpanded()
+                            // alone evaluated once and never re-ran. Enter/Tab flipped the
+                            // state correctly and nothing on screen moved — the same failure
+                            // that hid the action chips.
+                            maximumLineCount: {
+                                NotifyDrawer.expandedRows;
+                                return entry.row && NotifyDrawer.isExpanded(entry.row.row_id) ? 24 : 2;
+                            }
                             wrapMode: Text.Wrap
                             color: Theme.subtext
                             font.family: Theme.fontUi
                             font.pixelSize: Theme.fontSize - 2
+                        }
+
+                        // Action hints on the SELECTED row only. A hint line rather than chips:
+                        // the drawer is a dense list and a row of buttons on every entry would
+                        // compete with the content it is listing. The verbs are invoked with
+                        // Ctrl+<letter>, the same scheme the popup stack uses.
+                        //
+                        // It is a LINE IN THE COLUMN, not an overlay anchored to the row's
+                        // bottom-right corner: as an overlay it was drawn straight across the
+                        // summary and body of the row it belonged to, because the row's height
+                        // comes from this column and an anchored child contributes nothing to it.
+                        Text {
+                            visible: entry.selected && !entry.isGroup && NotifyDrawer.selectedActions.length > 0
+                            width: body.width
+                            text: {
+                                const acts = NotifyDrawer.selectedActions;
+                                const parts = ["[p] compose"];
+                                for (let i = 0; i < acts.length; i++)
+                                    parts.push("^" + acts[i].key + " " + acts[i].label);
+                                return parts.join("   ");
+                            }
+                            elide: Text.ElideRight
+                            color: Theme.subtext
+                            font.family: Theme.fontMono
+                            font.pixelSize: Theme.fontSize - 4
                         }
                     }
                 }
@@ -440,6 +484,18 @@ PanelWindow {
                 }
             }
         }
+    }
+
+    // Compose, hosted here rather than in a window of its own: the drawer already holds the
+    // keyboard, and two exclusive layer surfaces on one output fight over the grab. Same surface
+    // the popup stack hosts — the only difference is that a row from history may have no live
+    // client behind it, which NotifyCompose says out loud instead of offering a dead reply field.
+    ComposeSurface {
+        id: compose
+        z: 20
+        hosted: NotifyCompose.host === "drawer"
+        onClosed: if (win.visible)
+            keys.forceActiveFocus()
     }
 
     // "4m" / "2h" / "3d" — relative time is what makes a list of notifications readable at a

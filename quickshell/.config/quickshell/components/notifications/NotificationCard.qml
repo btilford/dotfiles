@@ -68,12 +68,23 @@ Rectangle {
         // (and its collapse clock) until it leaves again
         onEntered: Notifications.pause(card.entry)
         onExited: Notifications.resume(card.entry)
-        // a resident notification is explicitly asking to survive interaction, so clicking the
-        // body doesn't close it (default-action handling belongs to the actions story)
+        // A resident notification is explicitly asking to survive interaction, so clicking the
+        // body doesn't close it. Clicking the card IS the spec's `default` action when the
+        // client supplied one — that is what activating a notification means, which is why the
+        // default action gets no button and no key of its own.
         onClicked: mouse => {
             if (card.entry.collapsed) {
                 Notifications.expand(card.entry); // one click brings a shrunk critical back
                 return;
+            }
+            if (mouse.button === Qt.LeftButton) {
+                const def = Notifications.defaultActionFor(card.entry);
+                if (def) {
+                    def.invoke();
+                    if (!card.entry.resident)
+                        Notifications.dismiss(card.entry);
+                    return;
+                }
             }
             if (mouse.button === Qt.MiddleButton || !card.entry.resident)
                 Notifications.dismiss(card.entry);
@@ -279,6 +290,125 @@ Rectangle {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: Notifications.copy(card.entry, false)
+                }
+            }
+        }
+
+        // Action buttons (story: notif-actions, AD-012). Spec actions and custom actions render
+        // identically and answer the same key hints — the user does not care which side of
+        // D-Bus a verb lives on. Hidden while collapsed: a shrunk pill is not a control surface.
+        // Flow, not Row, and bounded to the card: several verbs with long labels ran straight
+        // past the 420px card instead of wrapping. A notification is a fixed-width surface, so
+        // the chips have to fold into it rather than define their own width.
+        ActionChips {
+            id: actionRow
+            width: parent.width
+            // Recomputed rather than cached: `actions` binds through entry.notification, so a
+            // replaces_id update that changes the verbs is picked up like every other field.
+            list: {
+                // Touch NotifyConfig.actions so QML tracks it. Dependencies are not discovered
+                // through a function call into another singleton, and TOML config loads
+                // ASYNCHRONOUSLY (tomlq is a subprocess) — so without this the binding
+                // evaluates once against an empty action list and never re-runs. The chips
+                // simply never appear, with nothing in the log to say why.
+                NotifyConfig.actions;
+                return Notifications.actionsFor(card.entry);
+            }
+            activeAction: card.entry.promptAction
+            visible: actionRow.list.length > 0 && !card.entry.collapsed
+            onTriggered: action => {
+                // an action that declares a prompt opens the field instead of firing
+                // immediately — {input} is part of what it runs
+                if (action.prompt)
+                    Notifications.beginPrompt(card.entry, action);
+                else
+                    Notifications.invokeAction(card.entry, action, "");
+            }
+        }
+
+        // A capturing action is running — usually a language model, which takes seconds. Say so,
+        // or the card looks like it swallowed the keypress.
+        Text {
+            visible: card.entry.awaitingCapture
+            text: "  working…"
+            color: Theme.subtext
+            font.family: Theme.fontMono
+            font.pixelSize: Theme.fontSize - 3
+        }
+
+        // Inline prompt (AD-012 §5): the reply keeps the thing it is replying to on screen,
+        // which is the whole reason this is on the card rather than in a centred overlay or
+        // the launcher's input. The card is frozen while it is open (beginPrompt pauses the
+        // clock) so it cannot expire mid-sentence.
+        Rectangle {
+            id: promptBox
+            width: parent.width
+            // grows with the text, capped so a long draft cannot push the card off screen
+            height: Math.min(promptInput.implicitHeight + 12, card.width * 0.6)
+            radius: Theme.radius / 2
+            visible: card.entry.prompting
+            color: Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, 0.14)
+            border.width: Theme.borderThin
+            border.color: promptInput.activeFocus ? Theme.accent : "transparent"
+
+            // TextEdit, not TextInput: replies are multi-line, and an agent draft especially so.
+            // TextEdit is in QtQuick, so this needs no QtQuick.Controls import.
+            TextEdit {
+                id: promptInput
+                anchors.fill: parent
+                anchors.margins: 6
+                anchors.leftMargin: 8
+                anchors.rightMargin: 8
+                wrapMode: TextEdit.Wrap
+                color: Theme.fg
+                font.family: Theme.fontUi
+                font.pixelSize: Theme.fontSize - 1
+                selectByMouse: true
+                clip: true
+
+                // Taking focus the moment the field appears is safe here and only here: the
+                // prompt is opened by a deliberate act (a click or a hint key), never by a
+                // notification arriving. That is AD-011's rule intact — a card that shows up
+                // while you are typing still cannot capture a keystroke.
+                onVisibleChanged: if (visible)
+                    forceActiveFocus()
+
+                // A drafting action fills the field rather than sending. The token, not the
+                // text, is the trigger: two identical drafts in a row must still load.
+                Connections {
+                    target: Notifications
+                    function onDraftTokenChanged() {
+                        if (!card.entry.prompting)
+                            return;
+                        promptInput.text = Notifications.draftText;
+                        promptInput.selectAll();
+                        promptInput.forceActiveFocus();
+                    }
+                }
+
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Escape) {
+                        Notifications.cancelPrompt(card.entry);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        // Ctrl+Enter sends, bare Enter inserts a newline. The other way round is
+                        // what every chat client does, and it is wrong for a field an agent
+                        // drafts INTO: the first thing you do to a draft is edit it, and losing
+                        // it to a stray Enter mid-edit is unrecoverable.
+                        if (event.modifiers & Qt.ControlModifier) {
+                            Notifications.submitPrompt(card.entry, promptInput.text);
+                            promptInput.text = "";
+                            event.accepted = true;
+                        }
+                    }
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: promptInput.text.length === 0
+                    text: NotifyConfig.prompt.placeholder + "  (Ctrl+Enter sends, Esc cancels)"
+                    color: Theme.subtext
+                    font: promptInput.font
                 }
             }
         }

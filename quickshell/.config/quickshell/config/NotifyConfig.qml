@@ -57,8 +57,8 @@ Singleton {
     //       0   sticky: stays until dismissed (matches expire_timeout = 0 on the wire)
     //     < 0   drawer-only: recorded and counted unread, never popped
     readonly property var defaultTiming: ({
-            low: 3000,
-            normal: 6000,
+            low: 8000,
+            normal: 11000,
             critical: 0,            // sticky, then collapses to a pill (criticalCollapseMs)
             respectAppTimeout: true,
             hoverPause: true,       // pointer over a card freezes its countdown
@@ -108,6 +108,38 @@ Singleton {
             // Shell.submapHintsOpacity, where the same mistake is written up at length.
             opacity: 0.05,
             itemOpacity: 0.82
+        })
+
+    // Custom actions — a flat list read like the hyprland keybind table:
+    // matcher -> label -> key -> what it does. Settled in AD-012; see
+    // Projects/hyprland-dotfiles/features/notification-actions-design.
+    //
+    // Matcher keys: app, category, urgency, summary, body, hint.<name>. All present keys
+    // must match (AND). A `~` prefix makes the value a regex; anything else is an exact,
+    // case-insensitive compare — the same vocabulary the Lua rules engine matches on, so
+    // there is one thing to learn.
+    //
+    // `run` substitutions ({id} {app} {summary} {body} {input} {hint:NAME}) are passed as
+    // ARGV ELEMENTS and never spliced into a shell string. A summary containing `; rm -rf`
+    // is an argument, not a command. That is a security boundary, not a style choice.
+    readonly property var defaultActions: []
+
+    // A prompt is an inline field on the card. It appears on a client inline-reply hint, on
+    // an allowlisted category, or when a matching custom action declares one.
+    //
+    // The allowlist is written down rather than left to per-rule taste: a prompt is offered
+    // only where a text reply is the notification's natural response AND the reply has
+    // somewhere to go. "Build failed" gets actions, not a prompt — there is no recipient.
+    readonly property var defaultPrompt: ({
+            categories: ["im.received", "email.arrived", "x-vault.reminder"],
+            placeholder: "Reply\u2026"
+        })
+
+    // Snooze. `s` uses defaultMs; `r` opens the prompt in time mode ("20m", "17:30",
+    // "tomorrow 9am"). maxMs bounds a parsed value rather than trusting it.
+    readonly property var defaultSnooze: ({
+            defaultMs: 900000,
+            maxMs: 604800000
         })
 
     // Surface opacity for the popup cards and the docked pills. Separate from the drawer's
@@ -161,8 +193,44 @@ Singleton {
     property var drawer: root.clone(root.defaultDrawer)
     property var collapse: root.clone(root.defaultCollapse)
     property var surface: root.clone(root.defaultSurface)
+    // a LIST, not an object — cloned per reload so bindings re-evaluate
+    property var actions: root.defaultActions.slice()
+    property var prompt: root.clone(root.defaultPrompt)
+    property var snooze: root.clone(root.defaultSnooze)
 
     readonly property string configPath: root.envOr("QS_NOTIFY_CONFIG", Quickshell.env("HOME") + "/.config/quickshell/notifications.json")
+
+    // TOML is preferred and JSON is the fallback, in that order.
+    //
+    // JSON was chosen originally because QML parses it natively and reading anything else meant
+    // a build step between the user and a preference. That reasoning holds for a *build* step;
+    // it does not hold for a converter run at LOAD, which is what this is. The file is still
+    // edited directly and still hot-reloads on save.
+    //
+    // The cost of JSON was being paid in `_comment` keys — a config format that needs a
+    // convention to fake comments is telling you something. TOML also matches every other
+    // config in this repo (clipborg, mise, metapac, worktrunk), and AD-012 wrote its action
+    // examples in TOML before any of this existed:
+    //
+    //     [[actions]]
+    //     match = { app = "Slack" }
+    //
+    // `tomlq` (from the `yq` package) does the conversion. If it is missing the TOML file is
+    // ignored with one log line and JSON/defaults still apply — a missing converter must not
+    // take the shell's notifications with it.
+    readonly property string tomlPath: root.envOr("QS_NOTIFY_CONFIG_TOML", Quickshell.env("HOME") + "/.config/quickshell/notifications.toml")
+    // Layered on top of the base file, lowest precedence first:
+    //   notifications.toml            the stowed/base config
+    //   notifications.d/*.toml        drop-ins, lexical order
+    //   notifications.local.toml      machine-local, always wins
+    //
+    // Same shape as clipborg's config.toml + config.local.toml and the repo's documented `.d/`
+    // pattern — `*.local.toml` and `NN-local*` are already reserved in .gitignore and
+    // .stow-local-ignore, so a local file cannot be committed by accident.
+    readonly property string tomlDir: Quickshell.env("HOME") + "/.config/quickshell/notifications.d"
+    readonly property string tomlLocalPath: Quickshell.env("HOME") + "/.config/quickshell/notifications.local.toml"
+    // parsed TOML, or null when there is no usable TOML file
+    property var tomlCfg: null
 
     // ---------------------------------------------------------------------------------------
 
@@ -221,13 +289,17 @@ Singleton {
 
     function rebuild() {
         let cfg = {};
-        try {
-            const t = configFile.text();
-            if (t && t.trim().length)
-                cfg = JSON.parse(t);
-        } catch (e) {
-            console.warn("notifications: config file unreadable, using defaults —", e);
-            cfg = {};
+        if (root.tomlCfg) {
+            cfg = root.tomlCfg;
+        } else {
+            try {
+                const t = configFile.text();
+                if (t && t.trim().length)
+                    cfg = JSON.parse(t);
+            } catch (e) {
+                console.warn("notifications: config file unreadable, using defaults —", e);
+                cfg = {};
+            }
         }
         if (!cfg || typeof cfg !== "object")
             cfg = {};
@@ -310,6 +382,60 @@ Singleton {
             pillOpacity: root.pickReal(su, "pillOpacity", root.defaultSurface.pillOpacity, 0.05, 1)
         };
 
+        // Actions. A malformed entry is DROPPED with a log line rather than taken
+        // partially: an action with a matcher but no `run` would silently do nothing when
+        // pressed, which is worse than not offering the key at all. `run` is normalised to
+        // an argv array here so nothing downstream has to decide how to split it.
+        const acts = [];
+        const rawActs = Array.isArray(cfg.actions) ? cfg.actions : [];
+        for (let i = 0; i < rawActs.length; i++) {
+            const a = rawActs[i];
+            if (!a || typeof a !== "object") {
+                console.warn("notifications: config actions[" + i + "] is not an object — ignored");
+                continue;
+            }
+            const label = (typeof a.label === "string") ? a.label : "";
+            if (!label.length) {
+                console.warn("notifications: config actions[" + i + "] has no label — ignored");
+                continue;
+            }
+            let run = a.run;
+            if (typeof run === "string")
+                run = run.length ? run.split(/\s+/) : [];
+            if (!Array.isArray(run) || run.length === 0) {
+                console.warn("notifications: config actions[" + i + "] (" + label + ") has no run — ignored");
+                continue;
+            }
+            acts.push({
+                match: (a.match && typeof a.match === "object") ? a.match : ({}),
+                label: label,
+                key: (typeof a.key === "string" && a.key.length === 1) ? a.key : "",
+                run: run,
+                // What to do with the command's STDOUT:
+                //   ""       fire and forget (the default)
+                //   "draft"  put it in the reply field for review, then you press Enter
+                //   "reply"  send it as the inline reply immediately
+                // "draft" is the one to reach for when a language model writes the text. A
+                // model that replies to your colleagues with no one reading it first is a
+                // different product than one that drafts, and the difference is one word here.
+                capture: (a.capture === "draft" || a.capture === "reply") ? a.capture : "",
+                prompt: (a.prompt && typeof a.prompt === "object") ? a.prompt : null
+            });
+        }
+        root.actions = acts;
+
+        const pr = cfg.prompt;
+        root.prompt = {
+            categories: Array.isArray(pr && pr.categories) ? pr.categories.filter(c => typeof c === "string") : root.defaultPrompt.categories.slice(),
+            placeholder: (pr && typeof pr.placeholder === "string") ? pr.placeholder : root.defaultPrompt.placeholder
+        };
+
+        const sn = cfg.snooze;
+        root.snooze = {
+            defaultMs: root.pickInt(sn, "defaultMs", root.defaultSnooze.defaultMs, 1000),
+            maxMs: root.pickInt(sn, "maxMs", root.defaultSnooze.maxMs, 1000)
+        };
+
         const co = cfg.collapse;
         root.collapse = {
             home: root.pickEnum(co, "home", ["bar", "stack"], root.defaultCollapse.home),
@@ -332,5 +458,103 @@ Singleton {
         }
     }
 
-    Component.onCompleted: rebuild()
+    // Watches the TOML for changes only — its text is never parsed here, tomlq does that.
+    FileView {
+        id: tomlFile
+        path: root.tomlPath
+        watchChanges: true
+        printErrors: false
+        onLoaded: root.convertToml()
+        onFileChanged: root.convertToml()
+        onLoadFailed: {
+            // The BASE file is absent — which does not mean there is no TOML config. A machine
+            // may have only notifications.local.toml, or only drop-ins in notifications.d/,
+            // and gating the conversion on this file existing meant those were never read at
+            // all: no error, no chips, nothing in the log. Convert anyway and let the layering
+            // decide there is nothing to load.
+            root.convertToml();
+        }
+    }
+
+    // MERGE RULES, and they are deliberate:
+    //   - tables merge key by key, recursively, so a drop-in can set one value without
+    //     restating the block it lives in
+    //   - arrays CONCATENATE, so `[[actions]]` in a drop-in adds a verb rather than replacing
+    //     every verb the base file defined. That is the whole point of a drop-in here; making
+    //     arrays replace would mean copying the entire actions list to add one entry
+    //   - scalars: last file wins
+    //
+    // The trade, stated: concatenation means a drop-in cannot REMOVE a base action. Editing the
+    // base file is how you do that, which is fine when the base file is yours.
+    function mergeInto(base, over) {
+        for (const k in over) {
+            const v = over[k];
+            if (Array.isArray(v)) {
+                base[k] = (Array.isArray(base[k]) ? base[k] : []).concat(v);
+            } else if (v && typeof v === "object") {
+                if (!base[k] || typeof base[k] !== "object" || Array.isArray(base[k]))
+                    base[k] = {};
+                root.mergeInto(base[k], v);
+            } else {
+                base[k] = v;
+            }
+        }
+        return base;
+    }
+
+    function convertToml() {
+        // sh only to expand the drop-in glob and drop files that do not exist — tomlq fails on
+        // a missing path, and an unmatched glob would otherwise be passed through literally.
+        // Every path here comes from this file, never from notification content, so this is not
+        // the injection surface the action `run` rules are about.
+        // The three paths are read into variables BEFORE `set --` clears the positional
+        // parameters — clearing them first leaves the loop globbing empty strings, which
+        // silently produces zero layers and looks exactly like "no config file".
+        tomlProc.command = ["sh", "-c", "b=$1; d=$2; l=$3; set --; for f in \"$b\" \"$d\"/*.toml \"$l\"; do [ -f \"$f\" ] && set -- \"$@\" \"$f\"; done; [ \"$#\" -gt 0 ] && exec tomlq -c -s . \"$@\"; echo '[]'", "sh", root.tomlPath, root.tomlDir, root.tomlLocalPath];
+        tomlProc.running = true;
+    }
+
+    Process {
+        id: tomlProc
+        stderr: StdioCollector {}
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const t = this.text.trim();
+                if (!t.length)
+                    return;
+                try {
+                    const docs = JSON.parse(t);
+                    if (!Array.isArray(docs) || docs.length === 0) {
+                        root.tomlCfg = null;
+                    } else {
+                        let merged = {};
+                        for (let i = 0; i < docs.length; i++)
+                            root.mergeInto(merged, docs[i]);
+                        root.tomlCfg = merged;
+                    }
+                } catch (e) {
+                    console.warn("notifications: tomlq produced unparseable output —", e);
+                    root.tomlCfg = null;
+                }
+                root.rebuild();
+            }
+        }
+        onExited: exitCode => {
+            if (exitCode === 0)
+                return;
+            // 127 = no tomlq on this machine. Anything else is a broken TOML file, and the
+            // user wants to know which line — tomlq already said so on stderr.
+            const why = exitCode === 127 ? "tomlq not found (install the yq package)" : tomlProc.stderr.text.trim();
+            console.warn("notifications: could not read", root.tomlPath, "—", why, "— falling back to JSON/defaults");
+            root.tomlCfg = null;
+            root.rebuild();
+        }
+    }
+
+    Component.onCompleted: {
+        // Unconditional: the base FileView only reports on ITS file, and the local/drop-in
+        // layers exist independently of it.
+        root.convertToml();
+        root.rebuild();
+    }
 }

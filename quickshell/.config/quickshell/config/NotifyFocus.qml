@@ -287,7 +287,56 @@ Singleton {
             Notifications.expand(entry);
             return;
         }
+        // Enter fires the client's `default` action when there is one — activating a
+        // notification is what that action means, and it is the same thing clicking the card
+        // does. With no default action there is nothing to fire, so Enter falls back to
+        // unfolding an elided body, which is what it did before actions existed.
+        const def = Notifications.defaultActionFor(entry);
+        if (def) {
+            def.invoke();
+            if (!entry.resident)
+                Notifications.dismiss(entry);
+            return;
+        }
         root.expandRequested(entry.nid);
+    }
+
+    // Open the inline prompt on the selected card. `i` because this shell is vim-shaped
+    // everywhere else and that is what "start typing" means; it is a no-op on a card that
+    // does not qualify for a prompt (see Notifications.promptable).
+    function promptSelected() {
+        const entry = root.selected;
+        if (!entry || !Notifications.promptable(entry))
+            return false;
+        Notifications.beginPrompt(entry, null);
+        return true;
+    }
+
+    // `p` pulls the selected notification out into the centred compose surface — same window,
+    // same grab (it renders in the stack window's flight layer), so focus mode stays on and the
+    // selection is still this entry when it closes.
+    function composeSelected() {
+        const entry = root.selected;
+        if (!entry)
+            return false;
+        return NotifyCompose.openEntry(entry, "stack");
+    }
+
+    // Number keys fire the selected card's actions by hint. Digits rather than letters because
+    // focus mode is vim-shaped and owns j/k/d/y/s/o/g — see the hint assignment in
+    // Notifications.actionsFor.
+    function invokeActionByKey(digit) {
+        const entry = root.selected;
+        if (!entry)
+            return false;
+        const list = Notifications.actionsFor(entry);
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].key === digit) {
+                Notifications.invokeAction(entry, list[i], "");
+                return true;
+            }
+        }
+        return false;
     }
 
     // `c` copies summary + body, `C` the body alone — the summary is a label, and half the time
@@ -303,11 +352,21 @@ Singleton {
     property var drawerHook: null   // function()
     property var groupHook: null    // function(entry) — dismiss everything in the group
 
+    // `s` snoozes for the configured default; `r` (ms = 0) is "remind me at ___", which opens
+    // the prompt in TIME mode rather than guessing an interval.
     function snoozeSelected(ms) {
-        if (root.snoozeHook && root.selected)
-            root.snoozeHook(root.selected, ms);
-        else
-            console.info("notifications: snooze needs the actions story (notif-actions)");
+        const entry = root.selected;
+        if (!entry)
+            return;
+        if (root.snoozeHook) {
+            root.snoozeHook(entry, ms);
+            return;
+        }
+        if (ms > 0) {
+            Notifications.snooze(entry, ms);
+            return;
+        }
+        Notifications.beginPrompt(entry, null, true);
     }
 
     function dismissGroup() {

@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Notifications
 
 // org.freedesktop.Notifications server for the shell.
@@ -104,7 +105,10 @@ Singleton {
             durationMs: entry.durationMs,
             screenName: entry.screenName,
             anchorH: entry.anchorH,
-            anchorV: entry.anchorV
+            anchorV: entry.anchorV,
+            // AD-012: the rules engine may VETO actions, never define them. Presentation is
+            // where/how-long/how-loud; an action is not presentation.
+            actions: entry.actionsAllowed
         };
     }
 
@@ -123,6 +127,10 @@ Singleton {
             entry.anchorH = presentation.anchorH;
         if (["top", "center", "bottom"].indexOf(presentation.anchorV) >= 0)
             entry.anchorV = presentation.anchorV;
+        // only an explicit `false` suppresses; anything else leaves actions alone, so a rule
+        // that forgets the key cannot accidentally strip a client's own verbs
+        if (presentation.actions === false)
+            entry.actionsAllowed = false;
     }
 
     // In-process JS hook, kept alongside the Lua engine: it is what tests and a nested
@@ -431,7 +439,13 @@ Singleton {
         entry.runToken++; // tells the card to restart its countdown indicator from the top
         // a card that arrives while the stack is keyboard-focused starts out frozen like the
         // rest of them, rather than being the one card that can vanish mid-read
-        if (root.keyboardHold)
+        //
+        // The same for the card being composed, and this is the path that actually bit: every
+        // refresh() lands here, `paused` is cleared unconditionally two lines up, and a store
+        // write or an in-place update is enough to re-arm the clock under a surface the user is
+        // typing into. Freezing has to be re-asserted wherever the clock is armed, not only where
+        // it is stopped.
+        if (root.keyboardHold || NotifyCompose.owns(entry))
             root.pause(entry, true);
     }
 
@@ -442,6 +456,8 @@ Singleton {
     function pause(entry, force) {
         if (!entry || entry.paused || entry.leaving)
             return;
+        if (entry.isRow)
+            return; // an adapted database row has no clock to freeze (see rowAsEntry)
         if (!force && !timing.hoverPause)
             return;
         if (entry.expiryTimer.running) {
@@ -469,7 +485,13 @@ Singleton {
     }
 
     function resume(entry) {
-        if (!entry || !entry.paused || root.keyboardHold)
+        if (!entry || !entry.paused || root.keyboardHold || entry.isRow)
+            return;
+        // Being composed freezes the clock as hard as keyboardHold does, and for a sharper
+        // reason: opening compose puts a full-window scrim over the stack, which the card below
+        // reads as the POINTER LEAVING — so the card resumed its own countdown the instant the
+        // compose surface appeared and expired underneath it mid-sentence.
+        if (NotifyCompose.owns(entry))
             return;
         entry.paused = false;
         if (entry.leaving || entry.queued || entry.durationMs <= 0) {
@@ -544,6 +566,541 @@ Singleton {
     // user dismisses it. The first is signalled TO us; the other two we signal outward so the
     // client gets its NotificationClosed with the right reason.
     // ---------------------------------------------------------------------------------------
+
+
+    // ---------------------------------------------------------------------------------------
+    // Actions (story: notif-actions; shape settled in AD-012)
+    //
+    // TWO KINDS, ONE KEY SCHEME. A **spec** action arrived in the D-Bus `actions` array and is
+    // invoked by handing it back to the client; a **custom** action came from
+    // NotifyConfig.actions and is run here as a subprocess. They render identically on the card
+    // because the user does not care which side of D-Bus a verb lives on.
+    //
+    // Hints are assigned SPEC FIRST, then custom, so a client's own "Reply" never has its key
+    // stolen by a config rule.
+    // ---------------------------------------------------------------------------------------
+
+    // `~foo` is a regex; anything else is an exact, case-insensitive compare. Same vocabulary
+    // the Lua rules engine matches on, so there is one thing to learn.
+    function matchOne(pattern, value) {
+        const v = String(value === undefined || value === null ? "" : value);
+        const pat = String(pattern);
+        if (pat.length > 1 && pat.charAt(0) === "~") {
+            try {
+                return new RegExp(pat.substring(1), "i").test(v);
+            } catch (e) {
+                // a bad regex must not match everything — that would fire an action on every
+                // notification. Fail closed and say so once.
+                console.warn("notifications: action matcher", pat, "is not a valid regex —", e);
+                return false;
+            }
+        }
+        return v.toLowerCase() === pat.toLowerCase();
+    }
+
+    // All present keys must match (AND). An empty matcher matches everything, which is a
+    // legitimate way to declare a global action.
+    function actionMatches(match, entry) {
+        if (!match)
+            return true;
+        for (const key in match) {
+            const want = match[key];
+            let have;
+            if (key === "app")
+                have = entry.appName;
+            else if (key === "category")
+                have = entry.category;
+            else if (key === "urgency")
+                have = entry.urgency;
+            else if (key === "summary")
+                have = entry.summary;
+            else if (key === "body")
+                have = entry.body;
+            else if (key.indexOf("hint.") === 0)
+                have = entry.hints[key.substring(5)];
+            else {
+                console.warn("notifications: unknown action matcher key", key, "— never matches");
+                return false;
+            }
+            if (!root.matchOne(want, have))
+                return false;
+        }
+        return true;
+    }
+
+    // The merged, key-hinted list the card renders and the keyboard answers.
+    function actionsFor(entry) {
+        const out = [];
+        if (!entry || !entry.actionsAllowed)
+            return out;
+
+        // Spec actions. quickshell exposes NotificationAction { identifier, text, invoke() }.
+        // The `default` identifier is the click-the-card action and is NOT given a key or a
+        // button — it is what activating the card itself means.
+        const spec = entry.notification ? entry.notification.actions : [];
+        for (let i = 0; i < spec.length; i++) {
+            const a = spec[i];
+            if (String(a.identifier) === "default")
+                continue;
+            out.push({
+                kind: "spec",
+                label: String(a.text).length ? String(a.text) : String(a.identifier),
+                key: "",
+                spec: a,
+                run: null,
+                prompt: null,
+                capture: ""
+            });
+        }
+
+        // Custom actions, in config order.
+        const cfg = NotifyConfig.actions;
+        for (let i = 0; i < cfg.length; i++) {
+            const c = cfg[i];
+            if (!root.actionMatches(c.match, entry))
+                continue;
+            out.push({
+                kind: "custom",
+                label: c.label,
+                key: c.key,
+                spec: null,
+                run: c.run,
+                prompt: c.prompt,
+                // WITHOUT THIS the whole capture feature is dead: invokeAction tests
+                // `action.capture`, and an action object that never carried the field left every
+                // `capture = "draft"` / `"reply"` action running as fire-and-forget. Nothing
+                // logged, because nothing failed — the command ran and its stdout was dropped.
+                capture: c.capture
+            });
+        }
+
+        // Assign hints as CTRL + LETTER.
+        //
+        // Bare letters are not available: focus mode is vim-shaped and owns j/k/d/x/D/y/Y/s/r/
+        // o/g/G/a, and losing `d` to an action would break dismiss while a card is selected.
+        // Digits were the first fix and worked, but they are positional — "3" tells you nothing
+        // about what it does, and the config in AD-012 declares mnemonic keys (`r` for Reply,
+        // `o` for Open MR, `l` for Logs) that had to be thrown away to use them.
+        //
+        // Ctrl is untouched by the focus-mode scheme (its only modifier is Shift), so
+        // Ctrl+<letter> keeps the mnemonics AND collides with nothing. A declared key is used
+        // as-is; otherwise the first free letter OF THE LABEL is preferred, so "Reply" gets
+        // Ctrl+R without anyone configuring it.
+        const used = {};
+        for (let i = 0; i < out.length; i++) {
+            const want = String(out[i].key).toLowerCase();
+            if (want.length === 1 && want >= "a" && want <= "z" && !used[want]) {
+                out[i].key = want;
+                used[want] = true;
+            } else {
+                if (want.length)
+                    console.warn("notifications: action", out[i].label, "requested key", want,
+                        "— already taken or not a letter, falling back to a derived hint");
+                out[i].key = "";
+            }
+        }
+        // mnemonic pass: first unused letter of the label
+        for (let i = 0; i < out.length; i++) {
+            if (out[i].key.length)
+                continue;
+            const label = String(out[i].label).toLowerCase();
+            for (let j = 0; j < label.length; j++) {
+                const c = label.charAt(j);
+                if (c >= "a" && c <= "z" && !used[c]) {
+                    out[i].key = c;
+                    used[c] = true;
+                    break;
+                }
+            }
+        }
+        const seq = "abcdefghijklmnopqrstuvwxyz";
+        for (let i = 0; i < out.length; i++) {
+            if (out[i].key.length)
+                continue;
+            for (let j = 0; j < seq.length; j++) {
+                if (!used[seq.charAt(j)]) {
+                    out[i].key = seq.charAt(j);
+                    used[seq.charAt(j)] = true;
+                    break;
+                }
+            }
+        }
+        return out;
+    }
+
+    // --- actions on STORED rows (the drawer) ------------------------------------------------
+    //
+    // Custom actions only, and that is a property of the world rather than a shortcut: a spec
+    // action is invoked by handing it back to the client over D-Bus, and by the time a row is
+    // history the process that offered "Reply" has usually exited. There is nothing to hand it
+    // to. Custom actions run here, so they work on a row from last week.
+    //
+    // A drawer row is a plain object from SQLite, not an entry, so it is adapted to the shape
+    // the matcher and the substituter already expect rather than duplicating either.
+    function rowAsEntry(row) {
+        return {
+            nid: row.nid !== undefined ? row.nid : 0,
+            appName: row.app_name !== undefined ? row.app_name : "",
+            summary: row.summary !== undefined ? row.summary : "",
+            body: row.body !== undefined ? row.body : "",
+            category: row.category !== undefined ? row.category : "",
+            urgency: row.urgency !== undefined ? row.urgency : 1,
+            // hints are not stored per column; a matcher on hint.* simply never matches a
+            // stored row, which is honest rather than a silent partial match
+            hints: ({}),
+            actionsAllowed: true,
+            resident: true, // nothing to dismiss: the popup is long gone
+            // This is an adapter over a database row, NOT a live entry: it has no timers, no
+            // notification object and no place in `popups`. Everything that would touch those
+            // tests this flag — pause(), resume() and submitPrompt() all took a live entry for
+            // granted, and a capturing action invoked from the drawer died on the first
+            // `entry.expiryTimer` with a TypeError in the log and no action run.
+            //
+            // NOT named `stored`: a live entry already has a property of that name meaning "a
+            // history row exists for this one", which is true of nearly every card a few hundred
+            // milliseconds after it appears. Reusing the word made pause() return early for every
+            // live notification, so the card being composed expired under the compose surface.
+            isRow: true,
+            // plain fields so the paths that write them are harmless here
+            paused: false,
+            leaving: false,
+            prompting: false,
+            promptAction: null,
+            promptTimeMode: false,
+            awaitingCapture: false
+        };
+    }
+
+    function actionsForRow(row) {
+        const entry = root.rowAsEntry(row);
+        const out = [];
+        const cfg = NotifyConfig.actions;
+        for (let i = 0; i < cfg.length; i++) {
+            const c = cfg[i];
+            if (!root.actionMatches(c.match, entry))
+                continue;
+            // A CAPTURING action is offered here only when it has somewhere to put its output,
+            // and on a stored row it does not: `capture` means "write this into the reply field",
+            // and a row invoked as a row has no live client to send that reply to. Offering the
+            // verb anyway would spend a model call to produce text that vanishes. Compose
+            // re-associates a live entry when one exists and then uses actionsFor(), which does
+            // offer them — so this only hides what genuinely cannot work.
+            if (c.capture)
+                continue;
+            out.push({
+                kind: "custom",
+                label: c.label,
+                key: c.key,
+                spec: null,
+                run: c.run,
+                prompt: c.prompt,
+                capture: ""
+            });
+        }
+        return out;
+    }
+
+    function invokeRowAction(row, action, input) {
+        if (!action || action.kind !== "custom")
+            return;
+        root.invokeAction(root.rowAsEntry(row), action, input);
+    }
+
+    // The default action, if the client supplied one: what clicking the card means.
+    function defaultActionFor(entry) {
+        if (!entry || !entry.actionsAllowed || !entry.notification)
+            return null;
+        const spec = entry.notification.actions;
+        for (let i = 0; i < spec.length; i++) {
+            if (String(spec[i].identifier) === "default")
+                return spec[i];
+        }
+        return null;
+    }
+
+    // Substitutions produce ARGV ELEMENTS. This is the security boundary in AD-012: any app on
+    // the session bus can set a summary, so a value is only ever one argument — never spliced
+    // into a shell string, and no `sh -c` wrapper is added anywhere on this path.
+    function substituteArgv(argv, entry, input) {
+        const map = {
+            "{id}": String(entry.nid),
+            "{app}": entry.appName,
+            "{summary}": entry.summary,
+            "{body}": entry.body,
+            "{input}": input === undefined || input === null ? "" : String(input)
+        };
+        const out = [];
+        for (let i = 0; i < argv.length; i++) {
+            let a = String(argv[i]);
+            for (const k in map)
+                a = a.split(k).join(map[k]);
+            a = a.replace(/\{hint:([^}]+)\}/g, (m, name) => {
+                const v = entry.hints[name];
+                return v === undefined || v === null ? "" : String(v);
+            });
+            out.push(a);
+        }
+        return out;
+    }
+
+    // A failing action has to say so. Silently doing nothing is indistinguishable from a
+    // missed keypress, and the user has already moved on.
+    function actionFailed(entry, action, reason) {
+        console.warn("notifications: action", action.label, "failed —", reason);
+        // Round-trip through notify-send rather than synthesising an entry directly: this
+        // shell IS the server, so the failure lands in the popup stack AND the history store
+        // by the same path as everything else, instead of being a special case that only
+        // exists on screen. argv, never a shell string — the label came from config and the
+        // reason can contain anything the process printed.
+        Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
+                "Action failed", action.label + " — " + reason]);
+    }
+
+    function invokeAction(entry, action, input) {
+        if (!entry || !action)
+            return;
+        if (action.kind === "spec") {
+            // Hand it back to the client. `resident` decides whether the notification survives;
+            // that is the client's call, not ours (see the entry property of the same name).
+            try {
+                action.spec.invoke();
+            } catch (e) {
+                root.actionFailed(entry, action, String(e));
+                return;
+            }
+            if (!entry.resident)
+                root.dismiss(entry);
+            return;
+        }
+
+        const argv = root.substituteArgv(action.run, entry, input);
+        const runner = runnerComponent.createObject(root, {
+            "command": argv,
+            "entry": entry,
+            "action": action
+        });
+        if (!runner) {
+            root.actionFailed(entry, action, "could not start");
+            return;
+        }
+        runner.running = true;
+        // A capturing action OWNS the card until it answers — its whole point is to put text
+        // back into this notification, so dismissing it here would throw away the destination.
+        // The card is also frozen, because a model takes seconds and the dwell would expire
+        // underneath it.
+        if (action.capture) {
+            entry.awaitingCapture = true;
+            root.pause(entry);
+            return;
+        }
+        if (!entry.resident)
+            root.dismiss(entry);
+    }
+
+    // One Process per invocation, destroyed on exit. A pool would be premature: actions are
+    // user-initiated and rare, and a shared Process would serialise two of them.
+    Component {
+        id: runnerComponent
+
+        Process {
+            id: runner
+            property var entry: null
+            property var action: null
+            stdout: StdioCollector {}
+            onExited: (code, status) => {
+                const entry = runner.entry;
+                const action = runner.action;
+                if (entry)
+                    entry.awaitingCapture = false;
+                if (code !== 0) {
+                    root.actionFailed(entry, action, "exit " + code);
+                    if (entry)
+                        root.resume(entry);
+                    runner.destroy();
+                    return;
+                }
+                if (action && action.capture && entry) {
+                    const text = runner.stdout.text.trim();
+                    if (!text.length) {
+                        root.actionFailed(entry, action, "produced no output");
+                        root.resume(entry);
+                    } else if (action.capture === "reply") {
+                        root.submitPrompt(entry, text);
+                    } else if (NotifyCompose.owns(entry)) {
+                        // the compose surface is open on this notification: the draft belongs in
+                        // the field the user is looking at, not in the card behind it
+                        NotifyCompose.loadDraft(text);
+                    } else {
+                        // draft: open the field pre-filled so it is read before it is sent
+                        root.beginPrompt(entry, null, false);
+                        root.draftText = text;
+                        root.draftToken++;
+                    }
+                }
+                runner.destroy();
+            }
+        }
+    }
+
+
+    // An elapsed snooze comes back as a fresh notification, rebuilt from the stored row and
+    // re-emitted through notify-send — the same round-trip actionFailed uses.
+    //
+    // It cannot be the ORIGINAL notification: that object died with the client, or with the
+    // last qs. So the reminder is honestly a new one, tagged so it reads as a reminder rather
+    // than as the app having spoken again. Actions are lost with the client, which is inherent
+    // — by the time a snooze fires, the process that offered "Reply" may not exist.
+    //
+    // Sticky (-t 0) on purpose: you asked to be reminded, so it waits to be dealt with.
+    Connections {
+        target: NotifyStore
+
+        function onSnoozeElapsed(appName, summary, body, urgency) {
+            const urg = urgency >= 2 ? "critical" : (urgency <= 0 ? "low" : "normal");
+            Quickshell.execDetached(["notify-send", "-t", "0", "-u", urg, "-a", appName.length ? appName : "quickshell", "-h", "string:category:x-vault.reminder", summary.length ? summary : "Reminder", body]);
+        }
+    }
+
+    // --- prompts / inline reply (AD-012 §3) -------------------------------------------------
+    //
+    // A prompt is offered where a text reply is the notification's NATURAL response and the
+    // reply has somewhere to go. Three ways to qualify, and no fourth:
+    //   1. the client asked for one (inline-reply hint), or
+    //   2. the category is on the written allowlist, or
+    //   3. a matching custom action declares `prompt`.
+    // "Build failed" gets actions, not a prompt — there is no recipient. Adding one anywhere
+    // else is a deliberate config edit, which is the whole point of writing the list down.
+    function promptable(entry) {
+        if (!entry || !entry.actionsAllowed)
+            return false;
+        if (entry.hasInlineReply)
+            return true;
+        const cats = NotifyConfig.prompt.categories;
+        if (entry.category.length && cats.indexOf(entry.category) >= 0)
+            return true;
+        return false;
+    }
+
+    // Snooze: hand the row to the store and let the popup go. The store owns the schedule
+    // (AD-012 §4) — one armed timer for the earliest wake_at, rows already due fired at start —
+    // so nothing here has to survive a restart.
+    function snooze(entry, ms) {
+        if (!entry)
+            return;
+        const wake = Date.now() + Math.max(0, Math.round(ms));
+        NotifyStore.snooze(entry.nid, wake);
+        // forget(), not dismiss(): dismiss would write state = 'dismissed' over the
+        // 'snoozed' row the store just set, and the notification would never come back.
+        // The popup goes; the row is what remembers.
+        root.forget(entry);
+        root.reflow();
+    }
+
+    // "20m", "2h", "90s", "17:30". Returns null for anything it cannot read — AD-012 is
+    // explicit that this rejects rather than guesses.
+    function parseDelay(text) {
+        const t = String(text).trim().toLowerCase();
+        if (!t.length)
+            return null;
+        let m = t.match(/^([0-9]+)\s*([smhd])$/);
+        if (m) {
+            const n = parseInt(m[1], 10);
+            const unit = { s: 1000, m: 60000, h: 3600000, d: 86400000 }[m[2]];
+            return Math.min(n * unit, NotifyConfig.snooze.maxMs);
+        }
+        m = t.match(/^([0-9]{1,2}):([0-9]{2})$/);
+        if (m) {
+            const now = new Date();
+            const at = new Date(now);
+            at.setHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
+            // a time already past today means tomorrow, which is what a human means by it
+            if (at.getTime() <= now.getTime())
+                at.setDate(at.getDate() + 1);
+            return Math.min(at.getTime() - now.getTime(), NotifyConfig.snooze.maxMs);
+        }
+        return null;
+    }
+
+    // Text an action produced, waiting to be loaded into the reply field. draftToken ticks on
+    // every new draft so the field reloads even when two drafts happen to be identical.
+    property string draftText: ""
+    property int draftToken: 0
+
+    function beginPrompt(entry, action, timeMode) {
+        if (!entry)
+            return;
+        entry.promptTimeMode = timeMode === true;
+        entry.promptAction = action || null;
+        entry.prompting = true;
+        // A card you are typing into must not expire underneath you. This reuses the hover
+        // pause rather than inventing a second freeze, so there is still one clock.
+        root.pause(entry);
+    }
+
+    function cancelPrompt(entry) {
+        if (!entry)
+            return;
+        entry.prompting = false;
+        entry.promptAction = null;
+        root.resume(entry);
+    }
+
+    function submitPrompt(entry, text) {
+        if (!entry)
+            return;
+        const action = entry.promptAction;
+        const timeMode = entry.promptTimeMode;
+        entry.prompting = false;
+        entry.promptAction = null;
+        entry.promptTimeMode = false;
+
+        if (timeMode) {
+            const ms = root.parseDelay(text);
+            if (ms === null) {
+                // reject rather than guess: silently snoozing for the wrong interval is worse
+                // than saying the input was not understood
+                Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
+                        "Snooze", "could not parse \"" + text + "\" — try 20m, 2h or 17:30"]);
+                root.resume(entry);
+                return;
+            }
+            root.snooze(entry, ms);
+            return;
+        }
+        if (action) {
+            // a custom action with a prompt: {input} carries the typed text
+            root.invokeAction(entry, action, text);
+            return;
+        }
+        // A stored row has no client to answer. Nothing above this line needed one — a custom
+        // action runs here — but an inline reply does, so say so instead of dropping the text on
+        // the floor. The compose surface already refuses to offer the field in this case; this
+        // catches the path that reaches here anyway (a `capture = "reply"` action on a row).
+        if (entry.isRow) {
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
+                    "Reply not sent", "no live client for this notification — it is history"]);
+            return;
+        }
+        // the client's own inline reply
+        if (entry.notification && entry.hasInlineReply) {
+            try {
+                entry.notification.sendInlineReply(text);
+            } catch (e) {
+                console.warn("notifications: inline reply failed —", e);
+            }
+        } else if (text.length) {
+            // The field can also be opened on an ALLOWLISTED CATEGORY (NotifyConfig.prompt), and
+            // a client in one of those categories need not support inline reply — notify-send
+            // certainly does not. That is the client's limit rather than a bug here, but text
+            // typed into a field and then dropped in silence is indistinguishable from a bug, so
+            // it is reported by the same route a failing action is.
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
+                    "Reply not sent", (entry.appName.length ? entry.appName : "this client") + " offers no reply channel — use an action with a prompt"]);
+        }
+        root.resume(entry);
+        if (!entry.resident)
+            root.dismiss(entry);
+    }
 
     function dismiss(entry) {
         if (!entry)
@@ -670,6 +1227,19 @@ Singleton {
             // the rules engine has answered for this entry (or failed open): until then it is
             // in the model but on no screen — see refresh()
             property bool resolved: false
+            // AD-012: a Lua rule may set presentation.actions = false to suppress this
+            // notification's actions. Defaults true; only an explicit false flips it.
+            property bool actionsAllowed: true
+            // the client asked for a reply field (x-kde-reply / inline-reply hint)
+            readonly property bool hasInlineReply: entry.notification ? entry.notification.hasInlineReply : false
+            // an inline prompt is open on this card, and which action opened it (null = the
+            // client's own inline reply rather than a custom action)
+            // a capturing action is running and this card is waiting for its output
+            property bool awaitingCapture: false
+            property bool prompting: false
+            property var promptAction: null
+            // "remind me at ___": the field parses a delay instead of sending a reply
+            property bool promptTimeMode: false
             // recorded but never popped (durationMs < 0) — see the duration vocabulary above
             readonly property bool drawerOnly: entry.durationMs < 0
             // already added to `unread`; drawer-only entries are counted on arrival, once
@@ -753,16 +1323,22 @@ Singleton {
             // silently swallow whatever was on screen.
             keepOnReload: true
 
-            // Advertise ONLY what is implemented. Actions, action icons, inline reply and
-            // markup bodies each have their own story; claiming them here would make clients
+            // Advertise ONLY what is implemented. Action icons, inline reply and markup
+            // bodies each still have their own story; claiming them here would make clients
             // send us content we render as literal garbage.
+            //
+            // `actions` flips true with the actions story (AD-012): spec actions render as
+            // buttons on the card with key hints, the `default` action is what clicking the
+            // card means, and an invocation that fails raises a critical notification rather
+            // than doing nothing. Clients DO change what they send based on this — that is
+            // the point, and it is also why it stayed false until the rendering existed.
             bodySupported: true
             bodyMarkupSupported: false
             bodyHyperlinksSupported: false
             bodyImagesSupported: false
-            actionsSupported: false
+            actionsSupported: true
             actionIconsSupported: false
-            inlineReplySupported: false
+            inlineReplySupported: true
             imageSupported: true
             // flipped on by the SQLite store story — until then nothing survives a restart
             persistenceSupported: false

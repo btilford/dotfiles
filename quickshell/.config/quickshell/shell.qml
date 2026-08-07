@@ -105,12 +105,54 @@ ShellRoot {
         function drawerHide(): void {
             NotifyDrawer.close();
         }
+        // Compose: one notification, centred, with room to write. `id` picks a live popup;
+        // with no id (0) it takes the newest. It is hosted by whichever window already holds the
+        // keyboard, so this never creates a surface of its own — see config/NotifyCompose.qml.
+        //
+        // It exists over IPC and not only on a key because that is how it gets TESTED: driving
+        // the live session with `wtype` types into whatever has focus, which on a locked screen
+        // is the password field.
+        function compose(id: int): bool {
+            const entry = id > 0 ? Notifications.entryForId(id) : (Notifications.popups.length ? Notifications.popups[0] : null);
+            if (!entry)
+                return false;
+            return NotifyCompose.openEntry(entry, NotifyDrawer.shown ? "drawer" : "stack");
+        }
+        function composeClose(): void {
+            NotifyCompose.close();
+        }
+        // What the surface would send, and by which route ("reply" over D-Bus to the client,
+        // "action" into a command's {input}, or "none"). Readable without a screenshot.
+        function composeState(): string {
+            if (!NotifyCompose.active)
+                return "closed";
+            return NotifyCompose.host + " " + NotifyCompose.route + (NotifyCompose.fromHistory ? " history" : " live");
+        }
         function dbPath(): string {
             return NotifyStore.dbPath;
         }
         // sqlite3's own `-json` rows, newest first, served from the cache the store refreshes
         // after every write — an IPC call cannot wait on a subprocess, and a client that wants
         // an arbitrary query has the database file and its documented schema.
+        // Pending reminders. Cached rather than queried on demand — an IpcHandler function must
+        // return immediately and cannot wait on a subprocess, the same constraint history() has.
+        // Refreshed whenever the snooze timer re-arms, which is every time the set changes.
+        // Snooze the newest live popup for `ms`. Exists so a snooze can be driven without the
+        // keyboard — from a script, from a bar button later, and (the immediate reason) so the
+        // fire/re-arm cycle can be tested without injecting keystrokes into a live session that
+        // may be locked.
+        function snooze(ms: int): bool {
+            const list = Notifications.popups;
+            if (!list.length)
+                return false;
+            Notifications.snooze(list[0], ms);
+            return true;
+        }
+
+        function snoozed(): string {
+            return NotifyStore.snoozedSummary();
+        }
+
         function history(limit: int): string {
             return NotifyStore.recentJson(limit);
         }

@@ -162,9 +162,20 @@ the terminal clients need the model to exist without a window.
   `scripts/StartNotify.sh` now dispatches on `HYPR_NOTIFY` and, for quickshell, **stops and masks
   `swaync.service`** — swaync ships a D-Bus activation file pointing at that unit, so killing the
   process alone lets the next `notify-send` start it again.
-- **Capabilities are advertised honestly.** `GetCapabilities` returns `body` + `icon-static` and
-  nothing else. Do not flip `actionsSupported` / `bodyMarkupSupported` / `inlineReplySupported`
-  until those stories actually render them — clients change what they send based on this.
+- **Capabilities are advertised honestly**, but `actions` is now among them. `GetCapabilities`
+  returns `body` + `actions` + `icon-static`. Do not flip `bodyMarkupSupported` /
+  `inlineReplySupported` / `actionIconsSupported` until those stories render them — clients
+  change what they send based on this.
+- **`actions` is load-bearing for every Chromium client, and its absence fails silently.**
+  Chromium (Brave, Chrome) calls `GetCapabilities` **once at startup** and, if `actions` is
+  missing, refuses the system notifier for the whole process lifetime and uses its internal
+  message centre instead. No error, no log, no retry. On Hyprland those internal windows have
+  **no class and no title**, so no window rule matches and they tile full-screen, one per
+  monitor — which reads as "notifications broke" and points nowhere near a capability string.
+  Confirmed 2026-08-05 by `dbus-monitor`: zero `Notify` calls from Brave for days, then
+  `GetCapabilities` → `Notify` immediately after `actionsSupported` flipped and Brave was
+  restarted. Note that closing Brave's window does **not** restart it (a push service worker
+  holds the process group); `pkill -x brave` and check `pgrep -c brave` first.
 - **Entry fields are bindings, not copies (load-bearing).** `replaces_id` does *not* re-emit the
   `notification` signal: quickshell mutates the existing `Notification` object in place. An entry
   that copied `summary`/`body`/hints at creation shows the first revision forever (progress bars
@@ -182,12 +193,36 @@ the terminal clients need the model to exist without a window.
 
 ### Placement & motion (story: notif-placement-motion)
 
-User config, not QML constants: `~/.config/quickshell/notifications.json`, parsed by the
-`NotifyConfig` singleton and hot-reloaded on save (`notifications.example.json` in this package
-is the annotated template). `QS_NOTIFY_CONFIG=<path>` overrides the path — the seam the capture
-harness uses to switch presets without touching the user's file — and `QS_NOTIFY_PRESET=<name>`
-overrides the preset alone. **Every key falls back to the constants in `NotifyConfig`**, so a
-missing or broken file can never take the shell down; bad values log once and keep the default.
+User config, not QML constants. **TOML is preferred, JSON is the fallback**, layered lowest
+precedence first:
+
+```text
+~/.config/quickshell/notifications.toml        base
+~/.config/quickshell/notifications.d/*.toml    drop-ins, lexical order
+~/.config/quickshell/notifications.local.toml  machine-local, always wins
+~/.config/quickshell/notifications.json        used only when no TOML exists
+```
+
+`notifications.example.toml` is the annotated template and is generated from the JSON one, so
+the two cannot drift while both exist. `QS_NOTIFY_CONFIG_TOML=<path>` / `QS_NOTIFY_CONFIG=<path>`
+override the base path — the seam the capture harness uses — and `QS_NOTIFY_PRESET=<name>`
+overrides the preset alone.
+
+**Why not JSON any more:** the original argument was that QML parses JSON natively and anything
+else meant a build step between the user and a preference. That holds for a *build* step, not
+for a converter run at load — the file is still edited directly and still hot-reloads on save.
+Meanwhile the cost of JSON was being paid in `_comment` keys, and AD-012 had already written its
+action examples in TOML. `tomlq` (from the `yq` package) does the conversion; one call slurps
+every layer in order.
+
+**Merge rules:** tables merge key by key recursively; **arrays concatenate**, so `[[actions]]` in
+a drop-in ADDS a verb rather than replacing the base's list; scalars are last-wins. The trade is
+that a drop-in cannot *remove* a base action — edit the base file for that.
+
+**Fails open on every path.** No `tomlq` (exit 127), a syntax error, or unparseable output each
+log one line and fall back to JSON/defaults; verified against a deliberately broken file. Every
+key still falls back to the constants in `NotifyConfig`, so a missing or broken file can never
+take the shell down.
 
 - Presets: `right-center` (default), `bottom-center`, `top-right`. Default is deliberately not a
   top corner — that is where application toolbars and window buttons live.
@@ -461,26 +496,109 @@ flips on failure. Don't "simplify" that back to a single string.
   everywhere this config lands, and a rules engine that fails to start over a missing rock would
   take notifications with it.
 
-### Actions — design settled, not built (story: notif-actions)
+### Actions, prompts & snooze (story: notif-actions — BUILT)
 
-The shape is decided (spike `notif-actions-config-spike`, AD-012, design note
-`Projects/hyprland-dotfiles/features/notification-actions-design` in the notes vault). Build to
-it rather than re-deciding:
+Built to AD-012. `actionsSupported` and `inlineReplySupported` are both true;
+`GetCapabilities` returns `body, actions, icon-static, inline-reply`.
 
-- **Custom actions carry their own matchers** — a flat list of
-  `match = { app, category, urgency, summary, body, hint.* } → label, key, run | prompt`, read
-  like the hyprland keybind table. The Lua rules engine may **veto** actions
-  (`presentation.actions = false`); it never defines them.
-- **Spec actions and custom actions render identically** and share one key-hint sequence, spec
-  actions first, so a client's own "Reply" never loses its key to a config rule.
-- **Substitutions are argv elements** (`{id}`, `{summary}`, `{input}`, `{hint:NAME}`) — no
-  `sh -c`, ever. Any app on the session bus can set a summary, so this is a security boundary.
-- **Prompts** are inline on the card, offered only for a client inline-reply hint, an allowlisted
-  category (`im.received`, `email.arrived`, `x-vault.reminder`), or an action that declares one.
-- **Snooze is a store row**, not a second scheduler: `state = 'snoozed'` + `wake_at`, one armed
-  timer, elapsed rows fired at startup beside the existing `orphaned` sweep.
-- `actionsSupported` / `inlineReplySupported` flip true **in that story and not before** —
-  advertising a capability we don't render makes clients send content we display as garbage.
+- **Two kinds, one key scheme.** A *spec* action came in the D-Bus `actions` array and is
+  handed back to the client via `invoke()`; a *custom* action is matched from
+  `NotifyConfig.actions` and run here as a subprocess. They render identically. Hints are
+  assigned spec-first so a client's own "Reply" never loses its key to a config rule.
+- **`default` gets no button and no key.** Clicking the card, or Enter in focus mode, IS that
+  action — giving it a chip would say otherwise.
+- **Hints are `Ctrl+<letter>`, not bare letters or digits.** Focus mode and the drawer are both
+  vim-shaped and own the bare alphabet (j/k/d/x/D/y/Y/s/r/o/p/g/G/a/f/c — `p` is compose); losing
+  `d` to an action would break dismiss. Resolution order: a declared free letter, else the first free letter *of
+  the label* (so "Reply" → `^r` with nothing configured), else the next free letter.
+- **Substitutions are argv elements, never a shell string**, and no `sh -c` is added anywhere on
+  this path. Any app on the session bus can set a summary, so this is a security boundary.
+  A bad matcher regex fails CLOSED — matching everything would fire an action on every
+  notification.
+- **A failing action raises a critical notification** rather than doing nothing, routed through
+  `notify-send` so it lands in the popup stack *and* the store by the same path as everything
+  else.
+- **Prompts** appear on a client inline-reply hint, an allowlisted category
+  (`im.received`, `email.arrived`, `x-vault.reminder`), or an action declaring `prompt`. The
+  field is on the card — the reply keeps what it is replying to on screen. Opening one pauses
+  the entry through the same path hover-pause uses, so a card cannot expire mid-sentence.
+  Taking focus is safe *here only* because a prompt is opened by a deliberate act, never by a
+  notification arriving (AD-011 intact).
+- **Snooze is a row state**, `wake_at` (schema v3), with ONE armed timer for the earliest wake
+  and overdue rows fired at startup — so it survives a restart and a reboot with no second
+  scheduler. `s` snoozes for `snooze.defaultMs`; `r` prompts in time mode (`20m`, `2h`, `17:30`)
+  and REJECTS what it cannot parse rather than guessing.
+- **Nothing may read its own enqueued write.** Store writes batch through a subprocess ~200ms
+  later, so `snooze()` and `fireDueSnoozes()` cannot see their own effect. Arming the timer from
+  a stale read stopped it (snooze never fired) in one direction and re-fired the same row in a
+  tight loop in the other — 100+ duplicate notifications in seconds. Re-arming now happens on
+  the writer's exit, guarded by an in-memory set of dispatched row ids, the same ids excluded in
+  SQL, and a one-second interval floor.
+- **Drawer rows get custom actions only, minus the capturing ones.** A spec action needs a live
+  client, and by the time a row is history that process has exited. `capture` actions are
+  filtered out of `actionsForRow` for the same reason one step further on: capture means "write
+  the output into the reply field", and a row invoked *as a row* has no reply channel — offering
+  the verb would spend a model call on text that vanishes. Compose re-associates a live entry
+  when one exists and then uses `actionsFor()`, which does offer them.
+- **`rowAsEntry` is an adapter, not an entry**, and now says so with `isRow: true`. `pause()`,
+  `resume()` and `submitPrompt()` all assumed a live entry; a capturing action invoked from the
+  drawer died on `entry.expiryTimer` with a TypeError in the log and no action run. Each of the
+  three tests the flag. It is **not** called `stored` — a live entry already has a property of
+  that name meaning "a history row exists for this one", true of nearly every card a few hundred
+  ms after it appears. The first version reused the word, so `pause()` returned early for every
+  live notification and the composed card expired under the compose surface. A one-word name for
+  a new flag on a shared object is worth grepping for first.
+- Migrations are a LIST run one statement per process: the sqlite3 CLI aborts on first error, so
+  a concatenated migration would never reach v3 on a database that already had v2.
+- IPC: `qs ipc call notifications snooze <ms>` and `... snoozed`.
+
+**The action object must carry every field `invokeAction` reads.** `actionsFor` built its
+entries field by field and simply never copied `capture`, so `action.capture` was `undefined`
+everywhere and **every `capture = "draft"` / `"reply"` action ran as fire-and-forget** — the
+command ran, exited 0, and its stdout was dropped. Nothing failed, so nothing logged. That is the
+shape of bug to expect from hand-built plain objects crossing a module boundary; if you add a
+config key to an action, add it to both builders (`actionsFor` and `actionsForRow`) and to
+`NotifyConfig`'s validator.
+
+### Compose: one notification, centred, with room to write
+
+`config/NotifyCompose.qml` (state) + `components/notifications/ComposeSurface.qml` (view). `p`
+opens it, from popup focus mode and from a drawer row; `qs ipc call notifications compose [id]`
+does the same, and `composeState` reports what it would send.
+
+- **It is a STATE, not a window.** AD-012 §5 rejected a dedicated centred overlay because it adds
+  a third focus-grabbing surface. So the surface is instantiated inside a window that already has
+  the grab: the popup stack's `flightHost` layer (the full-window layer the dwell reparents into)
+  or the drawer. `NotifyCompose.host` names which, and each host renders it only when named — the
+  stack additionally checks the entry belongs to *its* (monitor, anchor) pair.
+- **Composing counts as focused.** The stack window takes the keyboard while compose is open even
+  with focus mode off, because a text field on a surface with no grab silently eats nothing. It is
+  only ever opened by a deliberate act, so AD-011 holds. When focus mode was *not* already
+  holding the keyboard, compose remembers and restores the previous toplevel itself.
+- **Closed means zero-sized, not just invisible.** The stack window masks input to the items that
+  may be clicked, and a full-window item that is merely `visible: false` still contributes its
+  geometry to that `Region` — which would make the notification layer swallow every click on the
+  desktop.
+- **It is not a NotificationCard with a bigger prompt box**, though that was the shorter route. A
+  card binds `paused`/`collapsed`/`remainingMs`/`runToken` and the notification behind them, and
+  half of compose is a stored SQLite row with none of those. The chips ARE shared, via
+  `components/notifications/ActionChips.qml`, so a verb cannot look different on the two surfaces.
+
+**Replying from a stored row: the answer is re-associate, then be honest.** `openRow` looks for a
+live entry for that `nid` (rows still `active`), and composing then behaves exactly like composing
+from the stack — that is what makes "reply from the drawer" work for something still on screen.
+With no live entry there are three routes and the surface says which one it is in:
+
+| route | field | what sending does |
+| --- | --- | --- |
+| `reply` | shown | `sendInlineReply()` to the client |
+| `action` | shown | the text becomes `{input}` in an argv this shell runs — works on a row from last week |
+| `none` | **not shown** | nothing; the surface says why, and points at the verbs |
+
+A reply field that silently goes nowhere is worse than no field, so `none` renders a note instead
+of a box. The same rule was applied to the path that already existed: a prompt opened on an
+**allowlisted category** whose client does not support inline reply used to drop the text in
+silence, and now raises a critical "Reply not sent" the same way a failing action does.
 
 ### Testing notifications without a Hyprland session
 

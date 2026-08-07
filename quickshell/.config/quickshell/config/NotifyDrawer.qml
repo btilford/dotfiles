@@ -179,6 +179,40 @@ Singleton {
 
     readonly property var selected: root.selectedIndex >= 0 ? root.items[root.selectedIndex] : null
 
+    // Custom actions available on the selected row. Custom ONLY — a spec action is invoked by
+    // handing it back to the client, and by the time a row is history that process has usually
+    // exited. See Notifications.actionsForRow.
+    readonly property var selectedActions: {
+        // see NotificationCard: touch the config so the binding re-runs when TOML lands
+        NotifyConfig.actions;
+        const sel = root.selected;
+        if (!sel || sel.kind === "group")
+            return [];
+        return Notifications.actionsForRow(sel.row ? sel.row : sel);
+    }
+
+    function invokeActionByKey(letter) {
+        const list = root.selectedActions;
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].key === letter) {
+                const sel = root.selected;
+                Notifications.invokeRowAction(sel.row ? sel.row : sel, list[i], "");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // `p` opens the selected ROW in the centred compose surface, hosted by this window so the
+    // drawer keeps the keyboard grab. A row still on screen re-associates to its live entry in
+    // NotifyCompose.openRow, which is the only way a reply from history can reach a client.
+    function composeSelected() {
+        const sel = root.selected;
+        if (!sel || sel.kind === "group")
+            return false;
+        return NotifyCompose.openRow(sel.row, "drawer");
+    }
+
     function reselect() {
         if (root.selectedIndex >= 0)
             return;

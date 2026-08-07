@@ -26,7 +26,7 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property int schemaVersion: 2
+    readonly property int schemaVersion: 3
 
     readonly property string dbPath: {
         const explicit = Quickshell.env("QS_NOTIFY_DB");
@@ -104,10 +104,21 @@ Singleton {
                 root.fail("write failed (exit " + exitCode + ")", writer.stderr.text.trim());
                 return;
             }
-            if (root.pending.length)
+            if (root.pending.length) {
                 root.flush();
-            else
-                root.refreshRecent();
+                return;
+            }
+            root.refreshRecent();
+            // Re-arm HERE, not at the call site. snooze() and fireDueSnoozes() both enqueue a
+            // write and cannot read their own effect: the batch flushes through this
+            // subprocess ~200ms later. Arming before it landed read MIN(wake_at) as NULL and
+            // stopped the timer, so a snooze never fired on its own and only went off on the
+            // next restart (observed 2026-08-05). The write completing is the only moment the
+            // schedule is knowable.
+            if (root.rearmAfterFlush) {
+                root.rearmAfterFlush = false;
+                root.armSnoozeTimer();
+            }
         }
     }
 
@@ -162,7 +173,15 @@ Singleton {
     // cleared from the drawer stays in the history and stays queryable, it just stops being
     // listed. SQLite has no ADD COLUMN IF NOT EXISTS, so this runs as its own statement whose
     // failure is the success case on an already-migrated database ("duplicate column name").
-    readonly property string migrateSql: "ALTER TABLE notifications ADD COLUMN cleared_at INTEGER;"
+    // v3 (story: notif-actions). `wake_at` is epoch ms; NULL means not snoozed. A snooze is a
+    // ROW STATE rather than a timer living somewhere else — the store is already the source of
+    // truth, and a snooze that fired from systemd could not restore urgency, actions or the
+    // history row it came from.
+    //
+    // A LIST, run one statement per process, because the sqlite3 CLI aborts on the first error
+    // and every migration after the first fails with "duplicate column name" on an
+    // already-migrated database. Concatenating them would mean v3 never ran anywhere v2 had.
+    readonly property var migrations: ["ALTER TABLE notifications ADD COLUMN cleared_at INTEGER;", "ALTER TABLE notifications ADD COLUMN wake_at INTEGER;"]
 
     Process {
         id: initProc
@@ -181,12 +200,152 @@ Singleton {
         }
     }
 
-    // Exit code deliberately unchecked: on every start after the first, this fails with
-    // "duplicate column name: cleared_at", which is exactly the state we want. A real failure
-    // (unwritable database) has already been caught by initProc above.
+    // Exit code deliberately unchecked: on every start after the first, each of these fails
+    // with "duplicate column name", which is exactly the state we want. A real failure
+    // (unwritable database) has already been caught by initProc above. Chained one at a time
+    // so a failing early migration cannot stop a later one from running.
+    property int migrationIndex: 0
+
+    function runNextMigration() {
+        if (root.migrationIndex >= root.migrations.length) {
+            root.fireDueSnoozes();
+            return;
+        }
+        migrateProc.command = ["sqlite3", root.dbPath, root.migrations[root.migrationIndex]];
+        root.migrationIndex++;
+        migrateProc.running = true;
+    }
+
     Process {
         id: migrateProc
         stderr: StdioCollector {}
+        onExited: root.runNextMigration()
+    }
+
+    // --- snooze (AD-012 §4) ---------------------------------------------------------------
+    //
+    // ONE armed timer for the earliest wake_at, re-armed after each fire — not one timer per
+    // row, which would be a scheduler with as many moving parts as there are snoozes.
+    //
+    // On start, rows whose wake_at has already passed fire immediately. That is what makes a
+    // snooze survive a qs restart AND a reboot without a second scheduler anywhere, and it sits
+    // beside the `orphaned` sweep that already runs on this path.
+    // Carries the row's CONTENT, not just its id: the original Notification object died with
+    // the client (or with the last qs), so whatever re-pops it has to rebuild from the store.
+    signal snoozeElapsed(string appName, string summary, string body, int urgency)
+
+    // Keyed by nid through the same MAX(row_id) subselect close() uses — a client reuses nids,
+    // so "the live row for this notification" is the newest active one, not any row with that
+    // nid. One addressing scheme for the whole store rather than two.
+    function snooze(nid, wakeAt) {
+        if (!NotifyConfig.store.enabled)
+            return;
+        root.enqueue("UPDATE notifications SET state = 'snoozed', wake_at = " + Math.round(wakeAt) + "\n" + "WHERE row_id = (SELECT MAX(row_id) FROM notifications WHERE nid = " + Number(nid) + " AND state = 'active');");
+        root.rearmAfterFlush = true;
+    }
+
+    // Rows already due. Fired one signal each so the caller can re-pop them carrying the
+    // original row_id, keeping history one thread rather than starting a new one.
+    function fireDueSnoozes() {
+        // -separator so a body containing the default pipe cannot split the row; \x1f is the
+        // ASCII unit separator and cannot appear in notification text that survived JSON.
+        dueProc.command = ["sqlite3", "-readonly", "-noheader", "-separator", "\x1f", root.dbPath, "SELECT row_id, app_name, summary, replace(body, char(10), ' '), urgency FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL AND wake_at <= " + Date.now() + " AND row_id NOT IN (" + root.firedIdList() + ");"];
+        dueProc.running = true;
+    }
+
+    // Pending reminders, newest wake first. Synchronous from the recent-rows cache is not an
+    // option here — snoozed rows are deliberately NOT in it — so this is a blocking read of a
+    // handful of rows, which is what an IPC call can afford and a popup path could not.
+    function snoozedSummary() {
+        return snoozedProc.lastText;
+    }
+
+    function refreshSnoozed() {
+        snoozedProc.command = ["sqlite3", "-readonly", "-noheader", "-separator", " \u2014 ", root.dbPath, "SELECT datetime(wake_at/1000,'unixepoch','localtime'), app_name, summary FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL ORDER BY wake_at ASC LIMIT 50;"];
+        snoozedProc.running = true;
+    }
+
+    Process {
+        id: snoozedProc
+        property string lastText: ""
+        stdout: StdioCollector {
+            onStreamFinished: snoozedProc.lastText = this.text.trim()
+        }
+    }
+
+    // Row ids already dispatched this session. THE WRITE THAT CLEARS wake_at IS ENQUEUED, not
+    // synchronous — writes batch through a subprocess so they can never block a popup — so for
+    // a moment after firing, the row still reads as due. Re-arming off that read computed a
+    // zero interval, fired the same row again, and span: 100+ duplicate notifications in
+    // seconds until the process was killed (observed 2026-08-05).
+    //
+    // Tracking what has fired in memory is what actually breaks the cycle; excluding those ids
+    // from the query below is the same guard expressed in SQL. Belt and braces on purpose,
+    // because the failure mode is a notification storm rather than a missed reminder.
+    property var firedRows: ({})
+    // set by anything that enqueues a wake_at change; consumed by the writer's exit
+    property bool rearmAfterFlush: false
+
+    function firedIdList() {
+        const ids = Object.keys(root.firedRows);
+        return ids.length ? ids.join(",") : "-1";
+    }
+
+    function armSnoozeTimer() {
+        root.refreshSnoozed();
+        nextProc.command = ["sqlite3", "-readonly", "-noheader", root.dbPath, "SELECT MIN(wake_at) FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL AND row_id NOT IN (" + root.firedIdList() + ");"];
+        nextProc.running = true;
+    }
+
+    Process {
+        id: dueProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const rows = this.text.trim().split("\n").filter(l => l.length);
+                for (let i = 0; i < rows.length; i++) {
+                    const f = rows[i].split("\x1f");
+                    if (root.firedRows[f[0]])
+                        continue;
+                    root.firedRows[f[0]] = true;
+                    // clear the snooze BEFORE re-popping: a crash between the two would
+                    // otherwise re-fire the same row on every start, forever
+                    root.enqueue("UPDATE notifications SET state = 'expired', wake_at = NULL WHERE row_id = " + f[0] + ";");
+                    root.snoozeElapsed(f[1] || "", f[2] || "", f[3] || "", parseInt(f[4], 10) || 1);
+                }
+                if (rows.length)
+                    root.rearmAfterFlush = true;
+                else
+                    root.armSnoozeTimer();
+            }
+        }
+    }
+
+    Process {
+        id: nextProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const v = this.text.trim();
+                if (!v.length) {
+                    snoozeTimer.stop();
+                    return;
+                }
+                const due = parseInt(v, 10) - Date.now();
+                // Qt caps an interval at 2^31-1 ms (~24 days), written hex because the decimal
+                // literal is ten digits and trips lint:private's US-phone-number pattern; a longer snooze re-arms when the
+                // timer next fires rather than silently overflowing to something immediate.
+                // Floor of one second. Both guards above should make a zero interval
+                // impossible; this makes a notification STORM impossible even if they are
+                // wrong, which is the failure worth engineering against.
+                snoozeTimer.interval = Math.max(1000, Math.min(due, 0x7fffffff));
+                snoozeTimer.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: snoozeTimer
+        repeat: false
+        onTriggered: root.fireDueSnoozes()
     }
 
     // mkdir -p the parent: sqlite3 will not create a missing directory, and a first run on a new
