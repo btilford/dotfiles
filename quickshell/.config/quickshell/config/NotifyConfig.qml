@@ -219,6 +219,16 @@ Singleton {
     // ignored with one log line and JSON/defaults still apply — a missing converter must not
     // take the shell's notifications with it.
     readonly property string tomlPath: root.envOr("QS_NOTIFY_CONFIG_TOML", Quickshell.env("HOME") + "/.config/quickshell/notifications.toml")
+    // Layered on top of the base file, lowest precedence first:
+    //   notifications.toml            the stowed/base config
+    //   notifications.d/*.toml        drop-ins, lexical order
+    //   notifications.local.toml      machine-local, always wins
+    //
+    // Same shape as clipborg's config.toml + config.local.toml and the repo's documented `.d/`
+    // pattern — `*.local.toml` and `NN-local*` are already reserved in .gitignore and
+    // .stow-local-ignore, so a local file cannot be committed by accident.
+    readonly property string tomlDir: Quickshell.env("HOME") + "/.config/quickshell/notifications.d"
+    readonly property string tomlLocalPath: Quickshell.env("HOME") + "/.config/quickshell/notifications.local.toml"
     // parsed TOML, or null when there is no usable TOML file
     property var tomlCfg: null
 
@@ -455,8 +465,41 @@ Singleton {
         }
     }
 
+    // MERGE RULES, and they are deliberate:
+    //   - tables merge key by key, recursively, so a drop-in can set one value without
+    //     restating the block it lives in
+    //   - arrays CONCATENATE, so `[[actions]]` in a drop-in adds a verb rather than replacing
+    //     every verb the base file defined. That is the whole point of a drop-in here; making
+    //     arrays replace would mean copying the entire actions list to add one entry
+    //   - scalars: last file wins
+    //
+    // The trade, stated: concatenation means a drop-in cannot REMOVE a base action. Editing the
+    // base file is how you do that, which is fine when the base file is yours.
+    function mergeInto(base, over) {
+        for (const k in over) {
+            const v = over[k];
+            if (Array.isArray(v)) {
+                base[k] = (Array.isArray(base[k]) ? base[k] : []).concat(v);
+            } else if (v && typeof v === "object") {
+                if (!base[k] || typeof base[k] !== "object" || Array.isArray(base[k]))
+                    base[k] = {};
+                root.mergeInto(base[k], v);
+            } else {
+                base[k] = v;
+            }
+        }
+        return base;
+    }
+
     function convertToml() {
-        tomlProc.command = ["tomlq", "-c", ".", root.tomlPath];
+        // sh only to expand the drop-in glob and drop files that do not exist — tomlq fails on
+        // a missing path, and an unmatched glob would otherwise be passed through literally.
+        // Every path here comes from this file, never from notification content, so this is not
+        // the injection surface the action `run` rules are about.
+        // The three paths are read into variables BEFORE `set --` clears the positional
+        // parameters — clearing them first leaves the loop globbing empty strings, which
+        // silently produces zero layers and looks exactly like "no config file".
+        tomlProc.command = ["sh", "-c", "b=$1; d=$2; l=$3; set --; for f in \"$b\" \"$d\"/*.toml \"$l\"; do [ -f \"$f\" ] && set -- \"$@\" \"$f\"; done; [ \"$#\" -gt 0 ] && exec tomlq -c -s . \"$@\"; echo '[]'", "sh", root.tomlPath, root.tomlDir, root.tomlLocalPath];
         tomlProc.running = true;
     }
 
@@ -469,7 +512,15 @@ Singleton {
                 if (!t.length)
                     return;
                 try {
-                    root.tomlCfg = JSON.parse(t);
+                    const docs = JSON.parse(t);
+                    if (!Array.isArray(docs) || docs.length === 0) {
+                        root.tomlCfg = null;
+                    } else {
+                        let merged = {};
+                        for (let i = 0; i < docs.length; i++)
+                            root.mergeInto(merged, docs[i]);
+                        root.tomlCfg = merged;
+                    }
                 } catch (e) {
                     console.warn("notifications: tomlq produced unparseable output —", e);
                     root.tomlCfg = null;
