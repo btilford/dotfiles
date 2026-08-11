@@ -34,11 +34,45 @@ local litellm = vim.env.LITELLM_GATEWAY
 -- therefore costs an error when you use AI, not a broken nvim startup, and never
 -- the old failure mode: the literal string "missing-NEOVIM_API_KEY" silently sent
 -- as a credential.
+--
+-- THE RESULT MUST BE MEMOISED, and this is not an optimisation — it is the
+-- difference between a usable editor and an unusable one.
+--
+-- "at the moment an adapter actually needs it" turned out to mean *every
+-- keystroke*. minuet is registered as a blink source (see blink.lua), and blink
+-- calls `source:enabled()` on every completion trigger; that reaches
+-- `minuet/backends/openai_compatible.lua:is_available()`, which calls
+-- `utils.get_api_key(options.api_key)`, which invokes this function. The request
+-- builder (`openai_base.lua`) calls it again per request. So one character typed
+-- ran a synchronous `vim.fn.system()` on the UI thread.
+--
+-- Measured 2026-08-09, with the session cache warm: ~3ms per call — a fork+exec
+-- of a shell script, per keystroke, for a value that cannot change mid-session.
+-- With the cache MISSING (dotfiles-secrets.service had failed at login and stayed
+-- failed for 27h) `--get` falls through to the network: 450-540ms per call, i.e.
+-- half a second of frozen editor per character. That was the whole bug.
+--
+-- A failure is cached too, with a cooldown rather than forever: caching it
+-- permanently would mean a fetch that failed once needs a full nvim restart even
+-- after `secrets-refresh`, and NOT caching it puts the slow path back on every
+-- keystroke exactly when it is slowest.
+local api_key_cache = nil
+local api_key_retry_after = 0
+local API_KEY_RETRY_COOLDOWN_S = 60
+
 local function neovim_api_key()
+  if api_key_cache then
+    return api_key_cache
+  end
+  if os.time() < api_key_retry_after then
+    return nil
+  end
+
   local key = vim.fn.system({ "dotfiles-secrets", "--get", "NEOVIM_API_KEY" })
   if vim.v.shell_error ~= 0 then
     -- dotfiles-secrets already logged the specific reason to
     -- ~/.local/state/dotfiles/secrets.log; surface it here so it is not silent.
+    api_key_retry_after = os.time() + API_KEY_RETRY_COOLDOWN_S
     vim.notify(
       "NEOVIM_API_KEY unavailable — see ~/.local/state/dotfiles/secrets.log\n"
         .. vim.trim(key or ""),
@@ -47,8 +81,19 @@ local function neovim_api_key()
     )
     return nil
   end
-  return vim.trim(key)
+
+  api_key_cache = vim.trim(key)
+  return api_key_cache
 end
+
+-- Escape hatch for the memoisation above: after `secrets-refresh` rotates the key,
+-- this drops the cached copy so the next AI request picks up the new one without
+-- restarting nvim.
+vim.api.nvim_create_user_command("SecretsForget", function()
+  api_key_cache = nil
+  api_key_retry_after = 0
+  vim.notify("NEOVIM_API_KEY cache cleared", vim.log.levels.INFO, { title = "dotfiles-secrets" })
+end, { desc = "Forget the memoised NEOVIM_API_KEY (after secrets-refresh)" })
 
 return {
   {
@@ -96,6 +141,24 @@ return {
   },
   {
     "github/copilot.vim",
+    -- DISABLED 2026-08-09. Not lazily loaded and not gated — it was the one AI
+    -- plugin in this file with neither `cond = local_ai` nor a load event, so it
+    -- started its Node agent on every nvim regardless of DOTFILES_PROFILE and
+    -- requested inline suggestions on every keystroke. That put a second
+    -- completion engine on the same hot path as minuet (registered as a blink
+    -- source in blink.lua), for no benefit — minuet through LiteLLM is the
+    -- intended completion provider here.
+    --
+    -- `enabled = false` rather than `cond = local_ai`: cond still installs the
+    -- plugin and only skips loading it, and there is no machine where this one
+    -- is wanted. Gating it to personal machines would also have left the leak
+    -- the file's opening comment forbids — a work laptop running Copilot with no
+    -- deliberate decision behind it.
+    --
+    -- Re-enabling means deciding what owns insert-mode completion first. Two
+    -- engines racing on every keystroke is the state this removed, and the
+    -- keymaps below still claim <C-m>/<C-x>/<C-/>/<C-\> when they come back.
+    enabled = false,
     config = function()
       vim.g.copilot_no_tab_map = true
       vim.g.copilot_assume_mapped = true
