@@ -35,6 +35,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import urllib.error
@@ -164,6 +165,32 @@ OPENCODE_JSON = HOME / ".config/opencode/opencode.jsonc"
 # --- helpers --------------------------------------------------------------
 
 def infisical(name: str) -> str:
+    """Environment first, Infisical only as a fallback.
+
+    dotfiles-secrets.service already caches every secret this script needs into
+    $XDG_RUNTIME_DIR/dotfiles/secrets.env at login, and every shell exports it —
+    so in a normal terminal this returns immediately with no network call.
+
+    The fallback matters for auth, not just speed. dotfiles-secrets authenticates
+    with the machine identity in ~/.config/dotfiles/infisical-identity, which has
+    no expiry and touches no keyring. A bare `infisical secrets get` does NOT: it
+    consults the CLI's own vault, i.e. the user token from `infisical login`, which
+    lives in the OS keyring and expires. Reaching the CLI path therefore fails on a
+    machine that has never run `infisical login`, or whose login has aged out, even
+    though the identity is perfectly valid — so prefer the environment, and route
+    the fallback through dotfiles-secrets where it exists.
+    """
+    val = os.environ.get(name, "").strip()
+    if val:
+        return val
+
+    if shutil.which("dotfiles-secrets"):
+        out = subprocess.run(["dotfiles-secrets", "--get", name],
+                             capture_output=True, text=True, timeout=30)
+        val = out.stdout.strip()
+        if val:
+            return val
+
     out = subprocess.run(
         ["infisical", "secrets", "get", name,
          "--projectId", INFISICAL_PROJECT, "--env", "prod",
@@ -171,8 +198,11 @@ def infisical(name: str) -> str:
         capture_output=True, text=True, timeout=30)
     val = out.stdout.strip()
     if not val:
-        raise SystemExit(f"Infisical: could not read {name} "
-                         f"(is `infisical` logged in?)")
+        raise SystemExit(
+            f"Infisical: could not read {name}. Tried $={name}, dotfiles-secrets, "
+            f"then the CLI directly — the last needs `infisical login`, which the "
+            f"machine identity deliberately replaces. Try: "
+            f"systemctl --user restart dotfiles-secrets.service")
     return val
 
 
