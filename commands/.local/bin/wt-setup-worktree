@@ -19,6 +19,9 @@ GITIGNORED_CONFIGS=(
   ".env"
   ".env.intellij"
   ".claude/settings.local.json"
+  # Machine-local MCP server config. Without it a spawned agent silently has no
+  # vault MCP tools — it gives no sign, it just can't answer vault questions.
+  ".mcp.json"
 )
 
 copied=0
