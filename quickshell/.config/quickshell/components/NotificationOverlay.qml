@@ -301,23 +301,33 @@ Scope {
             Rectangle {
                 id: legend
                 visible: win.focused
-                width: legendText.implicitWidth + Theme.pad * 2
+                // as wide as a card and no wider: the legend belongs to the stack, and a strip
+                // spilling out either side reads as a detached bar. Ten hint groups do not fit on
+                // one line at this width, so the text wraps and the height follows it.
+                width: column.width
                 height: legendText.implicitHeight + 8
                 radius: Theme.radius
                 color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surfaceOpacity)
                 border.width: Theme.borderThin
                 border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.6)
 
-                // centred under the stack, but never past the screen edge: the legend is wider
-                // than a card, so a right-anchored stack would push half of it off the output
-                x: Math.max(scope.placement.margin, Math.min(win.width - width - scope.placement.margin, column.x + (column.width - width) / 2))
+                // flush with the stack. This used to clamp against the screen edge because the
+                // legend was wider than a card and a right-anchored stack pushed half of it off
+                // the output; at card width the stack's own margin already covers that.
+                x: column.x
                 // below the stack, except when the stack is already against the bottom edge
                 y: win.anchorV === "bottom" ? column.y - height - scope.placement.spacing : column.y + column.height + scope.placement.spacing
 
                 Text {
                     id: legendText
                     anchors.centerIn: parent
-                    text: (NotifyFocus.indexOfSelected() + 1) + "/" + NotifyFocus.order.length + " · [j/k] move · [\u21b5] expand · [p] compose · [y] yank · [d] dismiss · [D] app · [A] all · [o] drawer · [Esc] release"
+                    width: parent.width - Theme.pad * 2
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                    // Hints are joined by real spaces and split by NBSP inside each group,
+                    // so a wrap can only ever land BETWEEN hints — "[d] dismiss" broke across
+                    // the two lines otherwise, which reads as two separate hints.
+                    text: (NotifyFocus.indexOfSelected() + 1) + "/" + NotifyFocus.order.length + "   [j/k]\u00a0move   [\u21b5]\u00a0expand   [p]\u00a0compose   [y]\u00a0yank   [d]\u00a0dismiss   [D]\u00a0app   [A]\u00a0all   [o]\u00a0drawer   [Esc]\u00a0release"
                     color: Theme.subtext
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize - 3
