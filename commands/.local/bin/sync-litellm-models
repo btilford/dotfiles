@@ -155,6 +155,27 @@ ROLE_ALIASES = {
     # (Apache 2.0, CLI-heavy training, 2.4 GB) once imported from Lemonade.
     "role/assistant": f"{LLAMASWAP_PREFIX}/qwen3-4b-instruct",
     "role/reasoning": f"{LLAMASWAP_PREFIX}/qwen3.6-35b-mtp",
+    # role/agent is the long-context tier: full agent harnesses (Hermes, and
+    # anything else holding a multi-turn conversation with tool results in it).
+    #
+    # It shares a target with role/reasoning deliberately — same model, and
+    # llama-swap serves one process per model name, so pointing both here costs
+    # nothing extra. They are separate ROLES because they have different
+    # requirements and will diverge: reasoning wants the best reasoner at any
+    # size, agent additionally requires large context and tool-call support. A
+    # future small-but-huge-context model could take one and not the other.
+    #
+    # This is the alias that lets Lemonade finally leave the path. Hermes was
+    # pinned to `cachyos-fwd/Qwen3.6-35B-A3B-MTP-GGUF`, which 400'd the moment
+    # sync re-registered local models with <host>.<backend>/ prefixes — the
+    # exact breakage this whole role layer exists to prevent, recurring because
+    # no role covered the agent tier.
+    #
+    # Requires qwen3.6-35b-mtp at -c 131072 in the llama-swap config. If that is
+    # ever lowered, lower every consumer's context_length with it — an agent
+    # configured for more context than the server allocates fails on long
+    # conversations only, which reads as a flaky agent rather than a config bug.
+    "role/agent": f"{LLAMASWAP_PREFIX}/qwen3.6-35b-mtp",
 }
 
 HOME = Path.home()

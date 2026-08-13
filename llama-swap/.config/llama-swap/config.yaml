@@ -157,6 +157,23 @@ models:
   #
   # Not in the warm group: 21 GiB is affordable to hold but pointless to pin for
   # a model used deliberately rather than continuously.
+  #
+  # -c 131072, not 16384, because this also backs role/agent — Hermes and other
+  # agent harnesses run long conversations and 16k truncates them. 16k was sized
+  # for the nvim/atuin roles, which this model does not serve.
+  #
+  # KV cost is exact and affordable. From the GGUF: 41 blocks, head_count_kv 2,
+  # key/value_length 256, fp16 =
+  #   41 * 2 * (256+256) * 2 B = 83,968 B/token ~= 82 KiB/token
+  #   16384 ->  1.28 GiB      131072 -> 10.25 GiB
+  # So ~23 GiB weights + ~10 GiB KV = ~33 GiB resident, against 125 GiB unified.
+  # Measured baseline with this and the warm group up is ~29 GiB GTT, ~81 GiB
+  # free. Model native context is 262144, so 131072 needs no rope scaling.
+  #
+  # If headroom ever gets tight, halve the KV with
+  # `--cache-type-k q8_0 --cache-type-v q8_0` (valid because flash-attn is on)
+  # before reducing -c. Do NOT raise this to 262144: that is 20.5 GiB of KV for
+  # context no local agent actually fills.
   # ---------------------------------------------------------------------------
   "qwen3.6-35b-mtp":
     proxy: "http://127.0.0.1:${PORT}"
@@ -170,7 +187,7 @@ models:
       docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
       llama-server --host 0.0.0.0 --port ${PORT}
       -m /models/hf/hub/models--unsloth--Qwen3.6-35B-A3B-MTP-GGUF/snapshots/5bc3e238d916f48a861bac2f8a1990a0e9b7e98d/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
-      -ngl 99 --flash-attn on -c 16384
+      -ngl 99 --flash-attn on -c 131072
     ttl: 900
 
 groups:
