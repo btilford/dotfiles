@@ -1,1 +1,10 @@
+# fish rewrites its own universal-variable store on every shell.
 fish_variables
+
+# Tool-installed, and the tool's copy is the authoritative one. worktrunk drops
+# both a function and a completion named wt.fish into ~/.config/fish/; ours was a
+# stale fork missing its COMPLETE recursion guard. Anything a tool installs into
+# functions/ or completions/ belongs to that tool — exclude it rather than
+# racing it on every upgrade.
+\.config/fish/functions/wt\.fish
+\.config/fish/completions/wt\.fish

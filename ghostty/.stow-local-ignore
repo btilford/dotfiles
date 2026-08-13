@@ -1,0 +1,6 @@
+# Not stowed into $HOME
+CLAUDE\.md
+# Runtime wallust output — never stow/commit. wallust writes the real file at
+# ~/.config/ghostty/wallust.conf on every wallpaper switch; the repo's copy was
+# an empty 0-byte placeholder, so stowing it would have blanked the palette.
+wallust\.conf

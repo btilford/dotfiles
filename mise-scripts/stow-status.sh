@@ -20,11 +20,28 @@
 #
 #   linked      symlink resolving into THIS package          — correct
 #   foreign     symlink into another repo (the private half) — fine, reported
+#   folded      resolves into the package through a SYMLINKED PARENT DIRECTORY
 #   shadowed    a real file sits where the link should be    — stow refuses here
 #   missing     nothing at the target path                   — not stowed
 #
-# Files excluded by .stow-local-ignore are never counted: they are not meant to
-# be stowed, so counting them would make every package look broken.
+# `folded` is the dangerous one, and it used to be reported as `shadowed`.
+# `stow` without --no-folding links a whole DIRECTORY when every file under it
+# belongs to one package, so the file at the target is not a symlink — its parent
+# is. The old check asked only "is this path a symlink?", answered no, and called
+# it shadowed. Acting on that label ("move the real file aside and re-stow")
+# deletes the file THROUGH the directory link, i.e. out of the repo. That is not
+# hypothetical either: it removed 20 tracked files from kmonad/fastfetch/gh on
+# 2026-08-12 before `git checkout` brought them back.
+#
+# Two exclusions, neither counted, because counting them makes a correct package
+# look broken:
+#
+#   - .stow-local-ignore, read from BOTH the repo root and the package itself.
+#     stow reads the per-package file only; this script used to read only the
+#     root one, so every package-level exclusion (fish_variables, gh's hosts.yml,
+#     the wallust outputs) was reported as a conflict forever.
+#   - anything git ignores, e.g. pi-agent's machine-provisioned models.json. It
+#     is not repo content, so it cannot be "unstowed".
 
 set -uo pipefail
 
@@ -69,19 +86,52 @@ done
 # .stow-local-ignore holds one Perl regex per line. stow matches them against the
 # basename and against the package-relative path; do both, or entries like
 # `nushell/.config/nushell/history.txt` never match.
-ignore_file="$repo_root/.stow-local-ignore"
+#
+# BOTH files are read. stow itself only reads the package's own copy, so the
+# per-package file is the authoritative one and the root file is this repo's
+# convention for rules that apply everywhere.
 ignored() {
-  local rel="$1" base="$2" pat
+  local rel="$1" base="$2" pkg="$3" pat file
   # stow's own control files are never stowed, and they are not listed in
   # .stow-local-ignore because stow handles them implicitly.
   case "$base" in .stow-local-ignore | .stow-global-ignore) return 0 ;; esac
-  [ -r "$ignore_file" ] || return 1
-  while IFS= read -r pat; do
-    case "$pat" in '' | '#'*) continue ;; esac
-    if printf '%s' "$base" | grep -qE "^${pat}$" 2> /dev/null; then return 0; fi
-    if printf '%s' "$rel" | grep -qE "^${pat}$" 2> /dev/null; then return 0; fi
-  done < "$ignore_file"
+  for file in "$repo_root/.stow-local-ignore" "$repo_root/$pkg/.stow-local-ignore"; do
+    [ -r "$file" ] || continue
+    while IFS= read -r pat; do
+      case "$pat" in '' | '#'*) continue ;; esac
+      if printf '%s' "$base" | grep -qE "^${pat}$" 2> /dev/null; then return 0; fi
+      if printf '%s' "$rel" | grep -qE "^${pat}$" 2> /dev/null; then return 0; fi
+    done < "$file"
+  done
   return 1
+}
+
+# Files git ignores are machine-provisioned, not repo content — they exist in the
+# working tree only because the tool that owns them writes there. One `git` call,
+# not one per file: this loop runs over every file in every package.
+git_ignored=$(git -C "$repo_root" ls-files --others --ignored --exclude-standard 2> /dev/null)
+git_ignores() {
+  case "$git_ignored" in
+    *"$1"*)
+      # substring match would also hit a longer path with this one as a prefix
+      printf '%s\n' "$git_ignored" | grep -qxF "$1"
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+# Walk rel's ancestors looking for a symlinked directory that resolves into this
+# package. Returns the deepest one, which is the directory stow folded.
+folded_via() {
+  local rel="$1" pkg="$2" d hit=""
+  d=$(dirname "$rel")
+  while [ "$d" != "." ] && [ "$d" != "/" ]; do
+    if [ -L "$target/$d" ] && [ "$(readlink -f "$target/$d" 2> /dev/null)" = "$deploy_root/$pkg/$d" ]; then
+      hit="$d"
+    fi
+    d=$(dirname "$d")
+  done
+  [ -n "$hit" ] && printf '%s' "$hit"
 }
 
 is_package() {
@@ -101,13 +151,14 @@ for pkg_path in "$repo_root"/*/; do
   is_package "$pkg" || continue
   total_pkgs=$((total_pkgs + 1))
 
-  n_linked=0 n_missing=0 n_shadowed=0 n_foreign=0 n_total=0
-  missing_list="" shadow_list="" foreign_list=""
+  n_linked=0 n_missing=0 n_shadowed=0 n_foreign=0 n_folded=0 n_total=0
+  missing_list="" shadow_list="" foreign_list="" folded_list=""
 
   while IFS= read -r f; do
     rel=${f#"$repo_root/$pkg/"}
     base=$(basename "$f")
-    ignored "$rel" "$base" && continue
+    ignored "$rel" "$base" "$pkg" && continue
+    git_ignores "$pkg/$rel" && continue
     n_total=$((n_total + 1))
 
     t="$target/$rel"
@@ -119,6 +170,11 @@ for pkg_path in "$repo_root"/*/; do
         n_foreign=$((n_foreign + 1))
         foreign_list="$foreign_list  $rel -> ${dest:-<dangling>}"$'\n'
       fi
+    elif [ -e "$t" ] && [ -n "$(folded_via "$rel" "$pkg")" ]; then
+      # Deployed, but through a directory link — the file IS the repo's, so it
+      # must never be "moved aside". Re-stow the package with --no-folding.
+      n_folded=$((n_folded + 1))
+      folded_list="$folded_list  $rel  (via ~/$(folded_via "$rel" "$pkg")/)"$'\n'
     elif [ -e "$t" ]; then
       n_shadowed=$((n_shadowed + 1))
       shadow_list="$shadow_list  $rel"$'\n'
@@ -136,7 +192,14 @@ for pkg_path in "$repo_root"/*/; do
     continue
   fi
 
-  if [ "$n_linked" -eq "$n_total" ]; then
+  # A folded package is deployed and working, so it is not "unstowed" — but it
+  # is not right either, and the repair (re-stow with --no-folding) is the same
+  # one PARTIAL asks for. FOLDED is called out separately because the wrong fix
+  # for it destroys repo files.
+  if [ "$n_folded" -gt 0 ]; then
+    state=FOLDED
+    partial=$((partial + 1))
+  elif [ "$n_linked" -eq "$n_total" ]; then
     state=stowed
     full=$((full + 1))
   elif [ "$n_linked" -eq 0 ] && [ "$n_foreign" -eq 0 ]; then
@@ -149,18 +212,19 @@ for pkg_path in "$repo_root"/*/; do
   [ "$n_shadowed" -gt 0 ] && pkgs_with_shadow=$((pkgs_with_shadow + 1))
 
   if [ "$as_json" -eq 1 ]; then
-    json_rows="$json_rows{\"package\":\"$pkg\",\"state\":\"$state\",\"total\":$n_total,\"linked\":$n_linked,\"missing\":$n_missing,\"shadowed\":$n_shadowed,\"foreign\":$n_foreign},"
+    json_rows="$json_rows{\"package\":\"$pkg\",\"state\":\"$state\",\"total\":$n_total,\"linked\":$n_linked,\"missing\":$n_missing,\"shadowed\":$n_shadowed,\"foreign\":$n_foreign,\"folded\":$n_folded},"
     continue
   fi
 
   case "$state" in
     stowed) mark="✓" ;;
-    PARTIAL) mark="✗" ;;
+    PARTIAL | FOLDED) mark="✗" ;;
     *) mark="·" ;;
   esac
   printf '%s %-14s %-9s %3d/%-3d linked' "$mark" "$pkg" "$state" "$n_linked" "$n_total"
   [ "$n_missing" -gt 0 ] && printf '  %d missing' "$n_missing"
   [ "$n_shadowed" -gt 0 ] && printf '  %d shadowed' "$n_shadowed"
+  [ "$n_folded" -gt 0 ] && printf '  %d folded' "$n_folded"
   [ "$n_foreign" -gt 0 ] && printf '  %d foreign' "$n_foreign"
   printf '\n'
 
@@ -172,6 +236,10 @@ for pkg_path in "$repo_root"/*/; do
     [ -n "$shadow_list" ] && {
       printf '    shadowed by a real file (stow will refuse):\n'
       printf '%s' "$shadow_list" | sed 's/^/  /'
+    }
+    [ -n "$folded_list" ] && {
+      printf '    folded — deployed via a directory link, do NOT move these aside:\n'
+      printf '%s' "$folded_list" | sed 's/^/  /'
     }
     [ -n "$foreign_list" ] && {
       printf '    owned elsewhere:\n'
@@ -194,13 +262,21 @@ printf '\n'
 if [ "$partial" -gt 0 ]; then
   cat << 'MSG'
 
-A PARTIAL package usually just needs re-stowing:
+A PARTIAL or FOLDED package needs re-stowing:
 
     stow -R --no-folding -t ~ <package>
 
-If that reports a conflict, a real file is sitting where a link belongs. Move it
-aside and re-stow — never use --adopt, which pulls the local file's contents INTO
-the repo.
+FOLDED means stow linked a whole directory rather than each file. The files are
+the repo's own, reached through that link: deleting one at its $HOME path deletes
+it from the repo. Re-stow, never move a folded file aside.
+
+If a re-stow reports a conflict, a genuinely foreign real file is sitting where a
+link belongs. Move THAT aside and re-stow — never use --adopt, which pulls the
+local file's contents INTO the repo.
+
+If the file is written by the program that owns it (wallust output, an app's own
+preferences, a tool-installed completion), it does not belong to a package at
+all: add it to that package's .stow-local-ignore and .gitignore instead.
 MSG
 fi
 
