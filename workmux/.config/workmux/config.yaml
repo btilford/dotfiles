@@ -113,8 +113,25 @@ base_branch: auto
 # window_placement: rightmost
 
 # Custom tmux pane layout (mutually exclusive with 'windows').
-# Default: Two-pane layout with shell and clear command.
-# panes:
+#
+# This MUST be declared to get a single pane. workmux's built-in default is a
+# TWO-pane layout (agent + a shell running `clear`), so leaving this key out — or
+# commenting it back out — does not remove the split, it restores it. There was
+# never an active `panes:` block here to delete; the reference sample below was
+# always commented, which is exactly why the split looked like it came from
+# nowhere.
+#
+# `<agent>` is workmux's placeholder for the resolved agent command, so this
+# stays correct whichever `agents:` profile a session is launched with.
+#
+# Caveat: unlike `post_create` and `files.copy`, `panes` does NOT merge and does
+# not honour the `<global>` token — a project `.workmux.yaml` that declares its
+# own `panes` replaces this wholesale.
+panes:
+  - command: "<agent>"
+    focus: true
+
+# Reference sample, from `workmux config reference`:
 #   - command: pnpm install
 #     name: deps
 #     focus: true
