@@ -86,6 +86,13 @@ description = "Create ~/.config/dotfiles/local.env from placeholders (fill in, n
 # Refuses to clobber an existing local.env; pass -- --force to overwrite.
 run = "./mise-scripts/gen-local-env.sh"
 
+[tasks."setup:frozen"]
+description = "Apply the skip-worktree bits in .stow-frozen (per clone — the bit is not committed)"
+# For files a program rewrites through the stow symlink (wallust output, qt6ct,
+# gh-dash). Without this a fresh clone dirties its tree on every wallpaper
+# rotation. Pass -- --check to audit instead of apply; exits 1 if any are unset.
+run = "./mise-scripts/freeze-generated.sh"
+
 [tasks."setup:git-spice"]
 description = "Per-machine git-spice bootstrap: template, forge URL, auth, hooks (idempotent)"
 # Supersedes setup:git-template for a fresh machine — it runs that step itself and

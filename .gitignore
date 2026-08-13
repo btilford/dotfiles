@@ -58,3 +58,16 @@ scrub.patterns
 *.local.fish
 [0-9][0-9]-local
 [0-9][0-9]-local.*
+
+# Written by the program that owns them, not by this repo. Each is also listed in
+# its package's .stow-local-ignore, so stow never fights the owner for the path.
+# The rule: a stow package may only contain files the repo owns end to end.
+#
+#   wallust.conf   wallust regenerates it on every wallpaper switch
+#   fish_variables fish rewrites its own universal-variable store constantly
+#   wt.fish        worktrunk installs its own function AND completion, and its
+#                  copy is the newer one — ours was a stale fork of it
+ghostty/.config/ghostty/wallust.conf
+fish/.config/fish/fish_variables
+fish/.config/fish/functions/wt.fish
+fish/.config/fish/completions/wt.fish

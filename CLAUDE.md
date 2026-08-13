@@ -238,6 +238,58 @@ Stale base metadata bites the same way after a merge: a branch whose recorded ba
 was deleted fails `branch onto` with a conflict rather than a clear message. Fix
 with `git-spice branch untrack` then `branch track --base master`.
 
+## Files the repo does not own
+
+A stow package may only contain files this repo writes end to end. Every other
+file in a stowed directory — wallust output, an app's own preferences, a
+tool-installed fish function — gets one of exactly three treatments. Getting this
+wrong is not cosmetic: `mise run status` reported **31 conflicts across 10
+packages** purely because there was no rule, and the advice it printed for them
+was actively destructive.
+
+| Tier | For | Mechanism |
+| --- | --- | --- |
+| **excluded** | the owner writes it, nothing needs a starting point | package `.stow-local-ignore` + `.gitignore`; untracked, unstowed |
+| **frozen seed** | the owner writes it, but something breaks if it is absent | tracked + stowed + `skip-worktree`, listed in `.stow-frozen` |
+| **repo-owned** | we write it, the app merely reads it | ordinary tracked file |
+
+**Excluded** is the default; reach for **frozen** only when absence is fatal.
+`hypr/lua/colors.lua` is the worked example: `lua/init.lua` does a bare
+`require("lua.colors")`, so a machine with no `colors.lua` does not get default
+colours, it gets a Hyprland config that fails to load. `ghostty/wallust.conf` is
+the opposite — ghostty reads it if present — and it was tracked as an **empty
+0-byte file**, so re-stowing that package would have blanked the terminal palette.
+
+`skip-worktree` lives in `.git/index` and **is not committed**, so it cannot reach
+another clone. `.stow-frozen` is the committed half; `mise run setup:frozen`
+applies it, `-- --check` audits. To change a frozen file deliberately, unset the
+bit first — otherwise the commit keeps the old content and says nothing.
+
+**Tool-installed shell functions are the recurring case.** worktrunk installs both
+`functions/wt.fish` and `completions/wt.fish`; the repo shipped a fork of the
+first that had drifted a full feature behind (the live copy had a `COMPLETE`
+recursion guard ours lacked, against a stale Homebrew completion re-entering the
+stub). Racing a tool for a path it installs on every upgrade is unwinnable —
+exclude it and let the tool own it.
+
+### `--no-folding` does not protect a package that was already folded
+
+Stow without `--no-folding` links a whole **directory** when every file under it
+belongs to one package. Passing the flag later changes nothing for a package
+already deployed that way, and nothing re-checks: `kmonad`, `fastfetch` and `gh`
+sat folded for months under a rule that had supposedly prevented it.
+
+A folded file is a live grenade, because **the file at the target is not a
+symlink — its parent is**. So `~/.config/kmonad/us_ansi_100.kbd` looks like an
+ordinary real file, `diff` against the repo shows no difference (it *is* the repo's
+file), and deleting it deletes it **out of the repo**. That is exactly what
+happened on 2026-08-12: 20 tracked files removed by following the "move the real
+file aside and re-stow" advice, recovered with `git checkout`.
+
+`stow-status.sh` now classifies this as **FOLDED** rather than `shadowed`, walking
+each file's ancestors for a directory link into the package. The repair is
+`stow -R --no-folding -t ~ <pkg>` and never a deletion.
+
 ## Machine-local config: the `.d/` pattern
 
 Anything machine-specific — hostnames, gateway URLs, monitor serials, one API key
@@ -571,6 +623,7 @@ need interactive auth:
 ```bash
 gh extension install dlvhdr/gh-dash        # gh-dash (no package backend)
 mise run hooks                             # lefthook -> .git/hooks, PER CLONE
+mise run setup:frozen                      # skip-worktree bits, PER CLONE (.stow-frozen)
 mise run setup:git-spice                   # git-spice: template, forge URL, auth, hooks
 atuin hook install claude-code             # atuin agent hooks, one per agent
 atuin hook install codex

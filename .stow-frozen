@@ -1,0 +1,46 @@
+# Files this repo tracks and stows, but does NOT write: the program that owns the
+# path rewrites it in place, through the stow symlink, into this working tree.
+#
+# They are tracked because something needs them to EXIST before that program has
+# ever run. `hypr/lua/colors.lua` is the sharp case: `lua/init.lua` does a bare
+# `require("lua.colors")`, so a fresh machine with no colors.lua does not get a
+# degraded desktop, it gets a Hyprland config that fails to load.
+#
+# The cost of tracking them is churn — every wallpaper rotation, every theme
+# change, every app exit dirties the tree. `git update-index --skip-worktree`
+# buys that back: git keeps the committed content and stops looking at the file.
+#
+# THE BIT IS PER CLONE. It lives in .git/index, which is not committed, so it
+# cannot travel with the repo — a fresh clone has the churn until someone sets it
+# again. That is what this manifest is for. Run:
+#
+#     mise run setup:frozen           apply to this clone
+#     mise run setup:frozen -- --check report anything unset (exit 1)
+#
+# To CHANGE one of these files deliberately, unset the bit first, or the commit
+# silently keeps the old content:
+#
+#     git update-index --no-skip-worktree <path>
+#     # edit, commit
+#     git update-index --skip-worktree <path>
+#
+# A file that nothing needs as a seed does not belong here — it belongs in its
+# package's .stow-local-ignore and in .gitignore, unstowed and untracked. See
+# "Files the repo does not own" in CLAUDE.md.
+
+# wallust rewrites these on every wallpaper switch (~30 min)
+hyprland/.config/hypr/lua/colors.lua
+hyprland/.config/hypr/themes/colors-hyprland.conf
+hyprland/.config/hypr/wallust/wallust-hyprland.conf
+hyprland/.config/hypr/wallpaper_effects/.wallpaper_current
+
+# qt6ct and the theme daemon rewrite these: window geometry, DPI, cursor size.
+# The committed copies carry the intended theme (Breeze-Dark); the live ones had
+# been rewritten to an EMPTY theme name, so here the repo is the good copy.
+base/.config/qt6ct/qt6ct.conf
+base/.config/xsettingsd/xsettingsd.conf
+base/.gtkrc-2.0
+
+# gh-dash rewrites its own config on exit and drops what it does not recognise —
+# it had already eaten the `R` -> tuicr keybinding and `diff: diffnav`.
+gh-dash/.config/gh-dash/config.yml
