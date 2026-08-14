@@ -409,3 +409,11 @@ pre_remove:
 #   #   - host_path: ~/data
 #   #     guest_path: /mnt/data
 #   #     writable: true
+
+# Named pane layouts, selected with `workmux add -l <name>`. Global so every repo
+# gets them without a per-project .workmux.yaml.
+layouts:
+  dev:
+    panes:
+      - {command: <agent>, name: agent, focus: true}
+      - {name: shell, split: horizontal, size: 25}

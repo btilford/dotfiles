@@ -7,6 +7,9 @@
     path = ~/.config/git/spice.gitconfig
     path = ~/.config/git/web.gitconfig
     path = ~/.config/git/dirs.gitconfig
+    # Work-repo identity routing, owned by the private dotfiles repo. Absent on a
+    # machine without it — git ignores an include path that does not exist.
+    path = ~/.config/git/dirs.private.gitconfig
     path = ~/.gitconfig.local
 
 
