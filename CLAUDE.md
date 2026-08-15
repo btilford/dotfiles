@@ -659,10 +659,21 @@ gh extension install dlvhdr/gh-dash        # gh-dash (no package backend)
 mise run hooks                             # lefthook -> .git/hooks, PER CLONE
 mise run setup:frozen                      # skip-worktree bits, PER CLONE (.stow-frozen)
 mise run setup:git-spice                   # git-spice: template, forge URL, auth, hooks
+glab auth login --hostname <host>          # then: mise run glab:config, PER CLONE
 atuin hook install claude-code             # atuin agent hooks, one per agent
 atuin hook install codex
 atuin hook install pi
 ```
+
+**`mise run glab:config` is per clone, not per machine, because of a permission
+check.** glab refuses to read its config directory if anything in it is
+group/world-readable — `aliases.yml has the permissions 644, but glab requires
+600` — and it fails *before* auth, so every glab command dies, including the
+credential helper git uses to push to the self-hosted host. `aliases.yml` is
+stowed from this repo and **git records only the executable bit**, so a fresh
+clone always lands at 644 and always hits this. The task now chmods it first;
+the fix is invisible to git, which is also why it cannot be committed once and
+forgotten.
 
 **The atuin agent hooks write files this repo deliberately does not track.**
 `atuin hook install <agent>` edits `~/.claude/settings.json`, `~/.codex/hooks.json`

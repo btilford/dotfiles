@@ -117,8 +117,21 @@ run = "./mise-scripts/setup-git-spice.sh"
 [tasks."glab:config"]
 description = "Apply glab prefs after `glab auth login` (token stays local, untracked)"
 # The self-hosted host is machine-local (DOTFILES_GITLAB_HOST, set in
-# ~/.config/fish/conf.d/local.fish). Without it, only the global prefs apply.
+# ~/.config/dotfiles/local.env). Without it, only the global prefs apply.
+#
+# The chmod is not optional and must come first: glab REFUSES to read its config
+# dir if any file in it is group/world-readable, and dies with
+#   failed to read configuration: …/aliases.yml has the permissions 644, but
+#   glab requires 600
+# before it gets as far as auth — so every glab command fails, including the
+# credential helper that git uses to push to the self-hosted host. aliases.yml is
+# stowed from this repo, git records only the executable bit, so a fresh clone
+# always lands at 644 and always hits this. chmod follows the stow symlink and
+# fixes the repo file itself, which git does not see as a change.
 run = """
+if [ -e ~/.config/glab-cli/aliases.yml ]; then
+  chmod 600 ~/.config/glab-cli/aliases.yml
+fi
 glab config set editor nvim
 glab config set glamour_style dark
 glab config set git_protocol ssh
