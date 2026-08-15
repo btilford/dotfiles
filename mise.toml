@@ -132,11 +132,16 @@ run = """
 if [ -e ~/.config/glab-cli/aliases.yml ]; then
   chmod 600 ~/.config/glab-cli/aliases.yml
 fi
-glab config set editor nvim
-glab config set glamour_style dark
-glab config set git_protocol ssh
+# --global on every one: glab writes to the repo-local .git/glab-cli/config.yml
+# by default, so without it these prefs land inside whatever repo the task runs
+# from and apply nowhere else. --host implies global, so it needs no --global.
+glab config set --global editor nvim
+glab config set --global glamour_style dark
+glab config set --global git_protocol ssh
 if [ -n "${DOTFILES_GITLAB_HOST:-}" ]; then
-  glab config set -h "$DOTFILES_GITLAB_HOST" git_protocol https
+  # --host, NOT -h: glab has no short form for it and -h is --help, so the
+  # per-host line printed usage and set nothing at all.
+  glab config set --host "$DOTFILES_GITLAB_HOST" git_protocol https
 else
   echo "DOTFILES_GITLAB_HOST unset — skipping per-host git_protocol"
 fi
