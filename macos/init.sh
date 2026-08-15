@@ -4,7 +4,6 @@ brew isntall --cask ghostty
 brew install --cask nikitabobko/tap/aerospace
 brew tap lambdalisue/neovim-qt
 brew install --cask karabiner-elements
-brew tap sdkman/tap
 brew install --cask google-cloud-sdk
 brew install --cask speedcrunch
 
@@ -29,7 +28,6 @@ brew install zoxide \
   lua \
   lua-language-server \
   ruby \
-  sdkman-cli \
   fish \
   nushell \
   kmonad \
@@ -80,7 +78,7 @@ echo "# Don't forget to logout and then install:
 - [ ] Configure keyboard in settings
 - [ ] Configure KMonad
 - [ ] Install Raycast
-- [ ] Install Java and Kotlin SDKs
+- [ ] Install Java: \`mise run metapac -- sync\` (java@temurin-25, the LTS line; sdkman is gone)
 - [ ] Install Slack
 
 

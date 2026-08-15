@@ -26,7 +26,6 @@ cd "$(cd "$(dirname "$0")/.." && pwd)"
 find . -type f \
   -not -path './.git/*' \
   -not -name '*.sample' \
-  -not -name '__sdkman-noexport-init.sh' \
   -not -name 'RofiEmoji.sh' \
   -print |
   while IFS= read -r f; do

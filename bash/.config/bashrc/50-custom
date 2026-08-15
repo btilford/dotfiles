@@ -57,10 +57,6 @@ export M2_HOME="$HOME/.m2"
 export ENCORE_INSTALL="${HOME}/.encore"
 PATH="${PATH}:${HOME}/.local/bin:${GOPATH}/bin:${ENCORE_INSTALL}/bin"
 
-#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
-export SDKMAN_DIR="$HOME/.sdkman"
-[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
-
 # VTE prompt integration (Linux GNOME terminals)
 if [[ -f /etc/profile.d/vte.sh ]]; then
     . /etc/profile.d/vte.sh

@@ -1,8 +1,9 @@
 # macos — macOS-only packages (host key: macos, via --hostname).
 # Bootstrapped from `metapac unmanaged`, 2026-07-27 (brew formulae + casks
-# merged; metapac installs/removes either by name). mise is per-host; bun is
-# declared here so the shared bun backend (hunkdiff, markdownlint-cli2 in core)
-# has an interpreter. metapac itself lives in cargo (brew has no formula).
+# merged; metapac installs/removes either by name). mise is per-host; bun comes
+# from brew, not mise, so the shared bun backend (hunkdiff, markdownlint-cli2 in
+# core) has an interpreter by the time it runs — see the note on the entry.
+# metapac itself lives in cargo (brew has no formula).
 
 brew = { packages = [
   "1password-cli",
@@ -11,6 +12,12 @@ brew = { packages = [
   "ast-grep",
   "atuin",
   "bat",
+  # homebrew-core `bun`. NOT the mise backend: metapac runs backends in enum
+  # order (Brew, Bun, Cargo, … Mise), so a bun declared under mise is installed
+  # long after the bun backend has already tried to run `bun install --global`
+  # and died with ENOENT. Brew sorts first and lands in /opt/homebrew/bin, which
+  # is on PATH without mise shims, so this self-bootstraps.
+  "bun",
   "carapace",
   "claude-code",
   "cocoapods",
@@ -126,7 +133,6 @@ mise = { packages = [
   { name = "terraform", options = { version = "latest" } },
   { name = "tmux", options = { version = "3.6a" } },
   { name = "yarn", options = { version = "4.12.0" } },
-  { name = "bun", options = { version = "1.3.3" } },
   # gcloud via mise's short registry name — NOT vfox:… (metapac rejects prefixed
   # names) and NOT brew (removed gcloud-cli/google-cloud-sdk; mise is sole owner).
   { name = "gcloud", options = { version = "latest" } },

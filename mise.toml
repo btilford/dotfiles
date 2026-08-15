@@ -70,11 +70,25 @@ description = "Run metapac with the OS-derived --hostname key (arch|macos)"
 # This task supplies the missing OS->key step from `uname`, and is the documented
 # canonical entry point. Interactive shells get the same via their metapac wrapper;
 # CI and scripts should use this task. Pass args through: `mise run metapac -- sync`.
+#
+# The cargo bin dir is resolved here rather than inherited from the caller, because
+# this task has to work during bootstrap — the point where metapac is needed to
+# install packages but no shell package is stowed yet, so the drop-in that prepends
+# ~/.cargo/bin (zsh 50-custom, fish env.fish, bash .bashrc) has never run. On macOS
+# metapac is cargo-installed (no brew formula), so without this the canonical entry
+# point fails with a bare `metapac: command not found` on exactly the machine state
+# it exists to serve.
 run = """
 case "$(uname)" in
   Darwin) key=macos ;;
   *)      key=arch ;;
 esac
+PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+if ! command -v metapac >/dev/null 2>&1; then
+  echo "metapac not found on PATH or in ${CARGO_HOME:-$HOME/.cargo}/bin" >&2
+  echo "install it: cargo install metapac   (macOS: no brew formula; Arch: AUR metapac)" >&2
+  exit 127
+fi
 FORCE_COLOR=0 metapac --hostname "$key" "$@"
 """
 
@@ -289,10 +303,9 @@ depends = ["fmt:shell", "fmt:lua", "fmt:toml", "fmt:md"]
 # Same selector as lint:shell and the CI job. It used to glob '*.sh' '*.bash',
 # which diverged in both directions: it MISSED every extensionless command in
 # commands/.local/bin and git/.local/bin — which is where the formatting backlog
-# accumulated, since the formatter had never once run on them — and it HIT the two
-# files the selector excludes on purpose, __sdkman-noexport-init.sh (zsh syntax)
-# and RofiEmoji.sh (emoji data parsed as code), so `mise run fmt` exited non-zero
-# on every single run.
+# accumulated, since the formatter had never once run on them — and it HIT the
+# files the selector excludes on purpose, e.g. RofiEmoji.sh (emoji data parsed as
+# code), so `mise run fmt` exited non-zero on every single run.
 run = "./mise-scripts/shell-files.sh | xargs -r shfmt -w -i 2 -ci -sr"
 
 [tasks."fmt:lua"]

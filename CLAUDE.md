@@ -563,7 +563,29 @@ at `~/.config/metapac/`; group files are the source of truth.
   a `core` entry Arch-only.
 - **One owner per tool class.** bun owns global JS CLIs, uv owns global Python
   CLIs, mise owns runtimes. Never enable `npm`/`pipx` alongside them — two
-  backends claiming the same tool breaks sync/clean semantics.
+  backends claiming the same tool breaks sync/clean semantics. The one
+  documented exception is **bun itself** — see "backend order is alphabetical"
+  below.
+- **Backend order is alphabetical, and a backend never waits for its
+  interpreter.** metapac processes backends in enum order — `Arch`, `Brew`,
+  `Bun`, `Cargo`, … `Mise` — so **a backend's interpreter cannot be declared in
+  a backend that sorts after it.** bun was the worked example: it was declared
+  under `mise` on both hosts on the theory that mise owns runtimes, but `Bun`
+  runs before `Mise`, so on a machine without bun `sync` reached the bun backend
+  first and died with a bare
+  `command failed: "bun install --global …", error: Os { code: 2, kind: NotFound }`
+  — ENOENT on the `bun` binary, not on any package. It aborts the whole run, so
+  the mise backend never executed either: on the Mac, `mise ls -g` was empty and
+  node/terraform/tmux/yarn/ktlint/gcloud had never once been installed. It only
+  looked fine on the Arch box because bun had been installed there by hand.
+
+  bun therefore comes from the **OS package manager** on both hosts —
+  `extra/bun` in `desktop-arch.toml`'s `arch` block, homebrew-core `bun` in
+  `macos.toml`'s `brew` block. Both sort before `Bun`, and brew's prefix is on
+  `PATH` without mise shims (metapac spawns a bare `bun`, so a mise-installed
+  one would also need `~/.local/share/mise/shims` on `PATH`, which
+  `mise run metapac` does not provide). Apply the same reasoning to any future
+  interpreter-style backend.
 - **`metapac clean` uninstalls everything not declared.** Always read its
   confirmation list; never script it with `--no-confirm` unless you have just
   read `metapac unmanaged` and the list is what you intend to remove.
@@ -579,15 +601,27 @@ at `~/.config/metapac/`; group files are the source of truth.
   and `nushell/config.nu`). Drop those and `clean` will offer to remove your bun
   packages.
 
-- **mise is per-host, not in `core`.** The two hosts share no mise tools, so each
-  declares its own set (`desktop-arch.toml`: android-sdk, bun, zig; `macos.toml`:
-  node, terraform, yarn, ktlint, tmux, bun). bun is declared under mise on both so
-  the shared bun backend (hunkdiff, markdownlint-cli2 in `core`) has an interpreter.
+- **mise is almost entirely per-host.** Each host declares its own set
+  (`desktop-arch.toml`: android-sdk, zig; `macos.toml`: node, terraform, yarn,
+  ktlint, tmux, gcloud). bun is deliberately **not** among them — it is the
+  interpreter for the shared `core` bun list, which the ordering note above
+  explains it cannot be.
+
+  **`java` is the one exception, and lives in `core.toml`.** mise replaced sdkman
+  as the JDK owner (2026-08-14, when the sdkman init blocks came out of every
+  shell), and nvim's jdtls config is cross-platform, so both hosts need it. It is
+  pinned to the **LTS line** — `temurin-25`, not `latest`, which would follow
+  every 6-month non-LTS release, and not a full version, which would pin the
+  patch. Only one JDK can be declared: metapac keys a package by name, so mise's
+  multi-version form has no representation. A second JDK is a per-machine
+  `mise use -g java@temurin-21`; `nvim-java.lua` globs the mise installs dir and
+  picks it up as an extra jdtls runtime with no config change.
 - **metapac's mise backend can't manage `npm:`/`vfox:`-prefixed tools** (e.g.
   `npm:cavemen`, `vfox:…-gcloud`). `unmanaged` lists them but `sync` aborts with
   "invalid packages" if they're declared — a catch-22 with no ignore option in
-  0.10.0. Keep mise blocks to plain registry tools; relocate the rest (gcloud →
-  brew's `gcloud-cli`/`google-cloud-sdk`; cavemen → the bun backend).
+  0.10.0. Keep mise blocks to plain registry tools; relocate the rest (cavemen →
+  the bun backend). gcloud stayed on mise, under its short registry name
+  `gcloud` rather than `vfox:…-gcloud`, and brew is no longer an owner for it.
 - **macOS `brew`:** one merged list of formulae + casks (metapac installs/removes
   either by name). metapac itself is cargo-installed on macOS (declared in
   `macos.toml` `cargo`) since brew has no formula for it; on Arch it comes from AUR.
@@ -755,9 +789,8 @@ tools depend on. Those files have no extension by design (they are on `PATH`),
 so no glob can ever find them; a new one would have gone unlinted the same way.
 
 Excluded: `*.sample` (git's vendored hook samples under
-`git/.config/git/templates/hooks/`, not our code), plus
-`__sdkman-noexport-init.sh` (zsh syntax) and `RofiEmoji.sh` (emoji data
-mis-parsed as code). The exclusion used to be that whole templates directory;
+`git/.config/git/templates/hooks/`, not our code), plus `RofiEmoji.sh` (emoji
+data mis-parsed as code). The exclusion used to be that whole templates directory;
 it was narrowed to `*.sample` when our own hook shims moved in beside the
 samples — they need linting like anything else.
 

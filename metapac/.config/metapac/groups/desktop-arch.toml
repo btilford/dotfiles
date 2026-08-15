@@ -54,6 +54,11 @@ arch = { packages = [
   "btop",
   "btrfs-assistant",
   "btrfs-progs",
+  # extra/bun. NOT the mise backend: metapac runs backends in enum order
+  # (Arch, Brew, Bun, Cargo, … Mise), so a bun declared under mise is installed
+  # long after the bun backend has already tried to run `bun install --global`
+  # and died with ENOENT. Arch sorts first, so this self-bootstraps.
+  "bun",
   "cachy-update",
   "cachyos-emerald-kde-theme-git",
   "cachyos-fish-config",
@@ -438,7 +443,6 @@ arch = { packages = [
   "s-nail",
   "sddm",
   "sddm-kcm",
-  "sdkman-bin",
   "sesh-bin",
   "sg3_utils",
   "skopeo",
@@ -613,7 +617,6 @@ flatpak = { repos = [
 # in the arch block above) covers joplin/mermaid-cli/node-gyp; mise needs none.
 mise = { packages = [
   { name = "android-sdk", options = { version = "latest" } },
-  { name = "bun", options = { version = "1.3.3" } },
   { name = "zig", options = { version = "latest" } },
 ] }
 cargo = { packages = [

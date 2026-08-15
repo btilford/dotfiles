@@ -2,8 +2,19 @@
 # Arch and macOS. Platform-only packages belong in desktop-arch.toml / macos.toml.
 #
 # Bootstrapped from `metapac unmanaged` on the Arch host, 2026-07-26.
-# mise is intentionally NOT declared here: the two hosts share no mise tools,
-# so each declares its own set in desktop-arch.toml / macos.toml (2026-07-27).
+# The mise block below is the ONLY shared one: everything else mise-owned is
+# per-host, in desktop-arch.toml / macos.toml.
+
+# java is the one mise tool both hosts need — nvim's jdtls config (nvim-java.lua)
+# is cross-platform, and mise replaced sdkman as the JDK owner (2026-08-14).
+# temurin-25: 25 is the current LTS (26 is not). NOT "latest", which would track
+# every 6-month non-LTS release; NOT a full version, which pins the patch level.
+# Only one JDK is declared because metapac keys a package by name and so cannot
+# express mise's multi-version form. nvim-java.lua globs the mise installs dir
+# rather than hardcoding a path, so an older JDK added by hand —
+# `mise use -g java@temurin-21` — is picked up as a jdtls runtime automatically,
+# and its absence just drops that runtime entry.
+mise = { packages = [{ name = "java", options = { version = "temurin-25" } }] }
 
 cargo = { packages = [
   { name = "just", options = { version = "1.46.0", features = [] } },
@@ -14,7 +25,10 @@ cargo = { packages = [
 ] }
 
 # Global JS CLIs go through bun, not npm — one owner, same as uv owns Python.
-# bun itself is provided per-host via mise (desktop-arch.toml / macos.toml).
+# bun itself is provided per-host by the OS package manager (extra/bun on Arch,
+# homebrew-core on macOS), NOT by mise: metapac runs backends in enum order and
+# reaches Bun before Mise, so a mise-owned bun is installed too late to be the
+# interpreter for this very list.
 bun = { packages = [
   "hunkdiff",
   # Used by `mise run fmt:md` and the lefthook pre-commit hook.
