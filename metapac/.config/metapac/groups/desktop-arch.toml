@@ -242,7 +242,6 @@ arch = { packages = [
   "hyprsysteminfo",
   "inetutils",
   "infisical",
-  "infisical-bin",
   "inkscape",
   "inotify-tools",
   "iptables",
@@ -678,7 +677,6 @@ arch = { packages = [
   "zed",
   "zephyr-sdk-bin",
   "zip",
-  "zmk-studio",
   "zmk-studio-bin",
   "zoxide",
 ] }
