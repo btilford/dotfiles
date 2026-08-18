@@ -63,33 +63,44 @@ description = "Pick packages with fzf (preview shows per-file state) and stow th
 run = "./mise-scripts/stow-pick.sh"
 
 [tasks.metapac]
-description = "Run metapac with the OS-derived --hostname key (arch|macos)"
-# metapac 0.10.0 selects per-host config by HOSTNAME and has no OS detection, so
-# this repo's config.toml keys its tables by generic OS names (arch, macos) rather
+description = "Run metapac with the hardware-derived --hostname key (arch[-<gpu-vendor>]|macos)"
+# metapac 0.10.0 selects per-host config by HOSTNAME and has no OS or hardware
+# detection, so this repo's config.toml keys its tables by generic OS name plus
+# detected GPU vendor (arch, arch-amd, arch-intel-nvidia, macos, ...) rather
 # than real machine hostnames — which would otherwise leak into a public repo.
-# This task supplies the missing OS->key step from `uname`, and is the documented
-# canonical entry point. Interactive shells get the same via their metapac wrapper;
-# CI and scripts should use this task. Pass args through: `mise run metapac -- sync`.
+# commands/.local/bin/metapac-hostname-key computes that key from `uname` +
+# `lspci`; this task and every shell's metapac wrapper call it so the key can't
+# drift between them. This task is the documented canonical entry point for CI
+# and scripts. Pass args through: `mise run metapac -- sync`.
+# raw: mise's normal line-buffered output multiplexing eats stdin, so metapac's
+# own y/N confirmation and paru's internal sudo password prompt never reach the
+# terminal. raw connects stdio directly, restoring both prompts.
 #
-# The cargo bin dir is resolved here rather than inherited from the caller, because
-# this task has to work during bootstrap — the point where metapac is needed to
-# install packages but no shell package is stowed yet, so the drop-in that prepends
-# ~/.cargo/bin (zsh 50-custom, fish env.fish, bash .bashrc) has never run. On macOS
-# metapac is cargo-installed (no brew formula), so without this the canonical entry
-# point fails with a bare `metapac: command not found` on exactly the machine state
-# it exists to serve.
+# PATH prepended with /usr/bin: running this AS a mise task activates this
+# repo's own [tools] block (python, a dev-toolchain pin for lint/CI), so every
+# AUR build paru spawns inherits mise's isolated python3 instead of the system
+# one — breaking any PKGBUILD that assumes the system Python (e.g.
+# python-setuptools is only installed there). Putting /usr/bin first restores
+# it for this subprocess tree.
+#
+# The key script is called by repo-relative path, and the cargo bin dir is
+# appended rather than inherited, because this task has to work during bootstrap
+# — metapac is needed to install packages before any package is stowed, so
+# neither ~/.local/bin/metapac-hostname-key nor the drop-in that adds
+# ~/.cargo/bin exists yet. On macOS metapac is cargo-installed (no brew
+# formula), so without both the canonical entry point fails with a bare
+# `command not found` on exactly the machine state it exists to serve.
+raw = true
 run = """
-case "$(uname)" in
-  Darwin) key=macos ;;
-  *)      key=arch ;;
-esac
-PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-if ! command -v metapac >/dev/null 2>&1; then
+PATH="/usr/bin:$PATH:${CARGO_HOME:-$HOME/.cargo}/bin"
+key_bin=./commands/.local/bin/metapac-hostname-key
+[ -x "$key_bin" ] || key_bin=metapac-hostname-key
+if ! command -v metapac > /dev/null 2>&1; then
   echo "metapac not found on PATH or in ${CARGO_HOME:-$HOME/.cargo}/bin" >&2
   echo "install it: cargo install metapac   (macOS: no brew formula; Arch: AUR metapac)" >&2
   exit 127
 fi
-FORCE_COLOR=0 metapac --hostname "$key" "$@"
+FORCE_COLOR=0 metapac --hostname "$("$key_bin")" "$@"
 """
 
 [tasks."setup:local-env"]

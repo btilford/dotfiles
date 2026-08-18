@@ -1,13 +1,20 @@
 # metapac — declarative system packages across machines.
 # One stow package for every host; per-OS divergence lives in the tables below.
 #
-# The table keys are GENERIC OS names (`arch`, `macos`), NOT real hostnames —
-# metapac 0.10.0 keys per-host config by hostname and has no OS detection, so the
-# real machine name would otherwise leak into this published repo. Each machine
-# passes `--hostname <os>` to select its table; the shell wrapper and
-# `mise run metapac` derive it from `uname`. Run metapac through those, or pass
-# --hostname yourself. A bare `metapac` uses the real hostname, finds no matching
-# key, and safely no-ops with a "no backends" warning.
+# The table keys are GENERIC OS names (`arch`, `macos`), optionally suffixed
+# with detected GPU vendor(s) (`arch-amd`, `arch-intel-nvidia`, ...) — NOT real
+# hostnames. metapac 0.10.0 keys per-host config by hostname and has no OS or
+# hardware detection, so the real machine name would otherwise leak into this
+# published repo. Each machine passes `--hostname <key>` to select its table;
+# commands/.local/bin/metapac-hostname-key computes it from `uname` + `lspci`,
+# and every shell wrapper plus `mise run metapac` calls that script so the key
+# can't drift between them. Run metapac through those, or pass --hostname
+# yourself. A bare `metapac` uses the real hostname, finds no matching key, and
+# safely no-ops with a "no backends" warning.
+#
+# GPU-vendor package sets (amd-gpu.toml, nvidia-gpu.toml, intel-gpu.toml) are
+# only pulled in for a hostname key that names that vendor — adding a new
+# vendor combination to the fleet means adding its key here.
 #
 # Backends (final set): arch, brew, bun, cargo, flatpak, mise, uv.
 # pipx is deliberately absent — uv owns global Python CLIs.
@@ -20,10 +27,14 @@ enabled_backends = []
 
 [hostname_enabled_backends]
 arch = ["arch", "bun", "cargo", "flatpak", "mise", "uv"]
+arch-amd = ["arch", "bun", "cargo", "flatpak", "mise", "uv"]
+arch-intel-nvidia = ["arch", "bun", "cargo", "flatpak", "mise", "uv"]
 macos = ["brew", "cargo", "mise", "uv", "bun"]
 
 [hostname_groups]
 arch = ["core", "desktop-arch"]
+arch-amd = ["core", "desktop-arch", "amd-gpu"]
+arch-intel-nvidia = ["core", "desktop-arch", "intel-gpu", "nvidia-gpu"]
 macos = ["core", "macos"]
 
 [arch]

@@ -1,0 +1,20 @@
+# nvidia-gpu — packages only relevant on an Nvidia GPU host, split out the
+# same way as amd-gpu.toml so an AMD-only Arch box doesn't get the proprietary
+# Nvidia driver stack.
+#
+# Included when commands/.local/bin/metapac-hostname-key detects an Nvidia
+# controller via lspci — see that script and config.toml's hostname_groups
+# comment for why the key is a hardware descriptor, not the real hostname.
+
+arch = { packages = [
+  "lib32-nvidia-utils",
+  "lib32-opencl-nvidia",
+  "libva-nvidia-driver",
+  "linux-cachyos-nvidia-open",
+  "linux-firmware-nvidia",
+  "nvidia-prime",
+  "nvidia-settings",
+  "nvidia-utils",
+  "ollama-cuda",
+  "opencl-nvidia",
+] }

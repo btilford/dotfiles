@@ -11,11 +11,17 @@ end
 # backend captures ANSI escapes into package names. They then never match the
 # declared names, and `metapac clean` offers to uninstall every bun package.
 # FORCE_COLOR=0 is the only switch bun honors.
+#
+# /usr/bin prepended: this repo's own mise.toml declares python (a dev-toolchain
+# pin for lint/CI tasks) and mise activates it project-wide, so a sync run from
+# inside ~/dotfiles shadows /usr/bin/python3 for every AUR build paru spawns —
+# breaking any PKGBUILD that assumes the system Python (e.g. python-setuptools
+# is only installed there). Putting /usr/bin first restores it for this
+# subprocess tree without touching the interactive shell's own PATH.
 if command -q metapac
-    function metapac --wraps metapac --description "metapac: bun color workaround + OS-derived --hostname"
-        # config.toml keys tables by generic OS name, not real hostname (public repo).
-        set -l key arch
-        test (uname) = Darwin; and set key macos
-        FORCE_COLOR=0 command metapac --hostname $key $argv
+    function metapac --wraps metapac --description "metapac: bun color workaround + hardware-derived --hostname"
+        set -lx PATH /usr/bin $PATH
+        set -lx FORCE_COLOR 0
+        command metapac --hostname (metapac-hostname-key) $argv
     end
 end

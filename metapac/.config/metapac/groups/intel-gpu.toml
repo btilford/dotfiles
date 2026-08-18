@@ -1,0 +1,16 @@
+# intel-gpu — packages only relevant on an Intel CPU/GPU host (microcode,
+# VAAPI media acceleration, Vulkan driver), split out the same way as
+# amd-gpu.toml.
+#
+# Included when commands/.local/bin/metapac-hostname-key detects an Intel
+# controller via lspci — see that script and config.toml's hostname_groups
+# comment for why the key is a hardware descriptor, not the real hostname.
+
+arch = { packages = [
+  "intel-media-driver",
+  "intel-ucode",
+  "lib32-libva-intel-driver",
+  "lib32-vulkan-intel",
+  "libva-intel-driver",
+  "vulkan-intel",
+] }

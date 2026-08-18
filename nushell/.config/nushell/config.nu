@@ -782,8 +782,14 @@ use ($nu.default-config-dir | path join mise.nu)
 # backend captures ANSI escapes into package names. They then never match the
 # declared names, and `metapac clean` offers to uninstall every bun package.
 # FORCE_COLOR=0 is the only switch bun honors. `^metapac` avoids recursion.
+#
+# PATH prepended with /usr/bin: this repo's own mise.toml declares python (a
+# dev-toolchain pin for lint/CI tasks) and mise activates it project-wide, so a
+# sync run from inside ~/dotfiles shadows /usr/bin/python3 for every AUR build
+# paru spawns — breaking any PKGBUILD that assumes the system Python (e.g.
+# python-setuptools is only installed there). Putting /usr/bin first restores
+# it for this subprocess tree without touching the interactive shell's PATH.
 def --wrapped metapac [...args] {
-    # config.toml keys tables by generic OS name, not real hostname (public repo).
-    let key = (if (sys host | get name) == "Darwin" { "macos" } else { "arch" })
-    with-env {FORCE_COLOR: "0"} { ^metapac --hostname $key ...$args }
+    let key = (^metapac-hostname-key | str trim)
+    with-env {FORCE_COLOR: "0", PATH: ($env.PATH | prepend "/usr/bin")} { ^metapac --hostname $key ...$args }
 }
