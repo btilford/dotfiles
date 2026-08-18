@@ -490,6 +490,7 @@ arch = { packages = [
   "rofi",
   "rofi-emoji",
   "rofimoji",
+  "rpi-imager",
   "rsync",
   "rtkit",
   "ruby",
@@ -688,7 +689,6 @@ flatpak = { repos = [
 ], packages = [
   { name = "system:com.actualbudget.actual", options = { remote = "flathub" } },
   { name = "system:com.github.flxzt.rnote", options = { remote = "flathub" } },
-  { name = "system:org.raspberrypi.rpi-imager", options = { remote = "flathub" } },
 ] }
 
 # Moved out of core.toml (2026-07-27) so they stay Arch-only. mise is per-host:
