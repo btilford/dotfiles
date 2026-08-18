@@ -145,7 +145,6 @@ arch = { packages = [
   "element-desktop",
   "ethtool",
   "eva",
-  "evdi-dkms-git",
   "eww",
   "ex-vi-compat",
   "exfatprogs",
