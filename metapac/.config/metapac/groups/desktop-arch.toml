@@ -633,7 +633,7 @@ arch = { packages = [
   "vlc-gui-qt",
   "vlc-plugins-all",
   "vulkan-mesa-implicit-layers",
-  "wallust",
+  "wallust-git",
   "waybar",
   "wayland-logout",
   "waypaper",
