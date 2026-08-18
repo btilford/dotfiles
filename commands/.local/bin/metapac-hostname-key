@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Resolve metapac's --hostname key.
+#
+# Always a generic descriptor (OS, plus a hardware suffix where package sets
+# diverge by GPU vendor) — never the real machine hostname, since
+# metapac/.config/metapac/config.toml's hostname_groups keys are published in
+# this public repo. See that file's header comment for the full rationale.
+#
+# Extracted so every shell's metapac wrapper (fish/bash/zsh/nushell conf.d)
+# and the `metapac` mise task resolve the same key from one place instead of
+# five copies drifting apart.
+#
+# Usage: key=$(metapac-hostname-key)
+
+set -uo pipefail
+
+key=arch
+[ "$(uname)" = Darwin ] && key=macos
+
+# GPU-vendor packages (amd-gpu.toml, nvidia-gpu.toml, intel-gpu.toml) apply
+# only to a host that actually has that vendor's controller. A host can carry
+# more than one (e.g. an Intel iGPU + Nvidia dGPU laptop), so the suffix is
+# every detected vendor joined in a fixed order — add a matching
+# hostname_groups/hostname_enabled_backends entry in config.toml for any new
+# combination this produces.
+if [ "$key" = arch ] && command -v lspci > /dev/null 2>&1; then
+  controllers=$(lspci | grep -iE "vga compatible controller|3d controller")
+  vendors=""
+  echo "$controllers" | grep -qiE "\<amd\>|\<ati\>" && vendors="${vendors}-amd"
+  echo "$controllers" | grep -qi "intel" && vendors="${vendors}-intel"
+  echo "$controllers" | grep -qi "nvidia" && vendors="${vendors}-nvidia"
+  key="${key}${vendors}"
+fi
+
+echo "$key"

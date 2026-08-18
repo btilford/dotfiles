@@ -16,8 +16,6 @@ fi
 # FORCE_COLOR=0 is the only switch bun honors. `command` avoids recursion.
 if command -v metapac >/dev/null 2>&1; then
     metapac() {
-    # config.toml keys tables by generic OS name, not real hostname (public repo).
-    local key=arch; [ "$(uname)" = Darwin ] && key=macos
-    FORCE_COLOR=0 command metapac --hostname "$key" "$@"
+    FORCE_COLOR=0 command metapac --hostname "$(metapac-hostname-key)" "$@"
   }
 fi
