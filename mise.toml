@@ -75,9 +75,16 @@ description = "Run metapac with the hardware-derived --hostname key (arch[-<gpu-
 # raw: mise's normal line-buffered output multiplexing eats stdin, so metapac's
 # own y/N confirmation and paru's internal sudo password prompt never reach the
 # terminal. raw connects stdio directly, restoring both prompts.
+#
+# PATH prepended with /usr/bin: running this AS a mise task activates this
+# repo's own [tools] block (python, a dev-toolchain pin for lint/CI), so every
+# AUR build paru spawns inherits mise's isolated python3 instead of the system
+# one — breaking any PKGBUILD that assumes the system Python (e.g.
+# python-setuptools is only installed there). Putting /usr/bin first restores
+# it for this subprocess tree.
 raw = true
 run = """
-FORCE_COLOR=0 metapac --hostname "$(metapac-hostname-key)" "$@"
+PATH="/usr/bin:$PATH" FORCE_COLOR=0 metapac --hostname "$(metapac-hostname-key)" "$@"
 """
 
 [tasks."setup:local-env"]
