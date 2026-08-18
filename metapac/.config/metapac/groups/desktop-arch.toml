@@ -543,7 +543,6 @@ arch = { packages = [
   "tmux-fastcopy-bin",
   "toolbox",
   "traceroute",
-  "tree-sitter-cli",
   "trimage",
   "ttf-0xproto-nerd",
   "ttf-3270-nerd",
