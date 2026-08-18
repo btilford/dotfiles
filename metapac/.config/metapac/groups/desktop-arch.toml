@@ -465,6 +465,10 @@ arch = { packages = [
   "python-pyelftools",
   "python-pylatexenc",
   "python-pynvim",
+  # Many AUR PKGBUILDs assume this is present and don't declare it as a
+  # makedepend (Arch's Python packaging dropped it from the base install) —
+  # its absence breaks unrelated AUR builds with "No module named 'setuptools'".
+  "python-setuptools",
   "python-tinycss",
   "python-tinycss2",
   "python-virtualenv",
