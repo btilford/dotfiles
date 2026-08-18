@@ -44,7 +44,7 @@ fi
 # Generated for envman. Do not edit.
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
 
-. "$HOME/.cargo/env"
+[[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
 
 [[ -f "${HOME}/.bash_completions/hf.sh" ]] && source "${HOME}/.bash_completions/hf.sh"
 

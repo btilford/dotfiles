@@ -9,7 +9,7 @@ export XDG_CONFIG_HOME="$HOME/.config"
 export OS_KERN="$(uname -s)"
 export EDITOR=nvim
 export YARN_ENABLE_SCRIPTS=false
-export PATH="/usr/lib/ccache/bin/:$PATH"
+export PATH="${HOME}/.local/bin:/usr/lib/ccache/bin/:${PATH}"
 
 # -----------------------------------------------------
 # Screenshot archives (machine-local)

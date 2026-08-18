@@ -55,7 +55,7 @@ alias sudoedit='_sudoedit'
 export GOPATH="$HOME/go"
 export M2_HOME="$HOME/.m2"
 export ENCORE_INSTALL="${HOME}/.encore"
-PATH="${PATH}:${HOME}/.local/bin:${GOPATH}/bin:${ENCORE_INSTALL}/bin"
+PATH="${PATH}:${GOPATH}/bin:${ENCORE_INSTALL}/bin"
 
 # VTE prompt integration (Linux GNOME terminals)
 if [[ -f /etc/profile.d/vte.sh ]]; then
