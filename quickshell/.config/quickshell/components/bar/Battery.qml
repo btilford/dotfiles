@@ -13,7 +13,10 @@ Item {
 
     readonly property var dev: UPower.displayDevice
     readonly property bool present: dev && dev.ready && dev.isLaptopBattery
-    readonly property real pct: dev ? dev.percentage : 0
+    // UPower.displayDevice.percentage is a 0.0-1.0 fraction, not 0-100 — verified
+    // live: a fully-charged battery (iconName battery-full-charged-symbolic)
+    // reports percentage 1, which without the *100 renders as "1%".
+    readonly property real pct: dev ? dev.percentage * 100 : 0
     readonly property bool charging: dev && dev.iconName ? dev.iconName.indexOf("charging") >= 0 : false
 
     visible: present
@@ -117,8 +120,14 @@ Item {
         }
         Text {
             width: parent.width
+            // *100: inferred from the sibling `percentage` property, confirmed live to be a
+            // 0.0-1.0 fraction (see the pct comment above) rather than 0-100. Unverified for
+            // healthPercentage itself — this host reports healthSupported: false — but
+            // Quickshell's UPower binding is consistent about normalizing percentage-like
+            // properties, and a wrong guess here is obviously wrong (up to 10000%) rather than
+            // silently plausible the way the un-scaled bug was.
             visible: root.dev && root.dev.healthPercentage > 0
-            text: "Health " + Math.round(root.dev ? root.dev.healthPercentage : 0) + "%"
+            text: "Health " + Math.round(root.dev ? root.dev.healthPercentage * 100 : 0) + "%"
             color: Theme.subtext
             font.family: Theme.fontUi
             font.pixelSize: Theme.fontSize - 2
