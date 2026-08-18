@@ -34,7 +34,7 @@ ever set.)
 | `OLLAMA_HOST` | `nvim` `plugins/ai.lua` (gen.nvim) | `localhost` |
 | `HERMES_TUI_GATEWAY_URL` | `fish/conf.d/hermes.fish` | `http://localhost:8642` |
 | `NAS_HOST` / `NAS_SHARE_ROOT` | `mount-library.sh` | **exits** via `${VAR:?}` |
-| `NAS_MOUNT_ROOT` / `NAS_SHARES` / `HOME_NET_PREFIXES` | `mount-library.sh` | `~/nas` / three shares / `10.(33\|101\|148\|104)` |
+| `NAS_MOUNT_ROOT` / `NAS_SHARES` / `HOME_NET_PREFIXES` | `mount-library.sh` | `~/nas` / three shares / the built-in prefix list (values live in `local.env`; documented in `private-dotfiles`) |
 
 The authoritative list is `commands/.local/share/dotfiles/required-env`, which
 `dotfiles-local-env --check` reads — so this table cannot silently drift from what

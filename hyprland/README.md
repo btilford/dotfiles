@@ -42,7 +42,7 @@ stow --no-folding wallust
 
 ## Structure
 
-```
+```text
 hyprland/.config/hypr/
 ├── hyprland.conf           # Main entry point — sources all conf/ files
 ├── hypridle.conf           # Idle/sleep/lock timeouts
@@ -77,7 +77,7 @@ wallust/.config/wallust/
 
 Wallpaper changes every 30 minutes via `WallpaperAutoChange.sh`. Each change triggers `WallustSwww.sh` which runs wallust and regenerates colors for all apps:
 
-```
+```text
 awww (wallpaper) → wallust run -s <image>
                         ↓ generates
 ~/.config/hypr/wallust/wallust-hyprland.conf   → Hyprland borders
@@ -132,13 +132,16 @@ Alternate configs in `conf/monitors/`: `laptop.conf` (1.0x scale), `fwd.conf` (n
 ## Hardware Notes
 
 ### AMD (default)
+
 No special configuration needed. Default `environments/default.conf` applies.
 
 ### Nvidia laptops
+
 Source `conf/environments/nvidia.conf` from `hyprland.conf` for the Nvidia-specific env vars.
 `hyprlock` uses `renderer = egl` which works correctly on Nvidia, AMD, and Intel.
 
 ### `awww` (replaces `swww`)
+
 Arch Linux renamed `swww` → `awww` in March 2026. All scripts updated to use `awww`/`awww-daemon`.
 Cache dir: `~/.cache/awww/` (created automatically on startup via `autostart.conf`).
 

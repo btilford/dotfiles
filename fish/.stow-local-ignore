@@ -8,3 +8,7 @@ fish_variables
 # racing it on every upgrade.
 \.config/fish/functions/wt\.fish
 \.config/fish/completions/wt\.fish
+
+# Repo meta — not stowed into $HOME. A package-local .stow-local-ignore
+# REPLACES stow's built-in list (which covers README.*), it does not add to it.
+README.*
