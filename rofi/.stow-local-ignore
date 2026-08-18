@@ -4,3 +4,7 @@ CLAUDE\.md
 host-dpi\.rasi
 \.current_wallpaper
 wallust/colors-rofi\.rasi
+
+# Repo meta — not stowed into $HOME. A package-local .stow-local-ignore
+# REPLACES stow's built-in list (which covers README.*), it does not add to it.
+README.*

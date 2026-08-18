@@ -1,1 +1,5 @@
 ^\.config/gh/hosts\.yml$
+
+# Repo meta — not stowed into $HOME. A package-local .stow-local-ignore
+# REPLACES stow's built-in list (which covers README.*), it does not add to it.
+README.*
