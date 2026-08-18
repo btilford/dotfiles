@@ -190,17 +190,43 @@ models:
       -ngl 99 --flash-attn on -c 131072
     ttl: 900
 
+# EVERY MODEL MUST BE IN A GROUP.
+#
+# A model listed in no group lands in llama-swap's implicit default group, which
+# is `exclusive: true`. Exclusivity is a property of the group being LOADED, not
+# of the group being protected: `warm: exclusive: false` only stops warm from
+# tearing other groups down, it does NOT stop them tearing warm down. So an
+# ungrouped model evicted the warm group on every load — measured, with
+# qwen3-4b-instruct disappearing the moment qwen3.6-35b-mtp came up and having to
+# cold-start on the next completion request. That is the exact failure mode this
+# file exists to prevent.
 groups:
   # THE POINT OF THE WHOLE EXERCISE. `swap: false` lets these two run at the same
   # time instead of evicting each other, which is exactly what Lemonade cannot
   # do. Together they are ~7.3 GiB against 128 GiB of unified memory, so holding
   # both costs nothing worth measuring.
   #
-  # `exclusive: false` so loading gemma3-27b on demand does not tear this group
-  # down.
+  # `exclusive: false` so warm does not tear anything else down when it loads.
+  # What keeps warm ALIVE is that every other model is in `ondemand` below, which
+  # is also non-exclusive.
   warm:
     swap: false
     exclusive: false
     members:
       - "qwen2.5-coder-7b"
       - "qwen3-4b-instruct"
+
+  # Deliberately requested, not continuously used. `exclusive: false` is the half
+  # that matters — it is what leaves the warm group standing.
+  #
+  # `swap: true` because these are the big ones and they have no reason to be
+  # resident together: 35B is ~23 GiB weights + ~10 GiB KV at -c 131072, 27B is
+  # ~16 GiB. Holding both alongside warm would fit in 125 GiB unified, but each
+  # is used in isolation and `ttl` already returns the memory.
+  ondemand:
+    swap: true
+    exclusive: false
+    members:
+      - "qwen3.6-35b-mtp"
+      - "gemma3-27b"
+      - "gemma3-4b"
