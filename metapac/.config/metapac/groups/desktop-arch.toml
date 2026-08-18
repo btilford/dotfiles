@@ -704,8 +704,6 @@ cargo = { packages = [
   ] } },
   { name = "cargo-zigbuild", options = { version = "0.23.0", features = [
   ] } },
-  { name = "clipborg", options = { version = "0.1.0", features = [
-  ] } },
   { name = "isw", options = { version = "0.3.8", features = [
   ] } },
   { name = "modelsdev", options = { version = "0.9.5", features = [
