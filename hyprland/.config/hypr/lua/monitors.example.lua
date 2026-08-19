@@ -32,6 +32,7 @@ MON = {
   cli = "desc: UGD MD180UH SERIAL", -- portable below centre, "CLI1"
   ref_left = "desc: Dell Inc. DELL S2725QC SERIAL", -- portrait left, "RefLeft"
   ref_right = "desc: Dell Inc. DELL S2725QC SERIAL", -- portrait right, "RefRight"
+  glasses = "desc: Nreal XREAL One Pro", -- AR glasses, "XR1".."XR3" (no serial: one pair)
 }
 
 -- transform: 0 normal, 1 = 90°, 2 = 180°, 3 = 270°
@@ -53,4 +54,16 @@ hl.monitor({
   position = "2560x0",
   scale = 1.5,
   transform = 3,
+})
+
+-- AR glasses: a virtual 1080p display over DP alt-mode rather than a panel on the
+-- desk, plugged in INSTEAD of one of the USB-C sinks. scale 1 rather than the 1.5
+-- used elsewhere -- a downscale into 1080p optics costs sharpness where text is
+-- already hardest to read.
+hl.monitor({
+  output = MON.glasses,
+  mode = "1920x1080@120",
+  position = "4000x0",
+  scale = 1,
+  transform = 0,
 })

@@ -594,6 +594,27 @@ hl.bind("SUPER + 8", hl.dsp.focus({ workspace = 8 }), { description = "Focus wor
 hl.bind("SUPER + 9", hl.dsp.focus({ workspace = 9 }), { description = "Focus workspace 9" })
 hl.bind("SUPER + 0", hl.dsp.focus({ workspace = 10 }), { description = "Focus workspace 10" })
 
+-- AR glasses (XREAL) workspaces. F-keys rather than more digits: 1-0 are spoken
+-- for, and these three only exist while the glasses are plugged in.
+hl.bind("SUPER + F1", hl.dsp.focus({ workspace = 11 }), { description = "Focus XR1 (ws 11)" })
+hl.bind("SUPER + F2", hl.dsp.focus({ workspace = 12 }), { description = "Focus XR2 (ws 12)" })
+hl.bind("SUPER + F3", hl.dsp.focus({ workspace = 13 }), { description = "Focus XR3 (ws 13)" })
+hl.bind(
+  "SUPER + SHIFT + F1",
+  hl.dsp.window.move({ workspace = 11 }),
+  { description = "Move window to XR1 (ws 11)" }
+)
+hl.bind(
+  "SUPER + SHIFT + F2",
+  hl.dsp.window.move({ workspace = 12 }),
+  { description = "Move window to XR2 (ws 12)" }
+)
+hl.bind(
+  "SUPER + SHIFT + F3",
+  hl.dsp.window.move({ workspace = 13 }),
+  { description = "Move window to XR3 (ws 13)" }
+)
+
 -- Move window to workspace
 hl.bind(
   "SUPER + ALT + x",

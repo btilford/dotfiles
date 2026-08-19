@@ -70,3 +70,27 @@ hl.workspace_rule({
   default_name = "Messaging",
   monitor = MON.cli,
 })
+
+-- AR glasses (XREAL). Three workspaces, deliberately NOT persistent: the glasses
+-- are plugged in occasionally, in place of one of the USB-C displays, and three
+-- permanently-visible workspaces would sit unused in the bar the rest of the time.
+-- With MON.glasses unset (no monitors.local.lua, or a machine with no glasses) the
+-- monitor resolves to "" and they are simply unpinned, exactly like every rule
+-- above. Layouts for these live in lua/layout-auto.lua.
+hl.workspace_rule({
+  workspace = "11",
+  default_name = "XR1",
+  monitor = MON.glasses,
+})
+
+hl.workspace_rule({
+  workspace = "12",
+  default_name = "XR2",
+  monitor = MON.glasses,
+})
+
+hl.workspace_rule({
+  workspace = "13",
+  default_name = "XR3",
+  monitor = MON.glasses,
+})
