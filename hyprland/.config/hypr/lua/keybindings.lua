@@ -507,6 +507,65 @@ end, { description = "Dismiss all notifications" })
 hl.bind("SUPER + c", function()
   notif_run("qs ipc call clock drawer 2>/dev/null")
 end, { description = "Clock drawer (weather, world clocks, calendar)" })
+
+-- Copy a formatted timestamp to the clipboard. The format table lives in
+-- scripts/CopyDateTime.sh, which takes a format NAME — these binds never carry a raw
+-- date(1) format string, so a format is defined once instead of in eleven places.
+--
+-- Every verb resets the submap before running, for a different reason than notif_run's:
+-- nothing here grabs the keyboard, these are simply actions rather than a mode, and
+-- staying in the submap after a copy means the next keystroke is swallowed. Same shape,
+-- different why — which is why this is its own helper and not a call to notif_run.
+local function time_run(fmt)
+  hl.dispatch(hl.dsp.submap("reset"))
+  os.execute('sh -c "$HOME/.config/hypr/scripts/CopyDateTime.sh ' .. fmt .. '"')
+end
+
+hl.bind(
+  "SUPER + t",
+  hl.dsp.submap("time-cmd"),
+  { description = "Copy date/time submap [time-cmd]" }
+)
+hl.define_submap("time-cmd", function()
+  -- lowercase local, SHIFT UTC
+  hl.bind("d", function()
+    time_run("date")
+  end, { description = "Copy date (2026-08-19)" })
+  hl.bind("SHIFT + d", function()
+    time_run("date-utc")
+  end, { description = "Copy date, UTC" })
+  hl.bind("t", function()
+    time_run("time")
+  end, { description = "Copy time (14:03:11)" })
+  hl.bind("SHIFT + t", function()
+    time_run("time-utc")
+  end, { description = "Copy time, UTC" })
+  hl.bind("b", function()
+    time_run("datetime")
+  end, { description = "Copy date + time" })
+  hl.bind("SHIFT + b", function()
+    time_run("datetime-utc")
+  end, { description = "Copy date + time, UTC" })
+  hl.bind("i", function()
+    time_run("iso")
+  end, { description = "Copy ISO 8601 with offset" })
+  hl.bind("SHIFT + i", function()
+    time_run("iso-utc")
+  end, { description = "Copy ISO 8601, UTC (Z suffix)" })
+
+  -- No UTC variants below: all three are local by definition.
+  hl.bind("s", function()
+    time_run("stamp")
+  end, { description = "Copy Operon frontmatter stamp" })
+  hl.bind("e", function()
+    time_run("epoch")
+  end, { description = "Copy Unix epoch seconds" })
+  hl.bind("n", function()
+    time_run("daily")
+  end, { description = "Copy daily-note name (Aug-19-Wed)" })
+
+  hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
+end)
 hl.bind(
   "CTRL + ALT + L",
   hl.dsp.exec_cmd("loginctl lock-session"),
@@ -672,8 +731,11 @@ hl.bind(
 -- Standalone quickshell ClipboardDialog (clipborg). Launcher's clip mode is gone.
 -- Falls back to the clipborg TUI when there's no qs daemon (e.g. a rofi-backend
 -- host), which is what the old Launcher.sh clip branch used to provide.
+-- SUPER+Y rather than SUPER+V: `y` is yank, which is the verb this actually is, and it
+-- keeps V free for a paste-side counterpart later. Moved 2026-08-19 alongside the
+-- SUPER+T time submap below.
 hl.bind(
-  "SUPER + V",
+  "SUPER + Y",
   hl.dsp.exec_cmd(
     'sh -c "qs ipc call clipboard toggle 2>/dev/null || ghostty --class=app.clipborg -e clipborg tui"'
   ),
