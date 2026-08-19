@@ -1,0 +1,42 @@
+# Findings gitleaks has already seen, triaged, and that are DEALT WITH — every
+# credential below was revoked or deleted on 2026-08-01 (see the inventory in the
+# vault: rotate-dotfiles-leaked-credentials). They stay in git history until the
+# next filter-repo pass; ignoring them here is what makes
+# `mise run audit:secrets-history` mean "nothing NEW", instead of a permanent 19
+# that nobody reads — which is exactly how a live UniFi password hid among them
+# for three weeks.
+#
+# RULES FOR THIS FILE
+#
+#   1. A fingerprint goes in ONLY after the credential is revoked or deleted, and
+#      only with a line in the vault inventory saying so. This is noise
+#      reduction, never risk acceptance.
+#   2. NEVER add a fingerprint to make a scan pass. If a new finding appears,
+#      rotate it and write it down; the file is not a snooze button.
+#   3. This is fingerprints, not paths. A `paths` allowlist in .gitleaks.toml
+#      matches in every scan mode and would blind history scans to everything a
+#      path ever held (see the comment at the bottom of .gitleaks.toml). A
+#      fingerprint pins one finding in one commit and cannot over-reach.
+#   4. Delete the entries for a file once filter-repo has removed the blobs —
+#      a stale fingerprint is a claim that something was checked when it wasn't.
+#
+# Deliberately NOT ignored, so they keep failing the audit until they are fixed:
+#   - opencode/.config/opencode/opencode.json  UniFi password, still live
+#   - commands/.local/bin/mount-library.sh     NAS SMB password, not yet rotated
+#   - templates (refs/spice/data)              32-hex key, not yet verified
+
+8a53297aa2a124354a24bbbb09ca7041c4298101:base/.npmrc:npmrc-authtoken:3
+080b9cfc6b63922f99144cbab7aff20621b8d7a0:base/.npmrc:npmrc-authtoken:3
+a9be01045d08067bd89ca1565d3b63bb16aad0ae:base/.npmrc:npmrc-authtoken:3
+d9af8295b72cf0cac80470c9c83750aad0571480:docker/.docker/mcp/config.yaml:google-app-password:7
+d9af8295b72cf0cac80470c9c83750aad0571480:docker/.docker/mcp/config.yaml:yaml-credential-value:7
+bebc01b9add619e62319a0d4a636fe4b29bdd862:glab-cli/.config/glab-cli/config.yml:gitlab-pat:27
+ffb4ac37d06b0b0a1393257e7d37b85d20763daa:glab-cli/.config/glab-cli/config.yml:gitlab-pat:27
+40ead069339eb550f5bacc74ace092c24528a9b6:glab-cli/.config/glab-cli/config.yml:gitlab-pat:28
+8a53297aa2a124354a24bbbb09ca7041c4298101:glab-cli/.config/glab-cli/config.yml:gitlab-pat:28
+957c8300add1535359af4b8173e92801bced508b:glab-cli/.config/glab-cli/config.yml:gitlab-pat:33
+bebc01b9add619e62319a0d4a636fe4b29bdd862:glab-cli/.config/glab-cli/config.yml:yaml-credential-value:27
+ffb4ac37d06b0b0a1393257e7d37b85d20763daa:glab-cli/.config/glab-cli/config.yml:yaml-credential-value:27
+40ead069339eb550f5bacc74ace092c24528a9b6:glab-cli/.config/glab-cli/config.yml:yaml-credential-value:28
+8a53297aa2a124354a24bbbb09ca7041c4298101:glab-cli/.config/glab-cli/config.yml:yaml-credential-value:28
+957c8300add1535359af4b8173e92801bced508b:glab-cli/.config/glab-cli/config.yml:yaml-credential-value:33

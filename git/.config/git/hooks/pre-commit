@@ -14,13 +14,21 @@
 #
 # Escape hatches, when a repo has secret-shaped fixtures: `git commit --no-verify`,
 # or an allowlist in that repo's .gitleaks.toml.
+#
+# `gitleaks git --staged`, not `gitleaks protect --staged`: protect (and detect)
+# were deprecated in v8.19.0 and survive only as hidden aliases. This hook is
+# installed into EVERY repo on the machine via init.templateDir, so it is the one
+# call site where silently losing the gate to a future major would be worst.
+# Output is deliberately NOT redacted — this runs in the author's own terminal,
+# on content they just wrote, and seeing the value is how you know which line to
+# fix. CI redacts instead, because CI logs are published.
 
 command -v gitleaks > /dev/null 2>&1 || exit 0
 
 root=$(git rev-parse --show-toplevel 2> /dev/null) || exit 0
 
 if [ -f "$root/.gitleaks.toml" ]; then
-  exec gitleaks protect --staged -c "$root/.gitleaks.toml" --no-banner
+  exec gitleaks git --staged -c "$root/.gitleaks.toml" --no-banner
 fi
 
-exec gitleaks protect --staged --no-banner
+exec gitleaks git --staged --no-banner

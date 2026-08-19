@@ -1,0 +1,61 @@
+#!/usr/bin/env sh
+# GitLab server-side pre-receive hook: reject a push that carries a secret.
+#
+# This is the only gate in the chain a client cannot bypass. `git commit
+# --no-verify` skips the local hook and lefthook; CI only reports AFTER the push,
+# by which point the secret is on the server and — with the GitHub mirror enabled
+# — already mirrored. This runs before any ref is updated, so a rejected push
+# leaves nothing behind.
+#
+# Git server hooks are available on Free for GitLab Self-Managed; this is not an
+# Ultimate feature. Install by copying this file into the instance's global
+# server-hook directory under `pre-receive.d/` — see the README beside it.
+#
+# stdin is one line per ref: <old-sha> <new-sha> <ref-name>.
+set -u
+
+# An admin kill switch, for the case where this hook itself is what is broken.
+# Deliberately an env var on the server, not a flag a pusher can set.
+[ "${GITLEAKS_PRE_RECEIVE_DISABLE:-0}" = "1" ] && exit 0
+
+ZERO=0000000000000000000000000000000000000000
+
+if ! command -v gitleaks > /dev/null 2>&1; then
+  # Fail CLOSED. A security gate that silently disables itself when its binary
+  # goes missing is worse than no gate, because the green push is read as proof.
+  # The kill switch above is the deliberate way to turn it off.
+  echo "pre-receive: gitleaks is not installed on this server — refusing the push" >&2
+  echo "pre-receive: install it, or set GITLEAKS_PRE_RECEIVE_DISABLE=1 to override" >&2
+  exit 1
+fi
+
+status=0
+
+while read -r old new ref; do
+  # Branch/tag deletion: nothing to scan.
+  [ "$new" = "$ZERO" ] && continue
+
+  if [ "$old" = "$ZERO" ]; then
+    # New ref. Scan only what it introduces, not the entire history it shares
+    # with everything else — `--not --all` excludes commits already on the
+    # server, which is what keeps this fast enough to sit in the push path.
+    range="$new --not --all"
+  else
+    range="$old..$new"
+  fi
+
+  # --redact: this output goes into the pusher's terminal AND the server log.
+  # The file and line are enough to fix it; reprinting the value copies the
+  # secret into another place it should not be.
+  if ! gitleaks git . --log-opts="$range" --no-banner --redact --exit-code 1 2>&1; then
+    echo "pre-receive: secret detected in $ref — push rejected" >&2
+    status=1
+  fi
+done
+
+if [ "$status" -ne 0 ]; then
+  echo "pre-receive: rotate the credential first; removing it from the tip is not enough" >&2
+  echo "pre-receive: the value is in the objects you just tried to push" >&2
+fi
+
+exit "$status"

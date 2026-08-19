@@ -23,6 +23,10 @@ shfmt = "latest"
 stylua = "latest"
 taplo = "latest"
 gitleaks = "latest"
+# Verification, not detection: trufflehog answers "is this leaked credential
+# still LIVE" by making read-only calls to the provider. That is the work that
+# was done by hand on 2026-08-01, testing five GitLab PATs one at a time.
+trufflehog = "latest"
 yamllint = "latest"
 jq = "latest"
 # ubi (direct GitHub binary) — aqua's lefthook build fails attestation in CI.
@@ -180,6 +184,7 @@ description = "Run every CI gate"
 depends = [
   "lint:shell",
   "lint:secrets",
+  "lint:mcp-config",
   "lint:private",
   "lint:yaml",
   "lint:json",
@@ -194,6 +199,24 @@ description = "shellcheck sh/bash scripts — error severity only (vendored scri
 # lint:shellcheck CI job so the two cannot drift. Exclusions and the shebang rule
 # are documented there.
 run = "./mise-scripts/shell-files.sh | xargs -r shellcheck --severity=error -e SC1090,SC1091,SC2148"
+
+[tasks."lint:mcp-config"]
+description = "credential-shaped config values must be REFERENCES, not literals"
+# The structural counterpart to lint:secrets. gitleaks asks "does this look like a
+# secret" and can be defeated by a credential that looks ordinary — short,
+# lowercase, low entropy, which is exactly what a device password looks like.
+# This asks whether a value under a credential-named key (or anywhere inside an
+# `env` block) is written as a reference to where the secret actually lives:
+# ${VAR}, !printenv VAR, op://…, or a bare VAR_NAME.
+#
+# It never reasons about the value's content, so it cannot be fooled by one that
+# happens to look innocuous. That is the whole point: the UniFi password that
+# started this was 14 characters of ordinary-looking text in an MCP env block.
+#
+# Not in the GitLab subset — it needs python, and that runner uses tool-bundled
+# images. GitHub runs the full `mise run lint`, so it is gated there. See
+# CLAUDE.md "Linting & CI".
+run = "./mise-scripts/config-secret-refs.py"
 
 [tasks."lint:private"]
 description = "block machine-local hostnames/IPs/serials from entering the repo"
@@ -216,7 +239,7 @@ run = """
 tmp=$(mktemp -d) || exit 1
 trap 'rm -rf "$tmp"' EXIT
 git archive HEAD | tar -x -C "$tmp"
-gitleaks dir "$tmp" -c .gitleaks.toml --no-banner
+gitleaks dir "$tmp" -c .gitleaks.toml --no-banner --redact
 """
 
 [tasks."lint:vuln"]
@@ -248,12 +271,46 @@ git archive HEAD | tar -x -C "$tmp"
 grype dir:"$tmp" -f high --name dotfiles
 """
 
+[tasks."audit:mcp-config"]
+description = "same check against THIS MACHINE's agent configs (untracked by design)"
+# The repo gate can only see tracked content, and the configs that actually hold
+# credentials — ~/.claude.json, ~/.pi/agent, ~/.config/opencode, ~/.docker/mcp —
+# are untracked on purpose. Nothing here can be committed, so this cannot be a
+# gate; it is the audit that tells you the live machine is in the state the repo
+# assumes. Prints keys and line numbers, never values.
+run = "./mise-scripts/config-secret-refs.py --live"
+
+[tasks."audit:secrets-live"]
+description = "trufflehog — is any credential in history still LIVE (verification, not detection)"
+# Complements audit:secrets-history rather than replacing it. gitleaks answers
+# "does this look like a secret"; trufflehog answers "does this credential still
+# work", by making read-only calls to the provider. That is exactly the work done
+# by hand on 2026-08-01, testing five GitLab PATs against /api/v4/user one at a
+# time.
+#
+# NOT in `lint`'s depends list, same reasoning as lint:vuln: it needs the network
+# and talks to third parties, so it must never be on the fast local gate.
+#
+# `--results=verified` (3.97 spelling; the old flag was --only-verified) keeps
+# the output to credentials that answered. `--fail` exits 183 on a hit.
+#
+# Know its limit before trusting it: verification is provider-shaped, so a
+# self-hosted controller login has no detector and reports nothing. It would NOT
+# have caught the UniFi password that prompted all of this. Detection shape is
+# what caught that; this answers a different question.
+run = "trufflehog git file://. --results=verified --fail --no-update"
+
 [tasks."audit:secrets-history"]
 description = "gitleaks over FULL history — the honest pre-rewrite audit (no path allowlists)"
 # The counterpart to lint:secrets. lint gates the tracked HEAD; this surfaces every
 # secret ever committed, so it fails until `git filter-repo` has stripped them.
-# Expected to be RED until the history rewrite runs — that is the point.
-run = "gitleaks git . -c .gitleaks.toml --no-banner"
+#
+# It no longer reports a permanent 19. Findings that are already REVOKED are
+# pinned in .gitleaksignore by fingerprint, so what is left is only what is still
+# outstanding — currently 4. A number nobody reads is not a gate: a live UniFi
+# password sat inside that 19 for three weeks without anyone noticing it was new.
+# Read .gitleaksignore before adding to it; it has rules.
+run = "gitleaks git . -c .gitleaks.toml --no-banner --redact"
 
 [tasks."lint:yaml"]
 description = "yamllint all yaml"
