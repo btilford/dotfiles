@@ -16,8 +16,9 @@ it grew out of.
   actions, rules and a history drawer, and a submap hint overlay.
 - **Headless screenshot capture** — [`mise-scripts/visuals/`](mise-scripts/visuals/README.md).
   Boots a nested wlroots compositor, drives each surface over IPC and captures
-  stills and GIFs, with no display and no logged-in session. Every image in this
-  repo came from it.
+  stills and GIFs, with no display and no logged-in session. Every shell surface
+  shown here came from it — the three layout shots below are the exception, and
+  say why.
 - **Wallpaper-driven theming** — [`wallust/`](wallust/README.md) regenerates
   palettes for six other tools on every wallpaper change.
 - **A git setup that routes identity by directory** — [`git/`](git/README.md),
@@ -216,7 +217,7 @@ here.
 
 ## Screenshots
 
-Generated, never taken by hand:
+Every shell surface is generated, never taken by hand:
 
 ```sh
 mise run screenshots -- --list
@@ -228,6 +229,33 @@ so captures work over ssh with no display attached. See
 [`mise-scripts/visuals/`](mise-scripts/visuals/README.md) — including its
 isolation rules, which exist because getting this wrong once destroyed a running
 desktop session.
+
+### Tiling layouts
+
+`SUPER + SHIFT + L` cycles the focused workspace between three layouts. Same four
+windows in each shot — three terminals and a browser.
+
+**dwindle** — each new window splits the one it lands on.
+
+![the dwindle layout](docs/images/hyprland-layout-dwindle.png)
+
+**master** — one main area on the left, the rest stacked beside it.
+
+![the master layout](docs/images/hyprland-layout-master.png)
+
+**scrolling** — windows are columns on a strip that scrolls sideways, so the ones
+you are not using sit off-screen rather than shrinking. Column width is narrowed
+for the shot; at this machine's `scrolling:column_width = 1.0` a single column
+fills the output and the screenshot would be indistinguishable from a maximised
+window.
+
+![the scrolling layout](docs/images/hyprland-layout-scrolling.png)
+
+These three are **live-session captures, not generated** — the only hand-taken
+images here. Hyprland 0.56 (aquamarine) cannot start headless on this hardware,
+and the harness above runs sway, whose layouts are not these. So they were taken
+on a real session, on an empty workspace, with a throwaway browser profile and a
+starship config with the hostname and username modules switched off.
 
 ## License
 
