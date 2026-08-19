@@ -17,6 +17,7 @@ with no `-c` flag).
 | `components/Launcher.qml` | Multi-mode launcher (combi/drun/run/files), replaces rofi. |
 | `config/Notifications.qml` | `Notifications` singleton: the `org.freedesktop.Notifications` server, live popup model, expiry, and the epic's config/rules/store seams. |
 | `components/NotificationOverlay.qml` + `components/notifications/` | Popup stack view. Pure view over `Notifications.popups`. |
+| `config/Clocks.qml` + `config/Weather.qml` + `components/ClockDrawer.qml` | Clock drawer: weather, world clocks, month calendar. `SUPER+c`, the bar clock, or `qs ipc call clock drawer`. |
 | `components/ClipboardDialog.qml` | **Thin wrapper** over the dialog shipped by the clipborg repo (`examples/quickshell/Clipborg`). Host glue only. State in the `Clipboard` singleton; IPC `qs ipc call clipboard toggle`; bound to `SUPER+V`. |
 | `config/Theme.qml` + `config/qmldir` | `Theme` singleton: terminal-flavored tokens; reads the wallust palette. |
 | `wallust/.gitkeep` | Runtime `colors.json` lands here (generated, gitignored). |
@@ -107,6 +108,61 @@ Search + flat/tree list + preview pane + actions/llm/pin/delete/bulk-delete. Sta
   probe `item.Window.active`; `qs log -f -i <id> -r "*=true"` to see qml debug; `wtype -k Escape`
   injects real keys into an exclusive layer (`hyprctl send_shortcut` can't). See the
   `quickshell-exclusive-grab-lockout` memory.
+
+## Clock drawer (weather, world clocks, calendar)
+
+`config/Clocks.qml` + `config/Weather.qml` (state) + `components/ClockDrawer.qml` (view). Opens
+with **`SUPER + c`**, by clicking the bar clock, or `qs ipc call clock drawer`
+(`drawerShow`/`drawerHide`/`refresh`/`weather`).
+
+- **The singleton is `Clocks`, not `ClockDrawer`.** The view is `components/ClockDrawer.qml`,
+  and a singleton of the same name would shadow it in every file importing both directories.
+- **`Clock.qml`'s two Popouts are gone.** The world-clock list and the calendar moved here; the
+  bar clock is now a button. The `TZ=… date` mechanism moved unchanged — quickshell 0.3.0's JS
+  engine has **no `Intl` timezone support**, so `new Date()` is only ever local time. One shell
+  call per minute produces every zone's time *and weekday* (a zone list without the weekday
+  lies by omission: 07:12 in Tokyo is tomorrow). Do not "modernise" this to `Intl`.
+- **Both minute and second timers run only while the drawer is `shown`.** Nothing reads them
+  with no window on screen.
+- Its own layer namespace `quickshell-clock-drawer` and its own rule in
+  `hypr/lua/windowrules.lua`, with the same values as the notification drawer but **stated
+  separately** — the surfaces are unrelated, and sharing one knob is how tuning the submap
+  hints once restyled the notification drawer. Same reason `slabOpacity`/`cardOpacity` are
+  constants on the window rather than reads of `NotifyConfig.drawer`.
+- Widgets are a plain `Column` of cards inside a `Flickable`, so a fourth one is an insertion
+  and a short monitor scrolls instead of clipping.
+- Keys: `h`/`l` (or arrows) month, `t` today, `r` refetch, `Esc` close. **No `j`/`k`** — nothing
+  here is a list, and rebinding them would break the habit the other two keyboard surfaces build.
+- The bind goes through `keybindings.lua`'s `notif_run` even though it is not a notification
+  verb: that helper resets the submap *before* running, and the reason is the keyboard grab, not
+  notifications. The name is now narrower than what it does.
+
+### Weather: provider is config, and the location never lands in this repo
+
+`~/.config/quickshell/weather.json` (`QS_WEATHER_CONFIG` overrides — the seam the capture
+harness uses; see `weather.example.json`). Three providers answer the same question:
+`open-meteo` (**default**, no key, global lat/lon), `home-assistant` (LAN-only), `wttr.in`
+(fallback proxy).
+
+- **A home lat/lon is private infrastructure**, exactly like a LAN IP. Only the example ships;
+  the real file is gitignored and provisioned from `private-dotfiles`, and `mise run
+  lint:private` fails a commit that leaks one. **`visual-capture.sh` must keep pointing
+  `QS_WEATHER_CONFIG` at a rig-owned file** — without it a capture destined for the notes vault
+  photographs the user's coordinates. Its fixture uses the Royal Observatory, Greenwich.
+- **An HA token is never in the JSON.** The config names a SECRET (`[A-Za-z0-9_]+`, validated
+  before it reaches a shell) and `dotfiles-secrets --get` resolves it inside the same subprocess
+  that makes the request, so the value exists in no file, no QML string and no environment. The
+  URL and the name are positional parameters, never interpolated into the script text.
+- `curl` in a `Process`, not `XMLHttpRequest`, precisely so that token handling is possible.
+- **Failure is a state, never a blank.** idle/loading/ok/error with a human-readable reason,
+  and the last good reading stays on screen marked `stale`. `qs ipc call clock weather` reports
+  it without a screenshot.
+- **A reading carries the units it was fetched in** (`readingTempUnit`/`readingWindUnit`).
+  `units` is live config and `current` is a cached number: editing the file re-labelled a
+  cached 19°C as 19°F, which is a wrong number on screen, not a cosmetic bug.
+- HA forecasts: `attributes.forecast` was removed from weather entities in HA 2024.4 (it needs
+  the `weather.get_forecasts` service now). It is read when a legacy integration still publishes
+  it; otherwise the strip is empty and current conditions still render.
 
 ## Submap hints (which-key)
 

@@ -1,0 +1,51 @@
+{
+  "_comment": [
+    "Copy to ~/.config/quickshell/weather.json to configure the clock drawer's weather widget.",
+    "The live shell re-reads it on save — no restart, no QML edit. Every key is optional;",
+    "anything missing or invalid falls back to the shipped default in config/Weather.qml.",
+    "",
+    "THIS FILE IS THE ONLY WEATHER CONFIG IN THE REPO, AND IT IS AN EXAMPLE. A home",
+    "latitude/longitude is private infrastructure under the public-mirror rule, exactly like a",
+    "LAN IP — the real weather.json is untracked here (.gitignore) and provisioned from the",
+    "private dotfiles repo. `mise run lint:private` fails a commit that leaks one.",
+    "",
+    "provider: open-meteo (default) | home-assistant | wttr.in",
+    "        open-meteo    no API key, HTTPS JSON, global lat/lon coverage. Set latitude and",
+    "                      longitude; nothing else is required.",
+    "        home-assistant  local, no external egress. Needs baseUrl + entity + tokenSecret.",
+    "        wttr.in       one-call fallback; a third-party proxy, flaky under load.",
+    "label:  what the panel calls this place. Free text — and it is shown on screen, so on a",
+    "        machine whose config is public keep it a city, not an address.",
+    "units:  imperial (default: °F, mph) | metric (°C, km/h)",
+    "refreshMinutes: how often to refetch. Floored at 5 — these are free APIs, not a feed.",
+    "timeoutSec: per-request budget. A hung request must not sit in `loading` forever.",
+    "forecastDays: 1..7 columns in the forecast strip.",
+    "",
+    "homeAssistant.tokenSecret: THE NAME OF A SECRET, NEVER A TOKEN. It is resolved at request",
+    "        time with `dotfiles-secrets --get <NAME>`, inside the same shell that makes the",
+    "        request, so the value never lands in this file, in QML, or in the environment.",
+    "        Must match [A-Za-z0-9_]+.",
+    "homeAssistant.entity: a weather.* entity id. Current conditions always render; a forecast",
+    "        strip appears only if the integration still publishes attributes.forecast (removed",
+    "        from weather entities in HA 2024.4 in favour of the weather.get_forecasts service).",
+    "",
+    "Network failure is a visible state, never a blank panel: the last good reading stays on",
+    "screen marked stale, with the reason underneath and [r] to retry."
+  ],
+  "provider": "open-meteo",
+  "label": "Home",
+  "latitude": 0.0,
+  "longitude": 0.0,
+  "units": "imperial",
+  "refreshMinutes": 15,
+  "timeoutSec": 10,
+  "forecastDays": 5,
+  "homeAssistant": {
+    "baseUrl": "http://homeassistant.example:8123",
+    "entity": "weather.home",
+    "tokenSecret": "HOME_ASSISTANT_TOKEN"
+  },
+  "wttr": {
+    "location": "Boise"
+  }
+}

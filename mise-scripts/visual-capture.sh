@@ -56,7 +56,7 @@ FRAME_INTERVAL="0.06"
 GIF_FPS=15
 GIF_WIDTH=960
 
-ALL_SCENES=(bar drawer modal popup submap keymap clipboard tmux)
+ALL_SCENES=(bar drawer modal popup submap keymap clipboard clock tmux)
 
 log() { printf '\033[1;36m[capture]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[capture]\033[0m %s\n' "$*" >&2; }
@@ -104,6 +104,7 @@ while [ $# -gt 0 ]; do
         popup "notification popups — both anchor presets, dwell + overflow" \
         submap "which-key submap hints — real maps, plus layout sizes" \
         clipboard "clipborg dialog — list, filter, tree, actions" \
+        clock "clock drawer — weather, world clocks, calendar, and the degraded state" \
         tmux "terminal surface — vhs tape if installed, else foot + grim"
       exit 0
       ;;
@@ -249,6 +250,20 @@ NOTIFY_DB="$RUNTIME/notifications.db"
 NOTIFY_RULES="$RUNTIME/rules.lua"
 : > "$NOTIFY_RULES"
 
+# QS_WEATHER_CONFIG, and this one is a privacy boundary rather than a convenience. The clock
+# drawer reads ~/.config/quickshell/weather.json, which holds the user's HOME LATITUDE AND
+# LONGITUDE — private infrastructure under this repo's public-mirror rule, and these captures are
+# destined for a notes vault. Pointing it at a rig-owned file means a capture cannot photograph
+# it, the same reason CLIPBORG_CONFIG exists.
+#
+# The coordinates below are the Royal Observatory, Greenwich: a public landmark picked so the
+# scene shows REAL data from a real request without disclosing where anyone lives.
+WEATHER_CONFIG="$RUNTIME/weather.json"
+weather_cfg() {
+  printf '%s\n' "$1" > "$WEATHER_CONFIG"
+}
+weather_cfg '{ "provider": "open-meteo", "label": "Greenwich", "latitude": 51.4779, "longitude": -0.0015, "units": "metric", "forecastDays": 5 }'
+
 # QS_BINDS_CMD feeds the which-key overlay REAL keybindings. Keymap.qml normally
 # shells out to `hyprctl binds -j`, and there is no Hyprland in this session, so
 # without it the submap scene can only ever photograph synthetic entries — which is
@@ -278,6 +293,7 @@ export QML_IMPORT_PATH="${CLIPBORG_QML_PATH:-$HOME/Projects/public/clipborg/exam
 
 HYPR_NOTIFY=quickshell QS_NOTIFY_CONFIG="$NOTIFY_CONFIG" QS_NOTIFY_DB="$NOTIFY_DB" \
   QS_NOTIFY_RULES="$NOTIFY_RULES" \
+  QS_WEATHER_CONFIG="$WEATHER_CONFIG" \
   QS_BINDS_CMD="cat '$BINDS_FIXTURE'" \
   qs -p "$SHELL_QML" > "$RUNTIME/qs.log" 2>&1 &
 QS_PID=$!
@@ -777,6 +793,42 @@ scene_clipboard() {
   settle 0.6
 
   kill "$CLIPBORG_PID" 2> /dev/null
+}
+
+# The clock drawer: weather, world clocks, calendar. Three stills, and the third is the point —
+# a degraded weather fetch has to be a legible state rather than a blank card or a spinner that
+# never resolves, and the only way to know that is to photograph it.
+#
+# The failing case is produced by pointing the provider at an entity that cannot resolve, NOT by
+# a rig-only flag in the shell: a test hook committed into the config would be a permanent lie
+# in the shipped code. Everything here goes through the real config file and the real IPC.
+scene_clock() {
+  ipc clock drawerShow
+  settle 1.6 # first frame, slide-in, and a beat for the fetch to land
+  still clock-drawer
+  qs ipc --pid "$QS_PID" call -- clock weather > "$RUNTIME/weather-state.txt" 2>&1
+  log "weather state: $(cat "$RUNTIME/weather-state.txt" 2> /dev/null)"
+
+  # Month browsing, from the keyboard the user actually reaches it with.
+  if command -v wtype > /dev/null 2>&1; then
+    wtype -k l
+    settle 0.5
+    still clock-next-month
+    wtype -k t
+    settle 0.4
+  fi
+
+  # Degraded: a home-assistant base URL that resolves nowhere. curl fails, the panel keeps
+  # whatever reading it already had (marked stale) and says why underneath.
+  weather_cfg '{ "provider": "home-assistant", "label": "Greenwich", "homeAssistant": { "baseUrl": "http://127.0.0.1:1", "entity": "weather.nope", "tokenSecret": "NO_SUCH_SECRET" } }'
+  settle 1.0
+  ipc clock refresh
+  settle 1.5
+  still clock-weather-unavailable
+
+  weather_cfg '{ "provider": "open-meteo", "label": "Greenwich", "latitude": 51.4779, "longitude": -0.0015, "units": "metric", "forecastDays": 5 }'
+  ipc clock drawerHide
+  settle 0.6
 }
 
 scene_tmux() {

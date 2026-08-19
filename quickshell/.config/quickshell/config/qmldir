@@ -14,3 +14,5 @@ singleton NotifyDrawer NotifyDrawer.qml
 singleton NotifyCompose NotifyCompose.qml
 singleton Connectors Connectors.qml
 singleton Timers Timers.qml
+singleton Weather Weather.qml
+singleton Clocks Clocks.qml
