@@ -107,6 +107,8 @@ Filters: `| strip` removes `#` prefix, `| rgb` outputs `R,G,B` decimal.
 | `Ctrl+Alt+V`     | Clipse clipboard manager      |
 | `Super+Shift+B`  | Reload Waybar                 |
 | `Super+0–9`      | Switch workspace              |
+| `Super+F1–F3`    | Switch to XR1–XR3 (glasses)   |
+| `Super+Shift+F1–F3` | Move window to XR1–XR3     |
 
 ## Waybar
 
@@ -126,6 +128,29 @@ Filters: `| strip` removes `#` prefix, `| rgb` outputs `R,G,B` decimal.
 | XPPen UGD MD180U | bottom center    | landscape    |
 | Dell S2725QC     | left             | rotated 90°  |
 | Dell S2725QC     | right            | rotated 270° |
+| XREAL One Pro    | auto-right       | landscape    |
+
+The XREAL One Pro is AR glasses, not a panel on the desk: a 1920x1080 virtual
+display over DP alt-mode, driven at 120Hz and **scale 1** rather than 1.5 — a
+downscale into 1080p optics costs sharpness where text is already hardest to
+read. It is plugged in place of one of the USB-C sinks (the two portraits or the
+tablet), so the two do not normally coexist. Placement is `auto-right` rather
+than a fixed coordinate — the glasses are the one display that travels, so the
+same config has to sit them next to a laptop panel as readily as next to this
+desk. It gets three
+non-persistent workspaces, XR1–XR3 (11–13), all scrolling with full-width
+columns — see `lua/layout-auto.lua`.
+
+### Hotplug garbage
+
+An output added mid-session comes up with stale content in its scanout buffer —
+a small static patch of colored noise that nothing repaints away, because Hyprland
+only draws regions it believes changed. It is invisible to `grim` (which renders
+into a fresh buffer), which is what made it look like a cable or panel fault.
+`debug:damage_tracking = 0` does not help; only a modeset replaces the buffer.
+
+`lua/monitors.lua` DPMS-cycles any output added after startup, which fixes it
+automatically. `Super+S` then `d` is the manual cure for an output already up.
 
 Alternate configs in `conf/monitors/`: `laptop.conf` (1.0x scale), `fwd.conf` (no dock variant).
 

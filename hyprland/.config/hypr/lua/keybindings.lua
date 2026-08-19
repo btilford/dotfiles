@@ -44,7 +44,54 @@ hl.bind(
   hl.dsp.exec_cmd("sh -c \"hyprctl activewindow | grep pid | tr -d 'pid:' | xargs kill\""),
   { description = "Force-kill active window" }
 )
-hl.bind("SUPER + S", hl.dsp.layout("togglesplit"), { description = "Toggle split direction" })
+-- System submap. SUPER+S was togglesplit, which window-cmd already carries on `n`
+-- -- the top-level bind was a duplicate, so the letter is free for the one submap
+-- the set was missing: machine-level operations, none of them window or workspace.
+hl.bind("SUPER + S", hl.dsp.submap("system-cmd"), { description = "System submap [system-cmd]" })
+
+-- Blank and re-enable an output. A monitor added mid-session comes up with stale
+-- content in its scanout buffer -- a small static patch of garbage that no repaint
+-- ever clears, because the compositor only draws where it thinks something
+-- changed. Only a modeset replaces the buffer, and DPMS off/on is the cheapest one
+-- reachable from a keybind. Diagnosed 2026-08-19 on XREAL glasses hotplugged into
+-- a running session; the same artifact had been showing on the tablet for months.
+-- lua/monitors.lua does this automatically on hotplug -- this is the manual cure
+-- for an output that was already up, or for one the hook missed.
+local function dpms_cycle(name)
+  hl.dispatch(hl.dsp.dpms("off", name))
+  hl.timer(function()
+    hl.dispatch(hl.dsp.dpms("on", name))
+  end, { timeout = 400, type = "oneshot" })
+end
+
+hl.define_submap("system-cmd", function()
+  hl.bind("d", function()
+    local mon = hl.get_active_monitor()
+    if mon then
+      dpms_cycle(mon.name)
+    end
+  end, { description = "DPMS-cycle focused monitor (clear hotplug garbage)" })
+  hl.bind("SHIFT + d", function()
+    for _, mon in ipairs(hl.get_monitors() or {}) do
+      dpms_cycle(mon.name)
+    end
+  end, { description = "DPMS-cycle every monitor" })
+  hl.bind(
+    "r",
+    hl.dsp.exec_cmd("hyprctl reload"),
+    { description = "Reload Hyprland config (resets runtime layout state)" }
+  )
+  hl.bind(
+    "b",
+    hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/StartBar.sh"'),
+    { description = "Restart status bar (waybar/quickshell)" }
+  )
+  hl.bind("l", hl.dsp.exec_cmd("loginctl lock-session"), { description = "Lock session" })
+  hl.bind("e", function()
+    os.execute("qs ipc call session toggle 2>/dev/null || setsid -f wlogout --protocol layer-shell")
+  end, { description = "Session/power menu" })
+  hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
+end)
 local cycle_layouts = { "dwindle", "master", "scrolling" }
 local cycle_layout_idx = 1
 
@@ -593,6 +640,27 @@ hl.bind("SUPER + 7", hl.dsp.focus({ workspace = 7 }), { description = "Focus wor
 hl.bind("SUPER + 8", hl.dsp.focus({ workspace = 8 }), { description = "Focus workspace 8" })
 hl.bind("SUPER + 9", hl.dsp.focus({ workspace = 9 }), { description = "Focus workspace 9" })
 hl.bind("SUPER + 0", hl.dsp.focus({ workspace = 10 }), { description = "Focus workspace 10" })
+
+-- AR glasses (XREAL) workspaces. F-keys rather than more digits: 1-0 are spoken
+-- for, and these three only exist while the glasses are plugged in.
+hl.bind("SUPER + F1", hl.dsp.focus({ workspace = 11 }), { description = "Focus XR1 (ws 11)" })
+hl.bind("SUPER + F2", hl.dsp.focus({ workspace = 12 }), { description = "Focus XR2 (ws 12)" })
+hl.bind("SUPER + F3", hl.dsp.focus({ workspace = 13 }), { description = "Focus XR3 (ws 13)" })
+hl.bind(
+  "SUPER + SHIFT + F1",
+  hl.dsp.window.move({ workspace = 11 }),
+  { description = "Move window to XR1 (ws 11)" }
+)
+hl.bind(
+  "SUPER + SHIFT + F2",
+  hl.dsp.window.move({ workspace = 12 }),
+  { description = "Move window to XR2 (ws 12)" }
+)
+hl.bind(
+  "SUPER + SHIFT + F3",
+  hl.dsp.window.move({ workspace = 13 }),
+  { description = "Move window to XR3 (ws 13)" }
+)
 
 -- Move window to workspace
 hl.bind(
