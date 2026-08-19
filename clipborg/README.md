@@ -11,6 +11,47 @@ Stow package. `stow --no-folding clipborg` from `~/dotfiles`.
 Formerly **clipvault** — same project, renamed. Grep both spellings in old notes;
 write new references as clipborg.
 
+## The quickshell dialog
+
+Bound to `SUPER+V`. `ClipboardDialog.qml` in the [`quickshell`](../quickshell/README.md)
+package is a thin wrapper — the dialog itself ships with clipborg and arrives with
+`git pull`. State lives in the `Clipboard` singleton and it is driven over IPC:
+
+```sh
+qs ipc call clipboard toggle
+```
+
+![the clipborg dialog, flat list](../docs/images/clipborg-list.png)
+
+Entries are typed and tabbed — text, code, urls, images, files, colors, emails,
+registers — with a preview pane showing the full content plus `kind`, `category`,
+attributing app, source, pin state and use count.
+
+Typing filters as you go:
+
+![filtering the list](../docs/images/clipborg-filter.png)
+
+`Ctrl+T` groups by attributing app, with the app's own icon resolved from its
+desktop entry:
+
+![the list grouped by app](../docs/images/clipborg-tree.png)
+
+`Ctrl+A` opens the actions for the selected entry, and the list is **content-aware**
+— a URL offers browser, curl, download and markdown-link, where a code block or a
+file path would not:
+
+![content-aware actions for a URL entry](../docs/images/clipborg-actions.png)
+
+`Ctrl+L` runs an LLM prompt against the entry (`prompts/*.md` below), `Ctrl+D`
+deletes, `Alt+P` pins.
+
+> **These screenshots are staged.** The entries are fabricated and the app
+> attribution is stamped in by the capture rig. A real clipboard history is the
+> most sensitive store on the machine — every password-manager copy, every token
+> pasted between terminals — so the rig points `CLIPBORG_CONFIG` at a throwaway
+> database under its own runtime dir and never opens the real one. Regenerate with
+> `mise run screenshots -- --scene clipboard`.
+
 ## Two-layer config
 
 This file is the **base** layer. clipborg reads

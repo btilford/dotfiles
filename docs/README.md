@@ -13,6 +13,10 @@ docs/images/quickshell-notifications.png  notification history drawer (cropped)
 docs/images/quickshell-whichkey.png       which-key hints, window-cmd (cropped)
 docs/images/quickshell-whichkey-sparse.png
                                           which-key hints, open-cmd (cropped)
+docs/images/clipborg-list.png             clipborg dialog, flat list (cropped)
+docs/images/clipborg-filter.png           clipborg dialog, filtered (cropped)
+docs/images/clipborg-tree.png             clipborg dialog, grouped by app (cropped)
+docs/images/clipborg-actions.png          clipborg dialog, action list (cropped)
 ```
 
 ## Where these come from — and where they do NOT go
@@ -43,6 +47,12 @@ caught before the push.
 
 So: capture headlessly (the nested session has no real notifications, no real
 workspaces and no real windows), then **look at the image** before committing it.
+
+The clipboard scene is the sharpest case. A real clipboard history is the most
+sensitive store on the machine, so that scene points `CLIPBORG_CONFIG` at a
+throwaway database under the rig's own runtime dir and seeds it with fabricated
+entries. If that variable were ever dropped, the dialog would open the real
+history and photograph it — check it is still set before touching that scene.
 
 ## Refreshing
 
