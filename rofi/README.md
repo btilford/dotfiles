@@ -15,10 +15,21 @@ independently — the first step toward toggling between rofi and
 
 > Agent-facing notes: [`CLAUDE.md`](CLAUDE.md).
 
-## Status: keep it limping, don't invest
+## Status: fallback only, don't invest
 
-quickshell's launcher is the one being developed. rofi stays as a fallback for
-machines where quickshell is not running. Full removal is a future plan.
+**`HYPR_LAUNCHER` now defaults to `quickshell`**, so a fresh clone does not use
+this package at all. quickshell's launcher covers every mode rofi does here, plus
+`icons`, which has no rofi equivalent.
+
+rofi stays installed and configured as the fallback. To use it, per machine:
+
+```sh
+printf 'HYPR_LAUNCHER=rofi\n' >> ~/.config/hypr/shell.local.env
+```
+
+`Launcher.sh` keeps its rofi branch, including the rofimoji mappings for `emoji`
+and `glyphs` and the per-host DPI workaround. Full removal is a separate change —
+it would also retire the rofi wallust template and cut the GPL-3.0 surface.
 
 ## Runtime files — generated, never committed
 

@@ -21,7 +21,7 @@ Installs to `~/.config/waybar/`:
 ## How it is launched
 
 Hyprland does not run `waybar` directly. `hyprland/.config/hypr/scripts/StartBar.sh` selects the
-bar from `$HYPR_BAR` (`waybar` default, or `quickshell`). Set the per-machine override in
+bar from `$HYPR_BAR`. **`quickshell` is now the default**; set `HYPR_BAR=waybar` to come back here. Per-machine override in
 `~/.config/hypr/shell.local.env` (not stowed). See the `hyprland` package.
 
 ## Rules

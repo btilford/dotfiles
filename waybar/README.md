@@ -20,8 +20,16 @@ independently — the first step toward toggling between waybar and
 ## How it is launched
 
 Hyprland does **not** run `waybar` directly. `hypr/scripts/StartBar.sh` picks the
-bar from `$HYPR_BAR` — `waybar` by default, or `quickshell`. Set the per-machine
-override in `~/.config/hypr/shell.local.env` (not stowed).
+bar from `$HYPR_BAR`, and **the default is now `quickshell`** — every machine here
+already overrode it, so the old `waybar` default only ever produced a stack
+nobody was testing.
+
+This package stays installed and configured as the fallback. To use it, per
+machine and without touching the repo:
+
+```sh
+printf 'HYPR_BAR=waybar\n' >> ~/.config/hypr/shell.local.env
+```
 
 ## Colours come from wallust
 
