@@ -1,0 +1,57 @@
+MIT License
+
+Copyright (c) 2026 btilford
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+THIRD-PARTY CONTENT
+
+The MIT grant above covers this repository's own work. It does NOT cover the
+vendored and derived content listed below, which remains under its original
+license. Nothing here relicenses any of it.
+
+1. GPL-3.0 — github.com/JaKooLit/Hyprland-Dots
+   29 files derived from or adapted from that project, each carrying its
+   upstream attribution header:
+
+     hyprland/.config/hypr/scripts/          (21 files)
+     hyprland/.config/hypr/init.sh
+     wallust/.config/wallust/wallust.toml
+     wallust/.config/wallust/templates/      (5 files)
+     rofi/.config/rofi/themes/KooL_style-4.rasi
+
+   GPL-3.0 is copyleft. If you redistribute these files, modified or not, you
+   must do so under GPL-3.0 and make the source available. Keep the attribution
+   headers intact.
+
+2. MIT — vendored yazi flavors, each with its own LICENSE file alongside it:
+
+     yazi/.config/yazi/flavors/ashen.yazi/    (c) 2025 Daniel Fichtinger and
+                                              GitHub contributors
+     yazi/.config/yazi/flavors/sunset.yazi/   (c) 2024 Mykola Yavir
+
+3. GPL-2.0 — git's own sample hooks, shipped verbatim with git and vendored
+   here so `init.templateDir` has a complete template:
+
+     git/.config/git/templates/hooks/*.sample   (14 files)
+
+Third-party licenses take precedence over the MIT grant for the files they
+cover. When in doubt about a specific file, check its header first.
