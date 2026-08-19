@@ -62,7 +62,29 @@ lint:secrets:
     name: zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
     entrypoint: [""]
   script:
-    - gitleaks dir . -c .gitleaks.toml --no-banner
+    # --redact: a CI job log is a published surface, so a finding must name the
+    # file and line without printing the value. Same asymmetry no-local-values.sh
+    # already uses (--all withholds the line, staged mode prints it).
+    - gitleaks dir . -c .gitleaks.toml --no-banner --redact
+
+# Verification, not detection. MANUAL and allow_failure on purpose: verifying a
+# credential means outbound calls to arbitrary providers, and this runner cannot
+# reach the public internet freely (the same restriction that keeps mise's
+# aqua/ubi installs out of this file). The real gate is the GitHub workflow's
+# secrets-live job; this is here so the two surfaces stay legible to each other
+# rather than silently diverging. See CLAUDE.md "Linting & CI".
+audit:secrets-live:
+  stage: lint
+  when: manual
+  allow_failure: true
+  image:
+    # trufflesecurity/trufflehog:latest — 3.97.0
+    name: trufflesecurity/trufflehog@sha256:ff4c95e9df7d645daf2140e3ca1039031c63106268d5fbb25feb43ceca1bcc33
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: 0
+  script:
+    - trufflehog git file://. --results=verified --fail --no-update
 
 lint:yaml:
   stage: lint

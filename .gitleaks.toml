@@ -40,28 +40,23 @@ regex = '''export\s+(SECRET|PASSWORD|TOKEN|API_KEY)\s*=\s*["'][^"'$][^"']*["']''
 [[rules]]
 id = "json-credential-value"
 description = "JSON/JSONC credential key with a literal value (MCP env blocks, app configs)"
-regex = '''(?i)"[A-Za-z0-9_-]*(password|passwd|secret|token|api_?key|credential)[A-Za-z0-9_-]*"\s*:\s*"[^"$<{][^"]{7,}"'''
-
-# Values that are not credentials however literal they look. Both of these are
-# real entries in this repo — `pi-agent/.pi/agent/models.example.json` and the
-# README beside it — and both are the correct way to write the file, so a rule
-# that flags them would train people to ignore it.
-[[rules.allowlists]]
-description = "indirection and documented placeholders, not values"
-regexTarget = "match"
-regexes = [
-  # "!printenv PI_API_KEY" — pi-agent resolves the value by running the command
-  '''"\s*:\s*"!''',
-  # op:// (1Password), infisical:// , vault: — reference syntaxes, not secrets
-  '''"\s*:\s*"(op|infisical|vault|keyring|secret)://''',
-  # YOUR_API_KEY_HERE, changeme, replace-me, <example>, xxxxx, TODO
-  '''(?i)"\s*:\s*"(your|my)[_ -]?[a-z0-9_ -]*(key|token|secret|password)[_ -]?(here)?"''',
-  '''(?i)"\s*:\s*"(change[_-]?me|replace[_-]?me|example|placeholder|redacted|todo|none|null|x{4,})"''',
-  # A bare SCREAMING_SNAKE value is the NAME of a variable, not its value —
-  # `"token": "HOME_ASSISTANT_TOKEN"` in weather.example.json, and the
-  # deliberately-absent `"NO_SUCH_SECRET"` fixture in visual-capture.sh.
-  '''"\s*:\s*"[A-Z][A-Z0-9_]{3,}"''',
+regex = '''(?i)"[A-Za-z0-9_-]*(?:password|passwd|secret|token|api_?key|credential)[A-Za-z0-9_-]*"\s*:\s*"([^"$<{][^"]{7,})"'''
+# The capture group is the VALUE, and secretGroup points at it. Without this the
+# reported (and --redact-ed) secret is the whole `"key": "value"` match, which
+# both leaks the key name into a redacted report and makes fingerprints noisier.
+secretGroup = 1
+# Cheap pre-filter: gitleaks only runs the regex on a chunk containing one of
+# these, and the regex cannot match without one anyway.
+keywords = [
+  "password",
+  "passwd",
+  "secret",
+  "token",
+  "api_key",
+  "apikey",
+  "credential",
 ]
+
 
 # Same shape in YAML, where the key is unquoted. `docker/.docker/mcp/config.yaml`
 # is exactly this and once held a live Google app password. Unquoted values are
@@ -80,19 +75,51 @@ description = "YAML credential key with a literal value"
 # like `output_tokens: parsed.outputTokens,`. A real secret containing a brace, a
 # semicolon or a comma is possible but rare; a line of code with none of the
 # three is rarer still — the object literal's trailing comma is what catches it.
-regex = '''(?im)^[ \t]*[A-Za-z0-9_-]*(password|passwd|secret|token|api_?key|credential)[A-Za-z0-9_-]*[ \t]*:[ \t]*["']?[^"'$<{*&\s(){};,][^"'\n(){};,]{7,}["']?[ \t]*$'''
+regex = '''(?im)^[ \t]*[A-Za-z0-9_-]*(?:password|passwd|secret|token|api_?key|credential)[A-Za-z0-9_-]*[ \t]*:[ \t]*["']?([^"'$<{*&\s(){};,][^"'\n(){};,]{7,})["']?[ \t]*$'''
+secretGroup = 1
+keywords = [
+  "password",
+  "passwd",
+  "secret",
+  "token",
+  "api_key",
+  "apikey",
+  "credential",
+]
 
-# Same exemptions as the JSON rule, in YAML's unquoted-value shape.
-[[rules.allowlists]]
-description = "indirection and documented placeholders, not values"
+
+# One allowlist, both rules. `targetRules` (v8.25+) scopes a top-level allowlist
+# to named rules instead of applying globally — which is what makes it safe to
+# write these exemptions once instead of keeping two copies of them in step.
+# Everything here is a REFERENCE or a placeholder: literal in form, carrying no
+# credential. Every entry is a real line in this repo.
+[[allowlists]]
+description = "structured-config placeholders and indirection, not values"
+targetRules = ["json-credential-value", "yaml-credential-value"]
 regexTarget = "match"
 regexes = [
+  # "!printenv PI_API_KEY" — pi-agent resolves the value by running the command
+  '''"\s*:\s*"!''',
   ''':[ \t]*["']?!''',
+  # op:// (1Password), infisical://, vault:// — reference syntaxes, not secrets
+  '''"\s*:\s*"(op|infisical|vault|keyring|secret)://''',
   ''':[ \t]*["']?(op|infisical|vault|keyring|secret)://''',
+  # YOUR_API_KEY_HERE and friends
+  '''(?i)"\s*:\s*"(your|my)[_ -]?[a-z0-9_ -]*(key|token|secret|password)[_ -]?(here)?"''',
   '''(?i):[ \t]*["']?(your|my)[_ -]?[a-z0-9_ -]*(key|token|secret|password)[_ -]?(here)?["']?[ \t]*$''',
+  # changeme / placeholder / redacted / xxxx
+  '''(?i)"\s*:\s*"(change[_-]?me|replace[_-]?me|example|placeholder|redacted|todo|none|null|x{4,})"''',
   '''(?i):[ \t]*["']?(change[_-]?me|replace[_-]?me|example|placeholder|redacted|todo|none|null|x{4,})["']?[ \t]*$''',
+  # A bare SCREAMING_SNAKE value is a variable's NAME, not its value —
+  # `"token": "HOME_ASSISTANT_TOKEN"` in weather.example.json, and the
+  # deliberately-absent `"NO_SUCH_SECRET"` fixture in visual-capture.sh.
+  '''"\s*:\s*"[A-Z][A-Z0-9_]{3,}"''',
   ''':[ \t]*["']?[A-Z][A-Z0-9_]{3,}["']?[ \t]*$''',
 ]
+# Second layer, matched against the captured VALUE (secretGroup) rather than the
+# whole line. Deliberately short: a stopword is a substring test, so listing
+# "password" here would silently exempt a real value that contains it.
+stopwords = ["changeme", "placeholder", "redacted", "yourtokenhere", "xxxxxxxx"]
 
 [[allowlists]]
 description = "filter-repo redaction marker — a scrubbed secret, never a real one"

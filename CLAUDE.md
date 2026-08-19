@@ -904,9 +904,48 @@ exist to be published, so flagging them would fight the fix.
 (`git/.config/git/hooks/pre-commit`), on top of `mise run lint:secrets` and CI.
 It stays aligned by *using the repo's own `.gitleaks.toml` when one exists*, so
 each repo's config applies, rather than carrying a copy. Scopes differ on
-purpose — the hook scans staged content (`gitleaks protect --staged`). In this
+purpose — the hook scans staged content (`gitleaks git --staged`). In this
 repo `lefthook.yml` already owns `pre-commit` and runs the same gitleaks command,
 so the template hook is skipped here and does not double-run.
+
+**Use `gitleaks git --staged`, never `gitleaks protect`.** `protect` and `detect`
+were deprecated in v8.19.0 and survive only as hidden aliases. The global hook
+reaches every repo on the machine via `init.templateDir`, so it is the worst
+place to leave a call that a future major can remove.
+
+**Redaction is asymmetric, deliberately.** CI and `audit:secrets-*` pass
+`--redact`; the local hooks do not. A CI job log is a published surface, so a
+finding there must name the file and line without printing the value — the same
+rule `no-local-values.sh` already follows in `--all` mode. A local hook runs in
+the author's own terminal on content they just wrote, where seeing the value is
+how you know what to fix.
+
+**A secret shaped like config is the gap that actually bit.** `.gitleaks.toml`
+carries `json-credential-value` and `yaml-credential-value` because a plaintext
+UniFi password lived in an MCP `env` block in `opencode.json` for 15 months, and
+every rule up to then required the literal word `export`. Both rules use
+`secretGroup` so the reported (and redacted) secret is the value alone, and both
+share one `[[allowlists]]` scoped with `targetRules` rather than keeping two
+copies of the placeholder exemptions in step.
+
+**`.gitleaksignore` is how known findings are silenced — never `paths`.** It pins
+one finding in one commit by fingerprint, so it cannot over-reach the way a path
+allowlist does. Rules for adding to it are in the file itself; the short version
+is that a fingerprint goes in only after the credential is revoked, and never to
+make a scan pass.
+
+**Two audits, answering different questions.** `mise run audit:secrets-history`
+is gitleaks over the full log — *does anything look like a secret*.
+`mise run audit:secrets-live` is trufflehog with `--results=verified` — *is any of
+it still live*, by calling the provider. Neither subsumes the other: trufflehog
+has no detector for a self-hosted controller login and would not have found the
+UniFi password, while gitleaks cannot tell a dead token from a live one. Both are
+out of `lint`'s depends list because both need the network.
+
+**The only non-bypassable gate is server-side.** `--no-verify` skips every local
+hook, and CI reports after the objects are already pushed and mirrored.
+`server-hooks/pre-receive.d/gitleaks` is the free GitLab Self-Managed equivalent
+of push protection; it is not installed by this repo, see that directory's README.
 
 **`.gitleaks.toml` has NO `paths` allowlists, and must not gain any.** A path
 allowlist matches in every scan mode, so silencing an untracked live config also

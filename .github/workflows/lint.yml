@@ -58,3 +58,26 @@ jobs:
 
       - name: mise run lint
         run: mise run lint
+
+  # Verification, not detection, and deliberately a SEPARATE job: it needs
+  # outbound calls to arbitrary credential providers, which the self-hosted
+  # GitLab runner cannot make — so this gate can only live here. It answers "is
+  # anything in this history still live", which no amount of pattern matching can.
+  secrets-live:
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          # Full history: the whole point is scanning what was committed and
+          # later removed, which a shallow clone cannot see.
+          fetch-depth: 0
+
+      # jdx/mise-action v4.2.3
+      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14
+        with:
+          install: true
+          cache: true
+
+      - name: mise run audit:secrets-live
+        run: mise run audit:secrets-live

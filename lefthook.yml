@@ -26,8 +26,10 @@ pre-commit:
       run: 'for f in {staged_files}; do fish --no-execute "$f"; done'
     no-local-values:
       run: mise-scripts/no-local-values.sh
+    # `git --staged`, not the deprecated `protect --staged` (hidden alias since
+    # v8.19.0). Unredacted on purpose: author's own terminal, own content.
     gitleaks:
-      run: gitleaks protect --staged -c .gitleaks.toml --no-banner
+      run: gitleaks git --staged -c .gitleaks.toml --no-banner
 
 # A commit message is published exactly like file content, and was ungated until
 # now — pre-commit runs before the message exists, so nothing ever looked at it.

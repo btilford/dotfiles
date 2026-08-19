@@ -122,6 +122,8 @@ script that is history rather than an installer.
 
 [`mise-scripts/`](mise-scripts/README.md) — task scripts.
 [`docs/`](docs/README.md) — images the READMEs embed.
+[`server-hooks/`](server-hooks/README.md) — a GitLab `pre-receive` secret gate,
+installed on the server, not on this machine.
 `build/` — gitignored capture scratch.
 
 ## Usage
