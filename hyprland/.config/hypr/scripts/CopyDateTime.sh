@@ -47,10 +47,27 @@ esac
 # printf, not echo, and wl-copy -n: a trailing newline in a pasted timestamp is the
 # entire bug class this feature invites. `echo` would add one, and wl-copy keeps
 # whatever it is given.
-printf '%s' "$value" | wl-copy -n || {
-  echo "CopyDateTime.sh: wl-copy failed" >&2
+#
+# `setsid -f` is NOT tidiness, it is the whole reason this script can return. A Wayland
+# clipboard is served by the source client for as long as it owns the selection, so
+# `wl-copy` does not exit — it keeps running. A foreground `wl-copy` therefore never
+# returns to this script, this script never returns to its caller, and when the caller
+# was Hyprland via os.execute (synchronous, on the compositor's main thread) that froze
+# the entire desktop: no keyboard, no mouse, no IPC, until the wl-copy child was killed
+# by hand. Detaching the clipboard owner is what makes the script exit at all.
+#
+# The cost: a failure cannot be reported, because nothing can wait on a process whose
+# job is to outlive us. Hence the pre-flight checks — they catch the causes that are
+# visible before the point of no return.
+command -v wl-copy > /dev/null 2>&1 || {
+  echo "CopyDateTime.sh: wl-copy not found" >&2
   exit 1
 }
+[ -n "${WAYLAND_DISPLAY:-}" ] || {
+  echo "CopyDateTime.sh: no WAYLAND_DISPLAY — not a Wayland session" >&2
+  exit 1
+}
+printf '%s' "$value" | setsid -f wl-copy -n
 
 # Best-effort, and never fatal: a missing or stopped clipborg must not fail a copy
 # that already succeeded.
