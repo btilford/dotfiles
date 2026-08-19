@@ -53,6 +53,12 @@ remaining-time bar, plus a searchable history drawer.
 |-------|----------------|
 | ![notification popup](../docs/images/quickshell-popup.png) | ![notification drawer](../docs/images/quickshell-notifications.png) |
 
+A sticky notification has no remaining-time bar and does not expire — critical
+urgency, or a rule that says so. It stays until dismissed, and can fold to a pill
+docked in the bar rather than holding a full card on screen:
+
+![a sticky notification with no countdown](../docs/images/quickshell-notification-sticky.png)
+
 The drawer groups by app, supports `/` search and `j`/`k` navigation, and the
 popup stack has its own keyboard-focus mode. Placement is a preset
 (right-center / bottom-center), and routing/sticky/silence decisions come from a
@@ -63,10 +69,71 @@ Lua rules file. Per-machine config is `~/.config/quickshell/notifications.json` 
 not advertise it loses every Chromium client silently — no error, no retry. They
 fall back to internal notification windows, which Hyprland then tiles fullscreen.
 
-## Submap hints
+## Which-key submap hints
 
-An on-screen legend for the active Hyprland submap (resize, and its nested
-groups), driven from the compositor's submap state.
+An on-screen legend for the active Hyprland submap, driven from the compositor's
+submap state and the real bind list (`hyprctl binds -j`), so the labels are the
+`description` fields from `keybindings.lua` rather than a second copy to keep in
+sync. A bind that enters a nested submap renders as a which-key `+group` marker
+rather than by its dispatcher — `s → +window-swap` below.
+
+![which-key hints for the window-cmd submap](../docs/images/quickshell-whichkey.png)
+
+The layout is width-driven, so a sparse map is a single short row:
+
+![which-key hints for the open-cmd submap](../docs/images/quickshell-whichkey-sparse.png)
+
+## Keymap cheatsheet
+
+The full keybinding reference, as distinct from the transient which-key strip
+above. `qs ipc call keymap toggle`.
+
+![the fullscreen keymap overlay](../docs/images/quickshell-keymap.png)
+
+The sidebar is a **tree of submaps**, nested under the map whose entry bind lives
+there — `window-swap` sits inside `window-cmd` — with `Global` at the root and
+`All` at the bottom. Each node shows the chord that enters it, so the sidebar
+doubles as the answer to "how do I get into this map".
+
+Navigation is vim-modal. It opens in NAV mode: `j`/`k` move, `Ctrl-d`/`Ctrl-u`
+half-page, `gg`/`G` jump, `Tab`/`Shift-Tab` cycle tree nodes. `/` or `i` focuses
+the search box, which filters live across chords and descriptions; `Esc` or
+`Enter` returns to NAV.
+
+![live search across the keymap](../docs/images/quickshell-keymap-search.png)
+
+Both this and the which-key strip read `hyprctl binds -j`, so the descriptions are
+the `description` fields from `keybindings.lua` — there is no second list to keep
+in sync.
+
+## Clipboard
+
+`SUPER+V` opens the clipborg history dialog — search, type tabs, a preview pane,
+grouping by app, and content-aware actions.
+
+The dialog is **not defined here**. `components/ClipboardDialog.qml` is a thin
+wrapper over the one the clipborg repo ships (`examples/quickshell/Clipborg`, on
+`QML_IMPORT_PATH`); this package supplies only where it shows, what drives it, and
+the theme. Fix dialog *behaviour* upstream, not here.
+
+It loads through a `LazyLoader` on purpose: on a machine with no clipborg clone the
+`import Clipborg` fails, and the LazyLoader keeps that failure from taking the rest
+of the shell down with it.
+
+**Screenshots and the feature tour live in [`clipborg/`](../clipborg/README.md)** —
+the features are clipborg's, so they are documented with the tool rather than with
+its host.
+
+## Connector lines
+
+Energy lines drawn between the bar and its popouts: one fullscreen transparent
+window per screen, mapped only while that screen has live links. Input-invisible —
+empty mask, so full click and hover passthrough, no keyboard focus, no exclusion
+zone — and on the Top layer rather than Overlay so it can never stack above the
+launcher or a dialog.
+
+Pure flourish, with no static fallback: with effects off, the lines are simply
+absent.
 
 ## Screenshots
 

@@ -56,7 +56,7 @@ FRAME_INTERVAL="0.06"
 GIF_FPS=15
 GIF_WIDTH=960
 
-ALL_SCENES=(bar drawer modal popup submap tmux)
+ALL_SCENES=(bar drawer modal popup submap keymap clipboard tmux)
 
 log() { printf '\033[1;36m[capture]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[capture]\033[0m %s\n' "$*" >&2; }
@@ -102,7 +102,8 @@ while [ $# -gt 0 ]; do
         drawer "launcher drawer — quickshell IPC" \
         modal "session/power overlay — quickshell IPC" \
         popup "notification popups — both anchor presets, dwell + overflow" \
-        submap "which-key submap hints — sparse, typical and dense maps" \
+        submap "which-key submap hints — real maps, plus layout sizes" \
+        clipboard "clipborg dialog — list, filter, tree, actions" \
         tmux "terminal surface — vhs tape if installed, else foot + grim"
       exit 0
       ;;
@@ -248,8 +249,36 @@ NOTIFY_DB="$RUNTIME/notifications.db"
 NOTIFY_RULES="$RUNTIME/rules.lua"
 : > "$NOTIFY_RULES"
 
+# QS_BINDS_CMD feeds the which-key overlay REAL keybindings. Keymap.qml normally
+# shells out to `hyprctl binds -j`, and there is no Hyprland in this session, so
+# without it the submap scene can only ever photograph synthetic entries — which is
+# fine for exercising the layout and useless as documentation. The fixture is a
+# committed dump of this repo's own binds; regenerate it with
+# mise-scripts/visuals/fixtures/gen-binds.sh from a live session.
+BINDS_FIXTURE="$REPO/mise-scripts/visuals/fixtures/binds.json"
+
+# CLIPBORG_CONFIG scopes the clipboard dialog to a throwaway database. Without it
+# the dialog opens the user's REAL clipboard history — every password-manager copy
+# and every token pasted between terminals — and photographs it. Exported for the
+# whole session, not just the scene, so no ordering mistake can leave it unset.
+CLIPBORG_CONFIG="$RUNTIME/clipborg.toml"
+cat > "$CLIPBORG_CONFIG" << CLIPBORG_EOF
+[storage]
+db_path = "$RUNTIME/clipborg.sqlite3"
+image_dir = "$RUNTIME/clipborg-images"
+
+[capture]
+# Nothing should be ingested from the nested seat; the scene seeds explicitly.
+text = false
+images = false
+files = false
+CLIPBORG_EOF
+export CLIPBORG_CONFIG
+export QML_IMPORT_PATH="${CLIPBORG_QML_PATH:-$HOME/Projects/public/clipborg/examples/quickshell}${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+
 HYPR_NOTIFY=quickshell QS_NOTIFY_CONFIG="$NOTIFY_CONFIG" QS_NOTIFY_DB="$NOTIFY_DB" \
   QS_NOTIFY_RULES="$NOTIFY_RULES" \
+  QS_BINDS_CMD="cat '$BINDS_FIXTURE'" \
   qs -p "$SHELL_QML" > "$RUNTIME/qs.log" 2>&1 &
 QS_PID=$!
 
@@ -566,6 +595,18 @@ popup_overflow() {
 # Three entry counts because the layout is width-driven: the interesting cases are a
 # map too sparse to fill one row, one that fills it, and one that has to wrap.
 scene_submap() {
+  # Real maps first — these are the ones worth showing anyone. previewMap sets only
+  # the submap name, so the entries come from the binds fixture rather than the
+  # synthetic generator: real chords, real descriptions, real nested-group markers.
+  for map in window-cmd open-cmd; do
+    ipc submapHints previewMap "$map"
+    settle
+    still "submap-$map"
+  done
+
+  # Then the synthetic sizes, which exist to exercise the width-driven layout: too
+  # sparse to fill a row, exactly one row, and enough to wrap. Deliberately
+  # over-long labels, so these show the elide rather than a tidy best case.
   for n in 4 12 28; do
     ipc submapHints preview resize "$n"
     settle
@@ -573,6 +614,142 @@ scene_submap() {
   done
   ipc submapHints hide
   settle 0.6
+}
+
+# The clipboard dialog is NOT ours: `import Clipborg` resolves to the module shipped
+# by the clipborg repo (examples/quickshell/Clipborg), and the wrapper in this repo is
+# host glue only. So this scene needs three things the other scenes do not:
+#
+#   1. the module on QML_IMPORT_PATH — CLIPBORG_QML_PATH points at the clone
+#   2. a clipborg daemon on THIS session's socket, because the dialog is a client
+#   3. entries to show, since a filter and a tree over an empty list are blank boxes
+#
+# All three are scoped to the rig. CLIPBORG_CONFIG points at a config written here
+# whose db_path is under $RUNTIME, so the user's real clipboard history is never
+# opened, never queried, and never photographed. That history is the single most
+# sensitive thing on this machine — it is every password manager copy, every token
+# pasted between terminals — and it must not be one env var away from a capture
+# destined for a notes vault.
+#
+# The seeded entries are therefore FABRICATED, and the README says so. They are
+# chosen to exercise the views rather than to look plausible: several apps so the
+# tree has more than one node, a URL and a code block so the action list is
+# non-trivial, and enough rows that filtering visibly removes some.
+CLIPBORG_QML="${CLIPBORG_QML_PATH:-$HOME/Projects/public/clipborg/examples/quickshell}"
+
+# --source sets the attributing app, which is what the tree view groups by. Without
+# a spread of sources the tree is one node and shows nothing the flat list does not.
+seed_one() {
+  printf '%s' "$2" | clipborg insert --source "$1" > /dev/null 2>&1
+  # `--source` records HOW an entry arrived (cli, clipboard, editor hook); the tree
+  # groups by app_class, which the daemon normally fills from the focused window at
+  # capture time. There is no focused window here and no CLI flag for it, so the
+  # attributing app is stamped directly into the throwaway database. Synthetic data
+  # in a rig-scoped file — never the real history, which this scene never opens.
+  sqlite3 "$RUNTIME/clipborg.sqlite3" \
+    "UPDATE entries SET app_class = '$1' WHERE app_class = '' ;" 2> /dev/null || true
+}
+
+seed_clipborg() {
+  # Deliberately synthetic. Nothing here is real clipboard content.
+  seed_one ghostty 'https://quickshell.org/docs/'
+  seed_one ghostty 'git-spice branch submit --fill --no-prompt'
+  seed_one ghostty 'stow --no-folding -R quickshell'
+  seed_one nvim 'SELECT path, title FROM notes WHERE type = ?'
+  seed_one nvim 'local ok, err = pcall(require, "lua.colors")'
+  seed_one brave 'https://github.com/btilford/dotfiles'
+  seed_one brave 'https://wiki.archlinux.org/title/Hyprland'
+  seed_one obsidian 'the quick brown fox jumps over the lazy dog'
+}
+
+# The fullscreen cheatsheet, as distinct from the transient which-key strip. Same
+# binds fixture feeds it (QS_BINDS_CMD), so the tree sidebar and the entries are the
+# repo's real keybindings rather than anything invented.
+scene_keymap() {
+  ipc keymap show
+  settle 1.0
+  still keymap-overlay
+
+  # Live search, typed into the box the way a person reaches it: "/" from NAV mode.
+  if command -v wtype > /dev/null 2>&1; then
+    wtype -k slash
+    settle 0.4
+    wtype 'window'
+    settle 0.8
+    still keymap-search
+    wtype -k Escape
+    settle 0.3
+  fi
+
+  ipc keymap hide
+  settle 0.6
+}
+
+scene_clipboard() {
+  command -v clipborg > /dev/null 2>&1 || {
+    warn "clipboard: clipborg not installed — skipped"
+    return
+  }
+  [ -d "$CLIPBORG_QML/Clipborg" ] || {
+    warn "clipboard: no Clipborg QML module at $CLIPBORG_QML — set CLIPBORG_QML_PATH; skipped"
+    return
+  }
+  command -v wtype > /dev/null 2>&1 || {
+    warn "clipboard: wtype not installed — skipped"
+    return
+  }
+
+  # The dialog is a CLIENT: it queries the daemon over
+  # $XDG_RUNTIME_DIR/clipborg.sock, it does not read the database itself. With no
+  # daemon on this session's socket the dialog opens perfectly and reports
+  # "0 results" — which looks like a seeding bug and is not one. The nested session
+  # has its own XDG_RUNTIME_DIR, so this socket cannot collide with the real one.
+  clipborg daemon > "$RUNTIME/clipborg.log" 2>&1 &
+  CLIPBORG_PID=$!
+  for _ in $(seq 1 40); do
+    [ -S "$RUNTIME/clipborg.sock" ] && break
+    sleep 0.1
+  done
+  [ -S "$RUNTIME/clipborg.sock" ] || {
+    warn "clipboard: daemon never bound a socket — skipped"
+    kill "$CLIPBORG_PID" 2> /dev/null
+    return
+  }
+
+  seed_clipborg
+  settle 0.8
+
+  ipc clipboard toggle
+  settle 1.0
+  still clipborg-list
+
+  # Filter. Typed, not injected: the search field is the real entry point and a
+  # capture of it should go through the same path a person does.
+  wtype 'http'
+  settle 0.8
+  still clipborg-filter
+
+  # Clear the filter before the tree, or the tree is a tree of one match.
+  wtype -k BackSpace -k BackSpace -k BackSpace -k BackSpace
+  settle 0.6
+
+  # Ctrl+T groups by app; Ctrl+A opens the action list for the selected entry.
+  wtype -M ctrl -k t -m ctrl
+  settle 0.8
+  still clipborg-tree
+
+  wtype -M ctrl -k t -m ctrl
+  settle 0.5
+  wtype -M ctrl -k a -m ctrl
+  settle 0.8
+  still clipborg-actions
+
+  wtype -k Escape
+  settle 0.4
+  ipc clipboard close
+  settle 0.6
+
+  kill "$CLIPBORG_PID" 2> /dev/null
 }
 
 scene_tmux() {
