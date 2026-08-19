@@ -67,6 +67,43 @@ fi
 # ---------------------------------------------------------------------------
 # 1. Values from local.env
 # ---------------------------------------------------------------------------
+# Matching is grep -F, on purpose: a value may contain regex metacharacters, and
+# treating it as a pattern would either error or match the wrong thing. The
+# assumption that comes with byte-exact matching is that a value appears in a
+# file exactly as it appears in local.env. That holds for prose, code and
+# config. It does NOT hold for markdown.
+#
+# A markdown table delimits cells with "|", so a literal pipe inside a cell must
+# be written "\|" or the table splits there. The value goes in as one string and
+# lands as a different one, and grep -F compares bytes:
+#
+#   verbatim value flagged?  YES
+#   CLAUDE.md:37 flagged?    NO      <- same value, in a table cell
+#
+# That is not hypothetical. It is how a private value sat in tracked content
+# while this gate reported clean, and the escape was not a mistake — writing the
+# value in a table CORRECTLY is what defeated the check. The gate was weakest
+# exactly where the documentation was most careful.
+#
+# The drift runs in BOTH directions, which the first version of this fix got
+# wrong. A value is often itself a regex, so it arrives carrying its own escapes
+# — and prose about it tends to drop those while markdown adds its own. The real
+# case had the value's backslash-dot removed AND pipes escaped, so de-escaping
+# only the content still missed it.
+#
+# So both sides are normalised: backslashes before punctuation are stripped from
+# the content and from the value, and the comparison is made on the results, in
+# addition to the verbatim one. Stripping is safe in this direction — it can only
+# make a string more literal, never invent a match — which is why it is done to
+# both strings rather than by turning the value into a pattern. The latter would
+# mean giving up grep -F's one real safety property.
+#
+# Still NOT covered, and worth knowing: a value broken across two lines (by a
+# formatter or a hand wrap) matches nothing, because content is scanned per
+# line. Entity-encoded and percent-encoded forms are likewise untouched.
+unescape() { sed 's/\\\([]|`*_[<>#+.!(){}~-]\)/\1/g'; }
+content_unescaped=$(printf '%s' "$content" | unescape)
+
 if [ -r "$env_file" ]; then
   while IFS= read -r line; do
     case "$line" in '' | '#'*) continue ;; esac
@@ -97,7 +134,10 @@ if [ -r "$env_file" ]; then
     # Short values produce false positives (a bare port, "true", an empty var).
     [ ${#val} -ge 8 ] || continue
 
-    if printf '%s' "$content" | grep -qF -- "$val"; then
+    val_unescaped=$(printf '%s' "$val" | unescape)
+    if printf '%s' "$content" | grep -qF -- "$val" ||
+      printf '%s' "$content_unescaped" | grep -qF -- "$val" ||
+      printf '%s' "$content_unescaped" | grep -qF -- "$val_unescaped"; then
       echo "  ✗ content contains the value of \$$var" >&2
       status=1
     fi
