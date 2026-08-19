@@ -166,6 +166,12 @@ Scope {
                         visible: bar.isHub
                         barWindow: bar
                     }
+                    // live stopwatch readout — hidden unless one is running (story: notif-timers).
+                    // A countdown lives on a card; a stopwatch has no end to render there, so it
+                    // reads out here.
+                    Stopwatch {
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                     Network {
                         anchors.verticalCenter: parent.verticalCenter
                     }

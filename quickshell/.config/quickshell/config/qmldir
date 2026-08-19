@@ -13,3 +13,4 @@ singleton NotifyRules NotifyRules.qml
 singleton NotifyDrawer NotifyDrawer.qml
 singleton NotifyCompose NotifyCompose.qml
 singleton Connectors Connectors.qml
+singleton Timers Timers.qml

@@ -170,7 +170,16 @@ Item {
                         // which program raised it, and there is only room for one of them.
                         // Dropped entirely in compact mode — the hover tooltip still has it.
                         visible: root.mode === "full"
-                        text: pill.entry.summary || pill.entry.appName
+                        // A timer's card folds to a pill like any other sticky, and a pill that
+                        // says only "Deep work" has thrown away the one thing a running timer is
+                        // for. It keeps counting here (story: notif-timers).
+                        text: {
+                            Timers.revision;
+                            Timers.now;
+                            const t = Timers.stateFor(pill.entry);
+                            const name = pill.entry.summary || pill.entry.appName;
+                            return t ? Timers.fmt(Timers.remainingOf(t)) + "  " + name : name;
+                        }
                         elide: Text.ElideRight
                         // long enough to identify, short enough that three of them fit the gap
                         width: visible ? Math.min(implicitWidth, 150) : 0

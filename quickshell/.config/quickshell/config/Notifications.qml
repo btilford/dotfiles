@@ -225,6 +225,11 @@ Singleton {
     // single frame it always was.
     function refresh(entry) {
         entry.durationMs = defaultDurationMs(entry);
+        // A timer card is pinned to its own anchor BEFORE the rules run, so a rule can still
+        // move it. Everything else about a timer belongs to the Timers singleton; this is the
+        // one thing that has to happen on the ingest path, because the stack a card lands in is
+        // decided here (story: notif-timers, "a timer pinned top does not fight the stack").
+        Timers.applyPlacement(entry);
         applyRules(entry);
         NotifyRules.evaluate(snapshot(entry), presentationOf(entry), presentation => {
             // the notification may have been closed while the engine was thinking
@@ -653,6 +658,14 @@ Singleton {
             });
         }
 
+        // Built-in timer actions (story: notif-timers). They are offered on a timer's own card
+        // only — Timers.actionsFor returns nothing for anything else — and they render, hint and
+        // key exactly like a config action, because pause/reset/+5min are verbs on a
+        // notification and not a second control surface.
+        const timerActions = Timers.actionsFor(entry);
+        for (let i = 0; i < timerActions.length; i++)
+            out.push(timerActions[i]);
+
         // Custom actions, in config order.
         const cfg = NotifyConfig.actions;
         for (let i = 0; i < cfg.length; i++) {
@@ -870,6 +883,22 @@ Singleton {
             }
             if (!entry.resident)
                 root.dismiss(entry);
+            return;
+        }
+
+        // A built-in timer verb runs IN PROCESS. Everything it needs is on the Timers singleton
+        // already, so routing it back out through `qs ipc call timers …` would spawn a process
+        // for this shell to talk to itself — and would fail on a machine where `qs` is not on
+        // PATH for the shell's own environment.
+        if (action.kind === "timer") {
+            try {
+                action.perform();
+            } catch (e) {
+                root.actionFailed(entry, action, String(e));
+                return;
+            }
+            // No dismiss on this path at all: pausing a timer must leave its card exactly
+            // where it was, and cancel takes its own card down inside perform().
             return;
         }
 

@@ -158,6 +158,71 @@ ShellRoot {
         }
     }
 
+    // `qs ipc call timers …` (story: notif-timers). Same shape as `notifications`: the state
+    // lives in the Timers singleton, the schedule lives in the store's `timers` table, and this
+    // is only the door. Every call answers immediately — `list` reads the in-memory model, which
+    // is the authority while this daemon is up; `sqlite3 <db> "SELECT … FROM timers"` is the
+    // answer for anything else, including from a tmux popup with no shell running.
+    //
+    // An `id` of 0 means "the newest live timer", so a keybind never has to know one. The ids
+    // here are the small per-session HANDLES `timers list` prints, not the epoch-derived row ids
+    // in the database — an IpcHandler int is 32 bits and would truncate the latter.
+    IpcHandler {
+        target: "timers"
+        // duration vocabulary is Notifications.parseDelay's: "20m", "2h", "90s", "17:30"
+        function start(duration: string, label: string): int {
+            return Timers.start(duration, label);
+        }
+        // absolute wall-clock time ("17:30"); survives a qs restart and a reboot, because the
+        // row carrying wake_at is what is armed, not anything in this process
+        function alarm(at: string, label: string): int {
+            return Timers.alarm(at, label);
+        }
+        // "25m/5m/15m x4", any part optional — defaults come from NotifyConfig.timers
+        function pomodoro(spec: string, label: string): int {
+            return Timers.pomodoro(spec, label);
+        }
+        function pause(id: int): bool {
+            return Timers.pause(id);
+        }
+        function resume(id: int): bool {
+            return Timers.resume(id);
+        }
+        function toggle(id: int): bool {
+            return Timers.toggle(id);
+        }
+        function reset(id: int): bool {
+            return Timers.reset(id);
+        }
+        // 0 = NotifyConfig.timers.addMs, the same amount the card's button adds
+        function extend(id: int, ms: int): bool {
+            return Timers.extend(id, ms);
+        }
+        function cancel(id: int): bool {
+            return Timers.cancel(id);
+        }
+        function cancelAll(): void {
+            Timers.cancelAll();
+        }
+        // Stopwatch: counts up, so it is a bar pill rather than a card (decision 2). `stopwatch`
+        // is the toggle a keybind wants; start/stop exist for scripts that need a known state.
+        function stopwatch(label: string): bool {
+            return Timers.stopwatchToggle(label);
+        }
+        function stopwatchStart(label: string): bool {
+            return Timers.stopwatchStart(label);
+        }
+        function lap(): bool {
+            return Timers.stopwatchLap();
+        }
+        function stop(): bool {
+            return Timers.stopwatchStop();
+        }
+        function list(): string {
+            return Timers.summary();
+        }
+    }
+
     // Driven by SUPER+Escape / bar Power button: `qs ipc call session toggle`
     IpcHandler {
         target: "session"
