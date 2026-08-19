@@ -59,6 +59,16 @@ docked in the bar rather than holding a full card on screen:
 
 ![a sticky notification with no countdown](../docs/images/quickshell-notification-sticky.png)
 
+After `criticalCollapseMs` a sticky card folds to a **pill and docks in the bar**,
+in the gap between the workspaces and the status cluster — keeping the notification
+available without holding a full card on screen:
+
+![a collapsed sticky notification, docked as a pill in the bar](../docs/images/quickshell-notification-pill.png)
+
+Click the pill to bring the card back (with a fresh collapse clock), middle-click to
+dismiss. Past `maxPills` the tray collapses further to a single `+N` chip that opens
+the drawer, because the bar is not a queue.
+
 The drawer groups by app, supports `/` search and `j`/`k` navigation, and the
 popup stack has its own keyboard-focus mode. Placement is a preset
 (right-center / bottom-center), and routing/sticky/silence decisions come from a
@@ -134,6 +144,39 @@ launcher or a dialog.
 
 Pure flourish, with no static fallback: with effects off, the lines are simply
 absent.
+
+## Shaders
+
+Nine GLSL fragment shaders, compiled to `.qsb` and committed alongside their
+sources, do the visual work that a static stylesheet cannot:
+
+| Shader | Does |
+|---|---|
+| `energyfill` | flowing plasma fill for active-item highlights — the workspace pill, the active-window indicator — instead of a flat accent rectangle |
+| `energyborder` / `energyline` / `energycurve` | electric arcs: around a surface, along a rotated quad, and along a curve. The centerline wobbles with fbm noise |
+| `energyglyph` / `neonglyph` | the same treatment applied to glyphs |
+| `neonfill` | the neon variant of the fill |
+| `shimmer` | a soft warm highlight that **leans toward the cursor** — a light-position effect, not pointer tracking |
+| `reflection` | water-mirror reflection: samples the source flipped, offset by ripple waves that grow with depth and fade out |
+
+They are what makes the bar and the connector lines read as one lit surface rather
+than a set of rectangles.
+
+All of it is gated:
+
+```sh
+QS_EFFECTS=full   # everything
+QS_EFFECTS=low    # reduced
+QS_EFFECTS=off    # every shader swapped for a static equivalent
+```
+
+`off` is the one to reach for on a machine where the GPU is busy or the shell is
+being debugged — the layout is identical, so nothing moves, it just stops glowing.
+The connector lines are the exception: they are pure flourish with no static
+fallback, so they are simply absent.
+
+Recompile a shader after editing the `.frag`, or the committed `.qsb` — which is
+what the shell actually loads — silently keeps rendering the old version.
 
 ## Screenshots
 

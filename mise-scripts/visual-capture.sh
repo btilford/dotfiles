@@ -303,6 +303,20 @@ settle() { sleep "${1:-0.8}"; }
 
 captured=0
 
+# The pill docks in the bar — 40px of a 1080p frame, so a full-frame still of it is
+# almost entirely empty desktop. This crops to the bar strip so it is readable at the
+# size a README renders it.
+still_bar() {
+  local name="$1" dest="$OUT/$1-$TS.png"
+  if grim - 2> /dev/null | magick - -crop 1920x60+0+0 +repage "$dest" 2> /dev/null; then
+    command -v oxipng > /dev/null 2>&1 && oxipng -q -o2 --strip safe "$dest" > /dev/null 2>&1
+    log "still  $name -> $dest"
+    captured=$((captured + 1))
+  else
+    warn "still $name failed"
+  fi
+}
+
 still() {
   local name="$1" dest="$OUT/$1-$TS.png"
   if grim "$dest" 2> /dev/null; then
@@ -446,8 +460,21 @@ popup_collapse() {
   # Fired outside the clip on purpose: clip() is a no-op under --no-motion, so a still that
   # depended on the clip's notification would capture an empty desktop in that mode.
   notify-send -a "visual-capture" -u critical "Disk almost full" "/ has 2% free"
-  settle 2.2 # past the 1.2s collapse above, with the fold finished
+  # 16s, not 2.2s. The 1200ms override above is written to QS_NOTIFY_CONFIG and does
+  # NOT take effect — verified by probing a --keep session: with `critical: 3000` the
+  # card still outlived 5s, and with `preset: bottom-center` the stack stayed at
+  # right-center, so the whole file is ignored even though QS_NOTIFY_CONFIG is set
+  # correctly in the qs environment. Until that is fixed, wait past the BUILT-IN
+  # criticalCollapseMs (15000), which does fire — the pill docks in the bar as designed.
+  settle 16.5
   still popup-collapsed
+  still_bar popup-collapsed-pill
+
+  # No hover still: this session's only pointer would be `swaymsg seat <name> cursor
+  # set`, and that call does not take here — get_seats comes back empty (the seat has
+  # no devices under WLR_LIBINPUT_NO_DEVICES=1) and the command fails against a
+  # literal seat0 too. Tried three ways; left out rather than shipped as a path that
+  # never fires. A hover capture needs a working pointer in the rig first.
   ipc notifications dismissAll
   notify_preset right-center
   settle 0.8
