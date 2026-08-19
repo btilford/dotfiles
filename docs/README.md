@@ -17,6 +17,8 @@ docs/images/clipborg-list.png             clipborg dialog, flat list (cropped)
 docs/images/clipborg-filter.png           clipborg dialog, filtered (cropped)
 docs/images/clipborg-tree.png             clipborg dialog, grouped by app (cropped)
 docs/images/clipborg-actions.png          clipborg dialog, action list (cropped)
+docs/images/quickshell-keymap.png         fullscreen keymap overlay (cropped)
+docs/images/quickshell-keymap-search.png  keymap overlay, live search (cropped)
 ```
 
 ## Where these come from — and where they do NOT go

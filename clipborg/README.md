@@ -52,6 +52,49 @@ deletes, `Alt+P` pins.
 > database under its own runtime dir and never opens the real one. Regenerate with
 > `mise run screenshots -- --scene clipboard`.
 
+## What this config turns on
+
+Everything is spelled out rather than left to defaults, because disabling is
+**subtractive, never an error** — config for a switched-off feature is ignored, not
+rejected. That is what lets this committed base name things a given machine lacks
+while `config.local.toml` switches them off.
+
+| Feature | What it gives you |
+|---|---|
+| `registers` | vim/nvim register ingest — the `R` popup in the TUI, its own dialog tab |
+| `pinning` | pin an entry forever, or until a duration you type |
+| `actions` | the `Ctrl+A` menu, from `[[actions]]` |
+| `filters` | the blocklists below |
+| `llm.*` | prompts against an entry: subprocess harnesses, HTTPS providers, a tmux mode, foreground mode, edit-before-send, and a per-run backend picker |
+
+Retention is capped per kind — 5000 text entries, 10 images, 10 files — with a
+5-second dedup window, and `max_text_bytes` at 1 MiB.
+
+## Two filters that matter
+
+**Password managers are always skipped**, regardless of config: a clipboard offer
+tagged `x-kde-passwordManagerHint` (KeePassXC and friends) is never recorded.
+
+**Forge tokens are blocked by regex**, because copying a PAT out of a GitLab or
+GitHub page is routine and clipborg's store is sqlite on real disk with retention
+measured in weeks. Without this a token outlives the five seconds it was meant to
+exist for, gets backed up, and is one `clipborg list` away from a terminal.
+Blocking affects only the *recording* — the copy itself works normally. The
+patterns cover GitLab's nine `gl*-` token prefixes, GitHub classic `gh[pousr]_`,
+and fine-grained `github_pat_`.
+
+⚠️ **`content_regex` in `config.local.toml` REPLACES this array, it does not extend
+it.** Tables merge key by key, but every array outside `[[actions]]` and
+`[[llm.*]]` replaces wholesale. A machine whose local file sets `content_regex`
+for any unrelated reason silently loses the token patterns — verified the hard way
+on 2026-08-03, when a copied `glpat-` string was recorded because the local file
+had a different blocklist. Restate them there, or drop the local key.
+
+Prefixes are matched rather than exact lengths: GitLab has widened `glpat-` twice,
+and a rule that misses a longer token is worse than one that occasionally blocks a
+string merely shaped like a token. A false positive costs one unrecorded clipboard
+entry.
+
 ## Two-layer config
 
 This file is the **base** layer. clipborg reads

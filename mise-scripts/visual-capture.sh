@@ -56,7 +56,7 @@ FRAME_INTERVAL="0.06"
 GIF_FPS=15
 GIF_WIDTH=960
 
-ALL_SCENES=(bar drawer modal popup submap clipboard tmux)
+ALL_SCENES=(bar drawer modal popup submap keymap clipboard tmux)
 
 log() { printf '\033[1;36m[capture]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[capture]\033[0m %s\n' "$*" >&2; }
@@ -660,6 +660,29 @@ seed_clipborg() {
   seed_one brave 'https://github.com/btilford/dotfiles'
   seed_one brave 'https://wiki.archlinux.org/title/Hyprland'
   seed_one obsidian 'the quick brown fox jumps over the lazy dog'
+}
+
+# The fullscreen cheatsheet, as distinct from the transient which-key strip. Same
+# binds fixture feeds it (QS_BINDS_CMD), so the tree sidebar and the entries are the
+# repo's real keybindings rather than anything invented.
+scene_keymap() {
+  ipc keymap show
+  settle 1.0
+  still keymap-overlay
+
+  # Live search, typed into the box the way a person reaches it: "/" from NAV mode.
+  if command -v wtype > /dev/null 2>&1; then
+    wtype -k slash
+    settle 0.4
+    wtype 'window'
+    settle 0.8
+    still keymap-search
+    wtype -k Escape
+    settle 0.3
+  fi
+
+  ipc keymap hide
+  settle 0.6
 }
 
 scene_clipboard() {

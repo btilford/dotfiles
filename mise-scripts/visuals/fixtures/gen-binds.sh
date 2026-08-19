@@ -8,8 +8,10 @@
 # This dumps the real binds once, into a committed fixture the rig feeds back via
 # QS_BINDS_CMD.
 #
-# Only binds that belong to a submap are kept — the overlay filters on submap
-# anyway, and the global binds are the bulk of the list.
+# ALL binds are kept, global ones included. The which-key strip only ever shows a
+# submap, so filtering to submaps looked right — but the fullscreen KeymapOverlay
+# has a "Global" root node, and against a submap-only fixture it renders the tree
+# correctly and then reports "0 binds". Keep the whole list.
 #
 # Re-run after changing keybindings.lua, or the screenshots drift from the config.
 set -eu
@@ -24,10 +26,9 @@ command -v hyprctl > /dev/null 2>&1 || {
 hyprctl binds -j | python3 -c '
 import json, sys
 binds = json.load(sys.stdin)
-kept = [b for b in binds if b.get("submap")]
-if not kept:
-    sys.exit("no submap binds found — is this a live session with the config loaded?")
-json.dump(kept, sys.stdout, indent=1)
+if not binds:
+    sys.exit("no binds found — is this a live session with the config loaded?")
+json.dump(binds, sys.stdout, indent=1)
 sys.stdout.write("\n")
 ' > "$dir/binds.json"
 
