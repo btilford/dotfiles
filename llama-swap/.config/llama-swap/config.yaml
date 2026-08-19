@@ -170,6 +170,34 @@ models:
   # Measured baseline with this and the warm group up is ~29 GiB GTT, ~81 GiB
   # free. Model native context is 262144, so 131072 needs no rope scaling.
   #
+  # THE `-MTP` IN THE NAME DOES NOTHING WITHOUT `--spec-type`.
+  #
+  # This GGUF carries a multi-token-prediction head, but llama.cpp will not drive
+  # it unless speculative decoding is asked for explicitly. Without these flags
+  # the model decodes unassisted and the "MTP speedup" this model was chosen for
+  # is simply absent — which is how it ran until 2026-08-18.
+  #
+  # Measured on this box, UD-Q4_K_XL, -c 32768, 300-token generations,
+  # prose / code prompts, median of 3:
+  #
+  #   no spec flags                      45.3 / 45.1 tok/s
+  #   --spec-draft-n-max 1               54.2 / 50.7
+  #   --spec-draft-n-max 2               60.1 / 65.8   <- shipped
+  #   --spec-draft-n-max 3               57.5 / 60.6
+  #   --spec-draft-n-max 4               58.2 / 57.3
+  #   --spec-draft-n-max 5               49.3 / 55.8
+  #   n-max 6 + ngram-mod                41.7 / 51.4   <- SLOWER than no spec
+  #
+  # So +33% prose, +46% code. Note the curve turns over: more draft tokens is not
+  # more speed, and adding `ngram-mod` on top is worse than plain decoding. Tuned
+  # configs published for OTHER models on this chip (n12, ngram-mod-n-min 24) do
+  # not transfer — measure before copying one.
+  #
+  # Run-to-run variance is ~15%, so treat any single measurement as noise; the
+  # numbers above are medians.
+  #
+  # MTP costs roughly +2 GiB on top of the weights+KV figures below.
+  #
   # If headroom ever gets tight, halve the KV with
   # `--cache-type-k q8_0 --cache-type-v q8_0` (valid because flash-attn is on)
   # before reducing -c. Do NOT raise this to 262144: that is 20.5 GiB of KV for
@@ -188,6 +216,7 @@ models:
       llama-server --host 0.0.0.0 --port ${PORT}
       -m /models/hf/hub/models--unsloth--Qwen3.6-35B-A3B-MTP-GGUF/snapshots/5bc3e238d916f48a861bac2f8a1990a0e9b7e98d/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
       -ngl 99 --flash-attn on -c 131072
+      --spec-type draft-mtp --spec-draft-n-max 2
     ttl: 900
 
 # EVERY MODEL MUST BE IN A GROUP.
