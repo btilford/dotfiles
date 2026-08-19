@@ -35,6 +35,11 @@ ShellRoot {
     // than part of the overlay, because it outlives every popup on screen.
     NotificationDrawer {}
 
+    // Clock drawer: weather, world clocks and a calendar, opened from the bar clock or SUPER+c.
+    // Sibling of the notification drawer with its own layer namespace and its own blur rule;
+    // state lives in the Clocks and Weather singletons.
+    ClockDrawer {}
+
     // fullscreen clipboard-history dialog (clipborg); state lives in the Clipboard singleton.
     // Via LazyLoader, not inline: components/ClipboardDialog.qml imports the `Clipborg` QML
     // module out of the clipborg repo (QML_IMPORT_PATH, see hypr/lua/environments.lua). A
@@ -220,6 +225,29 @@ ShellRoot {
         }
         function list(): string {
             return Timers.summary();
+        }
+    }
+
+    // `qs ipc call clock …` — the clock drawer, mirroring the notifications drawer verbs.
+    // `drawer` is the toggle because that is what a bind wants; show and hide exist for scripts
+    // that need a known end state, and `weather` reports the fetch state so the degraded path
+    // can be checked without a screenshot.
+    IpcHandler {
+        target: "clock"
+        function drawer(): void {
+            Clocks.toggle();
+        }
+        function drawerShow(): void {
+            Clocks.open();
+        }
+        function drawerHide(): void {
+            Clocks.close();
+        }
+        function refresh(): void {
+            Weather.refresh();
+        }
+        function weather(): string {
+            return Weather.provider + " " + Weather.status + (Weather.error.length ? " — " + Weather.error : "") + (Weather.current ? " · " + Math.round(Weather.current.temp) + Weather.tempUnit : "");
         }
     }
 

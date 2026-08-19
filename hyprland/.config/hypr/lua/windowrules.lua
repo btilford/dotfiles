@@ -161,6 +161,27 @@ hl.layer_rule({
   xray = false,
 })
 
+-- Layer rules: quickshell clock drawer (weather, world clocks, calendar).
+--
+-- Its own namespace and its own rule rather than a shared one with the notification drawer:
+-- a layer rule matches a namespace, and the two surfaces are separate windows with separate
+-- lifetimes. The values match the notification drawer deliberately, so the two drawers read as
+-- the same material — but they are stated here, so tuning one can never silently restyle the
+-- other (which is exactly what happened when the submap hints borrowed the drawer's opacity).
+--
+-- Same two traps as the rules above: ignore_alpha (0.15) sits ABOVE the slab's own alpha (0.05,
+-- ClockDrawer.slabOpacity), so the compositor skips blurring the slab itself and only the cards,
+-- shimmer and text sit over a sharp background — a chosen look. And xray = false, because xray
+-- makes the blur sample the WALLPAPER and ignore every window in between, which turns "frosted
+-- glass" into frosted wallpaper and cuts a hole through whatever you were reading.
+hl.layer_rule({
+  name = "quickshell-clock-drawer",
+  match = { namespace = "^(quickshell-clock-drawer)$" },
+  blur = true,
+  ignore_alpha = 0.15,
+  xray = false,
+})
+
 -- Layer rules: quickshell submap (which-key) hints.
 -- The slab is drawn at the drawer's opacity, which reads as frosted only with compositor
 -- blur behind it. The window spans the bottom of the output and is fully transparent outside
