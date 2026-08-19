@@ -120,6 +120,22 @@ Scope {
                     }
                 }
 
+                // Now playing, floating in the gap between the window list and the workspaces —
+                // the mirror of NotificationPills on the other side of the centre. Same rule:
+                // deliberately NOT inside a Section, because Section.qml is what draws the
+                // slanted bar surface and this is text and icons only. Left-aligned so it grows
+                // rightward into empty space; the centre section is pinned to true screen
+                // centre, so any width this wants is absorbed by eliding the title.
+                NowPlaying {
+                    id: nowPlaying
+                    screenName: bar.modelData.name
+                    anchors.left: leftSection.right
+                    anchors.leftMargin: Theme.barPad
+                    anchors.right: centerSection.left
+                    anchors.rightMargin: Theme.barPad
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
                 // Collapsed sticky notifications, floating in the gap between the workspaces and
                 // the status cluster. Deliberately NOT inside a Section: these are notifications
                 // that folded down, not bar modules, so they carry their own pill surface and no
