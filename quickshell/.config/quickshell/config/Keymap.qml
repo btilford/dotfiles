@@ -33,9 +33,17 @@ Singleton {
             open();
     }
 
+    // The command is env-overridable so the headless capture rig can feed REAL binds
+    // from a fixture: there is no Hyprland in the nested session, so `hyprctl binds -j`
+    // returns nothing and the which-key overlay would only ever be photographable with
+    // synthetic entries. Same env-first / fixed-path seam as QS_NOTIFY_CONFIG.
+    //
+    //   QS_BINDS_CMD="cat mise-scripts/visuals/fixtures/binds.json" qs
+    //
+    // Unset — every real session — it is exactly the old literal.
     Process {
         id: proc
-        command: ["sh", "-c", "hyprctl binds -j"]
+        command: ["sh", "-c", Quickshell.env("QS_BINDS_CMD") || "hyprctl binds -j"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

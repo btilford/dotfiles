@@ -7,7 +7,12 @@ docs/images/quickshell-bar.png            top bar (cropped)
 docs/images/quickshell-launcher.png       launcher, drun mode
 docs/images/quickshell-session.png        session / power overlay
 docs/images/quickshell-popup.png          notification popup (cropped)
+docs/images/quickshell-notification-sticky.png
+                                          sticky notification, no countdown (cropped)
 docs/images/quickshell-notifications.png  notification history drawer (cropped)
+docs/images/quickshell-whichkey.png       which-key hints, window-cmd (cropped)
+docs/images/quickshell-whichkey-sparse.png
+                                          which-key hints, open-cmd (cropped)
 ```
 
 ## Where these come from — and where they do NOT go

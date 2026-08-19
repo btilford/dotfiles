@@ -60,6 +60,14 @@ PanelWindow {
             win.previewSubmap = name;
         }
 
+        // Show a REAL submap: sets only the name, so `entries` falls through to the
+        // Keymap-derived list instead of the synthetic one above. Pair with
+        // QS_BINDS_CMD in the capture rig, where hyprctl has nothing to say.
+        function previewMap(name: string): void {
+            win.previewEntries = null;
+            win.previewSubmap = name;
+        }
+
         function hide(): void {
             win.previewEntries = null;
             win.previewSubmap = "";

@@ -53,6 +53,12 @@ remaining-time bar, plus a searchable history drawer.
 |-------|----------------|
 | ![notification popup](../docs/images/quickshell-popup.png) | ![notification drawer](../docs/images/quickshell-notifications.png) |
 
+A sticky notification has no remaining-time bar and does not expire — critical
+urgency, or a rule that says so. It stays until dismissed, and can fold to a pill
+docked in the bar rather than holding a full card on screen:
+
+![a sticky notification with no countdown](../docs/images/quickshell-notification-sticky.png)
+
 The drawer groups by app, supports `/` search and `j`/`k` navigation, and the
 popup stack has its own keyboard-focus mode. Placement is a preset
 (right-center / bottom-center), and routing/sticky/silence decisions come from a
@@ -63,10 +69,19 @@ Lua rules file. Per-machine config is `~/.config/quickshell/notifications.json` 
 not advertise it loses every Chromium client silently — no error, no retry. They
 fall back to internal notification windows, which Hyprland then tiles fullscreen.
 
-## Submap hints
+## Which-key submap hints
 
-An on-screen legend for the active Hyprland submap (resize, and its nested
-groups), driven from the compositor's submap state.
+An on-screen legend for the active Hyprland submap, driven from the compositor's
+submap state and the real bind list (`hyprctl binds -j`), so the labels are the
+`description` fields from `keybindings.lua` rather than a second copy to keep in
+sync. A bind that enters a nested submap renders as a which-key `+group` marker
+rather than by its dispatcher — `s → +window-swap` below.
+
+![which-key hints for the window-cmd submap](../docs/images/quickshell-whichkey.png)
+
+The layout is width-driven, so a sparse map is a single short row:
+
+![which-key hints for the open-cmd submap](../docs/images/quickshell-whichkey-sparse.png)
 
 ## Screenshots
 

@@ -248,8 +248,17 @@ NOTIFY_DB="$RUNTIME/notifications.db"
 NOTIFY_RULES="$RUNTIME/rules.lua"
 : > "$NOTIFY_RULES"
 
+# QS_BINDS_CMD feeds the which-key overlay REAL keybindings. Keymap.qml normally
+# shells out to `hyprctl binds -j`, and there is no Hyprland in this session, so
+# without it the submap scene can only ever photograph synthetic entries — which is
+# fine for exercising the layout and useless as documentation. The fixture is a
+# committed dump of this repo's own binds; regenerate it with
+# mise-scripts/visuals/fixtures/gen-binds.sh from a live session.
+BINDS_FIXTURE="$REPO/mise-scripts/visuals/fixtures/binds.json"
+
 HYPR_NOTIFY=quickshell QS_NOTIFY_CONFIG="$NOTIFY_CONFIG" QS_NOTIFY_DB="$NOTIFY_DB" \
   QS_NOTIFY_RULES="$NOTIFY_RULES" \
+  QS_BINDS_CMD="cat '$BINDS_FIXTURE'" \
   qs -p "$SHELL_QML" > "$RUNTIME/qs.log" 2>&1 &
 QS_PID=$!
 
@@ -566,6 +575,18 @@ popup_overflow() {
 # Three entry counts because the layout is width-driven: the interesting cases are a
 # map too sparse to fill one row, one that fills it, and one that has to wrap.
 scene_submap() {
+  # Real maps first — these are the ones worth showing anyone. previewMap sets only
+  # the submap name, so the entries come from the binds fixture rather than the
+  # synthetic generator: real chords, real descriptions, real nested-group markers.
+  for map in window-cmd open-cmd; do
+    ipc submapHints previewMap "$map"
+    settle
+    still "submap-$map"
+  done
+
+  # Then the synthetic sizes, which exist to exercise the width-driven layout: too
+  # sparse to fill a row, exactly one row, and enough to wrap. Deliberately
+  # over-long labels, so these show the elide rather than a tidy best case.
   for n in 4 12 28; do
     ipc submapHints preview resize "$n"
     settle
