@@ -516,9 +516,19 @@ end, { description = "Clock drawer (weather, world clocks, calendar)" })
 -- nothing here grabs the keyboard, these are simply actions rather than a mode, and
 -- staying in the submap after a copy means the next keystroke is swallowed. Same shape,
 -- different why — which is why this is its own helper and not a call to notif_run.
+--
+-- exec_cmd, NEVER os.execute. `os.execute` blocks Hyprland's main thread until the child
+-- exits, and this child owns the Wayland clipboard, so it does not exit — the first press
+-- of a time-cmd verb froze the whole desktop for half an hour until the wl-copy process
+-- was killed by hand. The script now detaches wl-copy as well; this is the second half of
+-- that fix, and the more important half, because it holds for ANY command bound here.
+--
+-- The os.execute calls elsewhere in this file are safe only because every one of them is
+-- a `qs ipc call` that returns immediately. That is a property of those commands, not of
+-- os.execute — do not read them as precedent.
 local function time_run(fmt)
   hl.dispatch(hl.dsp.submap("reset"))
-  os.execute('sh -c "$HOME/.config/hypr/scripts/CopyDateTime.sh ' .. fmt .. '"')
+  hl.dispatch(hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/CopyDateTime.sh ' .. fmt .. '"'))
 end
 
 hl.bind(
