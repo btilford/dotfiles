@@ -143,6 +143,69 @@ submap") and survives the show-delay; the overlay is the transient detail.
   `Keymap.submapEntry(b)`.
 - Config: `QS_SUBMAP_HINTS` / `QS_SUBMAP_HINTS_DELAY` in `shell.local.env` (see below).
 
+## Now playing (MPRIS)
+
+`components/bar/NowPlaying.qml` — the current track plus transport, floating in the gap between
+the window list and the workspace centre. `Quickshell.Services.Mpris` is a NEW dependency for the
+shell; nothing else in the config imports it.
+
+- **Not a bar module, and not in a `Section`.** `Section.qml` is what draws the slanted bar
+  surface; this is text and icons only, no Rectangle, no border, no `Theme.surface` fill. It is
+  the mirror of `NotificationPills` on the other side of the centre and follows the same rule.
+- **The centre section must not move.** It is anchored to the screen's `horizontalCenter`, so
+  every pixel this takes is absorbed by ELIDING the title, never by pushing. Widths are derived
+  from `root.width` (the gap the item is anchored across) and never from the laid-out row —
+  measuring a row and feeding that back into the properties that size it is a binding loop, the
+  same trap `NotificationPills` documents.
+- **Previous is dropped before the title is.** `showPrev` tests the space available WITHOUT it,
+  which is also what keeps that test out of the loop. Below `minTitle` the whole cluster hides,
+  which is the answer for a PORTRAIT bar too — it falls out of the width test rather than needing
+  a portrait flag.
+- **Every control is guarded on the player's capability flag** and hidden, not greyed: players
+  advertise a subset, and calling an unsupported control is a silent no-op behind a button that
+  looks enabled.
+- **One player, never a stack.** A browser tab and a music app are both registered most of the
+  time. The pick prefers whatever is `Playing` and otherwise HOLDS the player it was already
+  showing, which is what makes the pause grace period describe the track you just paused. The
+  set only changes when a player appears or disappears, so an `Instantiator` of `Connections`
+  re-picks on any `playbackStateChanged` — without it the choice freezes and switching apps never
+  registers.
+- **A pause does not hide it immediately.** `QS_NOW_PLAYING_TIMEOUT` (45s) starts on pause and is
+  cancelled by resume, so a pause-and-resume does not make the bar jump. The player disappearing
+  hides at once — there is nothing left to describe.
+- **One monitor, pinned by description.** Media is one stream, not per-screen state, so unlike
+  Audio/Network/Clock it is not duplicated across every bar. `QS_NOW_PLAYING_MONITOR` takes a
+  monitor description (substring, case-insensitive) or a bare connector name; description is
+  preferred because connector names shuffle across reconnects, the same reason
+  `hypr/lua/monitors.lua` addresses displays by `desc:`. **The default is empty and must stay
+  empty in this repo** — a real description carries the panel's hardware serial, which
+  `mise run lint:private` blocks from a publicly mirrored tree. Both fallbacks go toward showing:
+  unset shows on every bar, and so does a configured monitor that is not currently connected.
+- `Hyprland.focusedMonitor` is deliberately NOT used. Every use of it in this config is a
+  transient surface; a persistent element that hops monitors on focus change is visual noise.
+- Click on the text raises the player when `canRaise` (mpd/playerctld have no window). Scroll is
+  unbound on purpose: it means volume on `Audio.qml`, and one gesture meaning two different
+  volumes a few hundred pixels apart is worse than no gesture.
+
+### Testing it without a media player
+
+`mise-scripts/visual-capture.sh` has **no mpris scene**, deliberately for now: every other scene
+drives a surface through quickshell IPC, and this one needs a *media player on the bus*, which
+means shipping a D-Bus service and a python bus library the capture script does not otherwise
+depend on. Until that is worth paying for, this surface is captured by a throwaway rig.
+
+The headless rig on a private bus (see "Testing notifications without a Hyprland session") has no
+media player on it, and pointing it at the live session bus would make the test depend on whatever
+you happen to be listening to. Publish a stub instead — an `org.mpris.MediaPlayer2.*` name whose
+`PlaybackStatus`, metadata and `CanGoNext`/`CanGoPrevious` come from a control file the rig
+rewrites between screenshots. Capture at a NARROW output (1600px, not 2560): at desktop width the
+gap swallows any title and the elision path is never exercised.
+
+**Read `Mpris.players` through a BINDING, in the harness too.** An imperative read reported zero
+players forever while the bar beside it was showing the track — the service initializes when
+something binds to it, the same lazy shape `DesktopEntries` has. The list is also empty at
+`Component.onCompleted` and fills in asynchronously, so a probe needs both a binding and a wait.
+
 ## Notifications
 
 `org.freedesktop.Notifications` server (story: notif-dbus-server, first of the notifications
@@ -632,6 +695,9 @@ active bar/launcher per machine in `~/.config/hypr/shell.local.env` (not stowed)
 | `QS_SUBMAP_HINTS` | `1` (default) \| `0` | which-key hints for the active submap (`components/SubmapHints.qml`) |
 | `QS_SUBMAP_HINTS_DELAY` | ms (default `250`) | how long a submap must stay active before the hints appear |
 | `QS_SUBMAP_HINTS_OPACITY` | `0.05`–`1` (default `0.05`) | hints slab surface opacity. Its own knob, not the drawer's. Out-of-range falls back to the default — `0` is a valid float that would leave the slab invisible while the text still drew |
+| `QS_NOW_PLAYING` | `1` (default) \| `0` | MPRIS now-playing cluster in the bar (`components/bar/NowPlaying.qml`) |
+| `QS_NOW_PLAYING_TIMEOUT` | ms (default `45000`) | how long a PAUSED track stays before the cluster hides; resume cancels it. Floored at 1000 — a 0 would hide it the frame you pause, which reads as the bar flickering |
+| `QS_NOW_PLAYING_MONITOR` | monitor description or connector name (default empty) | which single bar shows it. Empty = all bars, which is also the fallback when the named monitor is not connected. Keep the default empty in-tree: a real description carries a hardware serial and `lint:private` blocks it |
 | `QS_EFFECTS` | `full` (default) \| `low` \| `off` | `off` = shaders never instantiated (Loader-gated); static themed fallbacks: accent Rectangle/Shape borders, flat accent fills, no shimmer/reflection/glyph lava. `low` reserved, currently = `full`. |
 
 Border weights are Theme tokens: `Theme.borderThickness` (energy borders) and `Theme.borderThin`

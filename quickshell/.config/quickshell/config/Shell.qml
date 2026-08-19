@@ -11,6 +11,7 @@ import Quickshell.Io
 // Keys: HYPR_BAR=waybar|quickshell  HYPR_LAUNCHER=rofi|quickshell  HYPR_BAR_DEV=1
 //       QS_EFFECTS=full|low|off  HYPR_NOTIFY=swaync|quickshell
 //       QS_SUBMAP_HINTS=1|0  QS_SUBMAP_HINTS_DELAY=<ms>  QS_SUBMAP_HINTS_OPACITY=<0.05..1>
+//       QS_NOW_PLAYING=1|0  QS_NOW_PLAYING_TIMEOUT=<ms>  QS_NOW_PLAYING_MONITOR=<desc|name>
 // HYPR_BAR_DEV renders the qs bar at the BOTTOM (no exclusive zone) for side-by-side testing
 // against waybar during development.
 // QS_EFFECTS=off swaps every shader (energy borders, fills, shimmer, reflections) for static
@@ -51,6 +52,23 @@ Singleton {
     // Theme.surface until the panel reads as a solid brown slab rather than glass.
     property real submapHintsOpacity: 0.05
 
+    // MPRIS now-playing cluster in the bar (components/bar/NowPlaying.qml).
+    property bool nowPlayingEnabled: true
+    // How long a PAUSED track stays on the bar before the cluster hides. Hiding the instant
+    // something is paused makes the bar jump on every pause/resume, which is the jitter this
+    // exists to avoid; resuming cancels it.
+    property int nowPlayingTimeoutMs: 45000
+    // Which monitor shows it — media is one stream, not per-screen state, so it is not
+    // duplicated across every bar the way Audio/Network/Clock are. A monitor DESCRIPTION
+    // (substring, case-insensitive) or a bare connector name; description is preferred because
+    // connector names shuffle across reconnects.
+    //
+    // Empty by DEFAULT and it stays that way in this repo: a real description carries the
+    // panel's hardware serial, which is exactly what mise run lint:private blocks from a
+    // publicly mirrored tree. It belongs in the untracked shell.local.env. Empty means every
+    // bar, which is also the fallback when the configured monitor is not connected.
+    property string nowPlayingMonitor: ""
+
     // shaders render only when effects aren't switched off; "low" reserved, treated as full
     readonly property bool effectsOn: effectsMode !== "off"
 
@@ -72,6 +90,9 @@ Singleton {
         let hints = "1";
         let hintsDelay = "250";
         let hintsOpacity = "0.05";
+        let nowPlaying = "1";
+        let nowPlayingTimeout = "45000";
+        let nowPlayingMonitor = "";
         if (t) {
             for (const line of t.split("\n")) {
                 const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
@@ -93,6 +114,12 @@ Singleton {
                     hintsDelay = m[2];
                 else if (m[1] === "QS_SUBMAP_HINTS_OPACITY")
                     hintsOpacity = m[2];
+                else if (m[1] === "QS_NOW_PLAYING")
+                    nowPlaying = m[2];
+                else if (m[1] === "QS_NOW_PLAYING_TIMEOUT")
+                    nowPlayingTimeout = m[2];
+                else if (m[1] === "QS_NOW_PLAYING_MONITOR")
+                    nowPlayingMonitor = m[2];
             }
         }
         // environment overrides the file, key by key — an unset var leaves the file's value alone
@@ -112,6 +139,13 @@ Singleton {
         // rather than as a setting. Clamped to something still recognisably a surface.
         const hOpacity = parseFloat(envOr("QS_SUBMAP_HINTS_OPACITY", hintsOpacity));
         root.submapHintsOpacity = (isNaN(hOpacity) || hOpacity < 0.05 || hOpacity > 1) ? 0.05 : hOpacity;
+        const npRaw = envOr("QS_NOW_PLAYING", nowPlaying);
+        root.nowPlayingEnabled = !(npRaw === "0" || npRaw === "off" || npRaw === "false");
+        // Same guard as the hints delay, with a floor: a 0 here would hide the cluster the
+        // frame a track pauses, which reads as the bar flickering rather than as a setting.
+        const npTimeout = parseInt(envOr("QS_NOW_PLAYING_TIMEOUT", nowPlayingTimeout), 10);
+        root.nowPlayingTimeoutMs = (isNaN(npTimeout) || npTimeout < 1000) ? 45000 : npTimeout;
+        root.nowPlayingMonitor = envOr("QS_NOW_PLAYING_MONITOR", nowPlayingMonitor);
     }
 
     // Quickshell.env returns undefined for an unset variable and "" for an empty one; treat both
