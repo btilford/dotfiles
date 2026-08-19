@@ -188,6 +188,11 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onEntered: {
                         tip.text = (pill.entry.summary || "") + (pill.entry.body ? " — " + pill.entry.body : "");
+                        // Anchor to THIS pill, not the tray. The tray is anchored left AND right
+                        // in Bar.qml so it spans the whole gap between the workspaces and the
+                        // status cluster — anchoring the tip to it puts the tooltip in the middle
+                        // of that empty space, nowhere near the pill under the cursor.
+                        tip.anchorItem = pill;
                         tip.open();
                     }
                     onExited: tip.close()
@@ -212,6 +217,7 @@ Item {
         // Overflow — and, on a bar too narrow for even one compact pill, the whole tray. Either
         // way it says how many and opens the drawer, because the bar is not a queue.
         Rectangle {
+            id: overflowChip
             visible: root.overflow > 0
             anchors.verticalCenter: parent.verticalCenter
             height: root.implicitHeight
@@ -236,6 +242,7 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onEntered: {
                     tip.text = root.mode === "chip" ? root.overflow + " collapsed — open the drawer" : root.overflow + " more collapsed — open the drawer";
+                    tip.anchorItem = overflowChip;
                     tip.open();
                 }
                 onExited: tip.close()
@@ -256,6 +263,8 @@ Item {
 
     Tooltip {
         id: tip
+        // Reassigned per hover to the pill or chip under the cursor; root is only the
+        // fallback for the frame before the first hover.
         anchorItem: root
     }
 }

@@ -19,6 +19,8 @@ docs/images/clipborg-tree.png             clipborg dialog, grouped by app (cropp
 docs/images/clipborg-actions.png          clipborg dialog, action list (cropped)
 docs/images/quickshell-keymap.png         fullscreen keymap overlay (cropped)
 docs/images/quickshell-keymap-search.png  keymap overlay, live search (cropped)
+docs/images/quickshell-notification-pill.png
+                                          collapsed sticky pill docked in the bar
 ```
 
 ## Where these come from — and where they do NOT go
