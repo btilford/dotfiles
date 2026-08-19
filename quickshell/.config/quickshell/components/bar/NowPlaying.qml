@@ -99,9 +99,9 @@ Item {
 
     readonly property bool playing: !!root.player && root.player.playbackState === MprisPlaybackState.Playing
     readonly property string title: root.player ? (root.player.trackTitle || "") : ""
-    // trackArtist is the joined form and trackArtists the array one; players populate one or the
-    // other, so neither alone is a reliable read.
-    readonly property string artist: root.player ? (root.player.trackArtist || root.player.trackArtists || "") : ""
+    // One read, not a `trackArtist || trackArtists` pair: on stable 0.3.0 both are QString off the
+    // same bindable, so the fallback was dead code dressed up as a compatibility shim.
+    readonly property string artist: root.player ? (root.player.trackArtist || "") : ""
 
     // ---------------------------------------------------------------------------------------
     // Visibility: playing, plus a grace period.
@@ -110,8 +110,23 @@ Item {
     // something and resume ten seconds later, so a pause starts a timer instead and a resume
     // cancels it. The player disappearing entirely hides immediately — there is nothing left to
     // describe.
+    //
+    // The grace belongs to ONE player — the one that was actually playing — and `graceOwner`
+    // is what enforces that. Without it, quitting a playing Spotify while a paused browser
+    // player is still registered promoted the browser (`pickPlayer` falls through to ps[0]),
+    // saw `playing` go true -> false, and started a full 45s grace over the browser's stale
+    // paused metadata: the spec's "hide when the player disappears" turned into "advertise
+    // someone else's old track for 45 seconds".
+    //
+    // The owner is the player's `dbusName`, which is the only stable identity available here.
+    // NOT `uniqueId`: that is per-TRACK, not per-player — the rig caught it changing 1 -> 4 on
+    // one player when the title changed, so a perfectly ordinary pause looked like a stranger
+    // asking for a grace it had not earned, and the paused track vanished instantly. Not the
+    // object either: the player that armed the grace may already be destroyed when this is
+    // compared, and a string outlives it.
     // ---------------------------------------------------------------------------------------
     property bool inGrace: false
+    property string graceOwner: ""
 
     Timer {
         id: graceTimer
@@ -119,24 +134,40 @@ Item {
         onTriggered: root.inGrace = false
     }
 
-    onPlayingChanged: {
-        if (root.playing) {
-            graceTimer.stop();
-            root.inGrace = true;
-        } else if (root.player) {
-            graceTimer.restart();
-        }
-    }
-
-    onPlayerChanged: {
-        if (!root.player) {
+    // Arm the grace for the current player, or drop it if this is not the player that earned one.
+    function refreshGrace() {
+        const p = root.player;
+        if (!p) {
             graceTimer.stop();
             root.inGrace = false;
-        } else if (root.playing) {
+            root.graceOwner = "";
+            return;
+        }
+        // Read the state off the PLAYER, never off root.playing. When the selection changes,
+        // onPlayerChanged can run before the `playing` binding has re-evaluated, and that stale
+        // `true` is precisely how the browser inherited the grace: it took the "is playing"
+        // branch, stamped ITSELF as graceOwner, and the pause that followed then looked like the
+        // owner pausing. Verified — the first version of this fix still showed the stale tab.
+        const isPlaying = p.playbackState === MprisPlaybackState.Playing;
+        if (isPlaying) {
             graceTimer.stop();
             root.inGrace = true;
+            root.graceOwner = p.dbusName;
+            return;
         }
+        if (p.dbusName === root.graceOwner) {
+            // the track you just paused — hold it on the bar for the timeout
+            if (!graceTimer.running)
+                graceTimer.restart();
+            return;
+        }
+        // a player that never played under us: no grace, hide now
+        graceTimer.stop();
+        root.inGrace = false;
     }
+
+    onPlayingChanged: root.refreshGrace()
+    onPlayerChanged: root.refreshGrace()
 
     // ---------------------------------------------------------------------------------------
     // Fitting the gap.
@@ -165,6 +196,11 @@ Item {
     readonly property bool showPrev: !!root.player && root.player.canGoPrevious && (root.spaceNoPrev - root.ctlWidth - root.gutter >= root.minTitle)
     readonly property int titleSpace: Math.max(0, root.spaceNoPrev - (root.showPrev ? root.ctlWidth + root.gutter : 0))
 
+    // DELIBERATE DEVIATION from the spec's "visible when a player exists and is playing": a
+    // playing player with no title renders NOTHING, not a bare note and two buttons. A title-less
+    // cluster cannot say what it is offering to control, and a transport with no subject reads as
+    // a bar glitch. The cost, stated plainly: a stream whose metadata never arrives is invisible
+    // here even though it is audible.
     readonly property bool wanted: Shell.nowPlayingEnabled && root.onThisMonitor && !!root.player && (root.playing || root.inGrace) && root.title !== "" && root.titleSpace >= root.minTitle
 
     implicitHeight: Theme.barHeightMinimal - 8

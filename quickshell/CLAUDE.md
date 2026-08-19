@@ -164,6 +164,8 @@ shell; nothing else in the config imports it.
 - **Every control is guarded on the player's capability flag** and hidden, not greyed: players
   advertise a subset, and calling an unsupported control is a silent no-op behind a button that
   looks enabled.
+- **Both `trackArtist` and `trackArtists` are QString off the same bindable** on stable 0.3.0 —
+  they are not a joined/array pair, so a `trackArtist || trackArtists` fallback is dead code.
 - **One player, never a stack.** A browser tab and a music app are both registered most of the
   time. The pick prefers whatever is `Playing` and otherwise HOLDS the player it was already
   showing, which is what makes the pause grace period describe the track you just paused. The
@@ -173,6 +175,21 @@ shell; nothing else in the config imports it.
 - **A pause does not hide it immediately.** `QS_NOW_PLAYING_TIMEOUT` (45s) starts on pause and is
   cancelled by resume, so a pause-and-resume does not make the bar jump. The player disappearing
   hides at once — there is nothing left to describe.
+- **The grace belongs to ONE player, keyed by `dbusName`.** Quitting a playing app while a paused
+  browser tab is still registered promotes the browser (`pickPlayer` falls through to `ps[0]`),
+  and without an owner check that promotion inherited the grace: the bar advertised someone
+  else's stale paused track for the full 45s. Two traps sit inside that fix, both found by
+  screenshot rather than by reading:
+  - **`uniqueId` is per-TRACK, not per-player.** It changed `1` -> `4` on one player when only
+    the title changed, so an ordinary pause looked like a stranger claiming a grace it had not
+    earned and the paused track vanished on the spot. `dbusName` is `isPropertyConstant` and is
+    the identity to compare. It is also a *string*, which matters: the player that armed the
+    grace may already be destroyed when the comparison runs — a stale QObject reference reads
+    back as `undefined`, which `pickPlayer` has to handle anyway.
+  - **Do not read `root.playing` inside the handler for a player CHANGE.** `onPlayerChanged` can
+    run before the `playing` binding has re-evaluated, and that stale `true` made the newly
+    promoted browser stamp *itself* as the grace owner — the first version of the fix looked
+    right and reproduced the bug exactly. Read `player.playbackState` directly instead.
 - **One monitor, pinned by description.** Media is one stream, not per-screen state, so unlike
   Audio/Network/Clock it is not duplicated across every bar. `QS_NOW_PLAYING_MONITOR` takes a
   monitor description (substring, case-insensitive) or a bare connector name; description is
@@ -198,8 +215,10 @@ The headless rig on a private bus (see "Testing notifications without a Hyprland
 media player on it, and pointing it at the live session bus would make the test depend on whatever
 you happen to be listening to. Publish a stub instead — an `org.mpris.MediaPlayer2.*` name whose
 `PlaybackStatus`, metadata and `CanGoNext`/`CanGoPrevious` come from a control file the rig
-rewrites between screenshots. Capture at a NARROW output (1600px, not 2560): at desktop width the
-gap swallows any title and the elision path is never exercised.
+rewrites between screenshots. Publish **two** of them — an app that plays and a browser tab that
+stays paused for the whole run — because one player cannot exercise either the pick or the
+stale-player transition, which is where the real bugs were. Capture at a NARROW output (1600px,
+not 2560): at desktop width the gap swallows any title and the elision path is never exercised.
 
 **Read `Mpris.players` through a BINDING, in the harness too.** An imperative read reported zero
 players forever while the bar beside it was showing the track — the service initializes when
