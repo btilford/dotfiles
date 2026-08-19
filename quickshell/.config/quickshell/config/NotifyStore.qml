@@ -26,7 +26,11 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property int schemaVersion: 3
+    // 4: the `timers` table (story: notif-timers). It is a CREATE TABLE IF NOT EXISTS in
+    // schemaSql rather than an entry in `migrations` — a new table needs no ALTER and heals
+    // itself on every start — but the number still has to move, because this is what a reader of
+    // the file checks to know which tables it can expect.
+    readonly property int schemaVersion: 4
 
     readonly property string dbPath: {
         const explicit = Quickshell.env("QS_NOTIFY_DB");

@@ -567,6 +567,10 @@ config key to an action, add it to both builders (`actionsFor` and `actionsForRo
 `alarm <hh:mm> [label]`, `pomodoro ["25m/5m/15m x4"] [label]`, `pause|resume|toggle|reset|extend|
 cancel <id>`, `cancelAll`, `stopwatch|stopwatchStart [label]`, `lap`, `stop`, `list`.
 
+- **Schema v4** — the `timers` table. It is a `CREATE TABLE IF NOT EXISTS` in `schemaSql` rather
+  than a `migrations` entry (a new table needs no `ALTER` and heals itself every start), but
+  `schemaVersion` still moves, because that number is what a reader of the file checks to know
+  which tables to expect.
 - **Nothing here is a second scheduler.** An armed timer is a `timers` row carrying `wake_at`, and
   `NotifyStore.armSnoozeTimer` takes `MIN(wake_at)` across **both** that table and the snoozed
   notifications — one Timer object in the whole file. So a countdown survives a `qs` restart *and*
@@ -598,6 +602,29 @@ cancel <id>`, `cancelAll`, `stopwatch|stopwatchStart [label]`, `lap`, `stop`, `l
   there for 25 minutes cannot push the notifications you actually need to read out of the default
   stack's overflow window. `Timers.applyPlacement` runs on the ingest path, before the rules, so a
   rule can still move it.
+- **A hint is client data, so cards are tokened.** Every card this shell raises carries
+  `x-timer-token` (minted once per session); a hint is only believed when it matches. Without it
+  any app on the session bus could send `-h string:x-timer-id:1` and be handed a live timer's
+  pause/reset/**cancel** verbs, plus the timer anchor to pin itself to. Verified with a spoofed
+  `notify-send`: no verbs, no readout, default anchor.
+- **`x-timer-id` means "controls this live timer" and only a RUNNING card carries it.** A
+  finished/announcement card carries the token alone, which is enough to put it in the timer
+  stack. This is not tidiness: a pomodoro keeps ONE handle across every phase, and
+  `advancePomodoro` has already armed and added the next phase before `notify-send` delivers — so
+  a "Work 1/4 done" card carrying the handle rendered the *break's* countdown and its Ctrl+C
+  cancelled the break it was announcing.
+- **Nothing on a timer object notifies.** `paused`, `endsAt` and the rest are plain JS fields on a
+  plain object, and `stateFor` keeps returning the same object, so no binding re-runs on its own.
+  Any view reading them must touch `Timers.revision` (bumped by `publish()`) and/or `Timers.now`.
+  The card said "running" beside a frozen clock after a pause, while the chip next to it correctly
+  said Resume, because `ActionChips` touches `revision` and that Text did not.
+- **Timer identity in a view is `.handle`.** `Timers.resolve` treats a missing/undefined handle as
+  "the newest live timer", so `timerState.id` (a field that does not exist) silently paused
+  whichever timer started last — invisible with one timer running, wrong with two. Any rig case
+  for this needs TWO concurrent timers.
+- **`NotificationCard.activate(button)` is a function, not an inline `onClicked`,** because a
+  headless rig has no pointer and no keyboard: that is the only way "which timer does this card
+  act on" can be exercised at all, and the defect above shipped to review because it could not be.
 - **Card verbs are built-in actions, `kind: "timer"`** — Pause/Resume `^p`/`^r`, `+5 min` `^m`,
   Reset `^e`, Cancel `^c` — so they render as chips, answer the same `Ctrl+<letter>` scheme and
   work from focus mode and compose with no second control surface. `invokeAction` calls

@@ -897,8 +897,8 @@ Singleton {
                 root.actionFailed(entry, action, String(e));
                 return;
             }
-            // `closes` means the verb took the card down itself (cancel). Nothing else here
-            // dismisses: pausing a timer must leave its card exactly where it was.
+            // No dismiss on this path at all: pausing a timer must leave its card exactly
+            // where it was, and cancel takes its own card down inside perform().
             return;
         }
 

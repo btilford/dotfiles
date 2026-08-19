@@ -39,6 +39,16 @@ Rectangle {
         return Timers.stateFor(card.entry);
     }
 
+    // `paused` lives on a plain JS object, so writing it notifies NOTHING — and `timerState`
+    // itself keeps returning the SAME object, so the binding above does not re-emit either. Any
+    // binding that reads the flag has to re-run off `revision`, which publish() bumps. Without
+    // this the card read "running" next to a frozen clock after a pause, while the chip beside it
+    // correctly said Resume (ActionChips touches revision itself).
+    readonly property bool timerPaused: {
+        Timers.revision;
+        return card.timerState ? card.timerState.paused : false;
+    }
+
     // the keyboard's cursor (story: notif-keyboard-control). Read off the singleton rather than
     // passed down the slot: the selection follows a notification id, not a position, so a card
     // that reflows into another position keeps it.
@@ -82,30 +92,40 @@ Rectangle {
         // body doesn't close it. Clicking the card IS the spec's `default` action when the
         // client supplied one — that is what activating a notification means, which is why the
         // default action gets no button and no key of its own.
-        onClicked: mouse => {
-            if (card.entry.collapsed) {
-                Notifications.expand(card.entry); // one click brings a shrunk critical back
-                return;
-            }
-            // A running timer's card is a control, not a message: clicking it pauses and
-            // resumes. Falling through would DISMISS it, which on a 25-minute pomodoro means
-            // losing the only thing on screen that says it is running.
-            if (card.timerState && mouse.button === Qt.LeftButton) {
-                Timers.toggle(card.timerState.id);
-                return;
-            }
-            if (mouse.button === Qt.LeftButton) {
-                const def = Notifications.defaultActionFor(card.entry);
-                if (def) {
-                    def.invoke();
-                    if (!card.entry.resident)
-                        Notifications.dismiss(card.entry);
-                    return;
-                }
-            }
-            if (mouse.button === Qt.MiddleButton || !card.entry.resident)
-                Notifications.dismiss(card.entry);
+        onClicked: mouse => card.activate(mouse.button)
+    }
+
+    // What clicking this card MEANS, as a function rather than inline in the MouseArea. It is a
+    // function because a headless rig has no pointer to click with and no keyboard for wtype: the
+    // only way to exercise this decision — which timer a click acts on, with several running —
+    // was to be able to call it. The `.id`/`.handle` defect below was live in a merge request
+    // precisely because a single-timer rig could not tell the two apart.
+    function activate(button) {
+        if (card.entry.collapsed) {
+            Notifications.expand(card.entry); // one click brings a shrunk critical back
+            return;
         }
+        // A running timer's card is a control, not a message: clicking it pauses and resumes.
+        // Falling through would DISMISS it, which on a 25-minute pomodoro means losing the only
+        // thing on screen that says it is running.
+        if (card.timerState && button === Qt.LeftButton) {
+            // `.handle`, not `.id` — a timer has no `id`, and Timers.resolve reads undefined as
+            // the "newest live timer" case, so clicking one card paused a DIFFERENT timer
+            // whenever two were running.
+            Timers.toggle(card.timerState.handle);
+            return;
+        }
+        if (button === Qt.LeftButton) {
+            const def = Notifications.defaultActionFor(card.entry);
+            if (def) {
+                def.invoke();
+                if (!card.entry.resident)
+                    Notifications.dismiss(card.entry);
+                return;
+            }
+        }
+        if (button === Qt.MiddleButton || !card.entry.resident)
+            Notifications.dismiss(card.entry);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -323,7 +343,7 @@ Rectangle {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: card.timerState ? Timers.fmt(Timers.remainingOf(card.timerState)) : ""
-                color: card.timerState && card.timerState.paused ? Theme.subtext : Theme.fg
+                color: card.timerPaused ? Theme.subtext : Theme.fg
                 font.family: Theme.fontMono
                 font.pixelSize: Theme.fontSize + 8
                 font.bold: true
@@ -334,8 +354,9 @@ Rectangle {
                 text: {
                     if (!card.timerState)
                         return "";
+                    Timers.revision;
                     const phase = Timers.phaseLabel(card.timerState);
-                    const state = card.timerState.paused ? "paused" : "running";
+                    const state = card.timerPaused ? "paused" : "running";
                     return phase.length ? phase + "  ·  " + state : state;
                 }
                 color: Theme.subtext
@@ -357,7 +378,7 @@ Rectangle {
                 height: parent.height
                 radius: parent.radius
                 width: parent.width * (card.timerState ? Timers.progressOf(card.timerState) : 0)
-                color: card.timerState && card.timerState.paused ? Theme.subtext : card.urgencyColor
+                color: card.timerPaused ? Theme.subtext : card.urgencyColor
                 Behavior on width {
                     NumberAnimation {
                         duration: Theme.animFast

@@ -89,6 +89,15 @@ Singleton {
     property int idCounter: 0
     property int handleCounter: 0
 
+    // A hint is CLIENT DATA. Any app on the session bus can send
+    // `-h string:x-timer-id:1`, and without this it would be handed a live timer's control
+    // surface — pause, +5, reset and cancel on someone else's countdown — plus the timer anchor
+    // to pin itself to. So every card this singleton raises carries a token minted once per
+    // session, and a hint is only believed when the token matches. It is not a defence against
+    // anything that can read this process's memory; it is what stops a hint from being
+    // guessable, which is the actual exposure.
+    property string token: ""
+
     function nextId() {
         root.idCounter = (root.idCounter + 1) % 1000;
         return Date.now() * 1000 + root.idCounter;
@@ -97,6 +106,10 @@ Singleton {
     function nextHandle() {
         root.handleCounter++;
         return root.handleCounter;
+    }
+
+    Component.onCompleted: {
+        root.token = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -177,7 +190,10 @@ Singleton {
     // ---------------------------------------------------------------------------------------
 
     function raise(t, summary, body, urgency, replaceNid) {
-        const argv = ["notify-send", "-p", "-t", "0", "-u", urgency, "-a", "timer", "-h", "string:category:x-timer", "-h", "string:x-timer-id:" + t.handle];
+        // Two hints, and the split matters: `x-timer-token` says "this shell raised this card"
+        // and is on every timer notification; `x-timer-id` says "this card CONTROLS that live
+        // timer" and is only ever on a running timer's own card.
+        const argv = ["notify-send", "-p", "-t", "0", "-u", urgency, "-a", "timer", "-h", "string:category:x-timer", "-h", "string:x-timer-token:" + root.token, "-h", "string:x-timer-id:" + t.handle];
         if (replaceNid > 0)
             argv.push("-r", String(replaceNid));
         argv.push(summary, body);
@@ -605,17 +621,22 @@ Singleton {
         // Sticky and critical: you asked to be told, so it waits to be dealt with rather than
         // timing out into the bell while you are in another window.
         const label = t.label.length ? t.label : (t.kind === "alarm" ? "Alarm" : "Timer");
-        // The handle hint rides along so the finished card lands in the SAME stack the running
-        // one was pinned to (Timers.applyPlacement reads it). It resolves to no live timer, so
-        // the card carries no readout and no timer verbs — which is right: there is nothing left
-        // to pause.
-        Quickshell.execDetached(["notify-send", "-t", "0", "-u", "critical", "-a", "timer", "-h", "string:category:x-timer-done", "-h", "string:x-timer-id:" + t.handle, label + " — time's up", root.fmt(t.plannedMs) + " finished at " + Qt.formatDateTime(new Date(), "HH:mm")]);
+        // TOKEN ONLY, never the handle. The token is what puts this card in the timer stack;
+        // the handle would make it a live control surface, which a finished timer is not.
+        Quickshell.execDetached(["notify-send", "-t", "0", "-u", "critical", "-a", "timer", "-h", "string:category:x-timer-done", "-h", "string:x-timer-token:" + root.token, label + " — time's up", root.fmt(t.plannedMs) + " finished at " + Qt.formatDateTime(new Date(), "HH:mm")]);
     }
 
+    // TOKEN ONLY, and this is the case that proves the rule. A pomodoro run keeps its handle
+    // across every phase, and advancePomodoro() has already armed the next phase and added it to
+    // the live list by the time notify-send delivers — so a "Work 1/4 done" card carrying the
+    // handle resolved to the BREAK THAT JUST STARTED: it rendered the break's countdown and its
+    // chips acted on the break, so Ctrl+C on a card reading "Work 1/4 done" cancelled the short
+    // break. An announcement is a statement about something that has ended; it is never a
+    // control surface.
     function announcePomodoro(t) {
         const next = t.phase === "work" ? (t.cycle >= t.cycles ? "a long break" : "a short break") : "work";
         const what = t.phase === "work" ? "Work " + t.cycle + "/" + t.cycles + " done" : (t.phase === "long" ? "Long break over" : "Short break over");
-        Quickshell.execDetached(["notify-send", "-t", "0", "-u", "critical", "-a", "timer", "-h", "string:category:x-timer-done", "-h", "string:x-timer-id:" + t.handle, (t.label.length ? t.label + " — " : "") + what, "Next: " + next]);
+        Quickshell.execDetached(["notify-send", "-t", "0", "-u", "critical", "-a", "timer", "-h", "string:category:x-timer-done", "-h", "string:x-timer-token:" + root.token, (t.label.length ? t.label + " — " : "") + what, "Next: " + next]);
     }
 
     // work -> short -> work -> … -> long -> work. The cycle counter is what decides which break
@@ -789,9 +810,19 @@ Singleton {
     // The card side: which entries are timers, where they go, and what they can be told to do.
     // ---------------------------------------------------------------------------------------
 
-    // the HANDLE the card carries, not a run id — see the identity block above
+    // Did THIS shell raise this card? True for a running timer and for an announcement; false
+    // for anything a client sent, whatever hints it copied.
+    function ownsEntry(entry) {
+        if (!entry || !entry.hints || !root.token.length)
+            return false;
+        const v = entry.hints["x-timer-token"];
+        return v !== undefined && v !== null && String(v) === root.token;
+    }
+
+    // the HANDLE the card carries, not a run id — see the identity block above. Only a card this
+    // shell raised for a RUNNING timer has one.
     function timerHandleOf(entry) {
-        if (!entry || !entry.hints)
+        if (!root.ownsEntry(entry))
             return 0;
         const v = entry.hints["x-timer-id"];
         return v === undefined || v === null ? 0 : parseInt(v, 10) || 0;
@@ -808,7 +839,9 @@ Singleton {
     // stack, so a card that is going to sit there for 25 minutes cannot push the notifications
     // you actually need to read out of their own overflow window.
     function applyPlacement(entry) {
-        if (!root.timerHandleOf(entry))
+        // ownsEntry, not timerHandleOf: an announcement carries no handle and still belongs in
+        // the timer stack — and a client that guesses the hint names still cannot get here.
+        if (!root.ownsEntry(entry))
             return;
         if (root.cfg.anchorH.length)
             entry.anchorH = root.cfg.anchorH;
@@ -834,8 +867,7 @@ Singleton {
                 run: null,
                 prompt: null,
                 capture: "",
-                perform: () => root.toggle(handle),
-                closes: false
+                perform: () => root.toggle(handle)
             },
             {
                 kind: "timer",
@@ -845,8 +877,7 @@ Singleton {
                 run: null,
                 prompt: null,
                 capture: "",
-                perform: () => root.extend(handle, 0),
-                closes: false
+                perform: () => root.extend(handle, 0)
             },
             {
                 kind: "timer",
@@ -856,8 +887,7 @@ Singleton {
                 run: null,
                 prompt: null,
                 capture: "",
-                perform: () => root.reset(handle),
-                closes: false
+                perform: () => root.reset(handle)
             },
             {
                 kind: "timer",
@@ -867,9 +897,10 @@ Singleton {
                 run: null,
                 prompt: null,
                 capture: "",
-                // cancel() takes the card down itself, so nothing else may dismiss it
-                perform: () => root.cancel(handle),
-                closes: true
+                // cancel() takes its own card down. Nothing else on this path dismisses
+                // anything, so there is no flag to say so — invokeAction returns straight after
+                // perform() for every timer verb.
+                perform: () => root.cancel(handle)
             }
         ];
     }
