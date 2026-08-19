@@ -103,12 +103,13 @@ hl.on("hyprland.start", function()
 
   -- Unlock the wallet from the password PAM already captured at login.
   --
-  -- The Secret Service here is ksecretd, which is D-Bus activated and therefore
-  -- needs no autostart of its own — it starts on demand in any session. What does
-  -- NOT happen on its own is the unlock: pam_kwallet5.so writes the login password
-  -- to a socket at session time, and something must then run pam_kwallet_init to
-  -- hand it over. Plasma does that via this unit; Hyprland has no equivalent, and
-  -- /etc/xdg/autostart is not read here either. That is the whole reason the
+  -- ksecretd is D-Bus activated and therefore needs no autostart of its own — it
+  -- starts on demand in any session. (It no longer owns org.freedesktop.secrets
+  -- either; see the gnome-keyring note below.) What does NOT happen on its own is
+  -- the unlock: pam_kwallet5.so writes the login password to a socket at session
+  -- time, and something must then run pam_kwallet_init to hand it over. Plasma
+  -- does that via this unit; Hyprland has no equivalent, and /etc/xdg/autostart
+  -- is not read here either. That is the whole reason the
   -- keyring felt "hit or miss" — it worked only when something had already
   -- prompted earlier in the session.
   --
@@ -123,11 +124,30 @@ hl.on("hyprland.start", function()
   -- session that wants an unlocked wallet.
   hl.exec_cmd("systemctl --user start plasma-kwallet-pam.service")
 
-  -- No gnome-keyring: the package is not installed, so the exec that used to be
-  -- here was dead. Worth keeping absent rather than merely unused — if it is ever
-  -- pulled in as a dependency it would race ksecretd for org.freedesktop.secrets,
-  -- and whichever wins the name is non-deterministic. Same class of bug as the
-  -- clipborg double-daemon and the swaync/quickshell notification race above.
+  -- gnome-keyring: nothing is started here, and it is now masked outright.
+  --
+  -- This comment used to say the package was not installed, and to warn that
+  -- pulling it in would race ksecretd for org.freedesktop.secrets. It got pulled
+  -- in (bitwarden, fractal, jetbrains-toolbox and qtkeychain-qt6 all depend on the
+  -- virtual org.freedesktop.secrets), and it won the name — not by racing, but
+  -- because it ships the ONLY activation file for that name in /usr/share.
+  -- kwallet ships none, so the outcome was never in doubt.
+  --
+  -- Resolved deliberately, in two halves:
+  --   * the xdg package ships ~/.local/share/dbus-1/services/
+  --     org.freedesktop.secrets.service, naming ksecretd. XDG_DATA_HOME precedes
+  --     XDG_DATA_DIRS, so it wins.
+  --   * per machine, not committable:
+  --       systemctl --user mask gnome-keyring-daemon.socket gnome-keyring-daemon.service
+  --     Keep the masks even after the package is removed. They are what stops this
+  --     coming back if something pulls gnome-keyring in again.
+  --
+  -- ksecretd still needs no exec line: D-Bus activates it on the first request and
+  -- it then owns both org.freedesktop.secrets and org.kde.secretservicecompat.
+  -- Adding a second start path is what would recreate the race.
+  --
+  -- Confirm the owner with:
+  --   busctl --user list | grep org.freedesktop.secrets
 
   -- GTK/XDG settings — color-scheme synced across gsettings/dconf/kdeglobals/qt6ct
   hl.exec_cmd('sh -c "$HOME/.config/hypr/scripts/SyncColorScheme.sh"')

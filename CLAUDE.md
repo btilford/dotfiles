@@ -380,15 +380,31 @@ the mode bits stop other users, and root could read process memory regardless �
 it is strictly more surface than point-of-use was. `--run` remains preferable for
 anything that does not need the variable ambiently.
 
-**The unit must be ordered after the wallet unlock.** infisical's own CLI token
-lives in the Secret Service (here `ksecretd`, D-Bus activated), and the wallet
-holding it starts *locked*. Under Plasma `plasma-kwallet-pam.service` unlocks it
-from the password PAM captured at login; under Hyprland nothing pulls that unit in.
-Without `Wants=`/`After=plasma-kwallet-pam.service` the login fetch runs against a
-locked wallet and silently produces no cache — observed 2026-08-03, where the first
+**The unit no longer orders against the wallet unlock, and the history explains
+why.** infisical's own CLI token lives in the Secret Service, and the store holding
+it starts *locked*. Under Plasma `plasma-kwallet-pam.service` unlocks the wallet
+from the password PAM captured at login. Under Hyprland nothing pulls that unit in,
+so `autostart.lua` starts it by hand. Without an unlock the login fetch ran against
+a locked store and silently produced no cache — observed 2026-08-03, where the first
 symptom was `git-spice` failing hours later for an apparently unrelated reason.
-Ordering it from `autostart.lua` does **not** work for this consumer: the unit
-reaches `default.target` before Hyprland runs its first `exec_cmd`.
+Adding `Wants=`/`After=plasma-kwallet-pam.service` did not fix it reliably either
+(2026-08-04: the unlock is racy). `dotfiles-secrets` now authenticates with a
+machine identity when one is provisioned, so there is nothing to unlock and nothing
+to order against. The unit's own comment carries the full account.
+
+Two points survive that change:
+
+- Ordering the unit from `autostart.lua` does **not** work for this consumer. The
+  unit reaches `default.target` before Hyprland runs its first `exec_cmd`.
+- **The Secret Service is pinned to ksecretd/kwallet, and that took a deliberate
+  fix.** gnome-keyring ships the only activation file for `org.freedesktop.secrets`
+  under `/usr/share`, and kwallet ships none, so gnome-keyring owned the name by
+  default — a keyring `plasma-kwallet-pam.service` never unlocks. The `xdg` package
+  now ships a user-level activation file naming ksecretd, and the gnome-keyring
+  units are masked per machine. Check the owner with
+  `busctl --user list | grep org.freedesktop.secrets`, and read `xdg/CLAUDE.md` for
+  the two traps: the bus caches service files at startup, and a running ksecretd
+  never reclaims the name once it has started without it.
 
 **A failed fetch must fail the unit.** `SuccessExitStatus` covers **78**
 (`EX_CONFIG`) only — "this machine has no infisical and no `INFISICAL_*`", which is
@@ -705,6 +721,9 @@ install -m 600 ~/.config/aerc/accounts.conf{.example,}   # then fill it in
 atuin hook install claude-code             # atuin agent hooks, one per agent
 atuin hook install codex
 atuin hook install pi
+
+systemctl --user mask gnome-keyring-daemon.socket gnome-keyring-daemon.service
+systemctl --user enable --now dotfiles-secrets.service
 ```
 
 **`mise run glab:config` is per clone, not per machine, because of a permission
@@ -716,6 +735,14 @@ stowed from this repo and **git records only the executable bit**, so a fresh
 clone always lands at 644 and always hits this. The task now chmods it first;
 the fix is invisible to git, which is also why it cannot be committed once and
 forgotten.
+
+**Both `systemctl --user` lines are easy to miss.** Masking gnome-keyring is what
+holds `org.freedesktop.secrets` on kwallet; `xdg/CLAUDE.md` has the detail. And a
+stowed unit is only **linked**, never enabled. `dotfiles-secrets.service` declares
+`WantedBy=default.target`, but stow creates the symlink and nothing runs `enable`,
+so the login fetch never fired on this laptop and no session cache existed at all.
+`systemctl --user is-enabled dotfiles-secrets.service` prints `linked` when it is
+not wired up.
 
 **The atuin agent hooks write files this repo deliberately does not track.**
 `atuin hook install <agent>` edits `~/.claude/settings.json`, `~/.codex/hooks.json`
