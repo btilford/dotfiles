@@ -560,6 +560,64 @@ shape of bug to expect from hand-built plain objects crossing a module boundary;
 config key to an action, add it to both builders (`actionsFor` and `actionsForRow`) and to
 `NotifyConfig`'s validator.
 
+### Timers, pomodoro, stopwatch and alarms (story: notif-timers — BUILT)
+
+`config/Timers.qml` owns the state machine; a card is a pure view over it, the same split
+`Notifications` already enforces. Driven by `qs ipc call timers …`: `start <dur> [label]`,
+`alarm <hh:mm> [label]`, `pomodoro ["25m/5m/15m x4"] [label]`, `pause|resume|toggle|reset|extend|
+cancel <id>`, `cancelAll`, `stopwatch|stopwatchStart [label]`, `lap`, `stop`, `list`.
+
+- **Nothing here is a second scheduler.** An armed timer is a `timers` row carrying `wake_at`, and
+  `NotifyStore.armSnoozeTimer` takes `MIN(wake_at)` across **both** that table and the snoozed
+  notifications — one Timer object in the whole file. So a countdown survives a `qs` restart *and*
+  a reboot by the mechanism snooze already proved, and a row whose wake passed while the machine
+  was off fires on the next start (verified: killed `qs` mid-countdown, restarted 18s later, the
+  card was replaced by "time's up" immediately).
+- **Nor a second parser.** Durations go through `Notifications.parseDelay` — `20m`, `2h`, `90s`,
+  `17:30`. The pomodoro spec `25m/5m/15m x4` is a SHAPE around it, not a vocabulary: each part is
+  handed to the same function, so remind-me-at and start-a-timer cannot drift apart.
+- **Ticks are never written.** A running countdown is in-memory on the singleton; the store sees
+  arm, pause, resume and finish. One finished PHASE = one summary row, which is what makes
+  `SELECT COUNT(*) FROM timers WHERE kind='pomodoro' AND phase='work' AND state='done'` answer
+  "how many pomodoros today" without a tick ever being stored.
+- **Two identities, and the small one is public.** `runId`/`rowId` are epoch-derived (~1e15);
+  `handle` is a per-session 1, 2, 3… An `IpcHandler` parameter typed `int` is **32-bit**, so
+  handing out a run id truncated it to a negative number that addressed nothing. The same trap bit
+  the `timerElapsed` signal, where an `int` row id fired the notification correctly and then
+  UPDATEd a row that does not exist — the timer stayed `armed` in the table and in the live list
+  for ever, with nothing logged. Every id and every epoch stamp on that signal is `real`.
+- **Restore happens before the due sweep, and a raise in flight can be cancelled.** Both are async
+  queries; run in parallel, an overdue timer fired against an empty live list and the restore then
+  raised its card again, leaving a running card for a finished timer. `restoreTimers(true)` fires
+  only from the restore callback, and `dropCard` latches `dropped` so a `notify-send -p` whose id
+  arrives late closes its own card (a 2-second countdown does exactly that).
+- **A timer that cannot be persisted is refused at START**, with a critical notification saying so.
+  The store IS the schedule, so a timer armed with the store off would simply never fire — and a
+  countdown that silently does not go off is the one failure this feature must not have.
+- **The card is pinned to its own anchor** (`timers.anchorV = "top"`), so a card that will sit
+  there for 25 minutes cannot push the notifications you actually need to read out of the default
+  stack's overflow window. `Timers.applyPlacement` runs on the ingest path, before the rules, so a
+  rule can still move it.
+- **Card verbs are built-in actions, `kind: "timer"`** — Pause/Resume `^p`/`^r`, `+5 min` `^m`,
+  Reset `^e`, Cancel `^c` — so they render as chips, answer the same `Ctrl+<letter>` scheme and
+  work from focus mode and compose with no second control surface. `invokeAction` calls
+  `perform()` in process: routing back out through `qs ipc call` would spawn a process for this
+  shell to talk to itself. Clicking a timer card pauses it rather than dismissing it.
+- **The stopwatch is deliberately not a card** (decision 2). It counts up, so it has no `wake_at`,
+  and a card only re-renders on `replaces_id`. `components/bar/Stopwatch.qml` is its display —
+  click pause/resume, middle-click lap, right-click stop — and the notification surface sees it
+  only at terminal events: started, lap, stopped. It does NOT survive a restart, because there is
+  no armed row to survive with; stopping writes its one summary row.
+- A folded timer card keeps counting in the bar pill (`NotificationPills`), because a pill that
+  says only "Deep work" has thrown away the thing a running timer is for.
+- **Desktop timers are not a front-end onto vault reminders.** AD-012 §4's argument for snooze
+  carries over: the vault is right for "remind me Thursday" and wrong for "remind me in 15
+  minutes", and routing a pomodoro through it would make the desktop depend on the vault being
+  reachable. `x-vault.reminder` stays what it is.
+- **Firing is late by up to ~1s, never early.** Qt's coarse timers, plus the write-flush and query
+  round trips, put the observed fire ~0.8–0.9s after `wake_at` (measured on 4s and 30s timers).
+  The due query re-checks `wake_at <= now`, so an early wake simply finds nothing and re-arms.
+
 ### Compose: one notification, centred, with room to write
 
 `config/NotifyCompose.qml` (state) + `components/notifications/ComposeSurface.qml` (view). `p`

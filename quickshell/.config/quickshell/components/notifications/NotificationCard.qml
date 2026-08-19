@@ -29,6 +29,16 @@ Rectangle {
         return Quickshell.iconPath(entry.appIcon, true);
     }
 
+    // The live timer this card is showing, or null (story: notif-timers). `revision` and `now`
+    // are touched so the binding re-runs as the clock moves — QML does not discover a dependency
+    // through a function call into another singleton, the same reason ActionChips touches
+    // NotifyConfig.actions below.
+    readonly property var timerState: {
+        Timers.revision;
+        Timers.now;
+        return Timers.stateFor(card.entry);
+    }
+
     // the keyboard's cursor (story: notif-keyboard-control). Read off the singleton rather than
     // passed down the slot: the selection follows a notification id, not a position, so a card
     // that reflows into another position keeps it.
@@ -75,6 +85,13 @@ Rectangle {
         onClicked: mouse => {
             if (card.entry.collapsed) {
                 Notifications.expand(card.entry); // one click brings a shrunk critical back
+                return;
+            }
+            // A running timer's card is a control, not a message: clicking it pauses and
+            // resumes. Falling through would DISMISS it, which on a 25-minute pomodoro means
+            // losing the only thing on screen that says it is running.
+            if (card.timerState && mouse.button === Qt.LeftButton) {
+                Timers.toggle(card.timerState.id);
                 return;
             }
             if (mouse.button === Qt.LeftButton) {
@@ -294,6 +311,62 @@ Rectangle {
             }
         }
 
+        // Live timer readout (story: notif-timers). The card is a pure VIEW over the Timers
+        // singleton here — no notification is re-sent to move these pixels. A countdown that
+        // re-notified once a second to repaint a clock would put a subprocess and a store write
+        // behind every tick, which is exactly what "ticks are never written" rules out.
+        Row {
+            visible: card.timerState !== null && !card.entry.collapsed
+            width: parent.width
+            spacing: 10
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: card.timerState ? Timers.fmt(Timers.remainingOf(card.timerState)) : ""
+                color: card.timerState && card.timerState.paused ? Theme.subtext : Theme.fg
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize + 8
+                font.bold: true
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: {
+                    if (!card.timerState)
+                        return "";
+                    const phase = Timers.phaseLabel(card.timerState);
+                    const state = card.timerState.paused ? "paused" : "running";
+                    return phase.length ? phase + "  ·  " + state : state;
+                }
+                color: Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 3
+            }
+        }
+
+        // How much of the timer has run. Separate from the `value`-hint bar below: that one is a
+        // client's own progress, this one is ours, and a timer card can legitimately show both.
+        Rectangle {
+            width: parent.width
+            height: 4
+            radius: height / 2
+            visible: card.timerState !== null && !card.entry.collapsed
+            color: Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, 0.35)
+
+            Rectangle {
+                height: parent.height
+                radius: parent.radius
+                width: parent.width * (card.timerState ? Timers.progressOf(card.timerState) : 0)
+                color: card.timerState && card.timerState.paused ? Theme.subtext : card.urgencyColor
+                Behavior on width {
+                    NumberAnimation {
+                        duration: Theme.animFast
+                        easing.type: Theme.easing
+                    }
+                }
+            }
+        }
+
         // Action buttons (story: notif-actions, AD-012). Spec actions and custom actions render
         // identically and answer the same key hints — the user does not care which side of
         // D-Bus a verb lives on. Hidden while collapsed: a shrunk pill is not a control surface.
@@ -312,6 +385,10 @@ Rectangle {
                 // evaluates once against an empty action list and never re-runs. The chips
                 // simply never appear, with nothing in the log to say why.
                 NotifyConfig.actions;
+                // …and Timers.revision for the same reason: the built-in timer verbs change
+                // label (Pause ⇄ Resume) as the timer does, and the chip would otherwise keep
+                // whichever word it was built with.
+                Timers.revision;
                 return Notifications.actionsFor(card.entry);
             }
             activeAction: card.entry.promptAction

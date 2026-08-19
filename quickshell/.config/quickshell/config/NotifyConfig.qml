@@ -142,6 +142,25 @@ Singleton {
             maxMs: 604800000
         })
 
+    // Timers, pomodoro, stopwatch and alarms (story: notif-timers; state lives in
+    // config/Timers.qml). Lengths and cycle count are config because a pomodoro is a personal
+    // rhythm — 25/5/15 x4 is the classic, not a law.
+    //
+    // `anchorV` is why a running timer does not fight the notification stack: the overlay renders
+    // one window per (monitor, anchor) pair, so pinning timers to the top gives them their own
+    // stack rather than a fought-over slot in the default one. Set it to "" to put them back in
+    // whatever stack `placement` chose.
+    readonly property var defaultTimers: ({
+            workMs: 1500000,        // 25m
+            shortMs: 300000,        // 5m
+            longMs: 900000,         // 15m
+            cycles: 4,              // work phases before the long break
+            addMs: 300000,          // what the card's "+5 min" action adds
+            anchorH: "",            // "" = follow placement.anchorH
+            anchorV: "top",         // "" = follow placement.anchorV
+            stopwatchPill: true     // live stopwatch readout in the bar
+        })
+
     // Surface opacity for the popup cards and the docked pills. Separate from the drawer's
     // (which is deliberately glass — see defaultDrawer): a card sits over whatever you are
     // working in for a few seconds and has to be readable immediately, so it stays mostly
@@ -197,6 +216,7 @@ Singleton {
     property var actions: root.defaultActions.slice()
     property var prompt: root.clone(root.defaultPrompt)
     property var snooze: root.clone(root.defaultSnooze)
+    property var timers: root.clone(root.defaultTimers)
 
     readonly property string configPath: root.envOr("QS_NOTIFY_CONFIG", Quickshell.env("HOME") + "/.config/quickshell/notifications.json")
 
@@ -434,6 +454,20 @@ Singleton {
         root.snooze = {
             defaultMs: root.pickInt(sn, "defaultMs", root.defaultSnooze.defaultMs, 1000),
             maxMs: root.pickInt(sn, "maxMs", root.defaultSnooze.maxMs, 1000)
+        };
+
+        const ti = cfg.timers;
+        root.timers = {
+            // 1000 floors: a phase shorter than a second is a typo, and it would fire before
+            // the card raising it had reached the screen
+            workMs: root.pickInt(ti, "workMs", root.defaultTimers.workMs, 1000),
+            shortMs: root.pickInt(ti, "shortMs", root.defaultTimers.shortMs, 1000),
+            longMs: root.pickInt(ti, "longMs", root.defaultTimers.longMs, 1000),
+            cycles: root.pickInt(ti, "cycles", root.defaultTimers.cycles, 1),
+            addMs: root.pickInt(ti, "addMs", root.defaultTimers.addMs, 1000),
+            anchorH: root.pickEnum(ti, "anchorH", ["", "left", "center", "right"], root.defaultTimers.anchorH),
+            anchorV: root.pickEnum(ti, "anchorV", ["", "top", "center", "bottom"], root.defaultTimers.anchorV),
+            stopwatchPill: root.pickBool(ti, "stopwatchPill", root.defaultTimers.stopwatchPill)
         };
 
         const co = cfg.collapse;

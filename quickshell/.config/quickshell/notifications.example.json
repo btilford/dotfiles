@@ -113,6 +113,17 @@
     "defaultMs": 900000,
     "maxMs": 604800000
   },
+  "timers": {
+    "_comment": "Timers, pomodoro, stopwatch and alarms (`qs ipc call timers …`). Lengths and the cycle count are config because a pomodoro is a personal rhythm. addMs is what the card's \"+N min\" action adds. anchorV is why a running timer does not fight the notification stack: the overlay draws one window per (monitor, anchor) pair, so pinning timers to the top gives them their own stack — set either anchor to \"\" to follow `placement`. stopwatchPill = false hides the bar readout.",
+    "workMs": 1500000,
+    "shortMs": 300000,
+    "longMs": 900000,
+    "cycles": 4,
+    "addMs": 300000,
+    "anchorH": "",
+    "anchorV": "top",
+    "stopwatchPill": true
+  },
   "actions": [
     {
       "_comment": "AGENT / CI. Matcher keys: app, category, urgency, summary, body, hint.<name>. A `~` prefix is a regex, anything else is exact and case-insensitive. `run` is argv — {id} {app} {summary} {body} {input} {hint:NAME} are substituted as ELEMENTS, never spliced into a shell string, so a summary containing `; rm -rf` is an argument.",

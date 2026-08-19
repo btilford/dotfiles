@@ -159,6 +159,45 @@ Singleton {
         "CREATE INDEX IF NOT EXISTS notif_urgency  ON notifications(urgency, received_at DESC);\n" +
         "CREATE INDEX IF NOT EXISTS notif_state    ON notifications(state, received_at DESC);\n" +
         "CREATE INDEX IF NOT EXISTS notif_unread   ON notifications(read_at) WHERE read_at IS NULL;\n" +
+        // Timers (story: notif-timers). A SEPARATE TABLE, not a notification row wearing a
+        // costume: a countdown has a planned length, a phase and a cycle, and a pomodoro run is
+        // several rows that belong together. It shares the ONE armed timer below rather than
+        // getting a scheduler of its own — that is the part AD-012 §4 is about.
+        //
+        // Two row states carry meaning and the rest are history:
+        //   armed   wake_at is set and this row is what the shell is waiting for
+        //   paused  wake_at is NULL, remaining_ms is what is left
+        //   done / cancelled  the summary row: actual_ms and ended_at are filled in
+        //
+        // TICKS ARE NEVER WRITTEN. A running countdown is in-memory state on the Timers
+        // singleton; this table only ever sees arm, pause, resume and finish. One phase of a
+        // pomodoro is one row, so "how many pomodoros today" is a COUNT over done work rows and
+        // needed no tick to be answerable:
+        //
+        //   sqlite3 -readonly <db> "SELECT COUNT(*) FROM timers
+        //     WHERE kind='pomodoro' AND phase='work' AND state='done'
+        //       AND ended_at >= strftime('%s','now','start of day')*1000;"
+        "CREATE TABLE IF NOT EXISTS timers (\n" +
+        "  id           INTEGER PRIMARY KEY,\n" +
+        "  run_id       INTEGER NOT NULL,\n" +
+        "  kind         TEXT NOT NULL DEFAULT 'countdown',\n" +
+        "  label        TEXT NOT NULL DEFAULT '',\n" +
+        "  state        TEXT NOT NULL DEFAULT 'armed',\n" +
+        "  phase        TEXT NOT NULL DEFAULT '',\n" +
+        "  cycle        INTEGER NOT NULL DEFAULT 0,\n" +
+        "  cycles       INTEGER NOT NULL DEFAULT 0,\n" +
+        "  work_ms      INTEGER NOT NULL DEFAULT 0,\n" +
+        "  short_ms     INTEGER NOT NULL DEFAULT 0,\n" +
+        "  long_ms      INTEGER NOT NULL DEFAULT 0,\n" +
+        "  planned_ms   INTEGER NOT NULL DEFAULT 0,\n" +
+        "  remaining_ms INTEGER NOT NULL DEFAULT 0,\n" +
+        "  actual_ms    INTEGER,\n" +
+        "  wake_at      INTEGER,\n" +
+        "  started_at   INTEGER NOT NULL,\n" +
+        "  ended_at     INTEGER\n" +
+        ");\n" +
+        "CREATE INDEX IF NOT EXISTS timers_state ON timers(state, wake_at);\n" +
+        "CREATE INDEX IF NOT EXISTS timers_ended ON timers(ended_at DESC);\n" +
         "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);\n" +
         "INSERT INTO meta(key, value) VALUES ('schema_version', '" + root.schemaVersion + "')\n" +
         "  ON CONFLICT(key) DO UPDATE SET value = excluded.value;\n" +
@@ -191,8 +230,11 @@ Singleton {
                 root.fail("could not open " + root.dbPath, initProc.stderr.text.trim());
                 return;
             }
-            migrateProc.command = ["sqlite3", root.dbPath, root.migrateSql];
-            migrateProc.running = true;
+            // Straight into the migration chain: runNextMigration() runs them one process at a
+            // time and ends at fireDue(). (It used to start migrateProc on an undefined command
+            // here and rely on its exit handler to enter the chain — one wasted subprocess whose
+            // error text was indistinguishable from a real failure.)
+            root.runNextMigration();
             root.ready = true;
             root.prune();
             root.refreshRecent();
@@ -208,7 +250,11 @@ Singleton {
 
     function runNextMigration() {
         if (root.migrationIndex >= root.migrations.length) {
-            root.fireDueSnoozes();
+            // Restore BEFORE the due sweep, and only fire once it has answered. Both are
+            // asynchronous queries; run in parallel, an already-overdue timer fired against an
+            // empty live list and then the restore raised its card again a moment later, so a
+            // finished timer left a running card on screen for ever.
+            root.restoreTimers(true);
             return;
         }
         migrateProc.command = ["sqlite3", root.dbPath, root.migrations[root.migrationIndex]];
@@ -291,9 +337,12 @@ Singleton {
         return ids.length ? ids.join(",") : "-1";
     }
 
+    // ONE armed timer for the earliest wake across BOTH kinds of schedule — a snoozed
+    // notification and an armed countdown are the same question ("what is next, and when"), and
+    // asking it twice would be the second scheduler this design exists to avoid.
     function armSnoozeTimer() {
         root.refreshSnoozed();
-        nextProc.command = ["sqlite3", "-readonly", "-noheader", root.dbPath, "SELECT MIN(wake_at) FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL AND row_id NOT IN (" + root.firedIdList() + ");"];
+        nextProc.command = ["sqlite3", "-readonly", "-noheader", root.dbPath, "SELECT MIN(w) FROM (" + "SELECT MIN(wake_at) AS w FROM notifications WHERE state = 'snoozed' AND wake_at IS NOT NULL AND row_id NOT IN (" + root.firedIdList() + ")" + " UNION ALL " + "SELECT MIN(wake_at) AS w FROM timers WHERE state = 'armed' AND wake_at IS NOT NULL AND id NOT IN (" + root.firedTimerIdList() + "));"];
         nextProc.running = true;
     }
 
@@ -312,12 +361,171 @@ Singleton {
                     root.enqueue("UPDATE notifications SET state = 'expired', wake_at = NULL WHERE row_id = " + f[0] + ";");
                     root.snoozeElapsed(f[1] || "", f[2] || "", f[3] || "", parseInt(f[4], 10) || 1);
                 }
-                if (rows.length)
-                    root.rearmAfterFlush = true;
-                else
-                    root.armSnoozeTimer();
+                root.dueFired = root.dueFired || rows.length > 0;
+                // The timer half of the same sweep, chained rather than run in parallel: both
+                // read the database the other is about to be written into, and the re-arm at the
+                // end has to see every fire from both.
+                root.fireDueTimers();
             }
         }
+    }
+
+    // --- timers (story: notif-timers) --------------------------------------------------------
+    //
+    // Everything below shares the ONE armed Timer above. `armSnoozeTimer` takes MIN(wake_at)
+    // across BOTH tables, and this file has exactly one Timer object in it — which is what
+    // "do not add a second scheduler" means. A timer therefore survives a qs restart and a
+    // reboot by exactly the mechanism a snooze does: the row is the schedule.
+    //
+    // Carries the row's content for the same reason snoozeElapsed does — after a restart there
+    // is no in-memory timer left to consult, only the row.
+    // `real`, not `int`, for every id and every epoch stamp. A QML signal parameter typed `int`
+    // is 32 bits: a row id (~1.8e15) and even a millisecond timestamp (~1.8e12) are truncated to
+    // a different number, silently. That version fired the notification correctly and then
+    // UPDATEd a row id that does not exist — the timer stayed `armed` in the table and stayed in
+    // the live list forever, with nothing logged anywhere.
+    signal timerElapsed(real id, real runId, string kind, string label, string phase, int cycle, int cycles, int plannedMs, real startedAt, int workMs, int shortMs, int longMs)
+
+    // Live (armed or paused) timers as sqlite3 `-json` text, emitted at startup so the Timers
+    // singleton can rebuild its in-memory model. Emitted even when empty: "nothing was armed" is
+    // an answer the singleton needs in order to stop waiting for one.
+    signal timersRestored(string json)
+
+    // Same guard, same reason as firedRows: the write that finishes a fired timer is ENQUEUED,
+    // so for ~200ms the row still reads as due and a re-arm off that read would fire it again.
+    property var firedTimers: ({})
+    property bool dueFired: false
+
+    function firedTimerIdList() {
+        const ids = Object.keys(root.firedTimers);
+        return ids.length ? ids.join(",") : "-1";
+    }
+
+    function fireDue() {
+        root.dueFired = false;
+        root.fireDueSnoozes();
+    }
+
+    function fireDueTimers() {
+        timersDueProc.command = ["sqlite3", "-readonly", "-noheader", "-separator", "\x1f", root.dbPath, "SELECT id, run_id, kind, label, phase, cycle, cycles, planned_ms, started_at, work_ms, short_ms, long_ms FROM timers WHERE state = 'armed' AND wake_at IS NOT NULL AND wake_at <= " + Date.now() + " AND id NOT IN (" + root.firedTimerIdList() + ");"];
+        timersDueProc.running = true;
+    }
+
+    Process {
+        id: timersDueProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const rows = this.text.trim().split("\n").filter(l => l.length);
+                for (let i = 0; i < rows.length; i++) {
+                    const f = rows[i].split("\x1f");
+                    const id = parseInt(f[0], 10);
+                    if (root.firedTimers[id])
+                        continue;
+                    root.firedTimers[id] = true;
+                    root.timerElapsed(id, parseInt(f[1], 10) || id, f[2] || "countdown", f[3] || "", f[4] || "", parseInt(f[5], 10) || 0, parseInt(f[6], 10) || 0, parseInt(f[7], 10) || 0, parseInt(f[8], 10) || 0, parseInt(f[9], 10) || 0, parseInt(f[10], 10) || 0, parseInt(f[11], 10) || 0);
+                }
+                if (root.dueFired || rows.length)
+                    root.scheduleRearm();
+                else
+                    root.armSnoozeTimer();
+                root.dueFired = false;
+            }
+        }
+    }
+
+    // Re-arm once the writes this sweep produced have landed. With nothing to write (store
+    // disabled, or a fire that enqueued nothing) the writer will never exit, so re-arm now
+    // rather than waiting for an exit that cannot come.
+    function scheduleRearm() {
+        if (root.pending.length && root.healthy && NotifyConfig.store.enabled) {
+            root.rearmAfterFlush = true;
+            return;
+        }
+        root.armSnoozeTimer();
+    }
+
+    // A timer row is INSERTed with an id the caller already chose (epoch-derived, see
+    // config/Timers.qml). Writes batch through a subprocess, so nothing here can hand back a
+    // generated rowid in time to be useful — the caller has to own the identity.
+    function armTimer(t) {
+        if (!NotifyConfig.store.enabled)
+            return;
+        const doc = {
+            id: t.id,
+            run_id: t.runId,
+            kind: t.kind,
+            label: t.label || "",
+            state: t.state || "armed",
+            phase: t.phase || "",
+            cycle: t.cycle || 0,
+            cycles: t.cycles || 0,
+            work_ms: t.workMs || 0,
+            short_ms: t.shortMs || 0,
+            long_ms: t.longMs || 0,
+            planned_ms: t.plannedMs || 0,
+            remaining_ms: t.remainingMs || 0,
+            wake_at: t.wakeAt || null,
+            started_at: t.startedAt || Date.now()
+        };
+        root.enqueue("INSERT OR REPLACE INTO timers (id, run_id, kind, label, state, phase, cycle, cycles," + " work_ms, short_ms, long_ms, planned_ms, remaining_ms, wake_at, started_at)\n" + "SELECT json_extract(d, '$.id'), json_extract(d, '$.run_id'), json_extract(d, '$.kind')," + " json_extract(d, '$.label'), json_extract(d, '$.state'), json_extract(d, '$.phase')," + " json_extract(d, '$.cycle'), json_extract(d, '$.cycles'), json_extract(d, '$.work_ms')," + " json_extract(d, '$.short_ms'), json_extract(d, '$.long_ms'), json_extract(d, '$.planned_ms')," + " json_extract(d, '$.remaining_ms'), json_extract(d, '$.wake_at'), json_extract(d, '$.started_at')\n" + "FROM (SELECT " + root.sqlJson(doc) + " AS d);");
+        root.scheduleRearm();
+    }
+
+    // Pause, resume and +5 min all land here: they change when (or whether) the one armed timer
+    // should next fire, so each re-arms.
+    function updateTimer(id, fields) {
+        if (!NotifyConfig.store.enabled)
+            return;
+        const allowed = ["state", "phase", "cycle", "planned_ms", "remaining_ms", "wake_at", "started_at"];
+        const sets = [];
+        for (const k of allowed) {
+            if (fields[k] === undefined)
+                continue;
+            const v = fields[k];
+            sets.push(k + " = " + (v === null ? "NULL" : (typeof v === "string" ? root.sqlText(v) : Math.round(Number(v)))));
+        }
+        if (!sets.length)
+            return;
+        root.enqueue("UPDATE timers SET " + sets.join(", ") + " WHERE id = " + Number(id) + ";");
+        root.scheduleRearm();
+    }
+
+    // THE completion row (story decision 4). One row per finished phase — kind, label, planned,
+    // actual, started, ended — and nothing between arming and this.
+    function finishTimer(id, state, actualMs) {
+        if (!NotifyConfig.store.enabled)
+            return;
+        root.enqueue("UPDATE timers SET state = " + root.sqlText(state) + ", wake_at = NULL, actual_ms = " + Math.max(0, Math.round(actualMs)) + ", ended_at = " + Date.now() + " WHERE id = " + Number(id) + ";");
+        root.scheduleRearm();
+    }
+
+    // A stopwatch never arms anything (it counts up, so there is no wake_at) — it writes its one
+    // summary row when it is stopped, by the same shape as every other completion.
+    function recordCompleted(t) {
+        if (!NotifyConfig.store.enabled)
+            return;
+        root.armTimer(Object.assign({}, t, {
+            state: "done",
+            wakeAt: null
+        }));
+        root.enqueue("UPDATE timers SET actual_ms = " + Math.max(0, Math.round(t.actualMs || 0)) + ", ended_at = " + Date.now() + " WHERE id = " + Number(t.id) + ";");
+    }
+
+    // Startup reconciliation, the timer half. Rows left armed or paused belong to a previous
+    // process and are the ONLY record that they existed, so they are handed back rather than
+    // swept — unlike an `active` notification row, whose D-Bus object died with that process.
+    function restoreTimers(thenFire) {
+        root.query("SELECT * FROM timers WHERE state IN ('armed','paused') ORDER BY wake_at ASC;", json => {
+            root.timersRestored(json);
+            if (thenFire)
+                root.fireDue();
+        });
+    }
+
+    // Live timers for `qs ipc call timers list`, straight from the file so the answer is the
+    // same one a tmux popup gets from sqlite3.
+    function timersJson(callback) {
+        root.query("SELECT * FROM timers WHERE state IN ('armed','paused') ORDER BY wake_at ASC;", callback);
     }
 
     Process {
@@ -345,7 +553,7 @@ Singleton {
     Timer {
         id: snoozeTimer
         repeat: false
-        onTriggered: root.fireDueSnoozes()
+        onTriggered: root.fireDue()
     }
 
     // mkdir -p the parent: sqlite3 will not create a missing directory, and a first run on a new
