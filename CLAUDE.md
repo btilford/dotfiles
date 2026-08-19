@@ -942,6 +942,17 @@ has no detector for a self-hosted controller login and would not have found the
 UniFi password, while gitleaks cannot tell a dead token from a live one. Both are
 out of `lint`'s depends list because both need the network.
 
+**The structural gate is `lint:mcp-config`, and it is the only one that cannot be
+fooled by an ordinary-looking credential.** `mise-scripts/config-secret-refs.py`
+asserts that a value under a credential-named key — or anywhere inside an `env`
+block — is a *reference*: `${VAR}`, `!printenv VAR`, `op://…`, or a bare
+`VAR_NAME`. It never inspects the value's content, so a short lowercase device
+password fails exactly as loudly as a 40-char token. Three entry points, one
+implementation: the lint task (tracked content), lefthook (`{staged_files}`), and
+`mise run audit:mcp-config` (`--live`, this machine's untracked agent configs).
+Not in the GitLab subset — it needs python, and that runner uses tool-bundled
+images; GitHub runs the full suite.
+
 **The only non-bypassable gate is server-side.** `--no-verify` skips every local
 hook, and CI reports after the objects are already pushed and mirrored.
 `server-hooks/pre-receive.d/gitleaks` is the free GitLab Self-Managed equivalent

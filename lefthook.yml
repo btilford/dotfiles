@@ -30,6 +30,11 @@ pre-commit:
     # v8.19.0). Unredacted on purpose: author's own terminal, own content.
     gitleaks:
       run: gitleaks git --staged -c .gitleaks.toml --no-banner
+    # Structural: a credential-named value must be a reference, not a literal.
+    # Same script the lint task and the machine audit run, given {staged_files}.
+    config-secret-refs:
+      glob: "*.{json,jsonc,yaml,yml}"
+      run: ./mise-scripts/config-secret-refs.py {staged_files}
 
 # A commit message is published exactly like file content, and was ungated until
 # now — pre-commit runs before the message exists, so nothing ever looked at it.
