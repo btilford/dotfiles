@@ -60,10 +60,15 @@ hl.monitor({
 -- desk, plugged in INSTEAD of one of the USB-C sinks. scale 1 rather than the 1.5
 -- used elsewhere -- a downscale into 1080p optics costs sharpness where text is
 -- already hardest to read.
+--
+-- position is auto-right, not a fixed x: the glasses are the one display that
+-- travels, and the same file has to place them sensibly next to a laptop panel as
+-- next to this desk. A fixed coordinate past the portraits would leave a
+-- 1440px dead gap wherever those are not connected.
 hl.monitor({
   output = MON.glasses,
   mode = "1920x1080@120",
-  position = "4000x0",
+  position = "auto-right",
   scale = 1,
   transform = 0,
 })
