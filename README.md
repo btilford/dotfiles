@@ -380,6 +380,26 @@ compositor start is **never** retried in a loop.
 
 ---
 
+## License
+
+[MIT](LICENSE) for this repository's own work.
+
+**Not everything here is covered by it.** Three bodies of vendored or derived
+content keep their original licenses, and the MIT grant does not reach them:
+
+| Content | License | Why it's here |
+|---|---|---|
+| 29 files derived from [JaKooLit/Hyprland-Dots](https://github.com/JaKooLit/Hyprland-Dots) — most of `hypr/scripts/`, the wallust config and templates, the rofi theme | **GPL-3.0** | the Hyprland setup started from that project |
+| `yazi/.config/yazi/flavors/{ashen,sunset}.yazi/` | MIT | vendored so a fresh clone renders with no network |
+| `git/.config/git/templates/hooks/*.sample` | GPL-2.0 | git's own samples, needed for a complete `init.templateDir` |
+
+GPL-3.0 is copyleft: redistribute those files, modified or not, under GPL-3.0
+with source available, and leave their attribution headers alone. Each vendored
+yazi flavor carries its own `LICENSE` beside it.
+
+Check a file's header before reusing it — that is the authoritative answer for
+any individual file.
+
 ## Branches
 
 `master` is the only long-lived branch. `~/dotfiles` is a **single checkout** and
