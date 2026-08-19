@@ -24,6 +24,76 @@ description = "export SECRET=/PASSWORD=/TOKEN= with a literal value"
 # The [^"'$] guard permits `export SECRET="$FROM_ENV"` and catches literals.
 regex = '''export\s+(SECRET|PASSWORD|TOKEN|API_KEY)\s*=\s*["'][^"'$][^"']*["']'''
 
+# Structured-config credentials — a JSON/JSONC key whose name says "secret" and
+# whose value is a literal. This is the shape an MCP server's `env` block takes,
+# and the default rule set plus all three rules above scan straight past it: a
+# real UniFi controller password sat in `opencode/.config/opencode/opencode.json`
+# from 2026-05-21 to 2026-06-06 and is STILL in history, through a full
+# `filter-repo` rewrite that was verified with `gitleaks git` and reported clean.
+# `bare-secret-export` does not cover it because nothing is exported — the value
+# is a JSON string.
+#
+# The leading [^"$<{] on the value is what keeps this quiet: it admits
+# "${FROM_ENV}", "$VAR", "<your-token-here>" and "{{template}}" — the placeholder
+# forms every `.example` file in this repo uses — and rejects a literal. The
+# {8,} floor keeps short sentinels like "changeme" and "none" out.
+[[rules]]
+id = "json-credential-value"
+description = "JSON/JSONC credential key with a literal value (MCP env blocks, app configs)"
+regex = '''(?i)"[A-Za-z0-9_-]*(password|passwd|secret|token|api_?key|credential)[A-Za-z0-9_-]*"\s*:\s*"[^"$<{][^"]{7,}"'''
+
+# Values that are not credentials however literal they look. Both of these are
+# real entries in this repo — `pi-agent/.pi/agent/models.example.json` and the
+# README beside it — and both are the correct way to write the file, so a rule
+# that flags them would train people to ignore it.
+[[rules.allowlists]]
+description = "indirection and documented placeholders, not values"
+regexTarget = "match"
+regexes = [
+  # "!printenv PI_API_KEY" — pi-agent resolves the value by running the command
+  '''"\s*:\s*"!''',
+  # op:// (1Password), infisical:// , vault: — reference syntaxes, not secrets
+  '''"\s*:\s*"(op|infisical|vault|keyring|secret)://''',
+  # YOUR_API_KEY_HERE, changeme, replace-me, <example>, xxxxx, TODO
+  '''(?i)"\s*:\s*"(your|my)[_ -]?[a-z0-9_ -]*(key|token|secret|password)[_ -]?(here)?"''',
+  '''(?i)"\s*:\s*"(change[_-]?me|replace[_-]?me|example|placeholder|redacted|todo|none|null|x{4,})"''',
+  # A bare SCREAMING_SNAKE value is the NAME of a variable, not its value —
+  # `"token": "HOME_ASSISTANT_TOKEN"` in weather.example.json, and the
+  # deliberately-absent `"NO_SUCH_SECRET"` fixture in visual-capture.sh.
+  '''"\s*:\s*"[A-Z][A-Z0-9_]{3,}"''',
+]
+
+# Same shape in YAML, where the key is unquoted. `docker/.docker/mcp/config.yaml`
+# is exactly this and once held a live Google app password. Unquoted values are
+# matched too, so `password: hunter2` is caught, but a bare `${VAR}`, `<...>`,
+# `{{...}}`, `*anchor` or an empty value is not.
+#
+# The whitespace classes are `[ \t]`, never `\s`: `\s` matches a newline, so
+# `\s*:\s*` let an empty `api_key:` borrow the VALUE OFF THE NEXT LINE and report
+# the innocent key below it. Caught by a fixture that was supposed to be clean.
+[[rules]]
+id = "yaml-credential-value"
+description = "YAML credential key with a literal value"
+# The value may not contain `(){};,`: an unquoted YAML scalar and a line of
+# JavaScript are the same shape to a regex, and
+# `claude-code/.claude/hooks/caveman-stats.js` produced four findings on lines
+# like `output_tokens: parsed.outputTokens,`. A real secret containing a brace, a
+# semicolon or a comma is possible but rare; a line of code with none of the
+# three is rarer still — the object literal's trailing comma is what catches it.
+regex = '''(?im)^[ \t]*[A-Za-z0-9_-]*(password|passwd|secret|token|api_?key|credential)[A-Za-z0-9_-]*[ \t]*:[ \t]*["']?[^"'$<{*&\s(){};,][^"'\n(){};,]{7,}["']?[ \t]*$'''
+
+# Same exemptions as the JSON rule, in YAML's unquoted-value shape.
+[[rules.allowlists]]
+description = "indirection and documented placeholders, not values"
+regexTarget = "match"
+regexes = [
+  ''':[ \t]*["']?!''',
+  ''':[ \t]*["']?(op|infisical|vault|keyring|secret)://''',
+  '''(?i):[ \t]*["']?(your|my)[_ -]?[a-z0-9_ -]*(key|token|secret|password)[_ -]?(here)?["']?[ \t]*$''',
+  '''(?i):[ \t]*["']?(change[_-]?me|replace[_-]?me|example|placeholder|redacted|todo|none|null|x{4,})["']?[ \t]*$''',
+  ''':[ \t]*["']?[A-Z][A-Z0-9_]{3,}["']?[ \t]*$''',
+]
+
 [[allowlists]]
 description = "filter-repo redaction marker — a scrubbed secret, never a real one"
 regexTarget = "line"
