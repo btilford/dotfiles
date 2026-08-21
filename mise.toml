@@ -171,6 +171,10 @@ fi
 description = "Capture the quickshell surfaces in a headless nested compositor"
 run = "mise-scripts/visual-capture.sh"
 
+[tasks."test:launcher-rank"]
+description = "Assert the launcher's usage ranking in a headless nested compositor"
+run = "mise-scripts/launcher-rank-test.sh"
+
 [tasks."screenshots:archive"]
 description = "Archive the latest captures into the vault history + regenerate the pages"
 run = "mise-scripts/visual-archive.sh"

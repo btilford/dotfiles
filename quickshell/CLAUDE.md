@@ -42,6 +42,63 @@ clock on the vertical monitors).
 - Shown/hidden via IPC: `qs ipc call launcher toggle [mode]` (from `hypr/scripts/Launcher.sh`).
 - Placed on `Hyprland.focusedMonitor`.
 
+### Selection history and usage ranking
+
+`config/LauncherStore.qml` — SQLite at `${XDG_DATA_HOME:-~/.local/share}/quickshell/launcher.db`
+(`QS_LAUNCHER_DB` overrides it; both `visual-capture.sh` and the ranking test set it, so no run
+touches the real history). One `selections` row per (kind, key), for **every** kind the launcher
+offers — app, run, file, emoji, glyph, icon, wallpaper.
+
+```sh
+sqlite3 -readonly ~/.local/share/quickshell/launcher.db \
+  "SELECT kind, key, hits, round(score,2) FROM selections ORDER BY score DESC LIMIT 20;"
+```
+
+- **The key is the stable identity, never the label.** An app records `DesktopEntry.id` (no
+  `.desktop` suffix on qs 0.3.0), a run command the command, a file its path, an emoji or glyph
+  its character, an icon its name, a wallpaper the **resolved** target — so `. random` records
+  what it actually picked. Directory navigation is not a selection and a file does not boost its
+  parent directory.
+- **The ranking rule differs by query state, and that split is the design.** Empty query: the
+  last pick *for this tab*, then decayed usage for the entire rest of the list, then today's
+  stable order. Non-empty query: match tier (exact, prefix, word boundary, substring,
+  subsequence) first, with usage breaking ties **within a tier only** and the recency pin not
+  applying at all. Keep the two comparators apart — collapsing them is how one stray launch ends
+  up above what the user typed for.
+- **The pin is per KIND**, not global, so opening emoji pins the last emoji. Every tab maps onto
+  exactly one kind, which is why the table needs no `mode` column.
+- **Sorted per group, never across the result set.** `refresh()` pushes each kind's rows in turn
+  and combi pushes apps and then `run:` rows. A single global sort would let a hot run entry
+  displace the app list, which is not what combi is.
+- **`refresh()` runs on every keystroke, so ranking reads MEMORY ONLY.** The table loads into a
+  map once at start and again after each write batch flushes; `scoreOf()`/`pinFor()` are object
+  lookups. `mise run test:launcher-rank` asserts this rather than trusting it: it shadows
+  `sqlite3` with a wrapper that logs every invocation and requires the log not to grow while
+  characters are typed into the launcher.
+- **The last tie-break is the row's incoming position, not a fresh `localeCompare`.** Incoming
+  order already IS each group's order today (alphabetical for apps, source order for
+  emoji/glyphs/icons), so never-used rows keep it — and a group of several thousand icons costs
+  no string collation on the keystroke path.
+- **Decay is a decaying counter, not a sweep.** 30-day half-life
+  (`QS_LAUNCHER_HALFLIFE_DAYS`): multiply-add in the same upsert that records the hit, plus the
+  same factor applied once in the map at load so untouched rows fade with no write.
+- **`pow()` is not a given, and finding out at the first write is too late.** SQLite's math
+  functions are a compile option. On this host a bare `sqlite3` resolves through mise to the
+  **Android platform-tools** build (3.50.6), which has no `pow`, `exp` or `ln`, while
+  `/usr/bin/sqlite3` (3.53.4) has all three — so which binary wins `$PATH` inside the qs process
+  decided whether every write died with `no such function: pow`. The store probes once and
+  computes the same factor in QML where it is missing; the probe defaults to "missing", so the
+  first write cannot race it.
+- **`Ctrl+Del` forgets the highlighted row** — the history entry only, so the app/file/emoji
+  stays in the results and falls back to its alphabetical position. Free chord: the input binds
+  `Ctrl+N`/`Ctrl+P` and nothing else, and accepting the event also stops `TextField`'s built-in
+  delete-word-forward.
+- **A broken store degrades ranking, never the launcher.** Missing `sqlite3`, an unwritable path,
+  a corrupt file: `healthy` goes false, one line is logged, and the launcher lists everything
+  exactly as it did before this existed. That case is a test, not a hope.
+- IPC: `qs ipc call launcher results [limit]` (the ranked list as JSON — kind, label, key,
+  score) and `launcher dbPath`. In-memory reads, the counterpart of `notifications history`.
+
 ## ClipboardDialog
 
 clipborg history dialog (clipborg daemon over `$XDG_RUNTIME_DIR/clipborg.sock`).
@@ -858,6 +915,8 @@ active bar/launcher per machine in `~/.config/hypr/shell.local.env` (not stowed)
 | `QS_NOW_PLAYING` | `1` (default) \| `0` | MPRIS now-playing cluster in the bar (`components/bar/NowPlaying.qml`) |
 | `QS_NOW_PLAYING_TIMEOUT` | ms (default `45000`) | how long a PAUSED track stays before the cluster hides; resume cancels it. Floored at 1000 — a 0 would hide it the frame you pause, which reads as the bar flickering |
 | `QS_NOW_PLAYING_MONITOR` | monitor description or connector name (default empty) | which single bar shows it. Empty = all bars, which is also the fallback when the named monitor is not connected. Keep the default empty in-tree: a real description carries a hardware serial and `lint:private` blocks it |
+| `QS_LAUNCHER_HISTORY` | `1` (default) \| `0` | launcher selection history and usage ranking (`config/LauncherStore.qml`). Off = nothing recorded, nothing read, alphabetical order as before |
+| `QS_LAUNCHER_HALFLIFE_DAYS` | days (default `30`) | how long a selection keeps half its weight. Floored at 1 — a 0 makes every decay factor NaN and turns ranking into noise rather than switching it off |
 | `QS_EFFECTS` | `full` (default) \| `low` \| `off` | `off` = shaders never instantiated (Loader-gated); static themed fallbacks: accent Rectangle/Shape borders, flat accent fills, no shimmer/reflection/glyph lava. `low` reserved, currently = `full`. |
 
 Border weights are Theme tokens: `Theme.borderThickness` (energy borders) and `Theme.borderThin`
