@@ -422,30 +422,78 @@ PanelWindow {
         return out;
     }
 
+    // ---- selection history ----
+    // The stable identity of a row, which is what LauncherStore keys on — NEVER the display
+    // label, which is user-visible, localised, and changes under us. Empty means "this row has
+    // no history": a directory (navigation is not a selection) and the `. random` wallpaper row,
+    // which has nothing to record until it has picked a file.
+    function selectionKey(item) {
+        if (!item)
+            return "";
+        if (item.kind === "app")
+            return (item.entry && item.entry.id) ? item.entry.id : "";
+        if (item.kind === "run")
+            return item.cmd || "";
+        if (item.kind === "file")
+            return item.isDir ? "" : (item.path || "");
+        if (item.kind === "emoji" || item.kind === "glyph")
+            return item.char || "";
+        if (item.kind === "icon")
+            return item.label || "";
+        if (item.kind === "wallpaper")
+            return item.random ? "" : (item.path || "");
+        return "";
+    }
+
+    // Which kind of selection the active tab is about. The empty-query pin is per KIND, so this
+    // is what decides that opening emoji pins the last emoji rather than the last app. Every tab
+    // maps onto exactly one kind, which is why the store needs no `mode` column.
+    function activeKind() {
+        const m = effectiveMode();
+        if (m === "combi" || m === "drun")
+            return "app";
+        if (m === "glyphs")
+            return "glyph";
+        if (m === "icons")
+            return "icon";
+        if (m === "files")
+            return "file";
+        return m; // run | emoji | wallpaper
+    }
+
     // ---- activation ----
     function activate(item) {
         if (!item)
             return;
         if (item.kind === "app") {
+            // The desktop-entry id, not the name: the name is localised and user-visible.
+            LauncherStore.record("app", root.selectionKey(item), item.label);
             item.entry.execute();
             close();
         } else if (item.kind === "run") {
+            LauncherStore.record("run", item.cmd, item.label);
             Quickshell.execDetached(["sh", "-lc", item.cmd]);
             close();
         } else if (item.kind === "file") {
             if (item.isDir) {
+                // Directory navigation is deliberately NOT a selection, and a file does not
+                // boost its parent directory either — this stays as unrecorded as it is today.
                 root.folder = item.path;
                 query = "";
                 input.text = "";
                 Qt.callLater(refresh);
             } else {
+                LauncherStore.record("file", item.path, item.label);
                 Quickshell.execDetached(["xdg-open", item.path]);
                 close();
             }
         } else if (item.kind === "emoji" || item.kind === "glyph") {
+            LauncherStore.record(item.kind, item.char, item.label);
             Quickshell.execDetached(["wl-copy", item.char]);
             close();
         } else if (item.kind === "icon") {
+            // the icon NAME is the identity — it is also what gets copied
+            LauncherStore.record("icon", item.label, item.label);
             Quickshell.execDetached(["wl-copy", item.label]);
             close();
         } else if (item.kind === "wallpaper") {
