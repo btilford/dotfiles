@@ -19,7 +19,10 @@
 #   2. The recency pin is exactly one row, and it is per KIND.
 #   3. The keystroke path does no I/O. `sqlite3` is shadowed by a wrapper that logs every call;
 #      the log must not grow while characters are typed into the launcher.
-#   4. A missing or unwritable database leaves the launcher fully working, just unranked.
+#   4. Directories stay above files in files mode, however hot a file is.
+#   5. Fail-open on all three routes: an unwritable path, no sqlite3 binary at all, and a
+#      corrupt database. The middle one matters most because it never reaches fail() — with no
+#      binary to spawn, `ready` and `loaded` simply stay false while `healthy` stays true.
 #
 # DANGER, the same one visual-capture.sh carries: a compositor started without a forced headless
 # backend takes DRM master and kills the live session and every app in it. Never start one from
@@ -74,8 +77,9 @@ REAL_SQLITE="$(command -v sqlite3)"
 WIDTH="${SIZE%x*}"
 HEIGHT="${SIZE#*x}"
 
-# Short path: a wayland socket path over 108 bytes is rejected by libwayland.
-RUNTIME="/tmp/qs-rank.$$"
+# Short path on purpose: a wayland socket path over 108 bytes is rejected by libwayland, and the
+# scratch directories agents run under are long. mktemp keeps it unique without reusing a pid.
+RUNTIME="$(mktemp -d /tmp/qs-rank.XXXXXX)" || die "cannot create a scratch directory"
 SWAY_PID=""
 QS_PID=""
 DBUS_PID=""
@@ -95,8 +99,6 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-rm -rf "$RUNTIME"
-mkdir -p "$RUNTIME" || die "cannot create $RUNTIME"
 chmod 700 "$RUNTIME"
 
 failures=0
@@ -223,9 +225,13 @@ exec "$REAL_SQLITE" "\$@"
 EOF
 chmod +x "$RUNTIME/bin/sqlite3"
 
+# start_qs <db> [path] [home]
+# `path` REPLACES $PATH for the shell under test rather than prefixing it — test 10 needs a
+# $PATH with no sqlite3 anywhere on it, and a prefix would leave /usr/bin reachable behind it.
 start_qs() {
   # shellcheck disable=SC2097,SC2098  # deliberate: the env is scoped to the qs process only
-  PATH="$RUNTIME/bin:$PATH" \
+  PATH="${2:-$RUNTIME/bin:$PATH}" \
+    HOME="${3:-$HOME}" \
     XDG_DATA_HOME="$RUNTIME/data" \
     XDG_DATA_DIRS="$RUNTIME/data" \
     HYPR_NOTIFY=swaync \
@@ -252,6 +258,28 @@ ipc() { qs ipc --pid "$QS_PID" call -- "$@" 2> /dev/null; }
 # `--` is load-bearing: `show` is also an `ipc` subcommand name.
 ipc_quiet() { qs ipc --pid "$QS_PID" call -- "$@" > /dev/null 2>&1; }
 
+# Wait until a keypress actually reaches the launcher, and prove it by its effect rather than by
+# sleeping. A layer surface has to be given the keyboard before any synthetic key lands, and how
+# long that takes varies — sleeping "long enough" is what made the Ctrl+Del step flaky, and a
+# keyboard test that silently does nothing passes for the wrong reason.
+#
+# The probe types a character that matches none of the fixtures, so the result count collapses,
+# then deletes it again. When the count moves, the surface has the keyboard.
+focus_ready() {
+  local before after
+  for _ in $(seq 1 20); do
+    before="$(ipc launcher results 40 | jq 'length')"
+    wtype -- "z" > /dev/null 2>&1
+    sleep 0.3
+    after="$(ipc launcher results 40 | jq 'length')"
+    wtype -k BackSpace > /dev/null 2>&1
+    sleep 0.2
+    [ -n "$before" ] && [ "$after" != "$before" ] && return 0
+  done
+  warn "the launcher never took the keyboard"
+  return 1
+}
+
 # Labels of the ranked results, one per line, for the kinds asked for.
 labels() { ipc launcher results 40 | jq -r ".[] | select(.kind == \"$1\") | .label"; }
 keys() { ipc launcher results 40 | jq -r ".[] | select(.kind == \"$1\") | .key"; }
@@ -271,6 +299,7 @@ check "empty query: pin, then decayed score, then alphabetical" \
 
 # --- 3: no I/O on the keystroke path ----------------------------------------
 if [ -n "$KBD_PID" ]; then
+  focus_ready
   before="$(wc -l < "$SQL_LOG")"
   wtype -s 40 -- "ar" > /dev/null 2>&1
   sleep 0.8
@@ -290,7 +319,7 @@ if [ -n "$KBD_PID" ]; then
   got="$(labels app | head -5 | paste -sd, -)"
   check "non-empty query: match tier first, score only within a tier" \
     "Arcade,Dromedary,Barnacle,Aardvark" "$got"
-  wtype -s 20 -- $'\b\b' > /dev/null 2>&1
+  wtype -k BackSpace -k BackSpace > /dev/null 2>&1
   sleep 0.5
 else
   warn "skipping the keystroke tests (no wtype)"
@@ -302,7 +331,9 @@ sleep 0.5
 # --- 5: the pin is per KIND, not global --------------------------------------
 # The seeded crab is the newest selection of any kind, but opening the emoji tab must pin the
 # last EMOJI, and opening drun must pin the last app — which the first check already showed.
-EMOJI_JSON="$HOME/.config/quickshell/config/emoji.json"
+# From the tree under test, not from $HOME: --shell defaults to the repo copy, so keying this off
+# the stowed path would silently warn-skip the check on an unstowed clone.
+EMOJI_JSON="$(dirname "$SHELL_QML")/config/emoji.json"
 if [ -f "$EMOJI_JSON" ]; then
   ipc_quiet launcher show emoji
   sleep 1.2
@@ -319,8 +350,18 @@ fi
 if [ -n "$KBD_PID" ]; then
   ipc_quiet launcher show drun
   sleep 0.8
+  focus_ready # the surface has to take the keyboard again after every hide/show
+
+  # An app row must still know its own history key at this point, several tab switches after it
+  # was built. It did not: the row held the DesktopEntry itself, DesktopEntries hands out a fresh
+  # wrapper on every read, and the captured one read back as null — so Ctrl+Del silently did
+  # nothing about half the time and the results IPC reported blank keys. Rows now copy the id as
+  # a string. Checked HERE rather than at first open because the reference dies with a delay.
+  got="$(keys app | grep -c '^$')"
+  check "app rows still carry their history key after a tab round-trip" "0" "$got"
+
   wtype -M ctrl -k Delete -m ctrl > /dev/null 2>&1
-  sleep 0.6
+  sleep 1.0
   got="$(labels app | head -5 | paste -sd, -)"
   # Barnacle loses both its pin and its score, so Dromedary leads and Barnacle sits
   # alphabetically among the unused rows — still IN the list, which is the whole point.
@@ -336,6 +377,7 @@ fi
 if [ -n "$KBD_PID" ]; then
   ipc_quiet launcher show drun
   sleep 0.8
+  focus_ready
   # after the forget above the order is Dromedary, Cormorant, Aardvark, ... — walk down to
   # Aardvark and launch it (Exec=/bin/true)
   wtype -k Down -k Down -k Return > /dev/null 2>&1
@@ -365,6 +407,108 @@ check "unwritable database: the launcher works, unranked" \
 ipc_quiet launcher hide
 chmod 700 "$RUNTIME/nope"
 stop_qs
+
+# --- 9: files mode keeps directories above files -----------------------------
+# A directory can never carry a score — navigation is not a selection — so ranking the folder
+# listing as ONE group would hoist any file with history above every folder in it. This runs its
+# own qs with HOME pointed at a fixture directory, because files mode opens at $HOME.
+FHOME="$RUNTIME/home"
+mkdir -p "$FHOME/Documents" "$FHOME/Downloads"
+: > "$FHOME/notes.md"
+: > "$FHOME/zzz.txt"
+FDB="$RUNTIME/files.db"
+"$REAL_SQLITE" "$FDB" "
+CREATE TABLE selections (
+  kind TEXT NOT NULL, key TEXT NOT NULL, label TEXT,
+  hits INTEGER NOT NULL DEFAULT 0, score REAL NOT NULL DEFAULT 0,
+  first_used_at INTEGER NOT NULL, last_used_at INTEGER NOT NULL,
+  PRIMARY KEY (kind, key));
+INSERT INTO selections VALUES ('file','$FHOME/notes.md','notes.md',9,9.0,$NOW,$NOW);"
+start_qs "$FDB" "$RUNTIME/bin:$PATH" "$FHOME" || die "quickshell never loaded for the files check"
+sleep 1.5
+ipc_quiet launcher show files
+sleep 1.2
+got="$(labels file | paste -sd, -)"
+# Directories first in FolderListModel's own order, then the files with notes.md hoisted over
+# zzz.txt by its score. Ranked as one group, notes.md would lead the whole list.
+check "files mode: a scored file never outranks a directory" \
+  ".,..,Documents,Downloads,notes.md,zzz.txt" "$got"
+ipc_quiet launcher hide
+stop_qs
+
+# --- 10: no sqlite3 at all ----------------------------------------------------
+# The implicitly fail-open route, and the one worth testing precisely because it never reaches
+# fail(): with no binary to spawn, `ready` and `loaded` stay false while `healthy` stays true, so
+# nothing is ever recorded and nothing is ever ranked. PATH is cut down to a directory holding
+# links to everything the shell spawns EXCEPT sqlite3.
+NOSQL="$RUNTIME/bin-nosqlite"
+mkdir -p "$NOSQL"
+# `qs` itself has to be here too: a PATH assignment in front of a command changes the lookup for
+# that command as well, so the launcher would simply never start.
+for t in qs quickshell mkdir bash sh env cat; do
+  src="$(command -v "$t" 2> /dev/null)" && ln -sf "$src" "$NOSQL/$t"
+done
+start_qs "$DB" "$NOSQL" || die "quickshell never loaded without sqlite3 — see $RUNTIME/qs.log"
+sleep 2.0
+ipc_quiet launcher show drun
+sleep 1.0
+got="$(labels app | head -5 | paste -sd, -)"
+check "no sqlite3 binary: the launcher works, unranked" \
+  "Aardvark,Arcade,Barnacle,Cormorant,Dromedary" "$got"
+ipc_quiet launcher hide
+stop_qs
+
+# --- 11: a corrupt database ---------------------------------------------------
+CORRUPT="$RUNTIME/corrupt.db"
+head -c 512 /dev/urandom > "$CORRUPT"
+start_qs "$CORRUPT" || die "quickshell never loaded with a corrupt database — see $RUNTIME/qs.log"
+sleep 2.0
+ipc_quiet launcher show drun
+sleep 1.0
+got="$(labels app | head -5 | paste -sd, -)"
+check "corrupt database: the launcher works, unranked" \
+  "Aardvark,Arcade,Barnacle,Cormorant,Dromedary" "$got"
+ipc_quiet launcher hide
+stop_qs
+
+# --- 12: an unreadable table must disable the store, not empty it -------------
+# The load is `sqlite3 -json`, and its output is parsed. If that parse fails and the store simply
+# marks itself loaded with an empty map, `healthy` stays true and the NEXT selection of a
+# previously hot row upserts `score * 0 + 1.0` — a real history flattened to a single hit,
+# silently. Unreadable has to mean off.
+#
+# The ordering alone cannot tell the two apart (both come out unranked), so this asserts the
+# score in the file afterwards. Cormorant goes in at 50 and must still be at 50.
+if [ -n "$KBD_PID" ]; then
+  BADJSON="$RUNTIME/bin-badjson"
+  mkdir -p "$BADJSON"
+  cat > "$BADJSON/sqlite3" << EOF
+#!/bin/sh
+# Everything works except the -json read the store loads through, which returns garbage.
+case " \$* " in
+  *" -json "*)
+    printf '{{{not json'
+    exit 0
+    ;;
+esac
+exec "$REAL_SQLITE" "\$@"
+EOF
+  chmod +x "$BADJSON/sqlite3"
+  before="$("$REAL_SQLITE" -readonly -noheader "$DB" \
+    "SELECT round(score,1) FROM selections WHERE kind='app' AND key='zz-cormorant';")"
+  start_qs "$DB" "$BADJSON:$PATH" || die "quickshell never loaded — see $RUNTIME/qs.log"
+  sleep 2.0
+  ipc_quiet launcher show drun
+  sleep 0.8
+  focus_ready
+  # unranked, so alphabetical: Aardvark, Arcade, Barnacle, Cormorant, ... — walk to Cormorant
+  wtype -k Down -k Down -k Down -k Return > /dev/null 2>&1
+  sleep 2.0
+  got="$("$REAL_SQLITE" -readonly -noheader "$DB" \
+    "SELECT round(score,1) FROM selections WHERE kind='app' AND key='zz-cormorant';")"
+  check "an unreadable table disables the store, it does not flatten it" "$before" "$got"
+  stop_qs
+fi
 
 printf '\n'
 if [ "$failures" -eq 0 ]; then

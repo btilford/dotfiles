@@ -74,7 +74,9 @@ sqlite3 -readonly ~/.local/share/quickshell/launcher.db \
   map once at start and again after each write batch flushes; `scoreOf()`/`pinFor()` are object
   lookups. `mise run test:launcher-rank` asserts this rather than trusting it: it shadows
   `sqlite3` with a wrapper that logs every invocation and requires the log not to grow while
-  characters are typed into the launcher.
+  characters are typed into the launcher. Each keyboard step is gated on a probe that types a
+  character and watches the result count move, so a check can never pass because its keys were
+  dropped.
 - **The last tie-break is the row's incoming position, not a fresh `localeCompare`.** Incoming
   order already IS each group's order today (alphabetical for apps, source order for
   emoji/glyphs/icons), so never-used rows keep it — and a group of several thousand icons costs
@@ -93,9 +95,16 @@ sqlite3 -readonly ~/.local/share/quickshell/launcher.db \
   stays in the results and falls back to its alphabetical position. Free chord: the input binds
   `Ctrl+N`/`Ctrl+P` and nothing else, and accepting the event also stops `TextField`'s built-in
   delete-word-forward.
-- **A broken store degrades ranking, never the launcher.** Missing `sqlite3`, an unwritable path,
-  a corrupt file: `healthy` goes false, one line is logged, and the launcher lists everything
-  exactly as it did before this existed. That case is a test, not a hope.
+- **A broken store degrades ranking, never the launcher**, by three different routes, and all
+  three are tested. An unwritable path and a corrupt file reach `fail()`. **No `sqlite3` at all
+  never reaches it**: there is no process to exit, so `ready` and `loaded` simply stay false
+  while `healthy` stays true, and nothing is ever recorded or ranked.
+- **An unreadable table means OFF, not empty.** The load parses `sqlite3 -json` output, and that
+  parse failing used to mark the store `loaded` with an empty map while `healthy` stayed true —
+  so the next selection of a previously hot row upserted `score * 0 + 1.0`, flattening a real
+  history to one hit, silently. It calls `fail()` now, and the rig asserts the score in the file
+  is unchanged rather than that the list came back unranked, since both spellings of the bug
+  produce the same order.
 - IPC: `qs ipc call launcher results [limit]` (the ranked list as JSON — kind, label, key,
   score) and `launcher dbPath`. In-memory reads, the counterpart of `notifications history`.
 
