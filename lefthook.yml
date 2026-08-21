@@ -11,6 +11,18 @@ pre-commit:
       stage_fixed: true
     stylua:
       glob: "*.lua"
+      # Same two exclusions as mise-scripts/lua-files.sh: the frozen colors.lua
+      # seed and the wallust render template. Kept in step — see that script.
+      #
+      # LIST form, not a single "a|b" string. The string form is an unanchored
+      # regex (unescaped dots) AND lefthook 2.1.10 ignores it entirely under
+      # `--all-files` — verified: `lefthook run pre-commit --all-files
+      # --command stylua` reformatted and auto-staged both files anyway. The
+      # list form is matched as globs and holds under both staged and
+      # --all-files runs.
+      exclude:
+        - "hyprland/.config/hypr/lua/colors.lua"
+        - "wallust/.config/wallust/templates/colors-hyprland.lua"
       run: stylua {staged_files}
       stage_fixed: true
     taplo:

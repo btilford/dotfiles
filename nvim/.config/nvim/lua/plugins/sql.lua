@@ -1,6 +1,6 @@
 return {
-	{ "nanotee/sqls.nvim" },
-	{
-		"tpope/vim-dadbod",
-	},
+  { "nanotee/sqls.nvim" },
+  {
+    "tpope/vim-dadbod",
+  },
 }

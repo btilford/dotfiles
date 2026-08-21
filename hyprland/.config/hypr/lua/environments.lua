@@ -36,14 +36,14 @@ hl.env("TERMINAL", "ghostty")
 -- if it isn't in the default location; a missing path is harmless — quickshell loads
 -- the wrapper through a LazyLoader, so the dialog is the only thing that fails.
 local clipborg_qml = os.getenv("CLIPBORG_QML_PATH")
-    or (os.getenv("HOME") .. "/Projects/public/clipborg/examples/quickshell")
+  or (os.getenv("HOME") .. "/Projects/public/clipborg/examples/quickshell")
 local qml_paths = os.getenv("QML_IMPORT_PATH")
 -- `hyprctl reload` re-runs this file with the env we set last time already exported,
 -- so appending unconditionally stacks a duplicate path on every reload.
 if not qml_paths or qml_paths == "" then
-    qml_paths = clipborg_qml
+  qml_paths = clipborg_qml
 elseif not string.find(qml_paths, clipborg_qml, 1, true) then
-    qml_paths = qml_paths .. ":" .. clipborg_qml
+  qml_paths = qml_paths .. ":" .. clipborg_qml
 end
 hl.env("QML_IMPORT_PATH", qml_paths)
 
@@ -58,8 +58,8 @@ hl.env("EGL_PLATFORM", "wayland")
 hl.env("WLR_NO_HARDWARE_CURSORS", "1")
 
 hl.config({
-    cursor = {
-        -- Prevent 2nd dead cursor at center of screen (sometimes)
-        no_hardware_cursors = true,
-    },
+  cursor = {
+    -- Prevent 2nd dead cursor at center of screen (sometimes)
+    no_hardware_cursors = true,
+  },
 })

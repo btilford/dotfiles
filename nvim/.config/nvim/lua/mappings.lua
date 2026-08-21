@@ -13,7 +13,12 @@ map("i", "jk", "<ESC>")
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
 
 -- Diagnostic keymaps
-vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagnostic [Q]uickfix list" })
+vim.keymap.set(
+  "n",
+  "<leader>q",
+  vim.diagnostic.setloclist,
+  { desc = "Open diagnostic [Q]uickfix list" }
+)
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -37,9 +42,9 @@ vim.keymap.set("n", "<C-Right>", "<C-w><C-l>", { desc = "Move focus to the right
 vim.keymap.set("n", "<C-Left>", "<C-w><C-h>", { desc = "Move focus to the left window" })
 vim.keymap.set("n", "<C-Down>", "<C-w><C-j>", { desc = "Move focus to the lower window" })
 vim.keymap.set("n", "<C-Up>", "<C-w><C-k>", { desc = "Move focus to the upper window" })
-vim.keymap.set('n', '<leader>bn', ':bnext<CR>', {desc = 'Next buffer '})
-vim.keymap.set('n', '<leader>bp', ':bprevious<CR>', {desc = 'Previous buffer '})
-vim.keymap.set('n', '<leader>bb', '<cmd>e #<cr>', {desc = 'Switch to other buffer'})
+vim.keymap.set("n", "<leader>bn", ":bnext<CR>", { desc = "Next buffer " })
+vim.keymap.set("n", "<leader>bp", ":bprevious<CR>", { desc = "Previous buffer " })
+vim.keymap.set("n", "<leader>bb", "<cmd>e #<cr>", { desc = "Switch to other buffer" })
 
 -- NOTE: Some terminals have colliding keymaps or are not able to send distinct keycodes
 vim.keymap.set("n", "<C-S-h>", "<C-w>H", { desc = "Move window to the left" })
@@ -54,11 +59,11 @@ vim.keymap.set("n", "<C-S-k>", "<C-w>K", { desc = "Move window to the upper" })
 --  Try it with `yap` in normal mode
 --  See `:help vim.hl.on_yank()`
 vim.api.nvim_create_autocmd("TextYankPost", {
-	desc = "Highlight when yanking (copying) text",
-	group = vim.api.nvim_create_augroup("kickstart-highlight-yank", { clear = true }),
-	callback = function()
-		vim.hl.on_yank()
-	end,
+  desc = "Highlight when yanking (copying) text",
+  group = vim.api.nvim_create_augroup("kickstart-highlight-yank", { clear = true }),
+  callback = function()
+    vim.hl.on_yank()
+  end,
 })
 
 -- Send yanks to clipborg with filetype/file/register metadata, so entries
@@ -68,51 +73,65 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 -- intent). Server-side dedup in clipborg merges this with the plain
 -- clipboard capture from unnamedplus when both fire for the same yank.
 vim.api.nvim_create_autocmd("TextYankPost", {
-	desc = "Send yanks to clipborg",
-	group = vim.api.nvim_create_augroup("clipborg-yank", { clear = true }),
-	callback = function()
-		if vim.fn.executable("clipborg") == 0 then
-			return
-		end
-		local event = vim.v.event
-		if event.operator ~= "y" or not vim.tbl_contains({ "", '"', "+", "*" }, event.regname) then
-			return
-		end
-		local content = table.concat(event.regcontents, "\n")
-		if content == "" or #content > 1048576 then
-			return
-		end
-		local file = vim.api.nvim_buf_get_name(0)
-		local ft = vim.bo.filetype
-		local start_line = vim.fn.getpos("'[")[2]
-		local end_line = vim.fn.getpos("']")[2]
-		vim.system({
-			"clipborg",
-			"insert",
-			"--source",
-			"nvim",
-			"--file-path",
-			file,
-			"--filetype",
-			ft,
-			"--line-range",
-			string.format("%d-%d", start_line, end_line),
-			"--register",
-			event.regname,
-		}, { stdin = content })
-	end,
+  desc = "Send yanks to clipborg",
+  group = vim.api.nvim_create_augroup("clipborg-yank", { clear = true }),
+  callback = function()
+    if vim.fn.executable("clipborg") == 0 then
+      return
+    end
+    local event = vim.v.event
+    if event.operator ~= "y" or not vim.tbl_contains({ "", '"', "+", "*" }, event.regname) then
+      return
+    end
+    local content = table.concat(event.regcontents, "\n")
+    if content == "" or #content > 1048576 then
+      return
+    end
+    local file = vim.api.nvim_buf_get_name(0)
+    local ft = vim.bo.filetype
+    local start_line = vim.fn.getpos("'[")[2]
+    local end_line = vim.fn.getpos("']")[2]
+    vim.system({
+      "clipborg",
+      "insert",
+      "--source",
+      "nvim",
+      "--file-path",
+      file,
+      "--filetype",
+      ft,
+      "--line-range",
+      string.format("%d-%d", start_line, end_line),
+      "--register",
+      event.regname,
+    }, { stdin = content })
+  end,
 })
 
 vim.keymap.set("n", ",p", '"0p', { desc = "Paste from the default register" })
 vim.keymap.set("x", ",p", '"0p', { desc = "Paste from the default register" })
 
-vim.keymap.set("x", "<C-d>", "<C-d>zz", { noremap = true, desc = "Scroll down and extend selection" })
+vim.keymap.set(
+  "x",
+  "<C-d>",
+  "<C-d>zz",
+  { noremap = true, desc = "Scroll down and extend selection" }
+)
 vim.keymap.set("x", "<C-u>", "<C-u>zz", { noremap = true, desc = "Scroll up and extend selection" })
 
 -- visual lines
-vim.keymap.set({'n', 'x'}, 'j', "v:count == 0 ? 'gj' : 'j'", { desc = 'Down', expr = true, silent = true})
-vim.keymap.set({'n', 'x'}, 'k', "v:count == 0 ? 'gk' : 'k'", { desc = 'Up', expr = true, silent = true})
-
+vim.keymap.set(
+  { "n", "x" },
+  "j",
+  "v:count == 0 ? 'gj' : 'j'",
+  { desc = "Down", expr = true, silent = true }
+)
+vim.keymap.set(
+  { "n", "x" },
+  "k",
+  "v:count == 0 ? 'gk' : 'k'",
+  { desc = "Up", expr = true, silent = true }
+)
 
 -- Move lines up/down (Alt+j/k like VSCode)
 
@@ -137,7 +156,6 @@ map("v", "<A-k>", ":<C-u>execute \"'<,'>move '<-\" . (v:count1 + 1)<cr>gv=gv", {
 map("n", "==", "gg<S-v>G")
 map("n", "<A-a>", "ggVG", { noremap = true, silent = true, desc = "Select all" })
 
-
 -- Better indenting (stay in visual mode)
 map("v", "<", "<gv")
 map("v", ">", ">gv")
@@ -145,4 +163,3 @@ map("v", ">", ">gv")
 -- Commenting (add comment above/below current line)
 map("n", "gco", "o<esc>Vcx<esc><cmd>normal gcc<cr>fxa<bs>", { desc = "Add Comment Below" })
 map("n", "gcO", "O<esc>Vcx<esc><cmd>normal gcc<cr>fxa<bs>", { desc = "Add Comment Above" })
-

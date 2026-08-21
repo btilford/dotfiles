@@ -1,0 +1,11 @@
+# See mise-scripts/lua-files.sh for the full rationale. Kept in step with it —
+# both exclusions must match, or the selector and a direct `stylua .` disagree.
+
+# Frozen seed (.stow-frozen, skip-worktree): wallust rewrites it through the
+# stow symlink every wallpaper rotation, so reflowing it here would commit
+# stale content.
+hyprland/.config/hypr/lua/colors.lua
+
+# wallust render template, not source: `{{color0 | strip}}` placeholders are
+# wallust's template syntax, not this repo's Lua code style.
+wallust/.config/wallust/templates/colors-hyprland.lua
