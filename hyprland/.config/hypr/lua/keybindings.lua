@@ -623,6 +623,69 @@ hl.define_submap("time-cmd", function()
 
   hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
 end)
+-- Timers submap. Pure wiring over the `timers` IpcHandler in shell.qml (start/alarm/pomodoro/
+-- stopwatch/list) -- no quickshell code here, that surface is done and stable.
+--
+-- Reset-before-run, same as notif_run and time_run, but for a third reason: nothing bound here
+-- takes an EXCLUSIVE layer-shell grab (unlike notif_run's drawer/focus verbs), and every verb is
+-- a `qs ipc call` that returns immediately (unlike time_run's wl-copy child), so plain os.execute
+-- is safe. The reset still has to happen first -- staying in the submap after a start/toggle
+-- swallows the next keystroke, same as time_run's reason.
+--
+-- Verbs that take an `id` (pause/resume/toggle/reset/cancel/extend) are not bindable to a bare
+-- key -- a key press cannot supply an id -- so they are left to the card UI and not wired here.
+local function timer_run(cmd)
+  hl.dispatch(hl.dsp.submap("reset"))
+  os.execute(cmd)
+end
+
+hl.bind("SUPER + m", hl.dsp.submap("timer-cmd"), { description = "Timer submap [timer-cmd]" })
+hl.define_submap("timer-cmd", function()
+  -- Fixed presets, not a prompt -- a prompt is new UI and this task is wiring only.
+  hl.bind("1", function()
+    timer_run('qs ipc call timers start 5m "" 2>/dev/null')
+  end, { description = "Start 5m timer" })
+  hl.bind("2", function()
+    timer_run('qs ipc call timers start 10m "" 2>/dev/null')
+  end, { description = "Start 10m timer" })
+  hl.bind("3", function()
+    timer_run('qs ipc call timers start 15m "" 2>/dev/null')
+  end, { description = "Start 15m timer" })
+  hl.bind("4", function()
+    timer_run('qs ipc call timers start 25m "" 2>/dev/null')
+  end, { description = "Start 25m timer" })
+  hl.bind("5", function()
+    timer_run('qs ipc call timers start 45m "" 2>/dev/null')
+  end, { description = "Start 45m timer" })
+  hl.bind("6", function()
+    timer_run('qs ipc call timers start 60m "" 2>/dev/null')
+  end, { description = "Start 60m timer" })
+
+  hl.bind("p", function()
+    -- empty spec -> NotifyConfig.timers defaults (25m/5m/15m x4)
+    timer_run('qs ipc call timers pomodoro "" "" 2>/dev/null')
+  end, { description = "Start pomodoro (default cycle)" })
+
+  hl.bind("w", function()
+    timer_run('qs ipc call timers stopwatch "" 2>/dev/null')
+  end, { description = "Toggle stopwatch (start/pause)" })
+  hl.bind("SHIFT + w", function()
+    timer_run("qs ipc call timers lap 2>/dev/null")
+  end, { description = "Stopwatch lap" })
+  hl.bind("s", function()
+    timer_run("qs ipc call timers stop 2>/dev/null")
+  end, { description = "Stop stopwatch" })
+
+  hl.bind("c", function()
+    timer_run("qs ipc call timers cancelAll 2>/dev/null")
+  end, { description = "Cancel all timers" })
+  hl.bind("i", function()
+    timer_run('notify-send Timers "$(qs ipc call timers list 2>/dev/null)"')
+  end, { description = "List active timers" })
+
+  hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
+end)
+
 hl.bind(
   "CTRL + ALT + L",
   hl.dsp.exec_cmd("loginctl lock-session"),
