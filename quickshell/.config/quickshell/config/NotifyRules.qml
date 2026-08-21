@@ -81,12 +81,15 @@ Singleton {
         root.arm();
     }
 
-    // What a predicate can ask about the shell, beyond the notification itself. DND lands
-    // with its own story; the key is exposed now so rules written today keep working.
+    // What a predicate can ask about the shell, beyond the notification itself. `dnd` is the
+    // real Do Not Disturb state (story: notif-dnd-core) — manual toggle OR scheduled quiet
+    // hours. The shell already applies DND's own suppression default before this runs (see
+    // NotifyDnd.applySuppression); a rule reading `s.dnd == true` is deciding an EXCEPTION,
+    // not implementing DND itself.
     function state() {
         const mon = Hyprland.focusedMonitor;
         return {
-            dnd: false,
+            dnd: NotifyDnd.active,
             monitor: mon ? mon.name : "",
             workspace: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.name : "",
             fullscreen: Hyprland.focusedWorkspace ? (Hyprland.focusedWorkspace.hasFullscreen || false) : false,

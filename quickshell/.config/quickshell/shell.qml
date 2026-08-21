@@ -133,6 +133,22 @@ ShellRoot {
                 return "closed";
             return NotifyCompose.host + " " + NotifyCompose.route + (NotifyCompose.fromHistory ? " history" : " live");
         }
+        // Do Not Disturb (story: notif-dnd-core). `dnd` is the toggle a keybind wants; `dndOn`/
+        // `dndOff` exist for scripts that need a known end state; `dndStatus` reports which
+        // input (manual, quiet hours, both, neither) is behind the current state — readable by
+        // the bar and by a test without a screenshot.
+        function dnd(): void {
+            NotifyDnd.toggle();
+        }
+        function dndOn(): void {
+            NotifyDnd.on();
+        }
+        function dndOff(): void {
+            NotifyDnd.off();
+        }
+        function dndStatus(): string {
+            return NotifyDnd.statusText();
+        }
         function dbPath(): string {
             return NotifyStore.dbPath;
         }
