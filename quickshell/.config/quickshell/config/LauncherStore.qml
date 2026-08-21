@@ -74,9 +74,10 @@ Singleton {
     property real rankAt: 0
     // kind -> key of the most recently selected row of that kind. The empty-query pin.
     property var recent: ({})
-    // bumped whenever `stats` changes, so a visible launcher can re-rank itself
-    property int revision: 0
 
+    // Emitted whenever `stats` changes, so a visible launcher can re-rank itself. This is the
+    // ONLY change notification the store has: a counter property alongside it was write-only,
+    // and two ways of saying the same thing is how one of them goes stale.
     signal changed
 
     function entryKey(kind, key) {
@@ -288,7 +289,6 @@ Singleton {
         root.loaded = true;
         root.stats = next;
         root.recent = newest;
-        root.revision++;
         root.changed();
     }
 
@@ -301,8 +301,11 @@ Singleton {
                 try {
                     root.applyRows(out.length ? JSON.parse(out) : []);
                 } catch (e) {
-                    console.warn("launcher: history unreadable —", e);
-                    root.applyRows([]);
+                    // fail(), not an empty map. Marking the store `loaded` with nothing in
+                    // it while `healthy` stayed true would let the next selection of a
+                    // previously hot row upsert `score * 0 + 1.0` and flatten a real history
+                    // to a single hit. Unreadable means off, not empty.
+                    root.fail("history unreadable", String(e));
                 }
             }
         }
@@ -345,7 +348,6 @@ Singleton {
         const nextRecent = Object.assign({}, root.recent);
         nextRecent[kind] = String(key);
         root.recent = nextRecent;
-        root.revision++;
 
         // The decaying counter: multiply-add in the same statement that records the hit, so
         // there is no decay sweep anywhere and no per-read cost.
@@ -370,7 +372,6 @@ Singleton {
             delete nextRecent[kind];
             root.recent = nextRecent;
         }
-        root.revision++;
         root.enqueue("DELETE FROM selections WHERE kind = " + root.sqlText(kind) + " AND key = " + root.sqlText(key) + ";");
     }
 
