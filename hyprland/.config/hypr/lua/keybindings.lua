@@ -532,6 +532,12 @@ hl.define_submap("notif-cmd", function()
     notif_run("qs ipc call notifications markRead 2>/dev/null")
   end, { description = "Mark all read (clear the bell count)" })
 
+  hl.bind("z", function()
+    -- Do Not Disturb toggle (story: notif-dnd-core); "z" for zzz. Read back with
+    -- `qs ipc call notifications dndStatus`.
+    notif_run("qs ipc call notifications dnd 2>/dev/null")
+  end, { description = "Toggle Do Not Disturb" })
+
   hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
 end)
 

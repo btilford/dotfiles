@@ -8,8 +8,9 @@ import "../../config"
 //
 // Deliberately minimal. It shows how many notifications have dwelled here since they were last
 // acknowledged; left click opens the history drawer (which is what marks them read), middle
-// click dismisses whatever is still on screen. Per-category badges and do-not-disturb state are
-// their own stories — do not grow this into them.
+// click dismisses whatever is still on screen. Do Not Disturb state (story: notif-dnd-core)
+// also lives here rather than a second control — a bell-slash glyph, dimmed. Per-category
+// badges are their own story — do not grow this into them.
 Item {
     id: root
 
@@ -20,6 +21,9 @@ Item {
 
     readonly property int unread: Notifications.unread
     readonly property bool live: Notifications.count > 0
+    // Do Not Disturb (story: notif-dnd-core). Belongs on the bell rather than a second
+    // control — this widget already renders notification state in the bar.
+    readonly property bool dndActive: NotifyDnd.active
 
     // Only shown when this shell actually owns the notification server: with swaync handling
     // notifications a bell here would be a bell that never rings.
@@ -78,9 +82,10 @@ Item {
         Text {
             id: glyph
             anchors.verticalCenter: parent.verticalCenter
-            // fa-bell while something is unread or live, fa-bell-o when quiet
-            text: root.unread > 0 || root.live ? "" : ""
-            color: root.unread > 0 ? Theme.accent : Theme.fg
+            // cod-bell_slash while DND is on (manual or quiet hours); otherwise fa-bell while
+            // something is unread or live, fa-bell-o when quiet
+            text: root.dndActive ? "" : (root.unread > 0 || root.live ? "" : "")
+            color: root.dndActive ? Theme.subtext : (root.unread > 0 ? Theme.accent : Theme.fg)
             font.family: Theme.fontUi
             font.pixelSize: Theme.barIcon
             scale: ma.containsMouse ? 1.15 : 1
@@ -131,7 +136,7 @@ Item {
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
         cursorShape: Qt.PointingHandCursor
         onEntered: {
-            tip.text = (root.unread > 0 ? root.unread + " notification(s) since last checked" : (root.live ? Notifications.count + " on screen" : "No new notifications")) + " · click for history";
+            tip.text = (root.unread > 0 ? root.unread + " notification(s) since last checked" : (root.live ? Notifications.count + " on screen" : "No new notifications")) + (root.dndActive ? " · DND " + NotifyDnd.statusText() : "") + " · click for history";
             tip.open();
         }
         onExited: tip.close()
