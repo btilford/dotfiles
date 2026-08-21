@@ -11,6 +11,9 @@ pre-commit:
       stage_fixed: true
     stylua:
       glob: "*.lua"
+      # Same two exclusions as mise-scripts/lua-files.sh: the frozen colors.lua
+      # seed and the wallust render template. Kept in step — see that script.
+      exclude: "hyprland/.config/hypr/lua/colors.lua|wallust/.config/wallust/templates/colors-hyprland.lua"
       run: stylua {staged_files}
       stage_fixed: true
     taplo:

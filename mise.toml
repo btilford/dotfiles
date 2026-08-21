@@ -191,6 +191,7 @@ depends = [
   "lint:nu",
   "lint:fish",
   "lint:lua",
+  "lint:stylua",
 ]
 
 [tasks."lint:shell"]
@@ -366,6 +367,21 @@ else
 fi
 """
 
+[tasks."lint:stylua"]
+description = "stylua --check every tracked lua file (formatting, not lint)"
+# Same selector as fmt:lua and the lefthook stylua command — see
+# mise-scripts/lua-files.sh for the two files it excludes and why. Checked one
+# file at a time: a batched invocation still runs, but this keeps a failure
+# unambiguous about which file is dirty, matching how it was measured to scope
+# this gate in the first place.
+run = """
+rc=0
+for f in $(./mise-scripts/lua-files.sh); do
+  stylua --check "$f" || rc=1
+done
+exit $rc
+"""
+
 [tasks."lint:fish"]
 description = "fish syntax check (skipped where fish is absent, e.g. CI)"
 run = """
@@ -395,7 +411,8 @@ depends = ["fmt:shell", "fmt:lua", "fmt:toml", "fmt:md"]
 run = "./mise-scripts/shell-files.sh | xargs -r shfmt -w -i 2 -ci -sr"
 
 [tasks."fmt:lua"]
-run = "stylua $(git ls-files '*.lua')"
+# Same selector as lint:stylua — see mise-scripts/lua-files.sh.
+run = "stylua $(./mise-scripts/lua-files.sh)"
 
 [tasks."fmt:toml"]
 run = "taplo fmt $(git ls-files '*.toml')"
