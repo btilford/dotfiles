@@ -291,5 +291,16 @@ ShellRoot {
         function hide(): void {
             launcher.close();
         }
+        // What the launcher is showing right now, ranked, as JSON. In-memory read only — an
+        // IpcHandler function has to return a value immediately and cannot wait on a
+        // subprocess — and the counterpart of `notifications history`: it answers "what did the
+        // ranking decide" without a screenshot, and it is what the ranking test asserts on.
+        function results(limit: int): string {
+            return launcher.resultsJson(limit);
+        }
+        // Where the selection history lives, so a script can query the file directly.
+        function dbPath(): string {
+            return LauncherStore.dbPath;
+        }
     }
 }

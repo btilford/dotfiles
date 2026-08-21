@@ -624,10 +624,60 @@ PanelWindow {
             let target = item.path;
             if (item.random && root.wallpaperData.length)
                 target = root.wallpaperData[Math.floor(Math.random() * root.wallpaperData.length)].p;
-            if (target.length)
+            if (target.length) {
+                // the RESOLVED target, so `. random` records the wallpaper it actually picked
+                // rather than the string "random"
+                LauncherStore.record("wallpaper", target, item.random ? target.split("/").pop() : item.label);
                 Quickshell.execDetached([Quickshell.env("HOME") + "/.config/hypr/scripts/WallpaperApply.sh", target]);
+            }
             close();
         }
+    }
+
+    // Ctrl+Del drops the highlighted row's HISTORY, not the row: the app, file or emoji stays in
+    // the results and falls back to its alphabetical position. A history the user cannot correct
+    // is one they will resent.
+    //
+    // The chord is free — the input binds Ctrl+N / Ctrl+P for navigation and nothing else — and
+    // accepting the event also stops TextField's built-in delete-word-forward from firing, since
+    // Keys.priority is BeforeItem by default.
+    function forgetSelected() {
+        const item = root.results[list.currentIndex];
+        if (!item)
+            return;
+        const key = root.selectionKey(item);
+        if (!key.length)
+            return;
+        LauncherStore.forget(item.kind, key);
+        root.refresh();
+        // Keep the highlight on the same row rather than on whatever landed at the top: it has
+        // just moved down the list, and that movement IS the feedback that it worked.
+        for (var i = 0; i < root.results.length; i++) {
+            if (root.results[i].kind === item.kind && root.selectionKey(root.results[i]) === key) {
+                list.currentIndex = i;
+                break;
+            }
+        }
+    }
+
+    // The current result list as JSON — kind, label, the history key and the decayed score.
+    // A pure in-memory read, so an IpcHandler can return it immediately, and the same kind of
+    // surface `qs ipc call notifications history` already is: a way to see what the shell
+    // decided without taking a screenshot of it. It is also what the ranking test asserts on.
+    function resultsJson(limit) {
+        const n = (limit && limit > 0) ? Math.min(limit, 500) : 50;
+        const out = [];
+        for (var i = 0; i < root.results.length && i < n; i++) {
+            const it = root.results[i];
+            const key = root.selectionKey(it);
+            out.push({
+                kind: it.kind,
+                label: it.label,
+                key: key,
+                score: key ? LauncherStore.scoreOf(it.kind, key) : 0
+            });
+        }
+        return JSON.stringify(out);
     }
 
     // ---- click-away to close ----
@@ -816,6 +866,9 @@ PanelWindow {
                             e.accepted = true;
                         } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
                             root.activate(root.results[list.currentIndex]);
+                            e.accepted = true;
+                        } else if (e.key === Qt.Key_Delete && (e.modifiers & Qt.ControlModifier)) {
+                            root.forgetSelected();
                             e.accepted = true;
                         } else if (e.key === Qt.Key_Tab) {
                             root.cycleMode(1);
