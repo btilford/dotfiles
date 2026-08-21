@@ -167,12 +167,19 @@ Singleton {
     // be a surprise, not a feature. "HH:MM" 24h clock; start == end means "no window" rather
     // than "all day", so a copy-pasted typo cannot silence every notification permanently.
     // start > end wraps past midnight (e.g. 23:00 -> 07:00).
+    // allowUrgency is the config-level floor: the one exception DND grants with NO Lua rules
+    // file at all. Without it, a machine with no interpreter (or a wedged one — see
+    // NotifyRules) has no way to escape DND for even a critical alert, which is exactly the
+    // "DND that cannot be escaped is DND you stop trusting" failure the story exists to avoid.
+    // "critical" (default) lets NotificationUrgency.Critical through; "none" restores the old
+    // all-or-nothing behaviour for anyone who wants it.
     readonly property var defaultDnd: ({
             quietHours: {
                 enabled: false,
                 start: "23:00",
                 end: "07:00"
-            }
+            },
+            allowUrgency: "critical"
         })
 
     // Surface opacity for the popup cards and the docked pills. Separate from the drawer's
@@ -269,8 +276,18 @@ Singleton {
 
     // ---------------------------------------------------------------------------------------
 
+    // One level deep: a plain-object VALUE (e.g. defaultDnd.quietHours) is copied too, not just
+    // referenced, so two clones of the same default never share a nested object. defaultDnd was
+    // the first default with a nested object; a shallow copy left dnd.quietHours === the
+    // defaults' own quietHours, so an in-place mutation of the live config would have corrupted
+    // the fallback used by every future reload.
     function clone(o) {
-        return Object.assign({}, o);
+        const out = Object.assign({}, o);
+        for (const k in out) {
+            if (out[k] !== null && typeof out[k] === "object" && !Array.isArray(out[k]))
+                out[k] = Object.assign({}, out[k]);
+        }
+        return out;
     }
 
     function envOr(key: string, fallback: string): string {
@@ -510,7 +527,8 @@ Singleton {
                 enabled: root.pickBool(qh, "enabled", root.defaultDnd.quietHours.enabled),
                 start: root.pickClock(qh, "start", root.defaultDnd.quietHours.start),
                 end: root.pickClock(qh, "end", root.defaultDnd.quietHours.end)
-            }
+            },
+            allowUrgency: root.pickEnum(dn, "allowUrgency", ["none", "critical"], root.defaultDnd.allowUrgency)
         };
     }
 

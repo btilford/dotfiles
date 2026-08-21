@@ -61,7 +61,12 @@ maxPills = 3
 # SCHEDULED window on top of the manual toggle, OFF by default. HH:MM 24h clock; start > end
 # wraps past midnight. Suppressed notifications are still recorded and land in the drawer —
 # DND never drops one. A Lua rule reading `s.dnd` can let a source through anyway; see
-# notifications.example.lua.
+# notifications.example.lua. allowUrgency is a config-level floor that needs no rules file at
+# all: "critical" (default) lets critical notifications through DND; "none" suppresses
+# everything.
+[dnd]
+allowUrgency = "critical"
+
 [dnd.quietHours]
 enabled = false
 start = "23:00"

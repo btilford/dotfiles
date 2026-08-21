@@ -42,22 +42,28 @@ return {
     set = { durationMs = -1 },
   },
 
-  -- A chatty app during focused hours: shortened rather than silenced.
+  -- A chatty app during focused hours: shortened rather than silenced. Gated on `not s.dnd` —
+  -- a rule that sets durationMs unconditionally is an implicit DND exception (see notif-dnd-core
+  -- below); this one is not meant to be one.
   {
     name = "chatty app, short dwell",
     when = function(n, s)
-      return n.appName == "Discord" and s.hour >= 9 and s.hour < 18
+      return not s.dnd and n.appName == "Discord" and s.hour >= 9 and s.hour < 18
     end,
     set = { durationMs = 2000 },
   },
 
   -- Homelab criticals go to the secondary monitor, top anchor, and stay until dismissed.
   -- Replace "DP-2" with a monitor you actually have: an unknown name falls back to the
-  -- focused monitor rather than disappearing.
+  -- focused monitor rather than disappearing. Gated on `not s.dnd` too, even though it only
+  -- matches criticals — being critical does not make it the "dnd exception" rule below, and
+  -- without the gate it would silently double as one.
   {
     name = "homelab criticals to the side screen",
-    when = function(n)
-      return n.urgencyName == "critical" and (n.category == "homelab" or n.appName:match("^alert"))
+    when = function(n, s)
+      return not s.dnd
+        and n.urgencyName == "critical"
+        and (n.category == "homelab" or n.appName:match("^alert"))
     end,
     set = {
       screenName = "DP-2",

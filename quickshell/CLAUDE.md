@@ -660,6 +660,16 @@ flips on failure. Don't "simplify" that back to a single string.
   for whatever it decides matters — see the `dnd exception` rule in
   `notifications.example.lua`. **A rule can only let more through, never suppress harder than
   DND already does** — that half needs no rule at all.
+- **`allowUrgency` (`NotifyConfig.dnd`, default `"critical"`) is a config-level floor, not a
+  rule.** It is checked inside `NotifyDnd.applySuppression` itself, before durationMs is ever
+  forced negative — the only escape that works with NO rules file, no `lua`/`luajit`
+  interpreter, or a wedged engine (`NotifyRules.evaluate()` answers `null` on all three, so a
+  Lua exception never runs). Set to `"none"` to go back to all-or-nothing suppression.
+- **An existing rule that sets `durationMs` unconditionally is an IMPLICIT DND exception.**
+  Suppression runs before the rules engine and a later write always wins, so any rule not
+  written with `s.dnd` in mind will fire regardless of DND — e.g. a pre-existing "chatty app,
+  short dwell" rule keeps popping that app during quiet hours. Gate rules that are not meant to
+  bypass DND with `not s.dnd` in their `when`, the way `notifications.example.lua` does.
 - **Suppressed still means stored.** Drawer-only was already "recorded, counted unread, never
   popped" before this story; DND does not invent a second kind of hiding. A notification DND
   held is in the SQLite store and in the drawer exactly like any other muted source.
@@ -671,7 +681,10 @@ flips on failure. Don't "simplify" that back to a single string.
   resets the tally to zero when a session starts and, on the true->false edge, fires one
   `notify-send` summary ("N notifications were held while DND was on") when the count is
   nonzero — never a replay of every held notification, which is the flood DND exists to
-  prevent.
+  prevent. **The digest itself is delivered through `notify-send`**, an external dependency:
+  with no `libnotify` on the machine it silently never appears, and on a host where swaync
+  still owns `org.freedesktop.Notifications` (see `HYPR_NOTIFY`) swaync delivers it while
+  this shell's own bell stays hidden.
 - **The bar indicator lives on the bell, not a second control**
   (`components/bar/NotificationBell.qml`) — a `cod-bell_slash` glyph, dimmed to
   `Theme.subtext`, with the tooltip appending `· DND <status>`. Per-category badges are still

@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Services.Notifications
 
 // Do Not Disturb (story: notif-dnd-core). Owns the real DND state that
 // `NotifyRules.state().dnd` used to lie about (a hardcoded `false`). Two independent inputs
@@ -82,6 +83,11 @@ Singleton {
 
     onConfigChanged: root.recomputeSchedule()
 
+    // QML singletons are lazy: the first notification to touch this singleton (via
+    // applySuppression) can arrive before the Timer's triggeredOnStart posts through the event
+    // loop, reading a stale `scheduled == false` even inside a quiet-hours window.
+    Component.onCompleted: root.recomputeSchedule()
+
     // ---------------------------------------------------------------------------------------
     // Combined state, read by the bar indicator and by NotifyRules.state().dnd.
     // ---------------------------------------------------------------------------------------
@@ -104,9 +110,19 @@ Singleton {
     // not a notification a rule exception let back through.
     // ---------------------------------------------------------------------------------------
 
+    // `allowUrgency` is the escape hatch that needs no Lua rules file at all: with no
+    // interpreter (or a wedged one) NotifyRules.evaluate() answers null and no rule ever runs,
+    // so this is the only floor a critical alert has under DND on a bare install. Honoured here,
+    // inside suppression itself, rather than left to an optional exception rule.
+    function passesFloor(entry) {
+        if (root.config.allowUrgency === "critical")
+            return entry.urgency === NotificationUrgency.Critical;
+        return false;
+    }
+
     function applySuppression(entry) {
         entry.dndBaseline = root.active;
-        if (root.active)
+        if (root.active && !root.passesFloor(entry))
             entry.durationMs = -1;
     }
 
