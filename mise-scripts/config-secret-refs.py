@@ -191,6 +191,24 @@ def walk_json(node, raw: str, path: str, under_env: bool, findings: list) -> Non
 # than accepting that this sees `key: value` pairs and not anchors or flow maps.
 YAML_PAIR = re.compile(r"""^[ \t]*(?P<key>[A-Za-z0-9_.-]+)[ \t]*:[ \t]*(?P<val>.*?)[ \t]*$""")
 
+# A YAML boolean or null scalar. Not a reference form — a NON-VALUE: it carries
+# one bit, so it cannot hold a credential whatever its key is called.
+#
+# This closes an asymmetry, it does not relax the gate. walk_json() only ever
+# inspects `isinstance(value, str)`, so a JSON `true` has always been exempt by
+# construction. The YAML side is a line scanner with no parser behind it (see
+# the comment above), so it could not tell `persist-credentials: false` from a
+# string — and flagged it, since the key matches `credential`. That was the
+# first real-world hit: GitHub's actions/checkout takes exactly that key.
+#
+# `no`/`off`/`null` are included because YAML parses them as booleans and null.
+# A config whose credential is literally the word "no" is not a leak this gate
+# is for, and treating one as a finding is how a gate teaches people to ignore
+# it. A quoted "false" is still a string to YAML — but the scanner strips quotes
+# before this point and cannot distinguish them, which is the documented cost of
+# not carrying a parser.
+YAML_NONVALUE = re.compile(r"(?i)^(true|false|yes|no|on|off|null|~)$")
+
 
 def scan_yaml(raw: str, findings: list) -> None:
     for num, line in enumerate(raw.splitlines(), 1):
@@ -205,7 +223,7 @@ def scan_yaml(raw: str, findings: list) -> None:
         if val.endswith(("|", ">")):  # block scalar; the value is on later lines
             continue
         val = val.split(" #", 1)[0].strip().strip("\"'")
-        if val and not REFERENCE.match(val):
+        if val and not REFERENCE.match(val) and not YAML_NONVALUE.match(val):
             findings.append((num, m.group("key")))
 
 
