@@ -374,6 +374,15 @@ PanelWindow {
                     label: d.name,
                     sub: d.genericName || d.comment || "",
                     icon: d.icon || "",
+                    // The id is COPIED as a plain string, not read back off `entry` later.
+                    // DesktopEntries hands out a fresh DesktopEntry wrapper on every read of
+                    // `.values` — the pointer differs between two refreshes of the same app —
+                    // and the one captured here reads back as null a moment afterwards. So
+                    // `entry.id` worked inside refresh() and was EMPTY by the time Ctrl+Del or
+                    // the results IPC asked for it, which made the forget key silently do
+                    // nothing on roughly half of the runs. An identity may not be a reference
+                    // to something with its own lifetime.
+                    id: d.id || "",
                     entry: d
                 });
             out = out.concat(root.rankGroup(appRows, "app", q));
@@ -553,8 +562,10 @@ PanelWindow {
     function selectionKey(item) {
         if (!item)
             return "";
+        // `item.id` first, and `entry.id` only as a fallback: see the note where app rows are
+        // built. The reference can be dead by the time this is called; the string cannot.
         if (item.kind === "app")
-            return (item.entry && item.entry.id) ? item.entry.id : "";
+            return item.id || ((item.entry && item.entry.id) ? item.entry.id : "");
         if (item.kind === "run")
             return item.cmd || "";
         if (item.kind === "file")
