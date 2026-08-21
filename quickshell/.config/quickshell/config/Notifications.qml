@@ -666,6 +666,39 @@ Singleton {
         for (let i = 0; i < timerActions.length; i++)
             out.push(timerActions[i]);
 
+        // Built-in snooze actions (this ticket: give snooze a visible affordance — it shipped
+        // as the `s`/`r` keys only, which never reach a card the user has not focused). Offered
+        // on every card, unconditionally, the same as the keys — a chip is the mouse path onto
+        // exactly what `s`/`r` already do, not a new surface with its own rules. `kind:
+        // "snooze"` tells invokeAction to call `perform()` in process, the seam Timers.actionsFor
+        // above already proved: routing a snooze back out through IPC would spawn a process for
+        // this shell to talk to itself.
+        //
+        // NOT offered on `actionsForRow` (drawer rows): the default verb could persist via nid
+        // alone, but "Remind at…" calls beginPrompt(), which flips `prompting` on the throwaway
+        // rowAsEntry() adapter — an object nothing renders and nothing keeps, so the prompt UI
+        // would never appear. Snoozing history is out of scope for this ticket.
+        out.push({
+            kind: "snooze",
+            label: "Snooze " + root.snoozeLabel(NotifyConfig.snooze.defaultMs),
+            key: "s",
+            spec: null,
+            run: null,
+            prompt: null,
+            capture: "",
+            perform: () => root.snooze(entry, NotifyConfig.snooze.defaultMs)
+        });
+        out.push({
+            kind: "snooze",
+            label: "Remind at…",
+            key: "r",
+            spec: null,
+            run: null,
+            prompt: null,
+            capture: "",
+            perform: () => root.beginPrompt(entry, null, true)
+        });
+
         // Custom actions, in config order.
         const cfg = NotifyConfig.actions;
         for (let i = 0; i < cfg.length; i++) {
@@ -886,11 +919,11 @@ Singleton {
             return;
         }
 
-        // A built-in timer verb runs IN PROCESS. Everything it needs is on the Timers singleton
-        // already, so routing it back out through `qs ipc call timers …` would spawn a process
-        // for this shell to talk to itself — and would fail on a machine where `qs` is not on
-        // PATH for the shell's own environment.
-        if (action.kind === "timer") {
+        // A built-in verb (timer or snooze) runs IN PROCESS. Everything it needs is already on
+        // this singleton or Timers, so routing it back out through `qs ipc call …` would spawn a
+        // process for this shell to talk to itself — and would fail on a machine where `qs` is
+        // not on PATH for the shell's own environment.
+        if (action.kind === "timer" || action.kind === "snooze") {
             try {
                 action.perform();
             } catch (e) {
@@ -898,7 +931,9 @@ Singleton {
                 return;
             }
             // No dismiss on this path at all: pausing a timer must leave its card exactly
-            // where it was, and cancel takes its own card down inside perform().
+            // where it was and cancel takes its own card down inside perform(); a snooze
+            // removes the card itself (root.snooze() -> forget()), and opening the remind
+            // prompt must leave the card in place for the user to type into.
             return;
         }
 
@@ -1023,6 +1058,17 @@ Singleton {
         // The popup goes; the row is what remembers.
         root.forget(entry);
         root.reflow();
+    }
+
+    // The inverse of parseDelay, for the chip label only ("15m", "1h", "1h30m"). Never fed back
+    // into parseDelay or the store — it is display text, not a second duration format.
+    function snoozeLabel(ms) {
+        const totalMin = Math.max(1, Math.round(ms / 60000));
+        if (totalMin < 60)
+            return totalMin + "m";
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        return m === 0 ? h + "h" : h + "h" + m + "m";
     }
 
     // "20m", "2h", "90s", "17:30". Returns null for anything it cannot read — AD-012 is
