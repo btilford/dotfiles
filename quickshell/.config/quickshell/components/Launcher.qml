@@ -301,8 +301,16 @@ PanelWindow {
     function rankGroup(rows, kind, q) {
         if (!rows.length)
             return rows;
-        // The pin does not exist while a query is typed.
-        const pin = q.length ? "" : LauncherStore.pinFor(kind);
+        // The pin is the last pick FOR THE ACTIVE TAB, so it comes from activeKind() rather than
+        // from this group's own kind, and it applies to one group only. Those two are the same
+        // thing today — every mode maps 1:1 onto a kind, and combi's run group is only ever
+        // built with a query typed, which switches the pin off anyway — but a future mode
+        // emitting two kinds, or a run group with an empty-query population, would silently move
+        // the pin off the tab it belongs to. Asking activeKind() keeps it where the rule says.
+        //
+        // And it does not exist at all while a query is typed.
+        const pinKind = root.activeKind();
+        const pin = (q.length || kind !== pinKind) ? "" : LauncherStore.pinFor(pinKind);
         const keyed = [];
         var reorder = false;
         for (var i = 0; i < rows.length; i++) {
