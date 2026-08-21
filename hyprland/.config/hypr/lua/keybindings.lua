@@ -627,13 +627,21 @@ end)
 -- stopwatch/list) -- no quickshell code here, that surface is done and stable.
 --
 -- Reset-before-run, same as notif_run and time_run, but for a third reason: nothing bound here
--- takes an EXCLUSIVE layer-shell grab (unlike notif_run's drawer/focus verbs), and every verb is
--- a `qs ipc call` that returns immediately (unlike time_run's wl-copy child), so plain os.execute
--- is safe. The reset still has to happen first -- staying in the submap after a start/toggle
--- swallows the next keystroke, same as time_run's reason.
+-- takes an EXCLUSIVE layer-shell grab (unlike notif_run's drawer/focus verbs), so plain
+-- os.execute is safe for every verb EXCEPT the list bind below. That one pipes qs's output
+-- through notify-send, which is a SYNCHRONOUS D-Bus call answered by qs itself -- the same
+-- single-threaded process that also has to round-trip to Hyprland. os.execute there would block
+-- Hyprland's main thread on notify-send, which blocks on qs, which blocks on the compositor: the
+-- wl-copy deadlock shape from time_run's comment, not just a slow keypress. That bind uses
+-- hl.dsp.exec_cmd (fork, no wait) instead, same as time_run does for CopyDateTime.sh. The reset
+-- still has to happen first regardless -- staying in the submap after an action swallows the
+-- next keystroke, same as time_run's reason.
 --
--- Verbs that take an `id` (pause/resume/toggle/reset/cancel/extend) are not bindable to a bare
--- key -- a key press cannot supply an id -- so they are left to the card UI and not wired here.
+-- Most `id`-taking verbs (pause/resume/reset/cancel/extend) are still not bindable to a bare
+-- key -- a key press cannot supply an arbitrary id, and which timer's id is "the one you want"
+-- is a UI runtime detail these binds cannot know. `toggle` is the exception: shell.qml resolves
+-- an id of 0 to the newest live timer (Timers.resolve, config/Timers.qml:160-164), so `toggle 0`
+-- is bindable and pauses/resumes whichever timer was started most recently.
 local function timer_run(cmd)
   hl.dispatch(hl.dsp.submap("reset"))
   os.execute(cmd)
@@ -676,11 +684,20 @@ hl.define_submap("timer-cmd", function()
     timer_run("qs ipc call timers stop 2>/dev/null")
   end, { description = "Stop stopwatch" })
 
+  hl.bind("t", function()
+    timer_run("qs ipc call timers toggle 0 2>/dev/null")
+  end, { description = "Pause/resume newest timer" })
+
   hl.bind("c", function()
     timer_run("qs ipc call timers cancelAll 2>/dev/null")
   end, { description = "Cancel all timers" })
   hl.bind("i", function()
-    timer_run('notify-send Timers "$(qs ipc call timers list 2>/dev/null)"')
+    hl.dispatch(hl.dsp.submap("reset"))
+    hl.dispatch(
+      hl.dsp.exec_cmd(
+        'sh -c "out=\\"$(qs ipc call timers list 2>/dev/null)\\"; notify-send Timers \\"${out:-No timers running}\\""'
+      )
+    )
   end, { description = "List active timers" })
 
   hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
