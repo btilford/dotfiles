@@ -30,24 +30,26 @@ local json = {}
 
 local escapes = {
   ['"'] = '\\"',
-  ['\\'] = '\\\\',
-  ['\b'] = '\\b',
-  ['\f'] = '\\f',
-  ['\n'] = '\\n',
-  ['\r'] = '\\r',
-  ['\t'] = '\\t',
+  ["\\"] = "\\\\",
+  ["\b"] = "\\b",
+  ["\f"] = "\\f",
+  ["\n"] = "\\n",
+  ["\r"] = "\\r",
+  ["\t"] = "\\t",
 }
 
 local function escape(s)
-  return (s:gsub('[%c"\\]', function(c)
-    return escapes[c] or string.format('\\u%04x', string.byte(c))
-  end))
+  return (
+    s:gsub('[%c"\\]', function(c)
+      return escapes[c] or string.format("\\u%04x", string.byte(c))
+    end)
+  )
 end
 
 local function is_array(t)
   local n = 0
   for k in pairs(t) do
-    if type(k) ~= 'number' then
+    if type(k) ~= "number" then
       return false
     end
     n = n + 1
@@ -58,36 +60,36 @@ end
 function json.encode(v)
   local t = type(v)
   if v == nil then
-    return 'null'
-  elseif t == 'boolean' then
+    return "null"
+  elseif t == "boolean" then
     return tostring(v)
-  elseif t == 'number' then
+  elseif t == "number" then
     -- %.14g keeps integers integral and avoids scientific notation for our ranges
-    return string.format('%.14g', v)
-  elseif t == 'string' then
+    return string.format("%.14g", v)
+  elseif t == "string" then
     return '"' .. escape(v) .. '"'
-  elseif t == 'table' then
+  elseif t == "table" then
     local out = {}
     if is_array(v) then
       for i = 1, #v do
         out[#out + 1] = json.encode(v[i])
       end
-      return '[' .. table.concat(out, ',') .. ']'
+      return "[" .. table.concat(out, ",") .. "]"
     end
     for k, val in pairs(v) do
       if val ~= nil then
         out[#out + 1] = '"' .. escape(tostring(k)) .. '":' .. json.encode(val)
       end
     end
-    return '{' .. table.concat(out, ',') .. '}'
+    return "{" .. table.concat(out, ",") .. "}"
   end
-  return 'null'
+  return "null"
 end
 
 local decode_value
 
 local function skip_ws(s, i)
-  local _, j = s:find('^[ \t\r\n]*', i)
+  local _, j = s:find("^[ \t\r\n]*", i)
   return j + 1
 end
 
@@ -96,13 +98,13 @@ local function decode_string(s, i)
   i = i + 1 -- opening quote
   while true do
     local c = s:sub(i, i)
-    if c == '' then
-      error('unterminated string')
+    if c == "" then
+      error("unterminated string")
     elseif c == '"' then
       return table.concat(out), i + 1
-    elseif c == '\\' then
+    elseif c == "\\" then
       local e = s:sub(i + 1, i + 1)
-      if e == 'u' then
+      if e == "u" then
         local hex = s:sub(i + 2, i + 5)
         local code = tonumber(hex, 16) or 63
         -- utf8.char exists in 5.3+; string.char covers the ASCII range we care about and
@@ -112,11 +114,20 @@ local function decode_string(s, i)
         elseif utf8 and utf8.char then
           out[#out + 1] = utf8.char(code)
         else
-          out[#out + 1] = '?'
+          out[#out + 1] = "?"
         end
         i = i + 6
       else
-        local map = { n = '\n', t = '\t', r = '\r', b = '\b', f = '\f', ['"'] = '"', ['\\'] = '\\', ['/'] = '/' }
+        local map = {
+          n = "\n",
+          t = "\t",
+          r = "\r",
+          b = "\b",
+          f = "\f",
+          ['"'] = '"',
+          ["\\"] = "\\",
+          ["/"] = "/",
+        }
         out[#out + 1] = map[e] or e
         i = i + 2
       end
@@ -130,10 +141,10 @@ end
 decode_value = function(s, i)
   i = skip_ws(s, i)
   local c = s:sub(i, i)
-  if c == '{' then
+  if c == "{" then
     local obj = {}
     i = skip_ws(s, i + 1)
-    if s:sub(i, i) == '}' then
+    if s:sub(i, i) == "}" then
       return obj, i + 1
     end
     while true do
@@ -148,14 +159,14 @@ decode_value = function(s, i)
       i = skip_ws(s, i)
       local d = s:sub(i, i)
       i = i + 1
-      if d == '}' then
+      if d == "}" then
         return obj, i
       end
     end
-  elseif c == '[' then
+  elseif c == "[" then
     local arr = {}
     i = skip_ws(s, i + 1)
-    if s:sub(i, i) == ']' then
+    if s:sub(i, i) == "]" then
       return arr, i + 1
     end
     while true do
@@ -165,24 +176,24 @@ decode_value = function(s, i)
       i = skip_ws(s, i)
       local d = s:sub(i, i)
       i = i + 1
-      if d == ']' then
+      if d == "]" then
         return arr, i
       end
     end
   elseif c == '"' then
     return decode_string(s, i)
-  elseif s:sub(i, i + 3) == 'true' then
+  elseif s:sub(i, i + 3) == "true" then
     return true, i + 4
-  elseif s:sub(i, i + 4) == 'false' then
+  elseif s:sub(i, i + 4) == "false" then
     return false, i + 5
-  elseif s:sub(i, i + 3) == 'null' then
+  elseif s:sub(i, i + 3) == "null" then
     return nil, i + 4
   end
-  local num = s:match('^-?%d+%.?%d*[eE]?[-+]?%d*', i)
+  local num = s:match("^-?%d+%.?%d*[eE]?[-+]?%d*", i)
   if num and #num > 0 then
     return tonumber(num), i + #num
   end
-  error('unexpected character at ' .. i .. ': ' .. c)
+  error("unexpected character at " .. i .. ": " .. c)
 end
 
 function json.decode(s)
@@ -216,16 +227,16 @@ local function load_rules()
   local chunk, err = loadfile(RULES_PATH)
   if not chunk then
     -- Missing file is not an error: it is the normal state for a machine with no rules.
-    if not tostring(err):match('No such file') then
+    if not tostring(err):match("No such file") then
       load_error = tostring(err)
-      io.stderr:write('notify-rules: ' .. load_error .. '\n')
+      io.stderr:write("notify-rules: " .. load_error .. "\n")
     end
     return
   end
   local ok, result = pcall(chunk)
   if not ok then
     load_error = tostring(result)
-    io.stderr:write('notify-rules: ' .. load_error .. '\n')
+    io.stderr:write("notify-rules: " .. load_error .. "\n")
     return
   end
   -- An empty file (or one that returns nothing) is "no rules", not a mistake: it is what
@@ -234,9 +245,9 @@ local function load_rules()
   if result == nil then
     return
   end
-  if type(result) ~= 'table' then
-    load_error = RULES_PATH .. ' did not return a table of rules'
-    io.stderr:write('notify-rules: ' .. load_error .. '\n')
+  if type(result) ~= "table" then
+    load_error = RULES_PATH .. " did not return a table of rules"
+    io.stderr:write("notify-rules: " .. load_error .. "\n")
     return
   end
   rules = result
@@ -251,8 +262,8 @@ local WRITABLE = {
   anchorH = true,
   anchorV = true,
   -- accepted and forwarded now, honoured by the stories that own them
-  group = true,     -- notif-grouping
-  actions = true,   -- notif-actions (false = veto this notification's actions)
+  group = true, -- notif-grouping
+  actions = true, -- notif-actions (false = veto this notification's actions)
 }
 
 local function sanitize(p)
@@ -269,26 +280,32 @@ local function evaluate(n, p, s)
   local err = nil
   for i = 1, #rules do
     local rule = rules[i]
-    if type(rule) == 'table' then
+    if type(rule) == "table" then
       local matched = true
-      if type(rule.when) == 'function' then
+      if type(rule.when) == "function" then
         local ok, res = pcall(rule.when, n, s)
         if not ok then
           -- One bad predicate must not cost the notification its remaining rules, and
           -- must never cost it its display. Skip the rule, keep going, report once.
-          err = (err and err .. '; ' or '') .. (rule.name or ('rule ' .. i)) .. ': ' .. tostring(res)
+          err = (err and err .. "; " or "")
+            .. (rule.name or ("rule " .. i))
+            .. ": "
+            .. tostring(res)
           matched = false
         else
           matched = res and true or false
         end
       end
       if matched then
-        if type(rule.set) == 'function' then
+        if type(rule.set) == "function" then
           local ok, res = pcall(rule.set, p, n, s)
           if not ok then
-            err = (err and err .. '; ' or '') .. (rule.name or ('rule ' .. i)) .. ': ' .. tostring(res)
+            err = (err and err .. "; " or "")
+              .. (rule.name or ("rule " .. i))
+              .. ": "
+              .. tostring(res)
           end
-        elseif type(rule.set) == 'table' then
+        elseif type(rule.set) == "table" then
           for k, v in pairs(rule.set) do
             p[k] = v
           end
@@ -307,24 +324,24 @@ end
 -- ---------------------------------------------------------------------------------------
 
 load_rules()
-io.stdout:setvbuf('line')
+io.stdout:setvbuf("line")
 
 for line in io.lines() do
   if #line > 0 then
     local ok, req = pcall(json.decode, line)
-    if ok and type(req) == 'table' then
+    if ok and type(req) == "table" then
       local p = req.p or {}
       local err = load_error
       local rerr
       p, rerr = evaluate(req.n or {}, p, req.s or {})
       if rerr then
-        err = (err and err .. '; ' or '') .. rerr
+        err = (err and err .. "; " or "") .. rerr
       end
       local reply = { seq = req.seq, p = sanitize(p) }
       if err then
         reply.err = err
       end
-      io.write(json.encode(reply), '\n')
+      io.write(json.encode(reply), "\n")
     else
       -- Unparseable input still gets an answer, because the shell is waiting on one and
       -- silence would cost that notification its (fail-open) deadline for no reason.
