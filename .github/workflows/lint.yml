@@ -41,6 +41,13 @@ jobs:
           # gitleaks' git mode needs history; `gitleaks dir` (what we run) does
           # not, but keep the full clone so switching modes is a one-line change.
           fetch-depth: 0
+          # Default is TRUE: checkout writes the job's GITHUB_TOKEN into
+          # .git/config as an extraheader and leaves it there for the rest of the
+          # job. Every later step — and anything they shell out to — can then read
+          # it and push with it. Nothing here needs to talk to the remote after
+          # checkout, so drop it. Pairs with `permissions: contents: read` above:
+          # that bounds what the token may do, this bounds who can reach it.
+          persist-credentials: false
 
       # fish and luacheck are not on the runner by default, and both lint:fish
       # and lint:lua SELF-SKIP when their tool is missing — they would report
@@ -72,6 +79,11 @@ jobs:
           # Full history: the whole point is scanning what was committed and
           # later removed, which a shallow clone cannot see.
           fetch-depth: 0
+          # Same reasoning as the lint job. It matters more here: this job hands
+          # the whole history to trufflehog, which makes outbound calls to
+          # arbitrary credential providers. Do not leave a live GITHUB_TOKEN in
+          # .git/config while that runs.
+          persist-credentials: false
 
       # jdx/mise-action v4.2.3
       - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14
