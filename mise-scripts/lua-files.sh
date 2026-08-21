@@ -19,6 +19,13 @@
 #     A wallust render TEMPLATE, not source. wallust substitutes
 #     `{{color0 | strip}}` placeholders into it; its indentation is wallust's
 #     template syntax, not this repo's Lua code style.
+#
+# Uses `git ls-files`, unlike shell-files.sh/yaml-files.sh which use `find`
+# because their CI images ship no git. stylua is NOT in the GitLab subset
+# (that runner can't reach GitHub/sigstore for mise's stylua install — see
+# CLAUDE.md), so this script only ever runs somewhere git is available: local
+# and GitHub Actions (full checkout). Do not copy this selector as a template
+# for a future gate that DOES need to run git-less.
 set -eu
 
 cd "$(cd "$(dirname "$0")/.." && pwd)"
