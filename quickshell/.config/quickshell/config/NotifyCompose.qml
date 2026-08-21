@@ -63,6 +63,8 @@ Singleton {
     // chips never appear — with nothing in the log to say why.
     readonly property var actions: {
         NotifyConfig.actions;
+        // Same reason, for the built-in snooze chips' defaultMs/presets labels.
+        NotifyConfig.snooze;
         if (root.live)
             return Notifications.actionsFor(root.live);
         if (root.row)
