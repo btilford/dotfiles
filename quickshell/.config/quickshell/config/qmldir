@@ -16,3 +16,4 @@ singleton Connectors Connectors.qml
 singleton Timers Timers.qml
 singleton Weather Weather.qml
 singleton Clocks Clocks.qml
+singleton LauncherStore LauncherStore.qml

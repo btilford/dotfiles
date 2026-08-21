@@ -12,6 +12,7 @@ import Quickshell.Io
 //       QS_EFFECTS=full|low|off  HYPR_NOTIFY=swaync|quickshell
 //       QS_SUBMAP_HINTS=1|0  QS_SUBMAP_HINTS_DELAY=<ms>  QS_SUBMAP_HINTS_OPACITY=<0.05..1>
 //       QS_NOW_PLAYING=1|0  QS_NOW_PLAYING_TIMEOUT=<ms>  QS_NOW_PLAYING_MONITOR=<desc|name>
+//       QS_LAUNCHER_HISTORY=1|0  QS_LAUNCHER_HALFLIFE_DAYS=<days>
 // HYPR_BAR_DEV renders the qs bar at the BOTTOM (no exclusive zone) for side-by-side testing
 // against waybar during development.
 // QS_EFFECTS=off swaps every shader (energy borders, fills, shimmer, reflections) for static
@@ -69,6 +70,16 @@ Singleton {
     // bar, which is also the fallback when the configured monitor is not connected.
     property string nowPlayingMonitor: ""
 
+    // Launcher selection history and usage ranking (config/LauncherStore.qml). Off means the
+    // store is never opened and nothing is recorded, and the launcher sorts alphabetically
+    // exactly as it did before the feature existed.
+    property bool launcherHistoryEnabled: true
+    // How long a selection keeps half its weight. A week is eager and forgetful, a quarter is
+    // stubborn; 30 days is a starting value, and it lives in config so that adjusting it is not
+    // a code change. Floored at one day — a 0 makes every decay factor NaN and turns ranking
+    // into noise rather than switching it off, which is what QS_LAUNCHER_HISTORY=0 is for.
+    property real launcherHalfLifeDays: 30
+
     // shaders render only when effects aren't switched off; "low" reserved, treated as full
     readonly property bool effectsOn: effectsMode !== "off"
 
@@ -93,6 +104,8 @@ Singleton {
         let nowPlaying = "1";
         let nowPlayingTimeout = "45000";
         let nowPlayingMonitor = "";
+        let launcherHistory = "1";
+        let launcherHalfLife = "30";
         if (t) {
             for (const line of t.split("\n")) {
                 const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
@@ -120,6 +133,10 @@ Singleton {
                     nowPlayingTimeout = m[2];
                 else if (m[1] === "QS_NOW_PLAYING_MONITOR")
                     nowPlayingMonitor = m[2];
+                else if (m[1] === "QS_LAUNCHER_HISTORY")
+                    launcherHistory = m[2];
+                else if (m[1] === "QS_LAUNCHER_HALFLIFE_DAYS")
+                    launcherHalfLife = m[2];
             }
         }
         // environment overrides the file, key by key — an unset var leaves the file's value alone
@@ -146,6 +163,10 @@ Singleton {
         const npTimeout = parseInt(envOr("QS_NOW_PLAYING_TIMEOUT", nowPlayingTimeout), 10);
         root.nowPlayingTimeoutMs = (isNaN(npTimeout) || npTimeout < 1000) ? 45000 : npTimeout;
         root.nowPlayingMonitor = envOr("QS_NOW_PLAYING_MONITOR", nowPlayingMonitor);
+        const lhRaw = envOr("QS_LAUNCHER_HISTORY", launcherHistory);
+        root.launcherHistoryEnabled = !(lhRaw === "0" || lhRaw === "off" || lhRaw === "false");
+        const halfLife = parseFloat(envOr("QS_LAUNCHER_HALFLIFE_DAYS", launcherHalfLife));
+        root.launcherHalfLifeDays = (isNaN(halfLife) || halfLife < 1) ? 30 : halfLife;
     }
 
     // Quickshell.env returns undefined for an unset variable and "" for an empty one; treat both
