@@ -344,6 +344,15 @@ $env.config = {
             mode: [emacs, vi_normal, vi_insert]
             event: { send: openeditor }
         }
+        # Alt+e is the same binding in fish, bash and zsh. Ctrl+O above is
+        # reedline's own default for it and stays bound.
+        {
+            name: open_command_editor_alt
+            modifier: alt
+            keycode: char_e
+            mode: [emacs, vi_normal, vi_insert]
+            event: { send: openeditor }
+        }
         {
             name: move_up
             modifier: none

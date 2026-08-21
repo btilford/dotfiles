@@ -11,6 +11,12 @@ glab-cli/.config/glab-cli/config.yml
 # and machine-local paths. Provision from config.example.yaml.
 docker/.docker/mcp/config.yaml
 
+# aerc's account file: the mail password or token, and the account address, which
+# is employer identity under the public-mirror rule. It is INI, so lint:mcp-config
+# cannot inspect it — the example uses a cred command so a plaintext password has
+# no reason to be there at all. Provision from accounts.conf.example, mode 600.
+aerc/.config/aerc/accounts.conf
+
 # gh writes `oauth_token:` into hosts.yml whenever no OS keyring is available,
 # so tracking it is a standing leak risk even when it currently looks clean.
 # Provision with `gh auth login`.

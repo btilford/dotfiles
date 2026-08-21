@@ -1,0 +1,17 @@
+# Interactive key bindings.
+#
+# Numbered 70 so it loads after every drop-in that binds keys — fzf in 50-custom,
+# atuin in 60-atuin — and still ahead of the reserved 99-local slot.
+
+# Alt+e opens the current command line in $EDITOR. Same key in fish, bash and
+# nushell; fish binds it to edit_command_buffer as a preset, so it needs no
+# config there. zle's edit-command-line returns the edited text to the prompt
+# without running it, which is the behaviour fish has.
+#
+# Bound in three keymaps because the main keymap here is viins, not emacs: zsh
+# selects vi mode when $EDITOR matches *vi*, and 00-init exports EDITOR=nvim.
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey -M emacs '^[e' edit-command-line
+bindkey -M viins '^[e' edit-command-line
+bindkey -M vicmd '^[e' edit-command-line
