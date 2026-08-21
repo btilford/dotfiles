@@ -57,6 +57,16 @@ pillOpacity = 0.85
 home = "bar"
 maxPills = 3
 
+# Do Not Disturb (`qs ipc call notifications dnd`, keybind SUPER+n then z). quietHours is a
+# SCHEDULED window on top of the manual toggle, OFF by default. HH:MM 24h clock; start > end
+# wraps past midnight. Suppressed notifications are still recorded and land in the drawer —
+# DND never drops one. A Lua rule reading `s.dnd` can let a source through anyway; see
+# notifications.example.lua.
+[dnd.quietHours]
+enabled = false
+start = "23:00"
+end = "07:00"
+
 [drawer]
 mode = "panel"
 width = 460

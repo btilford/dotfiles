@@ -67,6 +67,19 @@ return {
     },
   },
 
+  -- Do Not Disturb (story: notif-dnd-core) already suppresses everything to drawer-only while
+  -- `s.dnd` is true — that is the shell's own default, applied before this file ever runs. A
+  -- rule is how you punch a hole in it: this lets criticals and incoming calls through anyway.
+  -- Without a rule like this, DND is unconditional; with one, it is DND you can trust to still
+  -- wake you for what matters.
+  {
+    name = "dnd exception: criticals and calls get through",
+    when = function(n, s)
+      return s.dnd and (n.urgencyName == "critical" or n.category == "call")
+    end,
+    set = { durationMs = 6000 },
+  },
+
   -- Nothing interrupts a fullscreen window except a critical. Late in the list on purpose:
   -- it overrides the durations above, and it is written as a function because it needs to
   -- read the notification and the shell state together.

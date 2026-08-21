@@ -326,8 +326,9 @@ the terminal clients need the model to exist without a window.
   notification displays with defaults.
 - IPC: `qs ipc call notifications` → `dismissAll`, `dismiss <id>`, `count`, `unread`, `markRead`,
   `history <limit>`, `dbPath` (the seam the `notifctl` CLI grows from).
-- Deliberately **not** here yet: actions, keyboard focus (popups use
-  `WlrKeyboardFocus.None` on purpose), drawer/history, DND, grouping.
+- Deliberately **not** here yet (grown by later stories, see their own sections below):
+  actions, keyboard focus (popups use `WlrKeyboardFocus.None` on purpose), drawer/history, DND,
+  grouping — only grouping remains unbuilt.
 
 ### Placement & motion (story: notif-placement-motion)
 
@@ -633,6 +634,56 @@ flips on failure. Don't "simplify" that back to a single string.
 - The engine carries its own ~150-line JSON codec on purpose — lua-cjson is not installed
   everywhere this config lands, and a rules engine that fails to start over a missing rock would
   take notifications with it.
+
+### Do Not Disturb (story: notif-dnd-core — BUILT)
+
+`config/NotifyDnd.qml` owns the real `s.dnd` value `NotifyRules.state()` used to hardcode as
+`false` — every Lua rule written against it since 2026-07-26 had been reading a constant.
+
+- **Two inputs OR together into one `active`.** `manualOn` (the keybind / IPC toggle) and
+  `scheduled` (quiet hours, `NotifyConfig.dnd.quietHours`, **off by default**). `qs ipc call
+  notifications dnd` toggles, `dndOn`/`dndOff` set a known end state, `dndStatus` reports which
+  input is behind the current state ("on (manual)", "on (quiet hours)", "on (manual + quiet
+  hours)", "off") — readable without a screenshot. Keybind: `SUPER+n` then `z`, inside the
+  `notif-cmd` submap.
+- **Quiet hours are its own clock, not a reuse of `state().hour`.** That field is an integer
+  hour for rule predicates — too coarse for a schedule crossing midnight or under an hour wide.
+  `NotifyDnd` parses `"HH:MM"` itself and ticks a plain 30s `Timer`. `start == end` is defined
+  as "no window" rather than "all day", so a copy-pasted typo cannot silence every notification
+  permanently; `start > end` wraps past midnight (`23:00` -> `07:00`).
+- **Suppression is a DEFAULT, applied before the rules engine, never a wall.** `applySuppression`
+  runs in `Notifications.refresh()` right after `Timers.applyPlacement`, and forces
+  `entry.durationMs = -1` (drawer-only) when DND is active — reusing the exact mechanism
+  notif-timing already built for muting an app, rather than a second suppression path. Because
+  it runs before `NotifyRules.evaluate()`, a Lua rule reading `s.dnd == true` gets the last
+  word (the engine's usual "accumulate, last write wins" contract) and can restore visibility
+  for whatever it decides matters — see the `dnd exception` rule in
+  `notifications.example.lua`. **A rule can only let more through, never suppress harder than
+  DND already does** — that half needs no rule at all.
+- **Suppressed still means stored.** Drawer-only was already "recorded, counted unread, never
+  popped" before this story; DND does not invent a second kind of hiding. A notification DND
+  held is in the SQLite store and in the drawer exactly like any other muted source.
+- **The exit digest counts only what actually stayed suppressed.** `entry.dndBaseline` marks
+  that DND's default applied to this entry; the digest increments in
+  `Notifications.finishRefresh()`, guarded by `entry.dndCounted`, only when the entry is BOTH
+  `dndBaseline` and still `drawerOnly` after the rules ran — a rule exception that restored
+  visibility was never actually suppressed and must not be counted. `NotifyDnd.onActiveChanged`
+  resets the tally to zero when a session starts and, on the true->false edge, fires one
+  `notify-send` summary ("N notifications were held while DND was on") when the count is
+  nonzero — never a replay of every held notification, which is the flood DND exists to
+  prevent.
+- **The bar indicator lives on the bell, not a second control**
+  (`components/bar/NotificationBell.qml`) — a `cod-bell_slash` glyph, dimmed to
+  `Theme.subtext`, with the tooltip appending `· DND <status>`. Per-category badges are still
+  their own story; do not grow this widget past DND.
+- **Fullscreen-as-DND needed no new mechanism.** `state()` already exposes `fullscreen`
+  (`Hyprland.focusedWorkspace.hasFullscreen`), so "quiet while fullscreen" is a one-rule
+  addition today (`notifications.example.lua`'s "fullscreen: only criticals pop") — confirmed
+  during notif-dnd-core rather than built as a mode. Screenshare/recording awareness,
+  redirect-instead-of-suppress and an explicit fullscreen "mode" stay deferred to the parent
+  story (`Roadmap/Stories/quickshell-notif-dnd`): the screenshare open question (portal session
+  state vs polling for capture clients) is unresolved, and guessing a detection method is out of
+  scope for this slice.
 
 ### Actions, prompts & snooze (story: notif-actions — BUILT)
 

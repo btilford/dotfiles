@@ -42,7 +42,12 @@
     "        (QS_NOTIFY_DB overrides the path). Retention is age AND count, whichever bites",
     "        first; 0 on either turns that limit off. Query it from anywhere, no shell needed:",
     "        sqlite3 -readonly ~/.local/share/quickshell/notifications.db \\",
-    "          \"SELECT received_at, app_name, summary FROM notifications ORDER BY received_at DESC LIMIT 20;\""
+    "          \"SELECT received_at, app_name, summary FROM notifications ORDER BY received_at DESC LIMIT 20;\"",
+    "dnd.quietHours: scheduled Do Not Disturb, OFF by default. HH:MM 24h clock; start > end",
+    "        wraps past midnight (23:00 -> 07:00). Manual toggle needs no config: `qs ipc call",
+    "        notifications dnd` (keybind: SUPER+n then z). Suppressed notifications are still",
+    "        recorded and land in the drawer — DND never drops one. A Lua rule reading `s.dnd`",
+    "        can let a source through anyway; see notifications.example.lua."
   ],
   "preset": "right-center",
   "placement": {
@@ -91,6 +96,13 @@
   "collapse": {
     "home": "bar",
     "maxPills": 3
+  },
+  "dnd": {
+    "quietHours": {
+      "enabled": false,
+      "start": "23:00",
+      "end": "07:00"
+    }
   },
   "drawer": {
     "mode": "panel",
