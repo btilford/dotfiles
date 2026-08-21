@@ -1,0 +1,9 @@
+# A package-local .stow-local-ignore REPLACES stow's built-in list (which covers
+# README.*), it does not add to it — so README.* has to be restated here.
+README.*
+
+# terminator's OWN backup of config, written by terminator when it rewrites
+# preferences through the stow symlink. Nothing in this repo reads it and
+# nothing needs it to exist, so it is the "excluded" tier from CLAUDE.md
+# ("Files the repo does not own"): untracked, unstowed, owner-managed.
+config\.bak

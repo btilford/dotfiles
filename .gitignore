@@ -76,3 +76,11 @@ ghostty/.config/ghostty/wallust.conf
 fish/.config/fish/fish_variables
 fish/.config/fish/functions/wt.fish
 fish/.config/fish/completions/wt.fish
+
+# terminator writes its own backup of config through the stow symlink whenever
+# preferences change in its GUI. Nothing here reads it and nothing needs it to
+# exist — the "excluded" tier, so the owner keeps the path. It was tracked from
+# the initial nix->stow import (2c93cd6) and never updated since. Untracking the
+# tip does NOT remove the one historical blob, which is benign: an empty
+# terminator skeleton, no credentials. See docs/publish-audit.md.
+terminator/.config/terminator/config.bak
