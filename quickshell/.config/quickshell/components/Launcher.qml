@@ -413,8 +413,22 @@ PanelWindow {
         }
 
         if (m === "files") {
-            // handled by FolderListModel below; mirror into results for uniform nav
-            out = root.rankGroup(fileResults(), "file", q);
+            // Handled by FolderListModel below; mirrored into results for uniform nav.
+            //
+            // TWO SUB-GROUPS, directories first. FolderListModel already sorts that way
+            // (sortField: Type), and ranking the mixed list as one group would undo it: a
+            // directory can never carry a score, since navigation is not a selection, so any
+            // file with history would be hoisted above every folder in the directory. Opening
+            // `files` in ~ would put a once-opened notes.md above Documents/ and Downloads/,
+            // which is a navigation regression dressed as a ranking feature.
+            const fileRows = fileResults();
+            const dirRows = [];
+            const plainRows = [];
+            for (var fi = 0; fi < fileRows.length; fi++)
+                (fileRows[fi].isDir ? dirRows : plainRows).push(fileRows[fi]);
+            // Directories still go through rankGroup so a typed query orders them by match
+            // quality; with no query they have no score and no pin and come back untouched.
+            out = root.rankGroup(dirRows, "file", q).concat(root.rankGroup(plainRows, "file", q));
         }
 
         if (m === "emoji") {
