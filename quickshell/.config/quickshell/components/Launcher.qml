@@ -125,6 +125,16 @@ PanelWindow {
     }
     Component.onCompleted: pathProc.running = true
 
+    // The store answers asynchronously. A launcher opened in the first moments of a session
+    // would otherwise show the pre-history order until the next keystroke moved it.
+    Connections {
+        target: LauncherStore
+        function onChanged() {
+            if (root.visible)
+                root.refresh();
+        }
+    }
+
     // ---- effective query (strip mode prefix) ----
     function effectiveQuery() {
         let q = query;
@@ -245,6 +255,101 @@ PanelWindow {
             wallpaperProc.running = true;
     }
 
+    // ---- ranking ----
+    //
+    // The rule differs by whether a query is typed, and that split IS the design. With nothing
+    // typed there is nothing to match on, so history is the whole signal; the first keystroke
+    // hands control straight back to the matcher, so one stray launch can never sit above what
+    // the user actually typed for. The two comparators are kept apart on purpose — collapsing
+    // them into one is how the recency pin leaks into a query.
+    //
+    // SORTED PER GROUP, NEVER ACROSS THE RESULT SET. refresh() pushes each kind's rows in turn
+    // and combi pushes apps and then `run:` fallback rows. A single global sort would let a hot
+    // run entry displace the app list, which is not what combi is.
+
+    // Match quality of a label against the typed query: 0 exact, 1 prefix, 2 word boundary,
+    // 3 substring, 4 subsequence, 5 no match on the label at all. 5 is not "not a result" — the
+    // row is here because something else about it matched (an app's keywords, a file's path), so
+    // it sorts last rather than being dropped.
+    function matchTier(label, q) {
+        const s = String(label || "").toLowerCase();
+        if (s === q)
+            return 0;
+        if (s.indexOf(q) === 0)
+            return 1;
+        const at = s.indexOf(q);
+        if (at > 0 && " -_./:()[]".indexOf(s.charAt(at - 1)) >= 0)
+            return 2;
+        if (at > 0)
+            return 3;
+        // subsequence, the same shape NotifyDrawer.matches() uses: "bldfl" finds "Build failed"
+        var i = 0;
+        for (var c = 0; c < s.length && i < q.length; c++)
+            if (s.charAt(c) === q.charAt(i))
+                i++;
+        return i === q.length ? 4 : 5;
+    }
+
+    // Order one group in place. Reads LauncherStore's in-memory map and nothing else — no query,
+    // no subprocess, nothing that can block. This runs on every keystroke.
+    //
+    // The last tiebreak is the row's INCOMING position, not a fresh localeCompare. Incoming
+    // order is already the order this group has today — alphabetical for apps, source order for
+    // emoji/glyphs/icons, FolderListModel's for files — so never-used rows keep exactly the
+    // order they have now, and a group of several thousand icons costs no string collation at
+    // all on a path that runs per keystroke.
+    function rankGroup(rows, kind, q) {
+        if (!rows.length)
+            return rows;
+        // The pin does not exist while a query is typed.
+        const pin = q.length ? "" : LauncherStore.pinFor(kind);
+        const keyed = [];
+        var reorder = false;
+        for (var i = 0; i < rows.length; i++) {
+            const key = root.selectionKey(rows[i]);
+            const score = key ? LauncherStore.scoreOf(kind, key) : 0;
+            const tier = q.length ? root.matchTier(rows[i].label, q) : 0;
+            const pinned = (pin.length && key === pin) ? 1 : 0;
+            if (score > 0 || pinned || tier !== 0)
+                reorder = true;
+            keyed.push({
+                row: rows[i],
+                at: i,
+                tier: tier,
+                score: score,
+                pin: pinned
+            });
+        }
+        // Nothing in this group has history and nothing separates it by match quality: leave the
+        // array alone rather than paying for a sort that cannot change anything.
+        if (!reorder)
+            return rows;
+
+        if (q.length)
+            // matchTier first, and score only breaks ties WITHIN a tier
+            keyed.sort(function (a, b) {
+                if (a.tier !== b.tier)
+                    return a.tier - b.tier;
+                if (a.score !== b.score)
+                    return b.score - a.score;
+                return a.at - b.at;
+            });
+        else
+            // the last pick for this tab, then decayed usage for the entire rest of the list
+            keyed.sort(function (a, b) {
+                if (a.pin !== b.pin)
+                    return b.pin - a.pin;
+                if (a.score !== b.score)
+                    return b.score - a.score;
+                return a.at - b.at;
+            });
+
+        const out = [];
+        for (var j = 0; j < keyed.length; j++)
+            out.push(keyed[j].row);
+        return out;
+    }
+
     // ---- build results ----
     function refresh() {
         const m = effectiveMode();
@@ -260,20 +365,25 @@ PanelWindow {
                 const hay = (d.name + " " + (d.genericName || "") + " " + (d.comment || "")).toLowerCase();
                 return hay.includes(q);
             }).sort((a, b) => a.name.localeCompare(b.name));
+            // Alphabetical FIRST, then ranked: the alphabetical order is what rankGroup falls
+            // back to for every app with no history, so it is still what an untouched list reads.
+            const appRows = [];
             for (const d of apps)
-                out.push({
+                appRows.push({
                     kind: "app",
                     label: d.name,
                     sub: d.genericName || d.comment || "",
                     icon: d.icon || "",
                     entry: d
                 });
+            out = out.concat(root.rankGroup(appRows, "app", q));
         }
 
         if (m === "run" || (m === "combi" && q.length)) {
             const bins = root.pathBins.filter(b => q.length ? b.toLowerCase().includes(q) : false).slice(0, 50);
+            const runRows = [];
             for (const b of bins)
-                out.push({
+                runRows.push({
                     kind: "run",
                     label: b,
                     sub: "run",
@@ -282,28 +392,31 @@ PanelWindow {
                 });
             // freeform: always allow running exactly what was typed
             if (q.length && !bins.includes(effectiveQuery()))
-                out.push({
+                runRows.push({
                     kind: "run",
                     label: effectiveQuery(),
                     sub: "run command",
                     icon: "",
                     cmd: effectiveQuery()
                 });
+            // its own group, appended AFTER the apps — in combi the app list keeps the top
+            out = out.concat(root.rankGroup(runRows, "run", q));
         }
 
         if (m === "files") {
             // handled by FolderListModel below; mirror into results for uniform nav
-            out = fileResults();
+            out = root.rankGroup(fileResults(), "file", q);
         }
 
         if (m === "emoji") {
             if (!root.emojiData.length) {
                 loadEmoji(); // async; re-runs refresh when loaded
             } else {
+                const emojiRows = [];
                 for (const em of root.emojiData) {
                     if (q.length && (em.n + " " + em.k).toLowerCase().indexOf(q) < 0)
                         continue;
-                    out.push({
+                    emojiRows.push({
                         kind: "emoji",
                         label: em.n,
                         sub: em.g + (em.k.length ? " · " + em.k : ""),
@@ -311,6 +424,7 @@ PanelWindow {
                         char: em.e
                     });
                 }
+                out = out.concat(root.rankGroup(emojiRows, "emoji", q));
             }
         }
 
@@ -318,11 +432,12 @@ PanelWindow {
             if (!root.glyphData.length) {
                 loadGlyphs(); // async; re-runs refresh when loaded
             } else {
+                const glyphRows = [];
                 for (const gl of root.glyphData) {
                     // group is searchable too ("nerd md", "math", ...)
                     if (q.length && (gl.n + " " + gl.k + " " + gl.g).toLowerCase().indexOf(q) < 0)
                         continue;
-                    out.push({
+                    glyphRows.push({
                         kind: "glyph",
                         label: gl.n,
                         sub: gl.g + (gl.k.length ? " · " + gl.k : ""),
@@ -330,6 +445,7 @@ PanelWindow {
                         char: gl.e
                     });
                 }
+                out = out.concat(root.rankGroup(glyphRows, "glyph", q));
             }
         }
 
@@ -337,10 +453,11 @@ PanelWindow {
             if (!root.iconData.length) {
                 loadIcons(); // async; re-runs refresh when loaded
             } else {
+                const iconRows = [];
                 for (const ic of root.iconData) {
                     if (q.length && ic.n.toLowerCase().indexOf(q) < 0)
                         continue;
-                    out.push({
+                    iconRows.push({
                         kind: "icon",
                         label: ic.n,
                         sub: ic.p,
@@ -348,6 +465,7 @@ PanelWindow {
                         path: ic.p
                     });
                 }
+                out = out.concat(root.rankGroup(iconRows, "icon", q));
             }
         }
 
@@ -366,10 +484,14 @@ PanelWindow {
                         preview: "",
                         random: true
                     });
+                // The `. random` row above is pushed OUTSIDE the ranked group on purpose: it
+                // has no history of its own (what it records is whatever file it lands on), and
+                // rofi parity puts it first.
+                const wallRows = [];
                 for (const wp of root.wallpaperData) {
                     if (q.length && wp.n.toLowerCase().indexOf(q) < 0)
                         continue;
-                    out.push({
+                    wallRows.push({
                         kind: "wallpaper",
                         label: wp.n,
                         sub: wp.p,
@@ -379,6 +501,7 @@ PanelWindow {
                         random: false
                     });
                 }
+                out = out.concat(root.rankGroup(wallRows, "wallpaper", q));
             }
         }
 
