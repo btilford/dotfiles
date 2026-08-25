@@ -28,7 +28,7 @@ Modes:
   --live     this machine's agent configs, which are untracked by design — the
              audit. Nothing here can be committed, but it is where the real
              credentials sit, so it is worth being able to check.
-  FILE...    scan the named files — what lefthook passes as {staged_files}, so a
+  FILE...    scan the named files — what hk passes as the selected files, so a
              commit, a tree and a machine all go through the same code.
 """
 
@@ -262,7 +262,7 @@ def live_files() -> list:
 def main() -> int:
     args = sys.argv[1:]
     live = "--live" in args
-    # Explicit paths win over both modes, so lefthook can hand this {staged_files}
+    # Explicit paths win over both modes, so hk can hand this its file list
     # and the same code gates a commit, a tree and a machine.
     explicit = [Path(a) for a in args if not a.startswith("-")]
     if explicit:

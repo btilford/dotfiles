@@ -289,7 +289,7 @@ check_ip() {
     # IP-shaped literals — the allowlist and the patterns themselves — and
     # would otherwise fail its own check. Exempting the whole file instead
     # would blind it to a real address parked here, which is the same mistake
-    # as a `paths` allowlist in .gitleaks.toml (see the repo CLAUDE.md).
+    # as a `paths` allowlist in .betterleaks.toml (see the repo CLAUDE.md).
     # A marker is one visible token on one line, and shows up in review.
     case "$text" in *ip-gate-allow*) continue ;; esac
 

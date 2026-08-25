@@ -3,8 +3,8 @@ stages: [lint]
 # NOTE: the self-hosted runner cannot reach api.github.com (rate-limited) or
 # sigstore.dev, so mise's aqua/ubi tool installs fail there. CI therefore uses
 # official tool-bundled images for the highest-value gates. The remainder
-# (json/nu/fish/lua + formatters) runs locally via `mise run lint` and the
-# lefthook pre-commit hook, and on GitHub Actions via .github/workflows/lint.yml,
+# (json/nu/fish/lua + formatters) runs locally via `mise run lint` and the hk
+# pre-commit hook, and on GitHub Actions via .github/workflows/lint.yml,
 # where GitHub IS reachable and mise can install the full toolchain.
 #
 # Images are pinned by digest, not by tag. `:stable` and `:latest` are moving
@@ -58,14 +58,15 @@ lint:private:
 lint:secrets:
   stage: lint
   image:
-    # zricethezav/gitleaks:latest
-    name: zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+    # ghcr.io/betterleaks/betterleaks:v1.8.1 — betterleaks replaced gitleaks on
+    # 2026-08-24 (same author; reads this repo's .betterleaks.toml unchanged).
+    name: ghcr.io/betterleaks/betterleaks@sha256:8b9d12db5e11ca798029da44923503de5d8cfff6992cffaaa6722fbeb9fc7797
     entrypoint: [""]
   script:
     # --redact: a CI job log is a published surface, so a finding must name the
     # file and line without printing the value. Same asymmetry no-local-values.sh
     # already uses (--all withholds the line, staged mode prints it).
-    - gitleaks dir . -c .gitleaks.toml --no-banner --redact
+    - betterleaks dir . -c .betterleaks.toml --no-banner --redact
 
 # Verification, not detection. MANUAL and allow_failure on purpose: verifying a
 # credential means outbound calls to arbitrary providers, and this runner cannot

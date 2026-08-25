@@ -184,9 +184,15 @@ arch = { packages = [
   "git-credential-manager",
   "git-delta",
   "git-spice-bin",
+  # NOTE: no betterleaks here (it replaced gitleaks 2026-08-24). It is in no
+  # Arch repo, and aur/betterleaks builds from the git HEAD with a pkgver()
+  # that queries the GitHub API at build time — an unpinned source, which this
+  # repo does not take. Install it with mise instead:
+  #   mise use -g betterleaks@latest
+  # The global pre-commit hook no-ops without it, so this is not optional on a
+  # machine that commits.
   "github-cli",
   "gitlab-runner",
-  "gitleaks",
   "glab",
   "glances",
   "glib2-devel",

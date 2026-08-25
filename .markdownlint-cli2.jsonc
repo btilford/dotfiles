@@ -10,7 +10,7 @@
     // Table pipe alignment. Off TEMPORARILY, not on principle: prettier fixes it
     // completely (verified — README went from 9 MD060 errors to 0), but prettier
     // has never been run over this repo, so 15 markdown files would reformat. With
-    // lefthook now actually installed and failing a commit on any remaining
+    // the hook manager now actually installed and failing a commit on any remaining
     // markdownlint error, leaving MD060 on forces that unrelated churn into every
     // commit that happens to touch a doc.
     //
@@ -19,13 +19,13 @@
     "MD060": false
   },
   // No "globs" here on purpose. markdownlint-cli2 treats a configured `globs` as
-  // the file set and IGNORES the paths given on the command line, so lefthook's
-  // `--fix {staged_files}` silently linted the WHOLE repo — every commit touching
+  // the file set and IGNORES the paths given on the command line, so the hook's
+  // `--fix <files>` silently linted the WHOLE repo — every commit touching
   // any markdown then failed on unrelated pre-existing debt in other READMEs.
   // Verified: with `globs`, `markdownlint-cli2 good.md` still reports errors from
   // bad.md; without it, only the passed file is linted.
   //
-  // Both callers pass their own file list: lefthook `{staged_files}`, and
+  // Both callers pass their own file list: hk `{{files}}`, and
   // `mise run fmt:md` uses `$(git ls-files '*.md')` for a whole-repo pass. A bare
   // `markdownlint-cli2` with no arguments now checks nothing — pass files.
   // graphify-out/ is gone from the repo (dropped in this branch), so its ignore

@@ -1,4 +1,4 @@
-# Findings gitleaks has already seen, triaged, and that are DEALT WITH — every
+# Findings betterleaks has already seen, triaged, and that are DEALT WITH — every
 # credential below was revoked or deleted on 2026-08-01 (see the inventory in the
 # vault: rotate-dotfiles-leaked-credentials). They stay in git history until the
 # next filter-repo pass; ignoring them here is what makes
@@ -13,9 +13,9 @@
 #      reduction, never risk acceptance.
 #   2. NEVER add a fingerprint to make a scan pass. If a new finding appears,
 #      rotate it and write it down; the file is not a snooze button.
-#   3. This is fingerprints, not paths. A `paths` allowlist in .gitleaks.toml
+#   3. This is fingerprints, not paths. A `paths` allowlist in .betterleaks.toml
 #      matches in every scan mode and would blind history scans to everything a
-#      path ever held (see the comment at the bottom of .gitleaks.toml). A
+#      path ever held (see the comment at the bottom of .betterleaks.toml). A
 #      fingerprint pins one finding in one commit and cannot over-reach.
 #   4. Delete the entries for a file once filter-repo has removed the blobs —
 #      a stale fingerprint is a claim that something was checked when it wasn't.

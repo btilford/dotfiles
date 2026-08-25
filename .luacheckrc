@@ -9,7 +9,7 @@
 
 std = "lua54"
 -- Line length is stylua's, not luacheck's. .stylua.toml sets column_width = 100
--- and lefthook runs stylua on staged files, so wrapping is already gated by the
+-- and hk runs stylua on staged files, so wrapping is already gated by the
 -- formatter. luacheck's own 120-char check would enforce a second, different
 -- limit against the repo's un-formatted backlog (see dotfiles-format-lint-cleanup)
 -- — 43 hits today, every one of them a line stylua will rewrap when that cleanup

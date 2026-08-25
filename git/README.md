@@ -62,7 +62,7 @@ to this package — its path varies per machine and package manager.
 ## Hooks: `templateDir`, not `core.hooksPath`
 
 New clones get a `post-checkout` (git-spice auto-tracking) and a `pre-commit`
-(gitleaks) hook. Two rules behind that:
+(betterleaks) hook. Two rules behind that:
 
 - **`init.templateDir` must never point at `~/.config/git/templates`.** Git copies
   template entries *as symlinks, preserving the relative target*, and stow makes

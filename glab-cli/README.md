@@ -12,7 +12,7 @@ Two aliases: `ci` → `pipeline ci`, `co` → `mr checkout`.
 
 `glab auth login` writes **auth tokens** into `~/.config/glab-cli/config.yml`, so
 it is excluded three ways — package `.stow-local-ignore`, `.gitignore`, and an
-allowlist in `.gitleaks.toml` (needed because `gitleaks dir` walks the working
+allowlist in `.betterleaks.toml` (needed because `betterleaks dir` walks the working
 directory without honouring `.gitignore`, and would otherwise fail the local scan
 on a real token forever).
 

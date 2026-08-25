@@ -1,0 +1,43 @@
+#!/usr/bin/env sh
+# Config-based git hook shim for hk (https://hk.jdx.dev).
+#
+# Registered once per machine in git/.config/git/hk.gitconfig as
+# `hook.hk-<event>.command`, so every repo carrying an hk.pkl runs its hooks
+# with no per-clone `hk install`. Read that file for why this indirection
+# exists; the short version is that `hk install --global` writes an absolute,
+# VERSION-PINNED mise install path into ~/.gitconfig —
+#   ~/.local/share/mise/installs/hk/1.56.1/hk run pre-commit --from-hook --staged
+# — and ~/.gitconfig is a stow symlink into this repo, so that path would be
+# committed and would break on the next `mise upgrade` and on every other
+# machine. This resolves hk at run time instead.
+#
+# Usage (from git config): hk-git-hook <event> [hk flags...]
+# git appends the hook's own arguments after those, e.g. the commit message
+# file for commit-msg, so everything is forwarded verbatim.
+set -u
+
+event=${1:-}
+if [ -z "$event" ]; then
+  echo "hk-git-hook: no hook event given" >&2
+  exit 1
+fi
+shift
+
+# Kill switch, matching the one `hk install` generates: HK=0 git commit ...
+[ "${HK:-1}" = "0" ] && exit 0
+
+# Not on PATH in a login-less context (a GUI client, an editor's git
+# integration): fall back to the mise shim, which resolves the active version.
+if ! command -v hk > /dev/null 2>&1; then
+  shim="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/hk"
+  if [ -x "$shim" ]; then
+    exec "$shim" run "$event" --from-hook "$@"
+  fi
+  # Exit 0, not 1. Unlike the secret gate this is a convenience runner: a
+  # machine mid-bootstrap, with the config stowed before the tool is installed,
+  # must still be able to commit. The secret scan itself does not depend on hk —
+  # ~/.config/git/hooks/pre-commit gates every repo whether hk is present or not.
+  exit 0
+fi
+
+exec hk run "$event" --from-hook "$@"

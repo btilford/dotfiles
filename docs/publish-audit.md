@@ -3,6 +3,12 @@
 Audit date: **2026-08-20**. Base commit: `3af445f` (`origin/master`).
 Tooling: `git 2.55.0`, `gitleaks 8.30.1`.
 
+> **Historical record.** The commands and file names below are reproduced as they
+> were run on the audit date. On 2026-08-24 the scanner became `betterleaks` and
+> the config was renamed `.betterleaks.toml` / `.betterleaksignore`, and lefthook
+> was replaced by hk (`hk.pkl`). Re-run anything here with the new names; the
+> flags used are unchanged. This document is deliberately not rewritten.
+
 This document records what an audit of this repository found before publication
 to a public mirror. It reports findings. It does not remove them. A committed
 credential, hostname or identity is a rotate-and-purge decision for a person,

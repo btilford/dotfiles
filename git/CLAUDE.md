@@ -21,11 +21,13 @@ The `git` stow package provides the complete git configuration for all machines.
 | `flow.gitconfig` | Branch prefix conventions for git-flow (`feature-`, `release-`, `hotfix-`, `bug-`, `poc-`, `spike-`). |
 | `shell.gitconfig` | Color output, rebase sequence editor (`interactive-rebase-tool`), and notes refs config (`+refs/notes/*:refs/notes/*` on fetch and push — do not remove). **`push = HEAD` must stay alongside the notes push refspec** — see below. |
 | `spice.gitconfig` | git-spice: `spice.log.*`, `spice.submit.navigationComment`, `spice.branchDelete.restack`. Forge URLs are machine-specific and live in `~/.gitconfig.local`. |
+| `hk.gitconfig` | Registers hk as config-based hooks (`hook.hk-pre-commit`, `hook.hk-commit-msg`; git 2.54+), so every repo with an `hk.pkl` runs its hooks with no per-clone install. Hand-written, not generated — see below. |
 | `templates/hooks/post-checkout`, `templates/hooks/pre-commit` | Identical shims installed into new repos by `init.templateDir`. They derive the hook name from `$0` and delegate to `hooks/<name>`. |
 | `hooks/post-checkout` | Real logic: auto-init + auto-track branches with git-spice. Exits 0 on every path. |
-| `hooks/pre-commit` | Real logic: `gitleaks protect --staged`, using the repo's own `.gitleaks.toml` when present. Must be able to fail. |
+| `hooks/pre-commit` | Real logic: `betterleaks git --staged`, using the repo's own `.betterleaks.toml` (or `.gitleaks.toml`) when present. Stands down in a repo whose `hk.pkl` runs betterleaks. Must be able to fail. |
 | `.local/bin/git-template-sync` | Dereferences `templates/` into `~/.local/share/git-template` (real files — see below). |
 | `.local/bin/git-spice-hook-install` | Retrofits hooks into already-cloned repos; chains an incumbent `post-checkout` instead of clobbering it. |
+| `.local/bin/hk-git-hook` | Shim the `hook.hk-*.command` entries point at. Resolves `hk` at run time (PATH, then the mise shim) and no-ops when it is absent. |
 | `web.gitconfig` | Browser (`brave-browser`) and instaweb httpd. |
 | `dirs.gitconfig` | `includeIf "gitdir:..."` rules that route each working directory to the correct identity profile. |
 | `profiles/default.gitconfig` | **Not in this repo** — owned by the private dotfiles repo (real name, email, signing key). `default.example.gitconfig` here shows the shape. |
@@ -132,8 +134,30 @@ The `dirs.gitconfig` file contains some legacy entries under the `# Old layout` 
 
 `core.gitconfig` sets `init.templateDir = ~/.local/share/git-template`, so every
 new clone or `git init` gets a `post-checkout` hook (git-spice auto-tracking) and
-a `pre-commit` hook (gitleaks). Hooks live in `$GIT_COMMON_DIR/hooks`, shared by
+a `pre-commit` hook (betterleaks). Hooks live in `$GIT_COMMON_DIR/hooks`, shared by
 all worktrees of a repo, so one install covers every worktree whatever created it.
+
+### hk runs from git config, alongside these — not instead of them
+
+`hk.gitconfig` registers hk with git's own multi-hook mechanism,
+`hook.<friendly-name>.command` + `.event` (git 2.54+). Unlike `core.hooksPath`
+it replaces nothing: traditional `.git/hooks/*` still run, so the template hooks
+above are unaffected. A repo without an `hk.pkl` is a silent no-op, which is what
+makes it safe to register globally.
+
+Three rules:
+
+- **The friendly-name must not be a hook event name.** `[hook "pre-commit"]` is a
+  fatal ambiguity with `hook.<event>.enabled` — every git command in the repo
+  fails. Hence `hk-pre-commit` / `hk-commit-msg`.
+- **Both surfaces fire, so they must not overlap.** `hooks/pre-commit` exits early
+  when the repo's `hk.pkl` names betterleaks; otherwise staged content would be
+  scanned twice. It greps for the scanner rather than just testing for the file,
+  so a repo that adopts hk *without* a scanner step keeps the gate.
+- **Not written by `hk install --global`.** That command bakes an absolute,
+  version-pinned mise path into `~/.gitconfig`, which is a stow symlink into this
+  repo — the path would be committed and would break on the next `mise upgrade`
+  and on every other machine. `.local/bin/hk-git-hook` resolves hk at run time.
 
 ### Why the template dir is generated instead of stowed
 
@@ -173,9 +197,9 @@ installer renames the incumbent to `post-checkout.chained` and writes a wrapper
 that runs ours first, then it. A tool that reinstalls its own hook will clobber
 the wrapper and orphan the `.chained` file; re-running the installer restores it.
 
-**`pre-commit` is never chained.** lefthook and the pre-commit framework already
-run gitleaks in repos configured for them (this repo does, via `lefthook.yml`), so
-chaining would scan twice. The installer reports and skips.
+**`pre-commit` is never chained.** hk and the pre-commit framework already run a
+secret scan in repos configured for them (this repo does, via the betterleaks
+step in `hk.pkl`), so chaining would scan twice. The installer reports and skips.
 
 ## `remote.origin.push` replaces the default — it does not add to it
 
@@ -243,7 +267,7 @@ against gitlab.com and a self-hosted remote then reports `gitlab: not logged in`
 
 **GCM belongs in `~/.gitconfig.local`, not here.** Never add a `git-credential-manager` helper to any file in this package. It is machine-specific and must remain outside the dotfiles.
 
-**`config.yml` in glab-cli must never contain tokens.** The `glab-cli` stow package stows `aliases.yml` only. `config.yml` is excluded via `.stow-local-ignore` because `glab auth login` writes auth tokens into it. There is deliberately **no tracked template** of it — `glab auth login` writes the file itself, and `mise run glab:config` applies every setting worth version-controlling. `config.yml` is also gitignored and allowlisted in `.gitleaks.toml`, since `gitleaks dir` walks the working directory without honouring `.gitignore` and would otherwise fail the local scan on a real token forever. Never commit a `config.yml` that contains a real token.
+**`config.yml` in glab-cli must never contain tokens.** The `glab-cli` stow package stows `aliases.yml` only. `config.yml` is excluded via `.stow-local-ignore` because `glab auth login` writes auth tokens into it. There is deliberately **no tracked template** of it — `glab auth login` writes the file itself, and `mise run glab:config` applies every setting worth version-controlling. `config.yml` is also gitignored and allowlisted in `.betterleaks.toml`, since `betterleaks dir` walks the working directory without honouring `.gitignore` and would otherwise fail the local scan on a real token forever. Never commit a `config.yml` that contains a real token.
 
 **IntelliJ tool paths in `commands.gitconfig` are macOS-specific.** The `difftool "intellij"` and `mergetool "intellij"` entries reference `/Applications/IntelliJ IDEA.app/...`. These are left as-is because they are not active on Linux (the active diff tool is `nvimdiff`). Do not change them to relative paths — the format is required by the application launcher.
 

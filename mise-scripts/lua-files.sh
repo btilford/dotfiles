@@ -6,7 +6,7 @@
 # required to stay aligned (see CLAUDE.md, "Linting & CI"); sharing the
 # selector makes that structural instead of a thing to remember.
 #
-# Two deliberate exclusions, kept in step with .styluaignore and lefthook's
+# Two deliberate exclusions, kept in step with .styluaignore and hk's
 # stylua command:
 #
 #   hyprland/.config/hypr/lua/colors.lua

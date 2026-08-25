@@ -51,7 +51,7 @@ Three ways in, one implementation:
 | Invocation | Scope |
 |---|---|
 | `mise run lint:mcp-config` | tracked content (`git ls-files`) — part of `mise run lint` |
-| `lefthook` pre-commit | `{staged_files}` — blocks the commit |
+| `hk` pre-commit | the files hk selected — blocks the commit |
 | `mise run audit:mcp-config` | `--live`: this machine's agent configs, which are untracked by design |
 
 **It never prints a value** — only file, line and key. Printing the literal would
@@ -75,9 +75,9 @@ than not seeing anchors and flow maps.
 
 ## Three scripts have a second caller
 
-`no-local-values.sh` (lefthook **and** CI), `shell-files.sh` and `yaml-files.sh`
+`no-local-values.sh` (hk **and** CI), `shell-files.sh` and `yaml-files.sh`
 (both CI jobs). The directory name says who *owns* them, not who may run them —
-when moving or renaming one, grep `lefthook.yml` and `.gitlab-ci.yml` as well as
+when moving or renaming one, grep `hk.pkl` and `.gitlab-ci.yml` as well as
 `mise.toml`.
 
 ## Why file selection is shared

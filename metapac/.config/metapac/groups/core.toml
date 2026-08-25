@@ -31,7 +31,7 @@ cargo = { packages = [
 # interpreter for this very list.
 bun = { packages = [
   "hunkdiff",
-  # Used by `mise run fmt:md` and the lefthook pre-commit hook.
+  # Used by `mise run fmt:md` and the hk pre-commit hook.
   "markdownlint-cli2",
   # nvim node host + treesitter, and the dev CLIs nvim drives (conform/lint/LSP).
   # Migrated off npm -g; both platforms.

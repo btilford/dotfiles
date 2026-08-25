@@ -110,10 +110,10 @@ install_one() {
 
     # Someone else owns this hook.
     if [ "$name" = pre-commit ]; then
-      # Do not chain pre-commit. lefthook and the pre-commit framework
-      # already run gitleaks in repos configured for it (this repo does, via
-      # lefthook.yml), and chaining would run it twice.
-      echo "  ⚠ $repo — pre-commit belongs to another tool; left alone (no double gitleaks)"
+      # Do not chain pre-commit. hk and the pre-commit framework already run
+      # a secret scan in repos configured for it (this repo does, via the
+      # betterleaks step in hk.pkl), and chaining would run it twice.
+      echo "  ⚠ $repo — pre-commit belongs to another tool; left alone (no double scan)"
       continue
     fi
 

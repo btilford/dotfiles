@@ -13,6 +13,10 @@ brew = { packages = [
   "ast-grep",
   "atuin",
   "bat",
+  # Secret scanner. Replaced gitleaks 2026-08-24 — same author, drop-in on
+  # .betterleaks.toml / .gitleaksignore. Arch has no repo package and the AUR
+  # one builds from git HEAD, so there it comes from mise instead.
+  "betterleaks",
   # homebrew-core `bun`. NOT the mise backend: metapac runs backends in enum
   # order (Brew, Bun, Cargo, … Mise), so a bun declared under mise is installed
   # long after the bun backend has already tried to run `bun install --global`
@@ -51,7 +55,6 @@ brew = { packages = [
   "git-sizer",
   "git-spice",
   "git-town",
-  "gitleaks",
   "glab",
   "glow",
   "gnu-getopt",

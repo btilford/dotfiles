@@ -66,8 +66,9 @@ its `includeIf`. `dirs.gitconfig` has **no catch-all `includeIf`**, so on a work
 machine missing that block, repos under the work directory get no identity and
 commits fail outright.
 
-Three secrets were committed here before this rule existed and `gitleaks` scanned
-past all of them across the full history. `.gitleaks.toml` now carries a custom
+Three secrets were committed here before this rule existed and the scanner of the
+day (`gitleaks`) read past all of them across the full history. `.betterleaks.toml`
+now carries a custom
 rule for each shape — `npmrc-authtoken`, `google-app-password`,
 `bare-secret-export`. Don't remove one without a replacement.
 
@@ -670,10 +671,16 @@ at `~/.config/metapac/`; group files are the source of truth.
 - **Per-OS entries, not `core.toml`, when the backends differ.** `git-spice` is
   the worked example: AUR `git-spice-bin` in `desktop-arch.toml`, homebrew-core
   `git-spice` in `macos.toml`. No cargo crate exists (it is Go) and mise's
-  registry has no entry. `gitleaks` is the same shape — brew on macOS, `extra/`
-  on Arch — and is *also* pinned in `mise.toml` for the lint suite and CI. That
-  duplication is deliberate: a system-wide git hook cannot depend on a project's
-  mise toolchain.
+  registry has no entry. The secret scanner is the same shape, and is *also*
+  pinned in `mise.toml` for the lint suite and CI — that duplication is
+  deliberate, because a system-wide git hook cannot depend on a project's mise
+  toolchain. Since `betterleaks` replaced `gitleaks` (2026-08-24) the two OSes
+  diverge further: brew has `betterleaks`, Arch has no repo package at all, and
+  `aur/betterleaks` builds from git HEAD with a `pkgver()` that queries the
+  GitHub API at build time — an unpinned source this repo does not take. On Arch
+  it therefore comes from mise only: `mise use -g betterleaks@latest`, which is
+  **not optional**, because the global `pre-commit` hook no-ops without the
+  binary on PATH.
 
 Not managed by metapac, by design: nvim plugins (lazy.nvim + `lazy-lock.json`)
 and Mason's LSP/formatter tools (declared via `mason-tool-installer`); and
@@ -690,7 +697,7 @@ need interactive auth:
 
 ```bash
 gh extension install dlvhdr/gh-dash        # gh-dash (no package backend)
-mise run hooks                             # lefthook -> .git/hooks, PER CLONE
+mise run hooks                             # hk -> .git/hooks, PER CLONE (fallback)
 mise run setup:frozen                      # skip-worktree bits, PER CLONE (.stow-frozen)
 mise run setup:git-spice                   # git-spice: template, forge URL, auth, hooks
 glab auth login --hostname <host>          # then: mise run glab:config, PER CLONE
@@ -719,17 +726,37 @@ agent makes — command, cwd, exit code, duration — into the same history the 
 writes to. They need no server, which is why they are the one part of the atuin
 setup the work machine gets in full.
 
-**`mise run hooks` is per clone and nothing runs it for you.** This repo went a
-long time without it, so `lefthook.yml`'s formatters (shfmt, stylua, taplo,
-markdownlint) and its gitleaks command never fired on a commit — which is where
-the formatting backlog came from. `setup:git-spice` step 7 now flags a clone that
-is missing them.
+**`mise run hooks` is no longer the load-bearing step, but it still exists.**
+Under lefthook it was per clone and nothing ran it, so the formatters (shfmt,
+stylua, taplo, markdownlint) and the secret scan never fired on a commit — which
+is where the formatting backlog came from. hk (2026-08-24) removes that failure
+mode: `git/.config/git/hk.gitconfig` registers hk once as a **config-based hook**
+(`hook.hk-pre-commit.command` / `hook.hk-commit-msg.command`, git 2.54+), so any
+repo carrying an `hk.pkl` runs its hooks with no per-clone install, and a repo
+without one is a silent no-op. `mise run hooks` (`hk install`) remains the
+fallback for a git older than 2.54, or a machine whose user gitconfig is not
+ours; `setup:git-spice` step 7 checks for either.
 
-One interaction to know (verified on lefthook 2.1.10): `lefthook install`
-**renames an existing `pre-commit` to `pre-commit.old` and does not run it**, so
-it displaces the global gitleaks hook installed via `init.templateDir`. Harmless
-here because `lefthook.yml` runs the same gitleaks command itself; in a lefthook
-repo that does *not*, installing lefthook silently drops the secret gate.
+Four interactions to know:
+
+- **Config hooks do not displace `.git/hooks/*` — both run.** That is the
+  opposite of `lefthook install`, which renamed an existing `pre-commit` to
+  `pre-commit.old` and never ran it, silently displacing the global secret gate.
+  Here the `init.templateDir` hooks (git-spice `post-checkout`, betterleaks
+  `pre-commit`) keep working alongside hk.
+- **Which means the two would scan staged content twice.** The template
+  `pre-commit` hook therefore stands down when the repo has an `hk.pkl` that
+  *names* betterleaks. Testing for the file alone would drop the gate the moment
+  a repo adopted hk without a scanner step.
+- **Never name a `[hook "…"]` section after a hook event.** `[hook "pre-commit"]`
+  is a fatal ambiguity with `hook.<event>.enabled` and makes every git command in
+  that repo fail. Hence `hk-pre-commit` / `hk-commit-msg`.
+- **`hk install --global` is not used**, though it writes exactly these keys: it
+  bakes an absolute, version-pinned mise path
+  (`~/.local/share/mise/installs/hk/<version>/hk`) into `~/.gitconfig` — a stow
+  symlink into this repo — so the path would be committed, break on the next
+  `mise upgrade`, and be wrong on every other machine.
+  `git/.local/bin/hk-git-hook` resolves hk at run time instead.
 
 `mise-scripts/setup-git-spice.sh` (that task) is idempotent and does the checkable work
 itself — regenerating `~/.local/share/git-template`, verifying no symlink survived
@@ -775,10 +802,10 @@ from `scripts/`), so a top-level directory of shell files cannot be mistaken for
 config that gets stowed — every *other* top-level directory in this repo is a stow
 package. Nothing in it is stowed, and no stow package should reach into it.
 
-Three of them have a second caller by design — `no-local-values.sh` (lefthook +
-CI), `shell-files.sh` and `yaml-files.sh` (both CI jobs). The directory name says
-who *owns* them, not who may run them; when moving or renaming one, grep
-`lefthook.yml` and `.gitlab-ci.yml` as well as `mise.toml`.
+Three of them have a second caller by design — `no-local-values.sh` (hk + CI),
+`shell-files.sh` and `yaml-files.sh` (both CI jobs). The directory name says who
+*owns* them, not who may run them; when moving or renaming one, grep `hk.pkl` and
+`.gitlab-ci.yml` as well as `mise.toml`.
 
 **Three** surfaces run the same class of checks and must be kept as close as
 possible:
@@ -790,8 +817,8 @@ possible:
   toolchain. It additionally `apt install`s fish and lua-check, because
   `lint:fish` and `lint:lua` **self-skip when their tool is missing** and would
   otherwise report success while checking nothing.
-- **`.gitlab-ci.yml`** — a deliberate *subset*: shellcheck + gitleaks + yamllint,
-  via official tool-bundled images pinned by digest.
+- **`.gitlab-ci.yml`** — a deliberate *subset*: shellcheck + betterleaks +
+  yamllint, via official tool-bundled images pinned by digest.
 
 **GitLab diverges** because the self-hosted runner cannot reach
 `api.github.com` (rate-limited) or `sigstore.dev`, so mise's aqua/ubi installs
@@ -811,7 +838,7 @@ turn red without anything changing. Refresh an action with
 
 **Sync rule:** whenever you change one of these three files, evaluate the other
 two and keep the shared gates aligned — same shellcheck flags/excludes/severity,
-same gitleaks config, same allowlists. If you add a gate to `mise run lint`, it
+same betterleaks config, same allowlists. If you add a gate to `mise run lint`, it
 reaches GitHub for free; decide separately whether GitLab can carry it, given
 the GitHub/sigstore constraint, rather than letting the surfaces drift.
 
@@ -844,7 +871,7 @@ samples — they need linting like anything else.
 content contains a *value* from `~/.config/dotfiles/local.env` (reading them at run
 time, so no private string is ever committed as a denylist — only the variable
 name is printed) or a generic private pattern (RFC1918, `/home/<user>`, `desc:`
-serials, US phone numbers). Runs in lefthook pre-commit, `mise run lint`, GitLab CI, and GitHub
+serials, US phone numbers). Runs in the hk pre-commit and commit-msg hooks, `mise run lint`, GitLab CI, and GitHub
 Actions. CI has no `local.env`, which is why the pattern half exists; and CI is the
 real enforcement since `--no-verify` skips the hook.
 
@@ -935,18 +962,28 @@ The fix is two-part and neither part is in this repo:
 trailer) and is deliberately exempt — `no-reply@` and `users.noreply.*` addresses
 exist to be published, so flagging them would fight the fix.
 
-**gitleaks now has a third surface:** the global `pre-commit` hook
-(`git/.config/git/hooks/pre-commit`), on top of `mise run lint:secrets` and CI.
-It stays aligned by *using the repo's own `.gitleaks.toml` when one exists*, so
-each repo's config applies, rather than carrying a copy. Scopes differ on
-purpose — the hook scans staged content (`gitleaks git --staged`). In this
-repo `lefthook.yml` already owns `pre-commit` and runs the same gitleaks command,
-so the template hook is skipped here and does not double-run.
+**The scanner is betterleaks since 2026-08-24.** Same author as gitleaks, MIT,
+and drop-in on everything this repo relied on: it reads `.betterleaks.toml`
+falling back to `.gitleaks.toml`, reads `.betterleaksignore` / `.gitleaksignore`,
+honours `gitleaks:allow`, and keeps the fingerprint format — the ignore file
+carried over untouched at the rename, and a full-history scan reported the same
+outstanding four findings. It is pure Go (no Hyperscan/CGO), scans git in
+parallel, and filters candidates with a BPE token-efficiency measure instead of
+Shannon entropy.
 
-**Use `gitleaks git --staged`, never `gitleaks protect`.** `protect` and `detect`
-were deprecated in v8.19.0 and survive only as hidden aliases. The global hook
-reaches every repo on the machine via `init.templateDir`, so it is the worst
-place to leave a call that a future major can remove.
+**It has a third surface:** the global `pre-commit` hook
+(`git/.config/git/hooks/pre-commit`), on top of `mise run lint:secrets` and CI.
+It stays aligned by *using the repo's own config when one exists*, so each repo's
+allowlists apply rather than carrying a copy. Scopes differ on purpose — the hook
+scans staged content (`betterleaks git --staged`). In this repo `hk.pkl` owns
+`pre-commit` and runs a betterleaks step itself, so the template hook stands down
+here and does not double-run.
+
+**Use `betterleaks git --staged`, never an inherited alias.** gitleaks' `protect`
+and `detect` were deprecated in v8.19.0 and survived only as hidden aliases; the
+same reasoning applies to anything betterleaks carries over for compatibility.
+The global hook reaches every repo on the machine via `init.templateDir`, so it
+is the worst place to leave a call that a future major can remove.
 
 **Redaction is asymmetric, deliberately.** CI and `audit:secrets-*` pass
 `--redact`; the local hooks do not. A CI job log is a published surface, so a
@@ -955,7 +992,7 @@ rule `no-local-values.sh` already follows in `--all` mode. A local hook runs in
 the author's own terminal on content they just wrote, where seeing the value is
 how you know what to fix.
 
-**A secret shaped like config is the gap that actually bit.** `.gitleaks.toml`
+**A secret shaped like config is the gap that actually bit.** `.betterleaks.toml`
 carries `json-credential-value` and `yaml-credential-value` because a plaintext
 UniFi password lived in an MCP `env` block in `opencode.json` for 15 months, and
 every rule up to then required the literal word `export`. Both rules use
@@ -963,19 +1000,21 @@ every rule up to then required the literal word `export`. Both rules use
 share one `[[allowlists]]` scoped with `targetRules` rather than keeping two
 copies of the placeholder exemptions in step.
 
-**`.gitleaksignore` is how known findings are silenced — never `paths`.** It pins
+**`.betterleaksignore` is how known findings are silenced — never `paths`.** It pins
 one finding in one commit by fingerprint, so it cannot over-reach the way a path
 allowlist does. Rules for adding to it are in the file itself; the short version
 is that a fingerprint goes in only after the credential is revoked, and never to
 make a scan pass.
 
 **Two audits, answering different questions.** `mise run audit:secrets-history`
-is gitleaks over the full log — *does anything look like a secret*.
+is betterleaks over the full log — *does anything look like a secret*.
 `mise run audit:secrets-live` is trufflehog with `--results=verified` — *is any of
 it still live*, by calling the provider. Neither subsumes the other: trufflehog
 has no detector for a self-hosted controller login and would not have found the
-UniFi password, while gitleaks cannot tell a dead token from a live one. Both are
-out of `lint`'s depends list because both need the network.
+UniFi password, while a detection scan cannot tell a dead token from a live one.
+Both are out of `lint`'s depends list because both need the network. betterleaks
+does ship its own provider-shaped `--validation`; it is deliberately off on every
+gate here, so detection never makes outbound calls.
 
 **The structural gate is `lint:mcp-config`, and it is the only one that cannot be
 fooled by an ordinary-looking credential.** `mise-scripts/config-secret-refs.py`
@@ -983,32 +1022,32 @@ asserts that a value under a credential-named key — or anywhere inside an `env
 block — is a *reference*: `${VAR}`, `!printenv VAR`, `op://…`, or a bare
 `VAR_NAME`. It never inspects the value's content, so a short lowercase device
 password fails exactly as loudly as a 40-char token. Three entry points, one
-implementation: the lint task (tracked content), lefthook (`{staged_files}`), and
+implementation: the lint task (tracked content), hk (the files it selected), and
 `mise run audit:mcp-config` (`--live`, this machine's untracked agent configs).
 Not in the GitLab subset — it needs python, and that runner uses tool-bundled
 images; GitHub runs the full suite.
 
 **The only non-bypassable gate is server-side.** `--no-verify` skips every local
 hook, and CI reports after the objects are already pushed and mirrored.
-`server-hooks/pre-receive.d/gitleaks` is the free GitLab Self-Managed equivalent
+`server-hooks/pre-receive.d/betterleaks` is the free GitLab Self-Managed equivalent
 of push protection; it is not installed by this repo, see that directory's README.
 
-**`.gitleaks.toml` has NO `paths` allowlists, and must not gain any.** A path
+**`.betterleaks.toml` has NO `paths` allowlists, and must not gain any.** A path
 allowlist matches in every scan mode, so silencing an untracked live config also
-blinds a `gitleaks git` history scan to every secret that path once held. That is
+blinds a `betterleaks git` history scan to every secret that path once held. That is
 a real regression that already bit: `glab-cli/config.yml`, `docker/mcp/config.yaml`
 and `base/.npmrc` were path-allowlisted, a full-history scan read clean, and five
 GitLab PATs plus a Nexus admin token and a Google app password sat undetected in
 the log. The untracked-config problem is instead solved at the scan boundary:
 
 - **`mise run lint:secrets`** scans **tracked content only** — `git archive HEAD`
-  into a temp dir, then `gitleaks dir` — so untracked provisioned files (real
+  into a temp dir, then `betterleaks dir` — so untracked provisioned files (real
   tokens) are never seen and need no allowlist.
-- **`mise run audit:secrets-history`** scans full history (`gitleaks git`) with the
+- **`mise run audit:secrets-history`** scans full history (`betterleaks git`) with the
   same allowlist-free config. It is the honest pre-rewrite audit and stays RED
   until `git filter-repo` has stripped the historical blobs. Expect it to fail
   until then.
-- **CI's `gitleaks dir .`** is inherently tracked-only — a fresh clone has no
+- **CI's `betterleaks dir .`** is inherently tracked-only — a fresh clone has no
   untracked local files — so it needs no change and stays aligned.
 
 Only line-target `regexes` allowlists are allowed (e.g. the public GPG

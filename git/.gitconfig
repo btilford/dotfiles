@@ -5,6 +5,7 @@
     path = ~/.config/git/flow.gitconfig
     path = ~/.config/git/shell.gitconfig
     path = ~/.config/git/spice.gitconfig
+    path = ~/.config/git/hk.gitconfig
     path = ~/.config/git/web.gitconfig
     path = ~/.config/git/dirs.gitconfig
     # Work-repo identity routing, owned by the private dotfiles repo. Absent on a

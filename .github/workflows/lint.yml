@@ -1,7 +1,7 @@
 # GitHub mirror of the lint gate.
 #
 # This runs the FULL suite (`mise run lint` — shell, secrets, yaml, json, nu,
-# fish, lua), where GitLab runs only shellcheck + gitleaks + yaml. That is not
+# fish, lua), where GitLab runs only shellcheck + betterleaks + yaml. That is not
 # drift: the self-hosted GitLab runner cannot reach api.github.com or
 # sigstore.dev, so mise's aqua/ubi tool installs fail there and it has to use
 # tool-bundled images instead. A GitHub runner has no such restriction, so it
@@ -38,7 +38,7 @@ jobs:
       # actions/checkout v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          # gitleaks' git mode needs history; `gitleaks dir` (what we run) does
+          # betterleaks' git mode needs history; `betterleaks dir` (what we run) does
           # not, but keep the full clone so switching modes is a one-line change.
           fetch-depth: 0
           # Default is TRUE: checkout writes the job's GITHUB_TOKEN into
