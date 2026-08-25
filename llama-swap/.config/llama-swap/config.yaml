@@ -134,6 +134,15 @@ models:
   #
   # Also Apache 2.0 rather than Gemma's use policy, which matters because this
   # config reaches a work machine.
+  #
+  # `-c 65536`, not the 8192 this shipped with. 8192 is llama.cpp's default and it
+  # is far below what the callers of this role actually send: Hermes falls back to
+  # role/assistant when its primary is down and arrives with 26k-41k tokens, which
+  # came back as `HTTP 400 … exceeds the available context size (8192 tokens)` —
+  # and its compression pass, which routes through the same model, then failed the
+  # same way, so the conversation dead-ended at "cannot compress further" rather
+  # than degrading. A 4B at Q4_K_M costs roughly 3 GiB of KV at 64k against 125 GiB
+  # of unified memory, so the ceiling was never paying for anything.
   # ---------------------------------------------------------------------------
   "qwen3-4b-instruct":
     proxy: "http://127.0.0.1:${PORT}"
@@ -147,7 +156,7 @@ models:
       docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14
       llama-server --host 0.0.0.0 --port ${PORT}
       -m /models/hf/hub/models--unsloth--Qwen3-4B-Instruct-2507-GGUF/snapshots/a06e946bb6b655725eafa393f4a9745d460374c9/Qwen3-4B-Instruct-2507-Q4_K_M.gguf
-      -ngl 99 --flash-attn on -c 8192
+      -ngl 99 --flash-attn on -c 65536
     ttl: 0
 
   # ---------------------------------------------------------------------------
