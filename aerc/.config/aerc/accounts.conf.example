@@ -1,0 +1,28 @@
+# aerc accounts — copy to accounts.conf and fill in. Never track the real file:
+# it names the account address (employer identity under the public-mirror rule)
+# and it is where a password would otherwise land.
+#
+#     install -m 600 ~/.config/aerc/accounts.conf.example \
+#                    ~/.config/aerc/accounts.conf
+#
+# aerc refuses to start unless accounts.conf is 0600, so set the mode when you
+# copy it. See aerc-accounts(5) for every key.
+#
+# The password is read at connect time from the login secrets cache rather than
+# stored here — same accessor every other consumer in this repo uses, so a
+# rotation needs `secrets-refresh` and no edit to this file. Store the secret in
+# Infisical under the name used below.
+
+[Personal]
+# @ in the user part must be percent-encoded as %40.
+source            = imaps://user%40example.com@imap.example.com:993
+source-cred-cmd   = dotfiles-secrets --get AERC_PERSONAL_PASSWORD
+outgoing          = smtps://user%40example.com@smtp.example.com:465
+outgoing-cred-cmd = dotfiles-secrets --get AERC_PERSONAL_PASSWORD
+# Keeps aerc from re-running the command on every send.
+outgoing-cred-cmd-cache = true
+
+from          = Your Name <user@example.com>
+default       = INBOX
+copy-to       = Sent
+cache-headers = true

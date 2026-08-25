@@ -1,0 +1,36 @@
+# Interactive key bindings.
+#
+# Numbered 70 so it loads after every drop-in that binds keys — fzf in 50-custom,
+# atuin in 60-atuin — and still ahead of the reserved 99-local slot.
+
+# Interactive shells only
+[[ $- == *i* ]] || return
+
+# Alt+e opens the current command line in $EDITOR. Same key in fish, zsh and
+# nushell; fish binds it to edit_command_buffer as a preset, so it needs no
+# config there.
+#
+# readline's own edit-and-execute-command (Ctrl+X Ctrl+E) is not a substitute: it
+# runs the edited line the moment the editor exits, and fish returns it to the
+# prompt for review. No readline function edits without executing, so the buffer
+# is rewritten by hand through READLINE_LINE.
+if ((BASH_VERSINFO[0] >= 4)); then
+    __dotfiles_edit_command_buffer() {
+        local tmp
+        tmp=$(mktemp "${TMPDIR:-/tmp}/bash-edit-buffer.XXXXXX") || return
+        printf '%s' "$READLINE_LINE" > "$tmp"
+        "${VISUAL:-${EDITOR:-vi}}" "$tmp" < /dev/tty > /dev/tty
+        # Command substitution strips the trailing newline the editor adds.
+        READLINE_LINE=$(< "$tmp")
+        READLINE_POINT=${#READLINE_LINE}
+        rm -f -- "$tmp"
+    }
+
+    bind -m emacs -x '"\ee": __dotfiles_edit_command_buffer'
+    bind -m vi-insert -x '"\ee": __dotfiles_edit_command_buffer'
+else
+    # READLINE_LINE arrived in bash 4.0 and macOS still ships 3.2 as /bin/bash.
+    # Give that shell the key anyway and accept that it executes on exit.
+    bind -m emacs '"\ee": edit-and-execute-command'
+    bind -m vi-insert '"\ee": edit-and-execute-command'
+fi

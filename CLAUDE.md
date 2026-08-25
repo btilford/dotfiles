@@ -42,7 +42,15 @@ the code actually needs.
 
 Untracked, provision from the `.example` beside it: `docker/.docker/mcp/config.yaml`
 (holds a Google app password), `hyprland/.config/hypr/lua/monitors.local.lua`,
-`pi-agent/.pi/agent/models.json`, `quickshell/.config/quickshell/notifications.json`.
+`pi-agent/.pi/agent/models.json`, `quickshell/.config/quickshell/notifications.json`,
+`aerc/.config/aerc/accounts.conf`.
+
+`accounts.conf` is the one of those that **no structural gate can read** —
+`lint:mcp-config` only parses JSON and YAML, and aerc's account file is INI. So
+the example puts the password behind `source-cred-cmd` / `outgoing-cred-cmd`
+calling `dotfiles-secrets --get`, which leaves the file with nothing secret in it
+by construction rather than by discipline. aerc also refuses to start unless the
+file is `0600`, so copy it with `install -m 600`.
 
 Untracked with **no example, by design** — the tool writes them itself and there is
 nothing to template: `gh/.config/gh/hosts.yml` (`gh auth login`, which stores an
@@ -519,10 +527,36 @@ bash and zsh are ordinary: `60-atuin` in each, numbered above `50-custom` becaus
 that is where `fzf --bash` / `fzf --zsh` bind Ctrl+R. nushell **is** supported by
 `atuin init nu` and is not wired up yet.
 
+## Alt+e edits the command line, in every shell
+
+fish binds Alt+e to `edit_command_buffer` as a **preset**, in every vi mode, so
+that package carries no binding for it. The other three shells are made to match:
+`bash/.config/bashrc/70-keybinds`, `zsh/.config/zshrc/70-keybinds`, and an
+`open_command_editor_alt` entry in `nushell/.config/nushell/config.nu`. Each is
+numbered or placed to load after fzf and atuin, the two integrations that bind
+keys.
+
+**The behaviour being matched is "edit, then return to the prompt" — not "edit,
+then run".** fish, zle's `edit-command-line` and reedline's `openeditor` all hand
+the edited text back for review. readline has no such function: its
+`edit-and-execute-command` (Ctrl+X Ctrl+E, still bound) executes the moment the
+editor exits. So bash rewrites the buffer itself through `READLINE_LINE` in a
+`bind -x` function — which needs **bash ≥ 4.0**, and macOS ships 3.2 as
+`/bin/bash`, hence the version guard and the degraded fallback there.
+
+Two things this depends on, neither of them local to these files:
+
+- **zsh's main keymap here is `viins`, not `emacs`.** Nothing sets `bindkey -v` —
+  zsh selects vi mode when `$EDITOR` matches `*vi*`, and `00-init` exports
+  `EDITOR=nvim`. All three keymaps are bound so the binding survives either mode.
+- **On macOS the Option key must send Escape.** `ghostty/config` sets
+  `macos-option-as-alt = true`; without it Option+e is a dead-key accent and no
+  shell ever sees Alt+e.
+
 ## Structure
 
 - **Cross-platform**: `atuin`, `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`, `workmux`, `tuicr`, `gh`, `gh-dash`
-- **macOS-only**: `ghostty`, `macos`
+- **macOS-only**: `aerc`, `ghostty`, `macos`
 - **Linux-only**: `hyprland`, `rofi`, `konsole`, `kmonad`, `terminator`, `yakuake`, `brave-linux`, `xdg`
 - **Shared base**: `base`
 
@@ -660,6 +694,7 @@ mise run hooks                             # lefthook -> .git/hooks, PER CLONE
 mise run setup:frozen                      # skip-worktree bits, PER CLONE (.stow-frozen)
 mise run setup:git-spice                   # git-spice: template, forge URL, auth, hooks
 glab auth login --hostname <host>          # then: mise run glab:config, PER CLONE
+install -m 600 ~/.config/aerc/accounts.conf{.example,}   # then fill it in
 atuin hook install claude-code             # atuin agent hooks, one per agent
 atuin hook install codex
 atuin hook install pi

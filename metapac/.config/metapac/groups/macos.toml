@@ -9,6 +9,7 @@ brew = { packages = [
   "1password-cli",
   "act",
   "actionlint",
+  "aerc",
   "ast-grep",
   "atuin",
   "bat",

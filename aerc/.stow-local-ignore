@@ -1,0 +1,8 @@
+# aerc keeps the account password or token here, plus the account's own address.
+# Untracked and never stowed — provision from accounts.conf.example beside it.
+# See .gitignore for why.
+^\.config/aerc/accounts\.conf$
+
+# Repo meta — not stowed into $HOME. A package-local .stow-local-ignore
+# REPLACES stow's built-in list (which covers README.*), it does not add to it.
+README.*
