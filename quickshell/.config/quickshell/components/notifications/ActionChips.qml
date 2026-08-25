@@ -13,7 +13,9 @@ import "../../config"
 Flow {
     id: chips
 
-    // [{ kind, label, key, spec, run, prompt, capture }] — Notifications.actionsFor / actionsForRow
+    // [{ kind, label, key, spec, run, prompt, capture, perform? }] — Notifications.actionsFor /
+    // actionsForRow. `perform` is only present on built-in verbs (kind "timer"/"snooze") —
+    // invokeAction calls it in process instead of running `run` as a subprocess.
     required property var list
     // the one whose prompt is currently open, so it reads as engaged rather than just hovered
     property var activeAction: null

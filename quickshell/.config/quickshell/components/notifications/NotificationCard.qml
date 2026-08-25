@@ -406,6 +406,10 @@ Rectangle {
                 // evaluates once against an empty action list and never re-runs. The chips
                 // simply never appear, with nothing in the log to say why.
                 NotifyConfig.actions;
+                // …and NotifyConfig.snooze, same reason: the built-in snooze chips read
+                // defaultMs/presets from it, and without this touch a config reload would
+                // relabel nothing until some unrelated binding happened to re-evaluate this one.
+                NotifyConfig.snooze;
                 // …and Timers.revision for the same reason: the built-in timer verbs change
                 // label (Pause ⇄ Resume) as the timer does, and the chip would otherwise keep
                 // whichever word it was built with.

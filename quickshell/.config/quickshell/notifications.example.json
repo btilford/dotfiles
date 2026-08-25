@@ -122,9 +122,10 @@
     "placeholder": "Reply…"
   },
   "snooze": {
-    "_comment": "`s` in focus mode snoozes for defaultMs; `r` prompts for a delay (20m, 2h, 90s, 17:30). maxMs bounds a parsed value rather than trusting it. A snooze is a row in the history store, so it survives a qs restart and a reboot.",
+    "_comment": "`s` in focus mode snoozes for defaultMs; `r` prompts for a delay (20m, 2h, 90s, 17:30). maxMs bounds a parsed value rather than trusting it. A snooze is a row in the history store, so it survives a qs restart and a reboot. presets are extra one-click chips beyond the default-duration one, each a duration string parsed the same way — keep the list short, this is a snooze row on every card, not a duration picker.",
     "defaultMs": 900000,
-    "maxMs": 604800000
+    "maxMs": 604800000,
+    "presets": ["1h"]
   },
   "timers": {
     "_comment": "Timers, pomodoro, stopwatch and alarms (`qs ipc call timers …`). Lengths and the cycle count are config because a pomodoro is a personal rhythm. addMs is what the card's \"+N min\" action adds. anchorV is why a running timer does not fight the notification stack: the overlay draws one window per (monitor, anchor) pair, so pinning timers to the top gives them their own stack — set either anchor to \"\" to follow `placement`. stopwatchPill = false hides the bar readout.",

@@ -680,6 +680,75 @@ Singleton {
         for (let i = 0; i < timerActions.length; i++)
             out.push(timerActions[i]);
 
+        // Built-in snooze actions (this ticket: give snooze a visible affordance — it shipped
+        // as the `s`/`r` keys only, which never reach a card the user has not focused). `kind:
+        // "snooze"` tells invokeAction to call `perform()` in process, the seam Timers.actionsFor
+        // above already proved: routing a snooze back out through IPC would spawn a process for
+        // this shell to talk to itself.
+        //
+        // Behind the SAME `actionsAllowed` gate at the top of this function as every other
+        // action here (spec/timer/custom) — a Lua rule that sets `actionsAllowed = false` hides
+        // this chip too. That is a real divergence from the keys: `NotifyFocus.snoozeSelected`
+        // has no such check, so `s`/`r` still snooze a card whose chips a rule just hid. Left
+        // that way on purpose — the veto is meant to say "no action surface on this card", and
+        // exempting snooze from it would need its own rule-engine hook this ticket does not add.
+        // The keyboard path predates this chip and is unchanged by it.
+        //
+        // ONLY the default-duration chip is offered here. A "Remind at…" chip that OPENS the
+        // time-mode prompt by mouse looked right in review and was not: submitting that prompt
+        // needs the layershell window's keyboard grab, which only ever turns on for
+        // `NotifyFocus.active` or the compose surface (`NotificationOverlay.qml:102,108`) —
+        // `entry.prompting` is not part of that condition. A mouse user could open the field and
+        // then type into nothing, with the card frozen (`beginPrompt` calls `root.pause`) until
+        // they found the X. Config `presets` gives mouse-only users more than one duration
+        // without needing to type at all; free-text "remind me at ___" stays keyboard-only (`r`)
+        // until a grab scoped to `entry.prompting` lands — see
+        // Tasks/quickshell-notif-prompt-needs-scoped-grab.
+        //
+        // Timer cards are skipped entirely: `Timers.actionsFor(entry)` is non-empty exactly when
+        // this is a running timer's own card, and Notifications.snooze() calls forget(entry) ->
+        // entry.destroy() while the timer keeps counting down against a now-destroyed entry.
+        // 15 minutes later the elapsed-snooze path (see snoozeElapsed below) would raise a
+        // plain notify-send copy of the stored row — a stale "time's up" card with none of the
+        // timer's Pause/Reset/Cancel verbs, for a timer that already finished. A timer is
+        // already its own snooze (pause/extend); it does not need a second one.
+        //
+        // NOT offered on `actionsForRow` (drawer rows) either: the whole point there is history
+        // that survives the live client, and every one of these actions runs against `entry`
+        // fields (`nid`, live pause/resume) a `rowAsEntry()` adapter fakes only partially.
+        // Snoozing history is out of scope for this ticket.
+        if (timerActions.length === 0) {
+            out.push({
+                kind: "snooze",
+                label: "Snooze " + root.snoozeLabel(NotifyConfig.snooze.defaultMs),
+                key: "s",
+                spec: null,
+                run: null,
+                prompt: null,
+                capture: "",
+                perform: () => root.snooze(entry, NotifyConfig.snooze.defaultMs)
+            });
+            const presets = NotifyConfig.snooze.presets;
+            for (let i = 0; i < presets.length; i++) {
+                const text = presets[i];
+                const ms = root.parseDelay(text);
+                if (ms === null) {
+                    console.warn("notifications: snooze preset", JSON.stringify(text), "does not parse — skipped");
+                    continue;
+                }
+                out.push({
+                    kind: "snooze",
+                    label: "Snooze " + root.snoozeLabel(ms),
+                    key: "",
+                    spec: null,
+                    run: null,
+                    prompt: null,
+                    capture: "",
+                    perform: () => root.snooze(entry, ms)
+                });
+            }
+        }
+
         // Custom actions, in config order.
         const cfg = NotifyConfig.actions;
         for (let i = 0; i < cfg.length; i++) {
@@ -900,11 +969,11 @@ Singleton {
             return;
         }
 
-        // A built-in timer verb runs IN PROCESS. Everything it needs is on the Timers singleton
-        // already, so routing it back out through `qs ipc call timers …` would spawn a process
-        // for this shell to talk to itself — and would fail on a machine where `qs` is not on
-        // PATH for the shell's own environment.
-        if (action.kind === "timer") {
+        // A built-in verb (timer or snooze) runs IN PROCESS. Everything it needs is already on
+        // this singleton or Timers, so routing it back out through `qs ipc call …` would spawn a
+        // process for this shell to talk to itself — and would fail on a machine where `qs` is
+        // not on PATH for the shell's own environment.
+        if (action.kind === "timer" || action.kind === "snooze") {
             try {
                 action.perform();
             } catch (e) {
@@ -912,7 +981,9 @@ Singleton {
                 return;
             }
             // No dismiss on this path at all: pausing a timer must leave its card exactly
-            // where it was, and cancel takes its own card down inside perform().
+            // where it was and cancel takes its own card down inside perform(); a snooze
+            // removes the card itself (root.snooze() -> forget(), or refuses and leaves the
+            // card alone if the store cannot persist it).
             return;
         }
 
@@ -1030,6 +1101,15 @@ Singleton {
     function snooze(entry, ms) {
         if (!entry)
             return;
+        // NotifyStore.snooze() is a silent no-op with the store disabled or unhealthy (it
+        // returns before the UPDATE), but forget() below does not know that and would still
+        // drop the popup — a click (or the `s`/`r` keys, same function) would delete the
+        // notification with nothing persisted to bring it back. Refuse instead of forgetting.
+        if (!NotifyConfig.store.enabled || !NotifyStore.healthy) {
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
+                    "Snooze failed", "notification history is unavailable — nothing was snoozed"]);
+            return;
+        }
         const wake = Date.now() + Math.max(0, Math.round(ms));
         NotifyStore.snooze(entry.nid, wake);
         // forget(), not dismiss(): dismiss would write state = 'dismissed' over the
@@ -1037,6 +1117,20 @@ Singleton {
         // The popup goes; the row is what remembers.
         root.forget(entry);
         root.reflow();
+    }
+
+    // The inverse of parseDelay, for the chip label only ("45s", "15m", "1h", "1h30m"). Never
+    // fed back into parseDelay or the store — it is display text, not a second duration format.
+    function snoozeLabel(ms) {
+        const totalSec = Math.max(1, Math.round(ms / 1000));
+        if (totalSec < 60)
+            return totalSec + "s";
+        const totalMin = Math.round(totalSec / 60);
+        if (totalMin < 60)
+            return totalMin + "m";
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        return m === 0 ? h + "h" : h + "h" + m + "m";
     }
 
     // "20m", "2h", "90s", "17:30". Returns null for anything it cannot read — AD-012 is

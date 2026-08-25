@@ -136,10 +136,15 @@ Singleton {
         })
 
     // Snooze. `s` uses defaultMs; `r` opens the prompt in time mode ("20m", "17:30",
-    // "tomorrow 9am"). maxMs bounds a parsed value rather than trusting it.
+    // "tomorrow 9am"). maxMs bounds a parsed value rather than trusting it. `presets` are
+    // EXTRA one-click chips beyond the default-duration one, each a duration string parsed by
+    // Notifications.parseDelay ("20m", "2h", "17:30" — no free text like "tomorrow 9am", that
+    // string is only ever typed into the keyboard-only prompt). Kept short by default — this
+    // is a snooze row on every card with actions enabled, not a duration picker.
     readonly property var defaultSnooze: ({
             defaultMs: 900000,
-            maxMs: 604800000
+            maxMs: 604800000,
+            presets: ["1h"]
         })
 
     // Timers, pomodoro, stopwatch and alarms (story: notif-timers; state lives in
@@ -497,7 +502,10 @@ Singleton {
         const sn = cfg.snooze;
         root.snooze = {
             defaultMs: root.pickInt(sn, "defaultMs", root.defaultSnooze.defaultMs, 1000),
-            maxMs: root.pickInt(sn, "maxMs", root.defaultSnooze.maxMs, 1000)
+            maxMs: root.pickInt(sn, "maxMs", root.defaultSnooze.maxMs, 1000),
+            // Strings only — Notifications.parseDelay rejects anything else at chip-build time,
+            // and rejecting here too means a typo'd preset never becomes a silently-wrong chip.
+            presets: Array.isArray(sn && sn.presets) ? sn.presets.filter(p => typeof p === "string") : root.defaultSnooze.presets.slice()
         };
 
         const ti = cfg.timers;

@@ -89,10 +89,13 @@ placeholder = "Reply…"
 
 # `s` in focus mode snoozes for defaultMs; `r` prompts for a delay (20m, 2h, 90s,
 # 17:30). maxMs bounds a parsed value rather than trusting it. A snooze is a row in the
-# history store, so it survives a qs restart and a reboot.
+# history store, so it survives a qs restart and a reboot. presets are extra one-click
+# chips beyond the default-duration one, each a duration string parsed the same way —
+# keep the list short, this is a snooze row on every card, not a duration picker.
 [snooze]
 defaultMs = 900000
 maxMs = 604800000
+presets = ["1h"]
 
 # Timers, pomodoro, stopwatch and alarms (`qs ipc call timers …`). Lengths and the cycle
 # count are config because a pomodoro is a personal rhythm — 25/5/15 x4 is the classic,
