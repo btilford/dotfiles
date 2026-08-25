@@ -161,6 +161,27 @@ Singleton {
             stopwatchPill: true     // live stopwatch readout in the bar
         })
 
+    // Do Not Disturb (story: notif-dnd-core). Manual toggle and the bar indicator need no
+    // config; scheduled quiet hours are the only DND value a user sets here, and they are
+    // OFF BY DEFAULT — a schedule that suppresses notifications with no config at all would
+    // be a surprise, not a feature. "HH:MM" 24h clock; start == end means "no window" rather
+    // than "all day", so a copy-pasted typo cannot silence every notification permanently.
+    // start > end wraps past midnight (e.g. 23:00 -> 07:00).
+    // allowUrgency is the config-level floor: the one exception DND grants with NO Lua rules
+    // file at all. Without it, a machine with no interpreter (or a wedged one — see
+    // NotifyRules) has no way to escape DND for even a critical alert, which is exactly the
+    // "DND that cannot be escaped is DND you stop trusting" failure the story exists to avoid.
+    // "critical" (default) lets NotificationUrgency.Critical through; "none" restores the old
+    // all-or-nothing behaviour for anyone who wants it.
+    readonly property var defaultDnd: ({
+            quietHours: {
+                enabled: false,
+                start: "23:00",
+                end: "07:00"
+            },
+            allowUrgency: "critical"
+        })
+
     // Surface opacity for the popup cards and the docked pills. Separate from the drawer's
     // (which is deliberately glass — see defaultDrawer): a card sits over whatever you are
     // working in for a few seconds and has to be readable immediately, so it stays mostly
@@ -217,6 +238,7 @@ Singleton {
     property var prompt: root.clone(root.defaultPrompt)
     property var snooze: root.clone(root.defaultSnooze)
     property var timers: root.clone(root.defaultTimers)
+    property var dnd: root.clone(root.defaultDnd)
 
     readonly property string configPath: root.envOr("QS_NOTIFY_CONFIG", Quickshell.env("HOME") + "/.config/quickshell/notifications.json")
 
@@ -254,8 +276,18 @@ Singleton {
 
     // ---------------------------------------------------------------------------------------
 
+    // One level deep: a plain-object VALUE (e.g. defaultDnd.quietHours) is copied too, not just
+    // referenced, so two clones of the same default never share a nested object. defaultDnd was
+    // the first default with a nested object; a shallow copy left dnd.quietHours === the
+    // defaults' own quietHours, so an in-place mutation of the live config would have corrupted
+    // the fallback used by every future reload.
     function clone(o) {
-        return Object.assign({}, o);
+        const out = Object.assign({}, o);
+        for (const k in out) {
+            if (out[k] !== null && typeof out[k] === "object" && !Array.isArray(out[k]))
+                out[k] = Object.assign({}, out[k]);
+        }
+        return out;
     }
 
     function envOr(key: string, fallback: string): string {
@@ -305,6 +337,18 @@ Singleton {
     function pickString(src, key, fallback) {
         const v = src ? src[key] : undefined;
         return typeof v === "string" ? v : fallback;
+    }
+
+    // "HH:MM", 24h clock. An unparseable value keeps the fallback rather than silently
+    // disabling (or permanently enabling) a quiet-hours window from a typo.
+    function pickClock(src, key, fallback) {
+        const v = src ? src[key] : undefined;
+        if (v === undefined)
+            return fallback;
+        if (typeof v === "string" && /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v))
+            return v;
+        console.warn("notifications: config", key, "=", v, "is not HH:MM — keeping", fallback);
+        return fallback;
     }
 
     function rebuild() {
@@ -474,6 +518,17 @@ Singleton {
         root.collapse = {
             home: root.pickEnum(co, "home", ["bar", "stack"], root.defaultCollapse.home),
             maxPills: root.pickInt(co, "maxPills", root.defaultCollapse.maxPills, 1)
+        };
+
+        const dn = cfg.dnd;
+        const qh = dn ? dn.quietHours : undefined;
+        root.dnd = {
+            quietHours: {
+                enabled: root.pickBool(qh, "enabled", root.defaultDnd.quietHours.enabled),
+                start: root.pickClock(qh, "start", root.defaultDnd.quietHours.start),
+                end: root.pickClock(qh, "end", root.defaultDnd.quietHours.end)
+            },
+            allowUrgency: root.pickEnum(dn, "allowUrgency", ["none", "critical"], root.defaultDnd.allowUrgency)
         };
     }
 

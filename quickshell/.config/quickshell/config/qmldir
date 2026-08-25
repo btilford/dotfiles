@@ -10,6 +10,7 @@ singleton NotifyConfig NotifyConfig.qml
 singleton NotifyStore NotifyStore.qml
 singleton NotifyFocus NotifyFocus.qml
 singleton NotifyRules NotifyRules.qml
+singleton NotifyDnd NotifyDnd.qml
 singleton NotifyDrawer NotifyDrawer.qml
 singleton NotifyCompose NotifyCompose.qml
 singleton Connectors Connectors.qml

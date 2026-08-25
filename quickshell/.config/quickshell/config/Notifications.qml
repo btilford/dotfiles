@@ -230,6 +230,10 @@ Singleton {
         // one thing that has to happen on the ingest path, because the stack a card lands in is
         // decided here (story: notif-timers, "a timer pinned top does not fight the stack").
         Timers.applyPlacement(entry);
+        // DND's suppression default (story: notif-dnd-core), applied before the rules engine
+        // sees this notification: a Lua rule's answer is the last write and can restore
+        // visibility, same "accumulate, last write wins" contract the engine already has.
+        NotifyDnd.applySuppression(entry);
         applyRules(entry);
         NotifyRules.evaluate(snapshot(entry), presentationOf(entry), presentation => {
             // the notification may have been closed while the engine was thinking
@@ -247,6 +251,16 @@ Singleton {
         reflow();
         scheduleExpiry(entry);
         recordDrawerOnly(entry);
+
+        // DND exit digest (story: notif-dnd-core): count this entry only if it was subject to
+        // the DND default AND stayed drawer-only after the rules ran — a rule exception that
+        // restored visibility means this notification was never actually suppressed. Guarded by
+        // dndCounted so an in-place update (replaces_id, a hint change) can't double-count the
+        // same entry on a later refresh().
+        if (entry.dndBaseline && entry.drawerOnly && !entry.dndCounted) {
+            entry.dndCounted = true;
+            NotifyDnd.noteSuppressed();
+        }
 
         // History write, always after the rules: what is stored is what was actually
         // presented, not what arrived. Asynchronous and best-effort — see NotifyStore.
@@ -1275,6 +1289,11 @@ Singleton {
             property bool counted: false
             // a history row exists for this entry, so further refreshes update it in place
             property bool stored: false
+            // DND was active when this notification was last refreshed (story: notif-dnd-core);
+            // dndCounted guards the exit digest against counting the same entry twice across
+            // more than one refresh()
+            property bool dndBaseline: false
+            property bool dndCounted: false
 
             // countdown bookkeeping: how long this showing was granted, how much of it is left,
             // and when the current run started. runToken ticks whenever the clock is (re)armed,
