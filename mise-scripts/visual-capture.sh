@@ -245,6 +245,13 @@ notify_preset right-center
 # has no business writing rows into the user's own history.
 NOTIFY_DB="$RUNTIME/notifications.db"
 
+# QS_LAUNCHER_DB, same rule as QS_NOTIFY_DB: the launcher's selection history is a real
+# database under ~/.local/share, and the drawer scene drives the launcher through
+# `ipc launcher show drun`. A capture run has no business writing rows into what the user's own
+# ranking is built from — nor reading it, since the ranked order would then depend on the
+# machine and the screenshot would photograph which apps someone actually uses.
+LAUNCHER_DB="$RUNTIME/launcher.db"
+
 # QS_NOTIFY_RULES for the same reason again: the popup-rules scene writes a rules file, and
 # it must be this session's, never ~/.config/quickshell/notifications.lua.
 NOTIFY_RULES="$RUNTIME/rules.lua"
@@ -292,7 +299,7 @@ export CLIPBORG_CONFIG
 export QML_IMPORT_PATH="${CLIPBORG_QML_PATH:-$HOME/Projects/public/clipborg/examples/quickshell}${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 
 HYPR_NOTIFY=quickshell QS_NOTIFY_CONFIG="$NOTIFY_CONFIG" QS_NOTIFY_DB="$NOTIFY_DB" \
-  QS_NOTIFY_RULES="$NOTIFY_RULES" \
+  QS_NOTIFY_RULES="$NOTIFY_RULES" QS_LAUNCHER_DB="$LAUNCHER_DB" \
   QS_WEATHER_CONFIG="$WEATHER_CONFIG" \
   QS_BINDS_CMD="cat '$BINDS_FIXTURE'" \
   qs -p "$SHELL_QML" > "$RUNTIME/qs.log" 2>&1 &
