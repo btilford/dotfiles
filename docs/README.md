@@ -2,6 +2,12 @@
 
 **Not a stow package.** Nothing here is symlinked into `$HOME`.
 
+Also here, and not an image:
+[`publish-audit.md`](publish-audit.md) — the pre-publication audit. It records
+the full-history secret scans and their verification, and it lists the findings
+that are reported and deliberately left in place. Read it before removing
+anything from the tree on the grounds that it looks private.
+
 ```text
 docs/images/quickshell-bar.png            top bar (cropped)
 docs/images/quickshell-launcher.png       launcher, drun mode

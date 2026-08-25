@@ -1,0 +1,77 @@
+// Renovate config for the dotfiles repo.
+//
+// The repo already pins everything by digest or by full commit SHA BY HAND —
+// GitHub Actions to 40-hex SHAs in .github/workflows/lint.yml, CI images to
+// @sha256: digests in .gitlab-ci.yml. See CLAUDE.md, "Linting & CI":
+//
+//   "Pin by digest/SHA, never by tag. A tag is mutable: @v4 or :latest can be
+//    repointed at new code with no commit here."
+//
+// A hand-pinned digest is a pin that nobody refreshes. Renovate exists here to
+// do the refreshing, not to relax the pinning: every rule below keeps the pin
+// and moves it, and the comment on each pin (which release the SHA was at pin
+// time) is what Renovate rewrites.
+//
+// DELIBERATELY ABSENT, and must stay absent:
+//   automerge, platformAutomerge, autoApprove, autodiscover
+// A dependency update to a workflow or a CI image is a change to code that runs
+// against this repo's contents with a token. It gets a human.
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+
+  extends: [
+    'config:recommended',
+    // Refresh a pinned digest in place rather than proposing a tag.
+    'helpers:pinGitHubActionDigests',
+    // Group the noise: one PR for lockfile-shaped churn instead of many.
+    ':semanticCommits',
+    ':semanticCommitTypeAll(chore)',
+  ],
+
+  // No automerge anywhere, at any confidence level. Stated explicitly so a
+  // future preset that turns it on cannot do so silently.
+  automerge: false,
+  platformAutomerge: false,
+
+  // This is a config repo, not an application. A steady drip of PRs is worse
+  // than a weekly batch, and there is no release cadence to keep up with.
+  schedule: ['before 6am on monday'],
+  prConcurrentLimit: 3,
+  prHourlyLimit: 2,
+
+  // Do not touch the tip of the default branch without review, and never
+  // rebase-and-push over a human's edits to a Renovate branch.
+  rebaseWhen: 'conflicted',
+
+  // Security fixes bypass the schedule — they are the one case where waiting
+  // for Monday is the wrong default. Still no automerge.
+  vulnerabilityAlerts: {
+    enabled: true,
+    schedule: null,
+    labels: ['security'],
+  },
+
+  packageRules: [
+    {
+      description: 'GitHub Actions: keep the 40-hex SHA pin, just move it.',
+      matchManagers: ['github-actions'],
+      pinDigests: true,
+      // A major bump to an action is a behaviour change in something that runs
+      // with a token. Separate PR, separate read.
+      separateMajorMinor: true,
+    },
+    {
+      description: 'CI container images: keep the @sha256: digest pin.',
+      matchManagers: ['gitlabci', 'dockerfile', 'docker-compose'],
+      pinDigests: true,
+    },
+    {
+      description:
+        'mise tools are declared as "latest" on purpose — mise resolves them ' +
+        'at install time and there is no lockfile here, so a Renovate PR ' +
+        'against them would be noise with nothing to pin. Left to mise.',
+      matchManagers: ['mise'],
+      enabled: false,
+    },
+  ],
+}

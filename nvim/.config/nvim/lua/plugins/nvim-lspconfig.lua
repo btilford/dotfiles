@@ -56,7 +56,6 @@ return {
       "saghen/blink.cmp",
     },
     config = function()
-      local home = os.getenv("HOME")
       -- If you're wondering about lsp vs treesitter, you can check out the wonderfully
       -- and elegantly composed help section, `:help lsp-vs-treesitter`
 
@@ -258,7 +257,7 @@ return {
         --
 
         -- harper_ls = {
-        -- 	userDictPath = home .. "/.config/harper-ls/dictionary.txt",
+        -- 	userDictPath = os.getenv("HOME") .. "/.config/harper-ls/dictionary.txt",
         -- 	enable = true,
         -- 	filetypes = {
         -- 		"markdown",
