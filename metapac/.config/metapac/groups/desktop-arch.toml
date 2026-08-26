@@ -528,6 +528,7 @@ arch = { packages = [
   "sound-theme-freedesktop",
   "spectacle",
   "speedcrunch",
+  "spirv-headers",
   "spirv-tools",
   "splix",
   "starship",
