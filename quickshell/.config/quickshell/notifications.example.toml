@@ -115,6 +115,10 @@ addMs = 300000
 anchorH = ""
 anchorV = "top"
 stopwatchPill = true
+# A freedesktop sound-theme NAME played when a timer, alarm or pomodoro phase ends. It is
+# resolved by canberra against your sound theme, so it is not a path. "" turns the chime
+# off; the notification still fires. No canberra-gtk-play on the machine = no chime.
+alarmSound = "alarm-clock-elapsed"
 
 # AGENT / CI. Matcher keys: app, category, urgency, summary, body, hint.<name>. A `~`
 # prefix is a regex, anything else is exact and case-insensitive. `run` is argv — {id}

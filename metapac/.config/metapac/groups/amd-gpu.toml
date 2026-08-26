@@ -6,16 +6,28 @@
 # commands/.local/bin/metapac-hostname-key via lspci GPU-vendor detection —
 # see config.toml's hostname_groups comment for why the key can't be the real
 # hostname. ollama-vulkan stays in desktop-arch.toml: Vulkan compute isn't
-# AMD-specific.
+# AMD-specific — and neither are the Vulkan loader, headers and shader
+# compilers (glslang/shaderc/spirv-tools) a llama.cpp Vulkan backend needs to
+# build, so those live there too.
+#
+# The ROCm/HIP entries below (rocm-hip-sdk, rocblas, hipblas, rocminfo,
+# rocm-smi-lib) were previously present only as transitive dependencies of
+# onnxruntime-opt-rocm. Declared explicitly so a HIP-backend build of
+# llama.cpp doesn't lose its toolchain the day Lemonade is dropped.
 
 arch = { packages = [
   "amd-ucode",
   "amdgpu_top",
   "amdxdna-driver-bin",
+  "hipblas",
   "lemonade-server-git",
   "lib32-vulkan-radeon",
   "ollama-rocm",
+  "rocblas",
+  "rocm-hip-sdk",
   "rocm-opencl-sdk",
+  "rocm-smi-lib",
+  "rocminfo",
   "vulkan-radeon",
   "xf86-video-amdgpu",
 ] }

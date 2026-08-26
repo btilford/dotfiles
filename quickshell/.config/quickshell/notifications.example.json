@@ -136,7 +136,9 @@
     "addMs": 300000,
     "anchorH": "",
     "anchorV": "top",
-    "stopwatchPill": true
+    "stopwatchPill": true,
+    "_comment_alarmSound": "A freedesktop sound-theme NAME played when a timer, alarm or pomodoro phase ends. Resolved by canberra against your sound theme, so it is not a path. \"\" turns the chime off; the notification still fires. No canberra-gtk-play on the machine = no chime.",
+    "alarmSound": "alarm-clock-elapsed"
   },
   "actions": [
     {

@@ -294,6 +294,24 @@ Singleton {
         root.rearmAfterFlush = true;
     }
 
+    // Snooze a row the drawer is looking at, addressed by row_id.
+    //
+    // `snooze(nid, …)` above cannot do this and fails SILENTLY if asked to: its UPDATE is
+    // `WHERE nid = ? AND state = 'active'`, and a row in the drawer is history — expired,
+    // closed or orphaned. The statement matches zero rows, and because writes are enqueued
+    // and flushed in a batch there is no error anywhere. The card would vanish from the
+    // drawer and simply never come back.
+    //
+    // row_id is the drawer's own key (`r:<row_id>`), it is unique, and it is what
+    // fireDueSnoozes already selects and clears — so a snooze made here is indistinguishable
+    // from one made on a live popup by the time it fires.
+    function snoozeRow(rowId, wakeAt) {
+        if (!NotifyConfig.store.enabled)
+            return;
+        root.enqueue("UPDATE notifications SET state = 'snoozed', wake_at = " + Math.round(wakeAt) + "\n" + "WHERE row_id = " + Number(rowId) + ";");
+        root.rearmAfterFlush = true;
+    }
+
     // Rows already due. Fired one signal each so the caller can re-pop them carrying the
     // original row_id, keeping history one thread rather than starting a new one.
     function fireDueSnoozes() {

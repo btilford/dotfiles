@@ -738,7 +738,7 @@ Singleton {
                 }
                 out.push({
                     kind: "snooze",
-                    label: "Snooze " + root.snoozeLabel(ms),
+                    label: root.snoozePresetLabel(text, ms),
                     key: "",
                     spec: null,
                     run: null,
@@ -782,6 +782,20 @@ Singleton {
         // Ctrl+<letter> keeps the mnemonics AND collides with nothing. A declared key is used
         // as-is; otherwise the first free letter OF THE LABEL is preferred, so "Reply" gets
         // Ctrl+R without anyone configuring it.
+        return root.assignActionKeys(out);
+    }
+
+    // Ctrl+<letter> hints, in three passes: a declared key is used as-is, else the first free
+    // letter OF THE LABEL (so "Reply" gets Ctrl+R with nothing configured), else the next free
+    // letter. Ctrl is untouched by the focus-mode scheme (its only modifier is Shift), so these
+    // keep the mnemonics AND collide with nothing.
+    //
+    // Shared by actionsFor and actionsForRow. The drawer used to copy `c.key` raw, so two
+    // configured actions declaring the same letter both rendered in the hint line and the
+    // FIRST one won every press — silently, since the collision warning lives here and that
+    // path never reached it. It also left a derived-key action with `key: ""`, which the hint
+    // line rendered as a bare "^" for a verb no key could reach.
+    function assignActionKeys(out) {
         const used = {};
         for (let i = 0; i < out.length; i++) {
             const want = String(out[i].key).toLowerCase();
@@ -893,13 +907,99 @@ Singleton {
                 capture: ""
             });
         }
-        return out;
+
+        // Snooze, on a history row. The comment above `actionsFor`'s snooze block says this was
+        // out of scope for that ticket; it is in scope now, and it needed a store function
+        // rather than a re-use — see NotifyStore.snoozeRow for why addressing the row by `nid`
+        // + `state = 'active'` fails silently on exactly the rows the drawer lists.
+        //
+        // Offered even on a row whose client has exited, and that is the point: what comes back
+        // is rebuilt from the stored columns by the same `snoozeElapsed` path a live snooze
+        // uses, so it never needed the client to be alive. What it cannot bring back is that
+        // client's own spec actions, which is already true of every row here.
+        //
+        // Only rows, never groups: a group header addresses several rows and "snooze all of
+        // these" is a different verb with a different failure mode. `NotifyDrawer.selectedActions`
+        // returns early for a group, so nothing here has to test it.
+        if (row && row.row_id !== undefined) {
+            out.push({
+                kind: "snooze",
+                label: "Snooze " + root.snoozeLabel(NotifyConfig.snooze.defaultMs),
+                key: "s",
+                spec: null,
+                run: null,
+                prompt: null,
+                capture: "",
+                perform: () => root.snoozeRow(row, NotifyConfig.snooze.defaultMs)
+            });
+            const presets = NotifyConfig.snooze.presets;
+            for (let i = 0; i < presets.length; i++) {
+                const text = presets[i];
+                const ms = root.parseDelay(text);
+                if (ms === null)
+                    continue; // already warned about by actionsFor on the popup path
+                out.push({
+                    kind: "snooze",
+                    label: root.snoozePresetLabel(text, ms),
+                    key: "",
+                    spec: null,
+                    run: null,
+                    prompt: null,
+                    capture: "",
+                    perform: () => root.snoozeRow(row, ms)
+                });
+            }
+        }
+        return root.assignActionKeys(out);
     }
 
     function invokeRowAction(row, action, input) {
-        if (!action || action.kind !== "custom")
+        if (!action)
             return;
+        // A built-in verb runs IN PROCESS, the same seam the popup path uses — `perform` is a
+        // closure over the row, so there is nothing to hand to invokeAction.
+        if (action.kind === "snooze")
+            return action.perform ? action.perform() : 0;
+        if (action.kind !== "custom")
+            return 0;
         root.invokeAction(root.rowAsEntry(row), action, input);
+        return 0;
+    }
+
+    // Snooze a stored row. Not `snooze()` with a `rowAsEntry` adapter: that function addresses
+    // the store by `nid` + `state = 'active'`, which is precisely what a history row is not.
+    //
+    // A row still on screen is taken down as well. `forget()` alone would not do it — the
+    // adapter is a fresh object each call and is in no `popups` list — so the live entry is
+    // looked up by nid first. Without that the popup keeps running its expiry clock over a row
+    // the store now says is asleep, and dismissing it later writes 'dismissed' over the
+    // 'snoozed' state, which is the one way to lose the reminder entirely.
+    //
+    // `state === 'active'` is not a shortcut, it is the whole guard: `nid` is a per-SESSION
+    // counter, so a row written weeks ago can carry the same nid as a notification on screen
+    // right now. Looking one up without it would take down an unrelated card — the same check
+    // NotifyDrawer.liveEntryFor makes, and for the same reason.
+    // Returns the wake stamp it wrote, or 0 when it refused. The drawer needs that number:
+    // the write is enqueued and flushes ~200ms later, so a re-read would show the OLD state and
+    // the row the user just snoozed would keep looking untouched. Nothing may read its own
+    // enqueued write — the same rule the snooze re-arm learned the hard way — so the caller is
+    // handed the value instead of being invited to go looking for it.
+    function snoozeRow(row, ms) {
+        if (!row || row.row_id === undefined)
+            return 0;
+        if (!NotifyConfig.store.enabled || !NotifyStore.healthy) {
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
+                    "Snooze failed", "notification history is unavailable — nothing was snoozed"]);
+            return 0;
+        }
+        const wake = Date.now() + Math.max(0, Math.round(ms));
+        NotifyStore.snoozeRow(row.row_id, wake);
+        const live = row.state === "active" && row.nid !== undefined ? root.entryForId(row.nid) : null;
+        if (live) {
+            root.forget(live);
+            root.reflow();
+        }
+        return wake;
     }
 
     // The default action, if the client supplied one: what clicking the card means.
@@ -1117,6 +1217,18 @@ Singleton {
         // The popup goes; the row is what remembers.
         root.forget(entry);
         root.reflow();
+    }
+
+    // A preset is EITHER a duration ("1h") or a wall-clock time ("17:30"), and they must not be
+    // labelled the same way. Rendering a clock preset through snoozeLabel gives "Snooze 3h12m"
+    // — a number that is correct for one minute and then silently wrong, and that tells you
+    // nothing about the thing you actually asked for. A clock preset is labelled with the time
+    // itself, which is also stable: "Snooze until 17:30" reads the same all afternoon.
+    //
+    // The duration is still parsed from the same string by parseDelay at press time, so the
+    // label is display text and never a second source of truth for when the wake is.
+    function snoozePresetLabel(text, ms) {
+        return /^[0-9]{1,2}:[0-9]{2}$/.test(String(text).trim()) ? "Snooze until " + String(text).trim() : "Snooze " + root.snoozeLabel(ms);
     }
 
     // The inverse of parseDelay, for the chip label only ("45s", "15m", "1h", "1h30m"). Never

@@ -35,6 +35,12 @@ Singleton {
     property string filterCategory: ""
     property int filterUrgency: -1
     property string filterRange: "all"   // all | hour | today | week
+    // Pending reminders only. A CLIENT-side filter, unlike app/category/urgency/range: those
+    // narrow the SQL query, and this one must not. `state` changes under the drawer while it is
+    // open — a row snoozed a second ago is patched in memory by markSnoozed, and the write it
+    // came from has not flushed yet — so a WHERE clause would disagree with what the user just
+    // did until the next reload.
+    property bool filterSnoozed: false
 
     readonly property var ranges: ({
             all: 0,
@@ -71,6 +77,8 @@ Singleton {
     // Deliberately not fuzzy-scored — ranking by score would reorder the list under the user
     // as they type, and this list is chronological for a reason.
     function matches(row, needle) {
+        if (root.filterSnoozed && row.state !== "snoozed")
+            return false;
         if (!needle)
             return true;
         const hay = ((row.app_name || "") + " " + (row.summary || "") + " " + (row.body || "") + " " + (row.category || "")).toLowerCase();
@@ -185,6 +193,11 @@ Singleton {
     readonly property var selectedActions: {
         // see NotificationCard: touch the config so the binding re-runs when TOML lands
         NotifyConfig.actions;
+        // …and NotifyConfig.snooze, which the built-in snooze verbs read for their durations
+        // and labels. Same reason: a dependency is not discovered through a function call into
+        // another singleton, so without this the row's verbs keep whatever the defaults were
+        // when the binding first ran.
+        NotifyConfig.snooze;
         const sel = root.selected;
         if (!sel || sel.kind === "group")
             return [];
@@ -196,11 +209,27 @@ Singleton {
         for (let i = 0; i < list.length; i++) {
             if (list[i].key === letter) {
                 const sel = root.selected;
-                Notifications.invokeRowAction(sel.row ? sel.row : sel, list[i], "");
+                const row = sel.row ? sel.row : sel;
+                const wake = Notifications.invokeRowAction(row, list[i], "");
+                // A snooze changes the row under the cursor, and the write flushes ~200ms
+                // later — so the list is patched from the returned stamp rather than reloaded.
+                // Without this the row keeps its old state and the drawer shows no sign that
+                // anything happened, which is exactly how this landed the first time.
+                if (list[i].kind === "snooze" && wake > 0)
+                    root.markSnoozed(row.row_id, wake);
                 return true;
             }
         }
         return false;
+    }
+
+    // Patch one row in place. `rows` is reassigned rather than mutated because a QML binding
+    // does not re-run when an element of the array it read is changed underneath it.
+    function markSnoozed(rowId, wake) {
+        root.rows = root.rows.map(r => r.row_id === rowId ? Object.assign({}, r, {
+            state: "snoozed",
+            wake_at: wake
+        }) : r);
     }
 
     // `p` opens the selected ROW in the centred compose surface, hosted by this window so the
@@ -405,7 +434,80 @@ Singleton {
         root.filterCategory = "";
         root.filterUrgency = -1;
         root.filterRange = "all";
+        root.filterSnoozed = false;
         root.refresh();
+    }
+
+    // No refresh(): the filter is client-side, so `filtered` re-runs on its own and a reload
+    // would throw away the in-memory patch markSnoozed just made.
+    function toggleSnoozedFilter() {
+        root.filterSnoozed = !root.filterSnoozed;
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Free-text snooze ("remind me at…"), `r`. The Ctrl+S chips cover the two durations worth a
+    // key; this is for the one that is neither — "after work", "Monday morning", any wall clock.
+    //
+    // Notifications.qml:698 explains why the POPUP path has no clickable version of this: the
+    // prompt needs the layershell window's keyboard grab, and on the stack that only turns on
+    // for NotifyFocus.active or compose, so a mouse user could type into nothing. None of that
+    // applies here — the drawer is a surface the user deliberately opened and it already holds
+    // an exclusive grab, which is the whole reason this verb can exist on this surface and not
+    // on that one.
+    //
+    // It reuses the SEARCH field in a mode rather than adding a second TextInput. Two inputs on
+    // one grabbing surface means two focus states to keep straight, and the second one is
+    // invisible for all but a few seconds of the drawer's life.
+    // ---------------------------------------------------------------------------------------
+
+    property var timePromptRow: null
+    // What the search box held when the prompt opened, put back when it closes: the field is
+    // borrowed, so a search in progress must survive the loan.
+    property string searchBeforePrompt: ""
+
+    readonly property bool timePrompting: root.timePromptRow !== null
+
+    // Counted over `rows`, NOT over `filtered`: `filtered` is what the snoozed filter already
+    // narrowed, so counting there would make the tab read "snoozed 3" while it is on and
+    // "snoozed 0" the moment you turn it off — a control that erases its own reason to exist.
+    readonly property int snoozedCount: {
+        let n = 0;
+        for (const r of root.rows)
+            if (r.state === "snoozed")
+                n++;
+        return n;
+    }
+
+    function beginTimePrompt() {
+        const sel = root.selected;
+        if (!sel || sel.kind === "group")
+            return false;
+        root.searchBeforePrompt = root.search;
+        root.timePromptRow = sel.row ? sel.row : sel;
+        return true;
+    }
+
+    function cancelTimePrompt() {
+        root.timePromptRow = null;
+    }
+
+    // Rejects what it cannot parse rather than guessing — snoozing for the wrong interval is
+    // worse than saying the input was not understood. Same rule, same wording as the popup
+    // path's submitPrompt, because it is the same mistake being reported.
+    function submitTimePrompt(text) {
+        const row = root.timePromptRow;
+        root.timePromptRow = null;
+        if (!row)
+            return;
+        const ms = Notifications.parseDelay(text);
+        if (ms === null) {
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "quickshell",
+                    "Snooze", "could not parse \"" + text + "\" — try 20m, 2h or 17:30"]);
+            return;
+        }
+        const wake = Notifications.snoozeRow(row, ms);
+        if (wake > 0)
+            root.markSnoozed(row.row_id, wake);
     }
 
     // Clicking a group header's app name filters to it — the fastest filter is the one you can

@@ -163,7 +163,12 @@ Singleton {
             addMs: 300000,          // what the card's "+5 min" action adds
             anchorH: "",            // "" = follow placement.anchorH
             anchorV: "top",         // "" = follow placement.anchorV
-            stopwatchPill: true     // live stopwatch readout in the bar
+            stopwatchPill: true,    // live stopwatch readout in the bar
+            // A freedesktop sound-theme NAME, never a path. The name resolves through the
+            // user's configured theme with freedesktop as the fallback, so this one value is
+            // correct on a machine that has themed its sounds and on one that has not — a
+            // path would be neither. "" disables the chime; the card still fires.
+            alarmSound: "alarm-clock-elapsed"
         })
 
     // Do Not Disturb (story: notif-dnd-core). Manual toggle and the bar indicator need no
@@ -519,7 +524,8 @@ Singleton {
             addMs: root.pickInt(ti, "addMs", root.defaultTimers.addMs, 1000),
             anchorH: root.pickEnum(ti, "anchorH", ["", "left", "center", "right"], root.defaultTimers.anchorH),
             anchorV: root.pickEnum(ti, "anchorV", ["", "top", "center", "bottom"], root.defaultTimers.anchorV),
-            stopwatchPill: root.pickBool(ti, "stopwatchPill", root.defaultTimers.stopwatchPill)
+            stopwatchPill: root.pickBool(ti, "stopwatchPill", root.defaultTimers.stopwatchPill),
+            alarmSound: root.pickString(ti, "alarmSound", root.defaultTimers.alarmSound)
         };
 
         const co = cfg.collapse;
