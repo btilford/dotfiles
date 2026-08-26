@@ -2,10 +2,14 @@
 # GitLab server-side pre-receive hook: reject a push that carries a secret.
 #
 # This is the only gate in the chain a client cannot bypass. `git commit
-# --no-verify` skips the local hook and lefthook; CI only reports AFTER the push,
+# --no-verify` skips the local hook and hk; CI only reports AFTER the push,
 # by which point the secret is on the server and — with the GitHub mirror enabled
 # — already mirrored. This runs before any ref is updated, so a rejected push
 # leaves nothing behind.
+#
+# betterleaks replaced gitleaks here on 2026-08-24 (same author, same flags for
+# everything this hook uses). Installing the new binary and the new file is one
+# admin step; see the README beside this file.
 #
 # Git server hooks are available on Free for GitLab Self-Managed; this is not an
 # Ultimate feature. Install by copying this file into the instance's global
@@ -15,17 +19,19 @@
 set -u
 
 # An admin kill switch, for the case where this hook itself is what is broken.
-# Deliberately an env var on the server, not a flag a pusher can set.
-[ "${GITLEAKS_PRE_RECEIVE_DISABLE:-0}" = "1" ] && exit 0
+# Deliberately an env var on the server, not a flag a pusher can set. The old
+# GITLEAKS_ spelling is still honoured so a server that has it set does not
+# silently start enforcing again at the rename.
+[ "${BETTERLEAKS_PRE_RECEIVE_DISABLE:-${GITLEAKS_PRE_RECEIVE_DISABLE:-0}}" = "1" ] && exit 0
 
 ZERO=0000000000000000000000000000000000000000
 
-if ! command -v gitleaks > /dev/null 2>&1; then
+if ! command -v betterleaks > /dev/null 2>&1; then
   # Fail CLOSED. A security gate that silently disables itself when its binary
   # goes missing is worse than no gate, because the green push is read as proof.
   # The kill switch above is the deliberate way to turn it off.
-  echo "pre-receive: gitleaks is not installed on this server — refusing the push" >&2
-  echo "pre-receive: install it, or set GITLEAKS_PRE_RECEIVE_DISABLE=1 to override" >&2
+  echo "pre-receive: betterleaks is not installed on this server — refusing the push" >&2
+  echo "pre-receive: install it, or set BETTERLEAKS_PRE_RECEIVE_DISABLE=1 to override" >&2
   exit 1
 fi
 
@@ -47,7 +53,7 @@ while read -r old new ref; do
   # --redact: this output goes into the pusher's terminal AND the server log.
   # The file and line are enough to fix it; reprinting the value copies the
   # secret into another place it should not be.
-  if ! gitleaks git . --log-opts="$range" --no-banner --redact --exit-code 1 2>&1; then
+  if ! betterleaks git . --log-opts="$range" --no-banner --redact --exit-code 1 2>&1; then
     echo "pre-receive: secret detected in $ref — push rejected" >&2
     status=1
   fi

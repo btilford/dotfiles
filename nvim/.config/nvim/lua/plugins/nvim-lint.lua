@@ -17,9 +17,50 @@ return {
         },
       }
 
+      -- betterleaks — replaced gitleaks repo-wide on 2026-08-24. nvim-lint ships
+      -- a gitleaks linter but has none for betterleaks, and mason has no package
+      -- for it either, so define it here. Same shape as nvim-lint's gitleaks.lua:
+      -- betterleaks' `stdin` subcommand takes the same flags and emits the same
+      -- JSON fields (RuleID/Description/StartLine/EndLine/StartColumn/EndColumn).
+      -- The binary comes from mise (`mise use -g betterleaks@latest`) or brew,
+      -- not mason — see the dotfiles metapac groups for why there is no Arch
+      -- package.
+      lint.linters.betterleaks = {
+        name = "betterleaks",
+        cmd = "betterleaks",
+        stdin = true,
+        append_fname = true,
+        args = { "stdin", "--report-format=json", "--report-path=-", "--exit-code=0" },
+        stream = "stdout",
+        ignore_exitcode = false,
+        parser = function(output, bufnr, _)
+          if output == nil or output == "" then
+            return {}
+          end
+          local ok, decoded = pcall(vim.json.decode, output)
+          if not ok or type(decoded) ~= "table" then
+            return {}
+          end
+
+          local diagnostics = {}
+          for _, leak in ipairs(decoded) do
+            table.insert(diagnostics, {
+              bufnr = bufnr,
+              lnum = leak.StartLine - 1,
+              end_lnum = leak.EndLine - 1,
+              col = leak.StartColumn - 1,
+              end_col = leak.EndColumn - 1,
+              source = "betterleaks",
+              message = leak.Description,
+            })
+          end
+          return diagnostics
+        end,
+      }
+
       lint.linters_by_ft = {
         ["*"] = {
-          "gitleaks",
+          "betterleaks",
           "spellcheck",
         },
         kotlin = {
@@ -133,11 +174,11 @@ return {
           "checkstyle",
         },
         precommit = {
-          "gitleaks",
+          "betterleaks",
         },
         commit = {
           "gitlint",
-          "gitleaks",
+          "betterleaks",
         },
         commit_msg = {
           "gitlint",

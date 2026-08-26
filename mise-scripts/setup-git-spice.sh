@@ -48,13 +48,16 @@ else
   printf '      (or: metapac sync)\n'
 fi
 
-say "2. gitleaks installed (the pre-commit hook is inert without it)"
-if command -v gitleaks > /dev/null 2>&1; then
-  pass "$(gitleaks version 2> /dev/null | head -1)"
+say "2. betterleaks installed (the pre-commit hook is inert without it)"
+if command -v betterleaks > /dev/null 2>&1; then
+  pass "$(betterleaks version 2> /dev/null | head -1)"
 else
-  note "gitleaks not found — the global pre-commit hook will no-op."
-  printf '      Arch:  paru -S --needed gitleaks\n'
-  printf '      macOS: brew install gitleaks\n'
+  note "betterleaks not found — the global pre-commit hook will no-op."
+  # No Arch package: it is in no official repo, and aur/betterleaks builds from
+  # the git HEAD with a pkgver() that queries the GitHub API at build time. mise
+  # pins a release instead. brew has it, and the metapac macos group declares it.
+  printf '      Arch:  mise use -g betterleaks@latest\n'
+  printf '      macOS: brew install betterleaks   (or: metapac sync)\n'
 fi
 
 say "3. template directory (init.templateDir)"
@@ -131,25 +134,27 @@ else
   printf '        git-spice-hook-install ~/src/repo-a ~/src/repo-b\n'
 fi
 
-say "7. this repo's own hooks (lefthook)"
-# Separate from the global hooks above: a repo with lefthook.yml expects
-# `lefthook install` to have been run in THAT clone, and nothing does it
-# automatically. Missed here for a long time — the formatters and this repo's own
-# gitleaks command had never run on a commit.
-if [ -f lefthook.yml ] || [ -f lefthook.toml ]; then
-  hookdir=$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null)/hooks
-  if [ -f "$hookdir/pre-commit" ] && grep -q lefthook "$hookdir/pre-commit" 2> /dev/null; then
-    pass "lefthook hooks installed in this clone"
+say "7. this repo's own hooks (hk)"
+# hk replaced lefthook on 2026-08-24, and with it the per-clone install: the
+# stowed ~/.config/git/hk.gitconfig registers hk as a config-based hook
+# (`hook.hk-pre-commit.command`, git 2.54+), which fires in EVERY repo that
+# carries an hk.pkl. The per-clone `hk install` is only the fallback for a git
+# too old for that, or a machine whose user gitconfig is not ours.
+if [ -f hk.pkl ]; then
+  if [ -n "$(git config --get hook.hk-pre-commit.command 2> /dev/null)" ]; then
+    pass "hk registered as a global config hook (no per-clone install needed)"
+  elif [ -f "$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null)/hooks/pre-commit" ] &&
+    grep -q hk "$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null)/hooks/pre-commit" 2> /dev/null; then
+    pass "hk hooks installed in this clone"
   else
-    note "lefthook config present but its hooks are not installed. Run:  mise run hooks"
-    printf '      Without it the formatters (shfmt/stylua/taplo/markdownlint) and this\n'
-    printf '      repo'\''s gitleaks command never run on a commit.\n'
-    printf '      Note: `lefthook install` renames an existing pre-commit to\n'
-    printf '      pre-commit.old and does NOT run it — so it displaces the global\n'
-    printf '      gitleaks hook. Harmless where lefthook.yml runs gitleaks itself.\n'
+    note "hk config present but neither the global hook nor a per-clone install is."
+    printf '      Global (git 2.54+): stow the git package, then re-check.\n'
+    printf '      Per clone:          mise run hooks\n'
+    printf '      Without one, the formatters (shfmt/stylua/taplo/markdownlint) and\n'
+    printf '      the betterleaks step never run on a commit.\n'
   fi
 else
-  pass "no lefthook config here; nothing to install"
+  pass "no hk config here; nothing to install"
 fi
 
 say "Summary"

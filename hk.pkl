@@ -1,0 +1,87 @@
+/// Git hooks, managed via mise-installed hk (https://hk.jdx.dev).
+///
+/// Nothing to install per clone on this machine: git/.config/git/hk.gitconfig
+/// registers hk as a config-based hook (`hook.hk.command`, git 2.54+), which
+/// fires in every repo that has an hk.pkl. `mise run hooks` still exists for a
+/// clone made with an older git or a machine whose user gitconfig is not ours.
+///
+/// Formatters run on the files the hook selected — staged content at commit
+/// time, since the pre-commit hook stashes everything unstaged first — and the
+/// results are re-staged. No repo-wide reflow.
+///
+/// Replaced lefthook.yml on 2026-08-24. The two exclusion lists and the
+/// selector comments below are carried over verbatim; read them before editing.
+amends "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Config.pkl"
+
+local linters = new Mapping<String, Step> {
+  ["shfmt"] {
+    glob = List("*.sh", "*.bash")
+    fix = "shfmt -w -i 2 -ci -sr {{files}}"
+  }
+  ["stylua"] {
+    glob = List("*.lua")
+    // Same two exclusions as mise-scripts/lua-files.sh: the frozen colors.lua
+    // seed and the wallust render template. Kept in step — see that script.
+    exclude = List(
+      "hyprland/.config/hypr/lua/colors.lua",
+      "wallust/.config/wallust/templates/colors-hyprland.lua"
+    )
+    fix = "stylua {{files}}"
+  }
+  ["taplo"] {
+    glob = List("*.toml")
+    fix = "taplo fmt {{files}}"
+  }
+  ["markdownlint"] {
+    glob = List("*.md")
+    fix = "markdownlint-cli2 --fix {{files}}"
+  }
+  ["fish-syntax"] {
+    glob = List("*.fish")
+    check = "for f in {{files}}; do fish --no-execute \"$f\"; done"
+  }
+  ["no-local-values"] {
+    check = "mise-scripts/no-local-values.sh"
+  }
+  // `betterleaks dir` over the selected files, not `betterleaks git --staged`:
+  // the pre-commit hook stashes unstaged changes, so what is on disk IS the
+  // staged content, and this way the same step also does something useful under
+  // `hk check --all`. Unredacted on purpose: author's own terminal, own content.
+  ["betterleaks"] {
+    types = List("text")
+    check = "betterleaks dir -c .betterleaks.toml --no-banner {{files}}"
+  }
+  // Structural: a credential-named value must be a reference, not a literal.
+  // Same script the lint task and the machine audit run, given the files.
+  ["config-secret-refs"] {
+    glob = List("*.json", "*.jsonc", "*.yaml", "*.yml")
+    check = "./mise-scripts/config-secret-refs.py {{files}}"
+  }
+}
+
+hooks {
+  ["pre-commit"] {
+    fix = true
+    stash = "git"
+    steps = linters
+  }
+
+  // A commit message is published exactly like file content, and was ungated
+  // until 2026-08 — pre-commit runs before the message exists, so nothing ever
+  // looked at it.
+  ["commit-msg"] {
+    steps {
+      ["no-local-values"] {
+        check = "mise-scripts/no-local-values.sh --message {{commit_msg_file}}"
+      }
+    }
+  }
+
+  ["fix"] {
+    fix = true
+    steps = linters
+  }
+  ["check"] {
+    steps = linters
+  }
+}

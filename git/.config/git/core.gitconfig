@@ -18,7 +18,7 @@
     useConfigOnly = true
 
 [init]
-    # Hooks for new clones/inits: git-spice branch tracking and a gitleaks
+    # Hooks for new clones/inits: git-spice branch tracking and a betterleaks
     # pre-commit. NOT the stowed ~/.config/git/templates — git copies template
     # entries as symlinks preserving the relative target, and stow makes every
     # file a relative symlink, so that path would give each new repo a dangling

@@ -27,7 +27,7 @@ $EDITOR ~/.docker/mcp/config.yaml    # then chmod 600
 
 The example is linted normally, so keep it in valid YAML with placeholder values.
 
-`.gitleaks.toml` carries a custom `google-app-password` rule because one was
+`.betterleaks.toml` carries a custom `google-app-password` rule because one was
 committed here before this rule existed. Don't remove it.
 
 Secrets (`.env`, `registry.yaml`, `catalogs/`) are written by the gateway itself

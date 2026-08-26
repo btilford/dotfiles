@@ -1,12 +1,13 @@
-title = "dotfiles gitleaks config"
+title = "dotfiles betterleaks config"
 
-# Inherit gitleaks' full default rule set, then narrow with allowlists below.
+# Inherit betterleaks' full default rule set, then narrow with allowlists below.
 [extend]
 useDefault = true
 
 # Custom rules. Each of these caught a secret that the default rule set scanned
-# straight past — all three were committed here and reported clean by
-# `gitleaks git .` across the full history. Do not remove without a replacement.
+# straight past — all three were committed here and reported clean by a full
+# history scan with `gitleaks git .`, the scanner in use at the time. Do not
+# remove without a replacement.
 
 [[rules]]
 id = "npmrc-authtoken"
@@ -45,7 +46,7 @@ regex = '''(?i)"[A-Za-z0-9_-]*(?:password|passwd|secret|token|api_?key|credentia
 # reported (and --redact-ed) secret is the whole `"key": "value"` match, which
 # both leaks the key name into a redacted report and makes fingerprints noisier.
 secretGroup = 1
-# Cheap pre-filter: gitleaks only runs the regex on a chunk containing one of
+# Cheap pre-filter: betterleaks only runs the regex on a chunk containing one of
 # these, and the regex cannot match without one anyway.
 keywords = [
   "password",
@@ -132,7 +133,7 @@ regexTarget = "line"
 regexes = ['''signingKey\s*=\s*[0-9A-Fa-f]{40}''']
 
 # NO `paths` allowlists here, deliberately. A path allowlist matches on file path
-# in EVERY scan mode — `gitleaks git` (history) as well as `gitleaks dir`
+# in EVERY scan mode — `betterleaks git` (history) as well as `betterleaks dir`
 # (working tree) — so allowlisting a path to silence an untracked live config also
 # blinds the gate to every SECRET THAT FILE ONCE CONTAINED IN HISTORY. That is
 # exactly what happened: `glab-cli/config.yml`, `docker/mcp/config.yaml` and

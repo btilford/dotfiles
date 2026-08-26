@@ -408,7 +408,6 @@ return {
         "dotenv-linter",
         "editorconfig-checker",
         "flake8",
-        "gitleaks",
         "gitlint",
         "hadolint",
         "haml-lint",
