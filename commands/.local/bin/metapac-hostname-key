@@ -24,7 +24,11 @@ key=arch
 # hostname_groups/hostname_enabled_backends entry in config.toml for any new
 # combination this produces.
 if [ "$key" = arch ] && command -v lspci > /dev/null 2>&1; then
-  controllers=$(lspci | grep -iE "vga compatible controller|3d controller")
+  # Strix Halo (and some other AMD APUs) report PCI class "Display controller",
+  # not "VGA compatible controller" — matching only the latter two silently
+  # resolved this box to plain `arch`, dropping amd-gpu.toml and putting
+  # vulkan-radeon/ROCm/amd-ucode on `metapac clean`'s removal list.
+  controllers=$(lspci | grep -iE "vga compatible controller|3d controller|display controller")
   vendors=""
   echo "$controllers" | grep -qiE "\<amd\>|\<ati\>" && vendors="${vendors}-amd"
   echo "$controllers" | grep -qi "intel" && vendors="${vendors}-intel"
