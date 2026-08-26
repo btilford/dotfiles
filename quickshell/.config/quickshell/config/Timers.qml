@@ -607,7 +607,28 @@ Singleton {
         }
     }
 
+    // The chime. A finished timer is the one notification you may not be looking at the screen
+    // for, so it is the one that earns a sound — and only this path plays one. raise() does not:
+    // a card going up when you START a timer is a thing you already know about.
+    //
+    // A sound-theme NAME, resolved by canberra against the user's theme, never a file path. A
+    // path would be right on one machine and wrong on the next, and it would ignore a themed
+    // desktop outright. canberra-gtk-play is the only player that does that lookup; pw-play and
+    // paplay take a path and nothing else, so falling back to them would mean hard-coding the
+    // freedesktop path here and quietly defeating the point. A machine without canberra gets no
+    // chime and one warning — the card still fires, which is the part that must never depend on
+    // an optional binary.
+    //
+    // execDetached, so a slow or wedged audio stack cannot hold the notification behind it.
+    function playAlarm() {
+        const name = NotifyConfig.timers.alarmSound;
+        if (!name || !name.length)
+            return;
+        Quickshell.execDetached(["canberra-gtk-play", "-i", name]);
+    }
+
     function fire(t) {
+        root.playAlarm();
         root.dropCard(t);
         const done = root.byRowId(t.rowId);
         if (done)

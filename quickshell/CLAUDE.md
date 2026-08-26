@@ -903,6 +903,15 @@ cancel <id>`, `cancelAll`, `stopwatch|stopwatchStart [label]`, `lap`, `stop`, `l
   click pause/resume, middle-click lap, right-click stop — and the notification surface sees it
   only at terminal events: started, lap, stopped. It does NOT survive a restart, because there is
   no armed row to survive with; stopping writes its one summary row.
+- **A finished timer is the one card that makes a sound**, and `fire()` is the only place that
+  plays one. A card going up when you START a timer announces something you just did; a card
+  going up when it ENDS is the one you may not be looking at the screen for. `timers.alarmSound`
+  is a freedesktop sound-theme NAME (`alarm-clock-elapsed`), never a path, so it follows a themed
+  desktop and is correct on a machine that has not themed its sounds. `canberra-gtk-play` is the
+  only player that does that lookup — `pw-play` and `paplay` take a path, so falling back to them
+  would mean hard-coding the freedesktop path and defeating the point. A machine without canberra
+  gets one warning and no chime; the card still fires, because notification delivery may not
+  depend on an optional binary. Set `alarmSound = ""` to silence it.
 - A folded timer card keeps counting in the bar pill (`NotificationPills`), because a pill that
   says only "Deep work" has thrown away the thing a running timer is for.
 - **Desktop timers are not a front-end onto vault reminders.** AD-012 §4's argument for snooze
@@ -1020,6 +1029,7 @@ Hyprland plugins — nothing needs `hyprpm`. Hyprland's lua config + `scrolling`
 | Bluetooth | `bluez` + `bluez-utils` running | Bluetooth (`Quickshell.Bluetooth`) |
 | Battery | `upower` running | Battery (laptop only) |
 | Session actions | `systemd` (`systemctl`/`loginctl`) | SessionOverlay |
+| Timer chime | `libcanberra` + `sound-theme-freedesktop` | Timers (`fire()`); absent = silent, card unaffected |
 
 Right-click "manage" launchers (each a configurable `manageCmd` on the module — swap freely):
 `pavucontrol` (Audio), `nm-connection-editor` from `network-manager-applet` (Network),
