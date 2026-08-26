@@ -9,24 +9,6 @@ it grew out of.
 
 ![the quickshell launcher](docs/images/quickshell-launcher.png)
 
-## What might be worth stealing
-
-- **A quickshell desktop shell** you can read — [`quickshell/`](quickshell/README.md).
-  Multi-mode launcher, a full `org.freedesktop.Notifications` server with popups,
-  actions, rules and a history drawer, and a submap hint overlay.
-- **Headless screenshot capture** — [`mise-scripts/visuals/`](mise-scripts/visuals/README.md).
-  Boots a nested wlroots compositor, drives each surface over IPC and captures
-  stills and GIFs, with no display and no logged-in session. Every shell surface
-  shown here came from it — the three layout shots below are the exception, and
-  say why.
-- **Wallpaper-driven theming** — [`wallust/`](wallust/README.md) regenerates
-  palettes for six other tools on every wallpaper change.
-- **A git setup that routes identity by directory** — [`git/`](git/README.md),
-  with per-host credential helpers and hooks installed via `init.templateDir`
-  (and the reasons `core.hooksPath` was rejected).
-- **Stow discipline that survives real use** — see [Usage](#usage) below, in
-  particular the folding hazard, which can delete files out of your repo.
-
 Every top-level directory is a stow package with its own README.
 
 ## Packages
