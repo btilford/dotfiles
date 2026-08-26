@@ -96,8 +96,21 @@ PanelWindow {
                 NotifyDrawer.clearSelected();
             else if (event.key === Qt.Key_A && (event.modifiers & Qt.ShiftModifier))
                 NotifyDrawer.clearAll();
-else if (event.key === Qt.Key_F)
+            else if (event.key === Qt.Key_F)
                 NotifyDrawer.cycleRange();
+            // `z` for zzz — pending reminders only. Deliberately NOT `s`: `Ctrl+S` on this same
+            // surface SNOOZES the selected row, and one letter meaning "snooze this" with a
+            // modifier and "show snoozed" without would be read wrong under the fingers.
+            else if (event.key === Qt.Key_Z)
+                NotifyDrawer.toggleSnoozedFilter();
+            // `r` for remind, the same letter focus mode uses for this on a popup. It borrows
+            // the search field, so it also has to move the keyboard there.
+            else if (event.key === Qt.Key_R) {
+                if (!NotifyDrawer.beginTimePrompt())
+                    return;
+                search.text = "";
+                search.forceActiveFocus();
+            }
             // `y`/`Y` yank, as in vim — and it frees `c` to keep meaning clear-filters here
             else if (event.key === Qt.Key_Y && (event.modifiers & Qt.ShiftModifier))
                 NotifyDrawer.copySelected(true);
@@ -224,6 +237,7 @@ else if (event.key === Qt.Key_F)
                 }
 
                 Text {
+                    id: clearAll
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: "clear all"
@@ -237,6 +251,34 @@ else if (event.key === Qt.Key_F)
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: NotifyDrawer.clearAll()
+                    }
+                }
+
+                // The snoozed tab. `z` toggles the same filter from the keyboard; a filter with
+                // no visible control is one only its author knows about.
+                //
+                // Hidden at zero UNLESS the filter is on, and that exception is the whole point:
+                // turning it on with nothing snoozed empties the list, and a control that
+                // vanished at the same moment would leave no way back to the full drawer except
+                // guessing the key again.
+                Text {
+                    id: snoozedTab
+                    visible: NotifyDrawer.snoozedCount > 0 || NotifyDrawer.filterSnoozed
+                    anchors.right: clearAll.left
+                    anchors.rightMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "\uf017 snoozed " + NotifyDrawer.snoozedCount
+                    color: NotifyDrawer.filterSnoozed ? Theme.accent : (snoozedMa.containsMouse ? Theme.fg : Theme.subtext)
+                    font.family: Theme.fontMono
+                    font.pixelSize: Theme.fontSize - 2
+                    font.bold: NotifyDrawer.filterSnoozed
+                    MouseArea {
+                        id: snoozedMa
+                        anchors.fill: parent
+                        anchors.margins: -6
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: NotifyDrawer.toggleSnoozedFilter()
                     }
                 }
             }
@@ -259,18 +301,41 @@ else if (event.key === Qt.Key_F)
                     font.family: Theme.fontMono
                     font.pixelSize: Theme.fontSize - 1
                     clip: true
-                    onTextChanged: NotifyDrawer.search = text
+                    // While the field is on loan to the snooze prompt its text is a duration,
+                    // not a query — filtering the list by "17:30" as it is typed would empty
+                    // the drawer under the row being snoozed.
+                    onTextChanged: {
+                        if (!NotifyDrawer.timePrompting)
+                            NotifyDrawer.search = text;
+                    }
                     // Esc/Enter hand the keyboard back to nav mode rather than closing the
                     // drawer: closing on Esc-in-search loses the search AND the drawer, which
                     // is never what was meant.
-                    Keys.onEscapePressed: keys.forceActiveFocus()
-                    Keys.onReturnPressed: keys.forceActiveFocus()
+                    Keys.onEscapePressed: {
+                        if (NotifyDrawer.timePrompting) {
+                            NotifyDrawer.cancelTimePrompt();
+                            search.text = NotifyDrawer.searchBeforePrompt;
+                        }
+                        keys.forceActiveFocus();
+                    }
+                    Keys.onReturnPressed: {
+                        if (NotifyDrawer.timePrompting) {
+                            const typed = search.text;
+                            // restore BEFORE submitting: submit clears timePrompting, and
+                            // assigning the old query back after that would run it through
+                            // onTextChanged as a search, which is what we want — but only
+                            // once, and only with the query, never with the duration.
+                            NotifyDrawer.submitTimePrompt(typed);
+                            search.text = NotifyDrawer.searchBeforePrompt;
+                        }
+                        keys.forceActiveFocus();
+                    }
 
                     Text {
                         anchors.fill: parent
                         visible: !search.text.length
                         verticalAlignment: Text.AlignVCenter
-                        text: "Search…  [/] search · [j/k] move · [\u21b5] expand · [p] compose · [y] yank · [d] clear · [D] group · [f] range · [Esc] close"
+                        text: NotifyDrawer.timePrompting ? "Remind me in\u2026  20m · 2h · 17:30   [\u21b5] snooze · [Esc] cancel" : "Search\u2026  [/] search · [j/k] move · [\u21b5] expand · [p] compose · [y] yank · [d] clear · [D] group · [r] remind · [z] snoozed · [f] range · [Esc] close"
                         color: Theme.subtext
                         font: search.font
                         elide: Text.ElideRight
@@ -412,12 +477,29 @@ else if (event.key === Qt.Key_F)
                                 font.bold: entry.row ? !entry.row.read_at : false
                             }
 
+                            // One stamp, and a snoozed row spends it on the WAKE rather than on
+                            // how long ago it arrived. Both would not fit at this size, and for a
+                            // pending reminder "when does this come back" is the live fact —
+                            // received_at is history the row itself is already telling you.
+                            //
+                            // fa-clock-o + accent, so it reads as a state and not as a second
+                            // timestamp. This is also the only visible confirmation that Ctrl+S
+                            // did anything: the row does not leave the list (the store still
+                            // lists it, so the drawer must too), and without a mark the snooze
+                            // landed silently.
                             Text {
                                 id: stamp
                                 anchors.right: parent.right
                                 anchors.verticalCenter: summary.verticalCenter
-                                text: entry.row ? win.ago(entry.row.received_at) : ""
-                                color: Theme.subtext
+                                readonly property bool snoozed: entry.row && entry.row.state === "snoozed" && entry.row.wake_at
+                                text: {
+                                    if (!entry.row)
+                                        return "";
+                                    if (stamp.snoozed)
+                                        return "\uf017 " + Qt.formatDateTime(new Date(entry.row.wake_at), "HH:mm");
+                                    return win.ago(entry.row.received_at);
+                                }
+                                color: stamp.snoozed ? Theme.accent : Theme.subtext
                                 font.family: Theme.fontMono
                                 font.pixelSize: Theme.fontSize - 3
                             }
