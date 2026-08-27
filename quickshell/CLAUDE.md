@@ -525,9 +525,15 @@ handler. Entered with `qs ipc call notifications toggleFocus` (SUPER + n).
   state of every notification window; the grab is bound to `NotifyFocus.active` and nothing on the
   ingest path can set it. Verified by typing into a terminal while a notification arrived — the
   typed string was unbroken.
-- **Exactly one window takes the grab**: the one whose stack contains the selection
-  (`focusedKey`). Two exclusive layer surfaces on one output fight, and the loser stops receiving
-  keys with no error anywhere.
+- **Exactly one window takes the grab**, and `NotificationOverlay.qml`'s `scope.grabKey` is what
+  picks it. Two exclusive layer surfaces on one output fight, and the loser stops receiving keys
+  with no error anywhere. Three things can want it — the compose surface, a card whose inline
+  prompt is open, and focus mode's selection — and they are ranked in that order: an open text
+  field with a half-written sentence in it beats a navigation mode, which is still `active`
+  underneath and gets the keyboard back when the field closes.
+  **Do not put that decision back on the window** (`focused || prompting` per window). Each
+  window deciding for itself is exactly what let focus mode in one stack and a mouse-opened
+  prompt in another claim the grab at the same time.
 - **The selection is a notification id, not an index.** The model reorders under it (a card
   expires, a `replaces_id` lands); an index would quietly slide onto a different notification.
 - **The overflow queue is navigable** because `Notifications.scrollOffsets` moves the window onto
@@ -792,6 +798,15 @@ Built to AD-012. `actionsSupported` and `inlineReplySupported` are both true;
   the entry through the same path hover-pause uses, so a card cannot expire mid-sentence.
   Taking focus is safe *here only* because a prompt is opened by a deliberate act, never by a
   notification arriving (AD-011 intact).
+- **A prompt takes the layershell grab, and did not until 2026-08-27.** `entry.prompting` was
+  absent from the window's `keyboardFocus` condition, so a prompt opened by MOUSE rendered a
+  field, took Qt focus, and then received no keystroke at all — the keys went to whatever
+  toplevel was focused, and the card was frozen (`beginPrompt` pauses the clock) until the X was
+  found. Reached by key (`i`, `r`) it worked only because focus mode already held the grab, which
+  is why it survived so long. Fixed by making the prompt a claimant of `scope.grabKey`.
+  **Exclusive, not OnDemand:** OnDemand hands a layer surface focus on a *click*, and the click
+  that opens a prompt lands while the surface is still `None` — the mode changes after it, so
+  that click can never be the one that focuses, and the field comes up dead exactly as before.
 - **Snooze is a row state**, `wake_at` (schema v3), with ONE armed timer for the earliest wake
   and overdue rows fired at startup — so it survives a restart and a reboot with no second
   scheduler. `s` snoozes for `snooze.defaultMs`; `r` prompts in time mode (`20m`, `2h`, `17:30`)
@@ -818,7 +833,10 @@ Built to AD-012. `actionsSupported` and `inlineReplySupported` are both true;
   a new flag on a shared object is worth grepping for first.
 - Migrations are a LIST run one statement per process: the sqlite3 CLI aborts on first error, so
   a concatenated migration would never reach v3 on a database that already had v2.
-- IPC: `qs ipc call notifications snooze <ms>` and `... snoozed`.
+- IPC: `qs ipc call notifications snooze <ms>` and `... snoozed`. `prompt <id> <timeMode>`,
+  `promptClose` and `promptState` open and read an inline prompt with focus mode OFF — the state
+  a mouse click produces, and the only way to drive that path without injecting keystrokes into a
+  live session. `id` 0 means the newest popup.
 
 **The action object must carry every field `invokeAction` reads.** `actionsFor` built its
 entries field by field and simply never copied `capture`, so `action.capture` was `undefined`
@@ -976,6 +994,21 @@ env -u WAYLAND_DISPLAY -u DISPLAY WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=
 **Always force the headless backend and never point a compositor at the real seat.** A compositor
 started without `WLR_BACKENDS=headless` (Hyprland: also `AQ_HEADLESS_ONLY=1`) grabs DRM master and
 kills the live session and every app in it.
+
+`mise run test:notif-grab` (`mise-scripts/notif-grab-test.sh`) is that rig, wired up as
+assertions: it runs a plain terminal beside the shell as a keyboard **sink** and checks where each
+keystroke lands. Asking the shell whether it holds the keyboard only returns what the shell
+believes; a second client receiving the keys the shell did not is the only check that can fail in
+the direction the prompt-grab bug failed in. It must fail on a tree without that fix — it does, on
+5 of its 13 checks.
+
+Two things it needs that are easy to leave out and that fail silently:
+
+- **A parked `wtype`.** `WLR_LIBINPUT_NO_DEVICES=1` leaves the seat with no keyboard at all, so
+  nothing ever binds `wl_keyboard` and every press is discarded whether the grab works or not.
+- **`QS_NOTIFY_DB`.** The nested session shares `$HOME` with the live desktop, so without it the
+  rig writes real snooze rows into the user's own history — an early version did, and they would
+  have fired hours later.
 
 ## Daemon lifecycle
 
