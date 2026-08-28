@@ -187,6 +187,10 @@ run = "mise-scripts/visual-capture.sh"
 description = "Assert the launcher's usage ranking in a headless nested compositor"
 run = "mise-scripts/launcher-rank-test.sh"
 
+[tasks."test:notif-grab"]
+description = "Assert where notification keystrokes land, in a headless nested compositor"
+run = "mise-scripts/notif-grab-test.sh"
+
 [tasks."screenshots:archive"]
 description = "Archive the latest captures into the vault history + regenerate the pages"
 run = "mise-scripts/visual-archive.sh"

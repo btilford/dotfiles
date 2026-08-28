@@ -695,15 +695,16 @@ Singleton {
         // The keyboard path predates this chip and is unchanged by it.
         //
         // ONLY the default-duration chip is offered here. A "Remind at…" chip that OPENS the
-        // time-mode prompt by mouse looked right in review and was not: submitting that prompt
-        // needs the layershell window's keyboard grab, which only ever turns on for
-        // `NotifyFocus.active` or the compose surface (`NotificationOverlay.qml:102,108`) —
-        // `entry.prompting` is not part of that condition. A mouse user could open the field and
-        // then type into nothing, with the card frozen (`beginPrompt` calls `root.pause`) until
-        // they found the X. Config `presets` gives mouse-only users more than one duration
-        // without needing to type at all; free-text "remind me at ___" stays keyboard-only (`r`)
-        // until a grab scoped to `entry.prompting` lands — see
-        // Tasks/quickshell-notif-prompt-needs-scoped-grab.
+        // time-mode prompt by mouse used to be unsafe: submitting that prompt needs the
+        // layershell window's keyboard grab, and `entry.prompting` was not part of the condition
+        // that turns it on, so a mouse user could open the field and then type into nothing with
+        // the card frozen (`beginPrompt` calls `root.pause`) until they found the X.
+        //
+        // That constraint is GONE — a prompting card is a claimant of `scope.grabKey` as of
+        // 2026-08-27 (`components/NotificationOverlay.qml`), and the mouse path is rig-verified.
+        // The chip is still not offered because adding it is a presentation change with its own
+        // key-hint and layout questions, not because it cannot work. Config `presets` already
+        // gives mouse-only users more than one duration without typing.
         //
         // Timer cards are skipped entirely: `Timers.actionsFor(entry)` is non-empty exactly when
         // this is a running timer's own card, and Notifications.snooze() calls forget(entry) ->

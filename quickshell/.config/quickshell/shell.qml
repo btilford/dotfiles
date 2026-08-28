@@ -126,6 +126,36 @@ ShellRoot {
         function composeClose(): void {
             NotifyCompose.close();
         }
+        // Open a card's INLINE prompt with focus mode off — the state a mouse click on a
+        // prompt-opening chip produces, as opposed to `i`/`r`, which can only be pressed once
+        // focus mode already holds the keyboard.
+        //
+        // It exists for the reason `snooze` above does: the path had no way to be driven or
+        // verified except by injecting keystrokes into a live session, and it is precisely the
+        // path that was broken — a mouse-opened prompt rendered a field that received no key at
+        // all until the grab was scoped to `entry.prompting`
+        // (components/NotificationOverlay.qml). `timeMode` picks the "remind me at ___" parse
+        // (Notifications.parseDelay -> snooze) over a reply.
+        function prompt(id: int, timeMode: bool): bool {
+            const entry = id > 0 ? Notifications.entryForId(id) : (Notifications.popups.length ? Notifications.popups[0] : null);
+            if (!entry)
+                return false;
+            Notifications.beginPrompt(entry, null, timeMode === true);
+            return true;
+        }
+        function promptClose(): void {
+            for (const e of Notifications.popups)
+                if (e.prompting)
+                    Notifications.cancelPrompt(e);
+        }
+        // Which card is prompting and in which mode, readable without a screenshot — the same
+        // job composeState() does for the compose surface.
+        function promptState(): string {
+            for (const e of Notifications.popups)
+                if (e.prompting)
+                    return (e.promptTimeMode ? "time " : "reply ") + e.nid;
+            return "closed";
+        }
         // What the surface would send, and by which route ("reply" over D-Bus to the client,
         // "action" into a command's {input}, or "none"). Readable without a screenshot.
         function composeState(): string {

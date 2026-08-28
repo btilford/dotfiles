@@ -60,6 +60,38 @@ Scope {
         return out;
     }
 
+    // Is this entry rendered as a card right now? The same filter `stackKeys` and `entriesFor`
+    // apply, factored out because `grabKey` needs it too: an entry nothing draws must never be
+    // able to claim the keyboard.
+    function shown(e) {
+        return !e.queued && !e.drawerOnly && e.resolved && !(e.collapsed && Notifications.dockCollapsed);
+    }
+
+    // WHICH ONE window holds the keyboard. The grab is a Wayland per-SURFACE thing, so at most
+    // one stack may ask for it: two exclusive layer surfaces on one output fight over it and the
+    // loser silently stops receiving keys. Deciding that here, once, is the point — each window
+    // deciding for itself is what let focus mode and a mouse-opened prompt both claim it.
+    //
+    // Order is by how immediate the typing surface is. A compose field and an inline prompt are
+    // both open text fields with a half-written sentence in them; focus mode is a navigation
+    // mode, and losing it for the length of a prompt costs nothing (it is still `active`, and
+    // gets the keyboard back when the prompt resolves).
+    //
+    // "" means no window takes the keyboard, which is the normal state: a stack of popups is
+    // passive and must never eat a keystroke out of whatever is being typed (AD-011).
+    readonly property string grabKey: {
+        if (NotifyCompose.host === "stack" && NotifyCompose.live !== null)
+            return Notifications.stackKey(NotifyCompose.live);
+        // Reading `e.prompting` here is also what makes this binding re-run when a prompt opens
+        // or closes — it is a real property on the entry, so it registers as a dependency.
+        for (const e of Notifications.popups)
+            if (e.prompting && scope.shown(e))
+                return scope.keyOf(e);
+        if (NotifyFocus.active)
+            return NotifyFocus.focusedKey;
+        return "";
+    }
+
     Variants {
         model: scope.stackKeys
 
@@ -91,9 +123,9 @@ Scope {
             visible: Shell.notificationsEnabled && win.entries.length > 0
             color: "transparent"
 
-            // This window holds the keyboard: focus mode is on and the selected card is in THIS
-            // stack. Exactly one window at a time, because two exclusive layer surfaces on one
-            // output fight over the grab and the loser silently stops receiving keys.
+            // Focus MODE is on and the selected card is in THIS stack — or the compose surface
+            // is open here. This drives the vim key handler and the legend, not the grab itself:
+            // `holdsGrab` below is what talks to the compositor.
             //
             // Composing counts as focused even when focus mode is off: the compose surface has a
             // text field, and a field on a surface with no keyboard grab is a field that silently
@@ -101,11 +133,39 @@ Scope {
             // call), so AD-011 is intact — nothing about an arriving notification reaches it.
             readonly property bool focused: (NotifyFocus.active && NotifyFocus.focusedKey === win.modelData) || compose.shown
 
+            // A card in THIS stack has its inline prompt open. Same argument as compose: an open
+            // text field on a surface with no keyboard grab is a field that eats nothing. It used
+            // to be exactly that — `prompting` was absent from the grab condition, so a prompt
+            // opened by MOUSE rendered, took focus Qt-side, and then received no keystroke at
+            // all, with the card frozen (`beginPrompt` pauses the clock) until the X was found.
+            // Reached by key (`i`, `r`) it worked only because focus mode already held the grab.
+            readonly property bool prompting: {
+                for (const e of win.entries)
+                    if (e.prompting)
+                        return true;
+                return false;
+            }
+
+            // This window is the scope's single grab owner. Note it is NOT `focused || prompting`:
+            // that is the same per-window decision that produced two claimants. `scope.grabKey`
+            // has already picked one.
+            readonly property bool holdsGrab: scope.grabKey !== "" && scope.grabKey === win.modelData
+
             WlrLayershell.layer: WlrLayer.Overlay
             // Popups never take the keyboard on arrival — that would eat keystrokes out of
-            // whatever is being typed. The grab happens only while focus mode is on, which only
-            // the explicit `notifications focus` bind turns on (story: notif-keyboard-control).
-            WlrLayershell.keyboardFocus: win.focused ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+            // whatever is being typed. The grab happens only while focus mode is on (which only
+            // the explicit `notifications focus` bind turns on — story: notif-keyboard-control),
+            // while the compose surface is open, or while a card's inline prompt is open. All
+            // three are deliberate acts by the user; none of them is reachable by an arriving
+            // notification.
+            //
+            // Exclusive rather than OnDemand for the prompt: OnDemand hands the surface focus on
+            // a CLICK, and the click that opens a prompt lands while the surface is still
+            // `None` — the mode changes after it, so that click cannot be the one that focuses.
+            // The field would come up dead exactly as it does today. The cost is that the
+            // keyboard belongs to the prompt until it resolves; Esc cancels and Ctrl+Enter sends,
+            // and the card is frozen throughout, so the way out is on screen the whole time.
+            WlrLayershell.keyboardFocus: win.holdsGrab ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
             WlrLayershell.namespace: "quickshell-notifications"
 
             // The window covers the whole output, INCLUDING the bar's exclusive zone, so window
@@ -216,9 +276,16 @@ Scope {
             }
 
             // The grab is a compositor-level thing; Qt still has to be told which item reads it.
-            // While composing, the field is the reader — asking the stack's handler to take focus
-            // would pull it out from under the text being typed.
-            onFocusedChanged: if (win.focused && !compose.shown)
+            // While composing or prompting, the field is the reader — asking the stack's handler
+            // to take focus would pull it out from under the text being typed.
+            onFocusedChanged: if (win.focused && !compose.shown && !win.prompting)
+                keys.forceActiveFocus()
+
+            // A prompt opening takes the field's own focus (NotificationCard's TextEdit does
+            // that on `visible`); a prompt CLOSING has to give the keyboard back, or focus mode
+            // keeps the grab with nothing reading it and j/k stop moving. Same shape as
+            // `compose.onClosed` below, for the same reason.
+            onPromptingChanged: if (!win.prompting && win.focused && !compose.shown)
                 keys.forceActiveFocus()
 
             // Leaving cards are reparented here for their exit: a full-window layer above the
