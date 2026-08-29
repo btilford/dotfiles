@@ -1,0 +1,108 @@
+#| ---------------------------------------------------------------------------
+
+  Shared Linux layout — mirrors config/base.keymap in the zmk-config repo.
+
+  One layout, many devices. kmonad grabs exactly ONE device per process, so
+  `input`/`output` below are placeholders: launch one instance per keyboard and
+  override them on the command line.
+
+      kmonad -i 'device-file "/dev/input/by-id/<id>-event-kbd"' \
+             -o 'uinput-sink "KMonad <id>"' \
+             linux-shared.kbd
+
+  Give each instance a distinct sink name so two of them are tellable apart.
+
+  DO NOT match devices loosely. A glob would capture the custom ZMK boards
+  (e.g. "Crosses BT Keyboard") and stack this remap on top of their firmware
+  layout. Bluetooth keyboards get no stable /dev/input/by-id symlink, so match
+  those by name in a udev rule instead.
+
+  DIFFERENCES FROM THE KEYBOARD FIRMWARE, and why:
+
+  * No F-key layer. A full keyboard has a real F-row, so SYM's top row has
+    nothing to port. kmonad is also exempt from the BIOS-key rule — it is a
+    userspace service and does not run before the OS.
+  * No magic-shift. kmonad has no adaptive-key, so "repeat the previous letter"
+    cannot be reproduced. The thumb Shifts are plain.
+  * No cross-hand restriction. kmonad has no equivalent of ZMK's
+    hold-trigger-key-positions, so same-hand mod rolls are possible here.
+
+  --------------------------------------------------------------------------- |#
+
+(defcfg
+  input  (device-file "/dev/input/by-path/PLACEHOLDER-event-kbd")
+  output (uinput-sink "KMonad shared")
+  fallthrough true
+  allow-cmd false
+)
+
+(defsrc
+  esc  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12 print        ssrq slck pause
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc  ins  home pgup  nlck kp/  kp*  kp-
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \     del  end  pgdn  kp7  kp8  kp9  kp+
+  caps a    s    d    f    g    h    j    k    l    ;    '    ret                        kp4  kp5  kp6
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft                 up         kp1  kp2  kp3  kprt
+  lctl fn lmet lalt           spc            ralt menu rctl            left down rght  kp0  kp.
+)
+
+;; The first deflayer is what kmonad starts in. `base` must stay first —
+;; putting `passthru` here would boot straight into a stock keyboard.
+(deflayer base
+  esc  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12 print        ssrq @off pause
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc  ins  home pgup  nlck kp/  kp*  kp-
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \     del  end  pgdn  kp7  kp8  kp9  kp+
+  esc  @a   @s   @d   @f   g    h    j    @k   @l   @scln '    ret                       kp4  kp5  kp6
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft                 up         kp1  kp2  kp3  kprt
+  lctl fn lmet @lsft         @spc           @rsft menu rctl           left down rght  kp0  kp.
+)
+
+(defalias
+  ;; Home-row mods, minus Shift. Shift is on the thumb-equivalents below,
+  ;; because on the home row the hold competes with the alpha roll and drops
+  ;; single-character shifts at speed. Alt is on d/k rather than g/h so the
+  ;; index finger isn't doing both the motion layer and Alt.
+  a    (tap-hold-next-release 200 a lmet)
+  s    (tap-hold-next-release 200 s lctl)
+  d    (tap-hold-next-release 200 d lalt)
+  f    (tap-hold-next-release 200 f (layer-toggle motion))
+  k    (tap-hold-next-release 200 k ralt)
+  l    (tap-hold-next-release 200 l rctl)
+  scln (tap-hold-next-release 200 ; rmet)
+
+  ;; A full keyboard has no thumb cluster, so the bottom row stands in for it:
+  ;; the keys either side of space are the outer thumbs.
+  lsft lsft
+  rsft rsft
+  ;; ZMK holds space for the mouse layer and j for the text layer. Neither is
+  ;; ported yet — a full keyboard has a real mouse to hand, and the text layer
+  ;; needs its own pass — so space is plain and j is plain.
+  spc  spc
+
+  ;; Escape hatch. `fallthrough true` means any key this layer does not define
+  ;; emits itself, so `passthru` is a stock keyboard while kmonad keeps running
+  ;; — which is the whole point: you cannot toggle kmonad back on once it has
+  ;; exited. layer-switch is persistent; layer-toggle would only hold.
+  off  (layer-switch passthru)
+  on   (layer-switch base)
+)
+
+;; Everything here falls through to the OS untouched except the one key that
+;; switches back. Scroll Lock is the toggle: present on 100%/TKL boards and
+;; otherwise unused. Laptop boards have no slck and need their own choice.
+(deflayer passthru
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _          _    @on  _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _     _    _    _     _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _     _    _    _     _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _                          _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _                    _          _    _    _    _
+  _    _    _    _              _              _    _    _               _    _    _     _    _
+)
+
+(deflayer motion
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _          _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _     _    _    _     _    _    _    _
+  _    _    _    _    _    _    home pgdn pgup _    print _   _    _     _    _    _     _    _    _    _
+  _    _    _    _    _    _    left down up   rght end  _    _                          _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _                    _          _    _    _    _
+  _    _    _    _              _              _    _    _               _    _    _     _    _
+)
