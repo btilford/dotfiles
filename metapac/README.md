@@ -62,6 +62,29 @@ entry Arch-only. The reverse (`core` → `macos`) makes it macOS-only.
   reads "clean" / "nothing to install", a false pass. Linux uses XDG, so
   `~/.config/metapac/` is already correct there. (`--config-dir <path>` overrides
   per-invocation and is the worktree testing seam.)
+- **Homebrew's tap-trust gate aborts the whole sync, per machine.** A formula
+  from a third-party tap now needs explicit trust, and brew exits non-zero
+  without it — which metapac treats as a failed command and stops on, so one
+  untrusted tap blocks every remaining backend:
+
+  ```console
+  Error: Refusing to load formula jetbrains/utils/kotlin-lsp from untrusted tap
+  Error: 0: command failed: "brew install kotlin-lsp"
+  ```
+
+  Four declared packages come from taps: `kotlin-lsp` (jetbrains/utils),
+  `shopify-cli` (shopify/shopify), `slk` (gammons/tap), `rimz` (rimio-ai/rimz).
+
+  ```sh
+  brew trust jetbrains/utils shopify/shopify gammons/tap rimio-ai/rimz
+  ```
+
+  Trust is machine state, not repo state — it cannot be committed, so this is a
+  per-machine bootstrap step like the config-dir bridge above. `brew trust
+  --formula <tap>/<name>` is the narrower form if you would rather not trust
+  everything a tap ships later. Do **not** set `HOMEBREW_NO_REQUIRE_TAP_TRUST=1`
+  to make it go away: that disables the check for every tap on the machine.
+
 - **`metapac clean` uninstalls everything not declared.** Always read its
   confirmation list; never `--no-confirm` blind unless you've just read
   `metapac unmanaged` and the list is exactly what you intend to remove.

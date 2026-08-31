@@ -801,6 +801,7 @@ need interactive auth:
 
 ```bash
 gh extension install dlvhdr/gh-dash        # gh-dash (no package backend)
+brew trust jetbrains/utils shopify/shopify gammons/tap rimio-ai/rimz  # macOS, or metapac sync aborts
 mise run hooks                             # hk -> .git/hooks, PER CLONE (fallback)
 mise run setup:frozen                      # skip-worktree bits, PER CLONE (.stow-frozen)
 mise run setup:git-spice                   # git-spice: template, forge URL, auth, hooks
