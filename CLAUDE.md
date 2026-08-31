@@ -163,6 +163,40 @@ Differences that remain, deliberately:
 - **tmux naming.** worktrunk names sessions `<branch>-<repo>`; workmux uses its own
   `wm-<handle>`. Left divergent so it stays obvious which tool made a session.
 
+### worktrunk's shell integration writes through the stow symlinks
+
+`wt` needs a shell function, not just a binary — it returns `cd` and `exec` directives
+through temp files. Four shells, four owners:
+
+| Shell | Integration lives at | Owner |
+| --- | --- | --- |
+| zsh | `zsh/.zshrc` | this repo, tracked |
+| bash | `bash/.bashrc` | this repo, tracked |
+| fish | `~/.config/fish/functions/wt.fish` + `completions/wt.fish` | worktrunk; excluded |
+| nushell | `~/Library/…/nushell/vendor/autoload/wt.nu` (macOS) | worktrunk; outside every stow target |
+
+**The zsh and bash lines must stay in the rc file itself, never in a
+`~/.config/{zshrc,bashrc}` drop-in.** `wt config shell install` reads only `~/.zshrc`,
+`~/.bashrc` and `config.fish`; a drop-in is invisible to it. Both rc files are stow
+symlinks into this repo, so an install that finds no line **appends one into tracked
+source** — which is what dirtied `zsh/.zshrc` on 2026-08-31. Verified: with the line
+deleted from a sandbox `~/.zshrc` and the drop-in copy present, `install --dry-run`
+still proposes re-adding it.
+
+The line is therefore repo-owned, and must stay byte-identical to what
+`wt config shell init <shell>` documents, since that string is the installer's only
+idempotency marker. Both files carried the line **twice** — rc file plus `50-custom` —
+so every bash shell paid two `wt config shell init` subprocesses at startup.
+
+`skip-shell-integration-prompt = true` in `worktrunk/.config/worktrunk/config.toml` is
+the second half. worktrunk offers to install integration on any first run where it
+reads as inactive, and accepting is what triggers the write; the flag is the answer
+worktrunk itself records when you decline, committed once instead of re-given per
+machine. Note it cannot be checked locally — worktrunk ignores unrecognised config keys
+without a word, and the offer only appears on a TTY.
+
+`wt config shell uninstall` is the documented reversal.
+
 ## Stacked branches (git-spice)
 
 Stacking is managed by **git-spice**. State lives in `refs/spice/data`, a ref in
@@ -805,6 +839,7 @@ brew trust jetbrains/utils shopify/shopify gammons/tap rimio-ai/rimz  # macOS, o
 mise run hooks                             # hk -> .git/hooks, PER CLONE (fallback)
 mise run setup:frozen                      # skip-worktree bits, PER CLONE (.stow-frozen)
 mise run setup:git-spice                   # git-spice: template, forge URL, auth, hooks
+wt config shell install                    # fish + nushell only; the zsh/bash lines are tracked
 glab auth login --hostname <host>          # then: mise run glab:config, PER CLONE
 install -m 600 ~/.config/aerc/accounts.conf{.example,}   # then fill it in
 launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.dotfiles.ollama.plist  # macOS

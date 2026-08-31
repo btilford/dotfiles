@@ -35,6 +35,11 @@
 # the layout both tools CAN share: `~/worktrees/<repo>/<branch>` here equals
 # `worktree_dir: ~/worktrees/{project}` there.
 worktree-path = "~/worktrees/{{ repo }}/{{ branch | sanitize }}"
+
+# Never offer to install shell integration. Accepting the offer runs `wt config shell
+# install`, which appends to ~/.zshrc and ~/.bashrc — both stow symlinks into this repo,
+# so the write lands in tracked source. The lines are committed there already.
+skip-shell-integration-prompt = true
 #
 # # Centralized worktrees directory
 # # Creates: ~/worktrees/myproject/feature-auth

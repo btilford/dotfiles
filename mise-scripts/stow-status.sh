@@ -24,6 +24,12 @@
 #   shadowed    a real file sits where the link should be    — stow refuses here
 #   missing     nothing at the target path                   — not stowed
 #
+# A sixth count, `dirty`, is not about link state at all: tracked files the
+# working tree has modified. Because every stowed path is a symlink into this
+# repo, a program that owns one writes straight through it into tracked source,
+# and the result is indistinguishable from an ordinary edit — no link check can
+# see it. worktrunk's `wt config shell install` did exactly that to zsh/.zshrc.
+#
 # `folded` is the dangerous one, and it used to be reported as `shadowed`.
 # `stow` without --no-folding links a whole DIRECTORY when every file under it
 # belongs to one package, so the file at the target is not a symlink — its parent
@@ -120,6 +126,20 @@ git_ignores() {
   esac
 }
 
+# Tracked files the working tree has modified, one `git` call for the whole repo.
+# Rename entries read `old -> new`; keep the destination.
+#
+# .stow-frozen paths are dropped. Those churn by design, and on a clone where
+# `mise run setup:frozen` has not run yet they would BE the report.
+dirty_files=$(git -C "$repo_root" status --porcelain --untracked-files=no 2> /dev/null |
+  cut -c4- | sed 's/^.* -> //')
+if [ -r "$repo_root/.stow-frozen" ]; then
+  while IFS= read -r frozen; do
+    case "$frozen" in '' | '#'*) continue ;; esac
+    dirty_files=$(printf '%s\n' "$dirty_files" | grep -vxF "$frozen")
+  done < "$repo_root/.stow-frozen"
+fi
+
 # Walk rel's ancestors looking for a symlinked directory that resolves into this
 # package. Returns the deepest one, which is the directory stow folded.
 folded_via() {
@@ -143,7 +163,7 @@ is_package() {
   return 0
 }
 
-total_pkgs=0 full=0 partial=0 none=0 pkgs_with_shadow=0
+total_pkgs=0 full=0 partial=0 none=0 pkgs_with_shadow=0 pkgs_with_dirty=0
 json_rows=""
 
 for pkg_path in "$repo_root"/*/; do
@@ -153,6 +173,10 @@ for pkg_path in "$repo_root"/*/; do
 
   n_linked=0 n_missing=0 n_shadowed=0 n_foreign=0 n_folded=0 n_total=0
   missing_list="" shadow_list="" foreign_list="" folded_list=""
+
+  dirty_list=$(printf '%s\n' "$dirty_files" | grep "^$pkg/" | sed "s|^$pkg/|  |")
+  n_dirty=$(printf '%s' "$dirty_list" | grep -c .)
+  [ "$n_dirty" -gt 0 ] && pkgs_with_dirty=$((pkgs_with_dirty + 1))
 
   while IFS= read -r f; do
     rel=${f#"$repo_root/$pkg/"}
@@ -212,7 +236,7 @@ for pkg_path in "$repo_root"/*/; do
   [ "$n_shadowed" -gt 0 ] && pkgs_with_shadow=$((pkgs_with_shadow + 1))
 
   if [ "$as_json" -eq 1 ]; then
-    json_rows="$json_rows{\"package\":\"$pkg\",\"state\":\"$state\",\"total\":$n_total,\"linked\":$n_linked,\"missing\":$n_missing,\"shadowed\":$n_shadowed,\"foreign\":$n_foreign,\"folded\":$n_folded},"
+    json_rows="$json_rows{\"package\":\"$pkg\",\"state\":\"$state\",\"total\":$n_total,\"linked\":$n_linked,\"missing\":$n_missing,\"shadowed\":$n_shadowed,\"foreign\":$n_foreign,\"folded\":$n_folded,\"dirty\":$n_dirty},"
     continue
   fi
 
@@ -226,6 +250,7 @@ for pkg_path in "$repo_root"/*/; do
   [ "$n_shadowed" -gt 0 ] && printf '  %d shadowed' "$n_shadowed"
   [ "$n_folded" -gt 0 ] && printf '  %d folded' "$n_folded"
   [ "$n_foreign" -gt 0 ] && printf '  %d foreign' "$n_foreign"
+  [ "$n_dirty" -gt 0 ] && printf '  %d dirty' "$n_dirty"
   printf '\n'
 
   if [ "$verbose" -eq 1 ]; then
@@ -245,6 +270,10 @@ for pkg_path in "$repo_root"/*/; do
       printf '    owned elsewhere:\n'
       printf '%s' "$foreign_list" | sed 's/^/  /'
     }
+    [ "$n_dirty" -gt 0 ] && {
+      printf '    modified in the working tree:\n'
+      printf '%s\n' "$dirty_list" | sed 's/^/  /'
+    }
   fi
 done
 
@@ -257,7 +286,21 @@ echo
 [ "$deploy_root" != "$repo_root" ] && printf 'deploy checkout: %s (this copy: %s)\n' "$deploy_root" "$repo_root"
 printf '%d packages: %d stowed, %d PARTIAL, %d not stowed' "$total_pkgs" "$full" "$partial" "$none"
 [ "$pkgs_with_shadow" -gt 0 ] && printf ', %d with shadowed files' "$pkgs_with_shadow"
+[ "$pkgs_with_dirty" -gt 0 ] && printf ', %d with uncommitted edits' "$pkgs_with_dirty"
 printf '\n'
+
+if [ "$pkgs_with_dirty" -gt 0 ]; then
+  cat << 'MSG'
+
+Uncommitted edits are usually your own. Check them anyway when you did not make
+them: every stowed path is a symlink into this repo, so a program that owns one
+edits tracked source directly. `mise run status -- -v` lists the files.
+
+If the program owns that path and this repo should stop fighting it, the answer
+is .stow-local-ignore + .gitignore, or .stow-frozen when something needs the file
+to exist before that program has ever run.
+MSG
+fi
 
 if [ "$partial" -gt 0 ]; then
   cat << 'MSG'

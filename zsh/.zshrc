@@ -22,3 +22,7 @@ zstyle ':completion:*' menu select
 if command -v git-spice > /dev/null 2>&1; then
     eval "$(git-spice shell completion zsh)"
 fi
+
+# worktrunk must stay in this file, not a ~/.config/zshrc drop-in: `wt config shell
+# install` reads only ~/.zshrc, so it appends this line again whenever it is absent.
+if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
