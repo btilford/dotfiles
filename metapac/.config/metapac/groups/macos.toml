@@ -94,6 +94,12 @@ brew = { packages = [
   "notify",
   "nushell",
   "opencode",
+  # Local inference. THE CASK, whose token is `ollama-app` — there is also a
+  # formula named `ollama`, and it has a history of broken MLX packaging on
+  # Apple Silicon (Homebrew #286746). MLX is the whole point here: it is roughly
+  # 2x decode and 3-5x prompt processing versus the GGUF path on this hardware.
+  # The two tokens differ, so this cannot resolve to the wrong one by accident.
+  "ollama-app",
   "orbstack",
   "p7zip",
   "pctl",

@@ -34,7 +34,14 @@ if command -q atuin
     # Every atuin command then errors, including the init below. A live hazard,
     # not a theoretical one: the machine-local files in this repo are generated
     # with empty placeholders for anything not yet filled in.
-    for _atuin_var in ATUIN_SYNC_ADDRESS ATUIN_AUTO_SYNC ATUIN_AI__ENABLED ATUIN_AI__ENDPOINT ATUIN_AI__MODEL
+    for _atuin_var in ATUIN_SYNC_ADDRESS ATUIN_AUTO_SYNC \
+        ATUIN_AI__ENABLED ATUIN_AI__ENDPOINT ATUIN_AI__ENDPOINT_PROTOCOL ATUIN_AI__MODEL \
+        ATUIN_AI__YOLO ATUIN_AI__SEND_CWD \
+        ATUIN_AI__CAPABILITIES__ENABLE_HISTORY_SEARCH \
+        ATUIN_AI__CAPABILITIES__ENABLE_HISTORY_OUTPUT \
+        ATUIN_AI__CAPABILITIES__ENABLE_FILE_TOOLS \
+        ATUIN_AI__CAPABILITIES__ENABLE_COMMAND_EXECUTION \
+        ATUIN_AI__CAPABILITIES__SEND_LAST_COMMAND
         if set -q $_atuin_var; and test -z "$$_atuin_var"
             set -e $_atuin_var
         end
@@ -58,11 +65,20 @@ if command -q atuin
     #
     # The agent hooks and local history are unaffected — they need no server,
     # which is the whole point of giving work atuin at all.
+    #
+    # AI IS A SEPARATE QUESTION FROM SYNC, and used to be conflated with it.
+    # This branch unset the AI keys outright, so "work" meant "no assistant at
+    # all" — which also ruled out the safe case: an atuin-ai-server on this very
+    # machine, which sends nothing anywhere. What matters is where the prompt
+    # goes, so test the endpoint, exactly as nvim's ai.lua does. A remote
+    # endpoint is refused on a work profile; loopback is fine on any profile.
     if test "$DOTFILES_PROFILE" != personal
         set -gx ATUIN_AUTO_SYNC false
         set -e ATUIN_SYNC_ADDRESS
-        set -e ATUIN_AI__ENABLED
-        set -e ATUIN_AI__ENDPOINT
+        if not string match -qr '^https?://(127\.0\.0\.1|localhost|\[::1\])(:|/|$)' -- "$ATUIN_AI__ENDPOINT"
+            set -e ATUIN_AI__ENABLED
+            set -e ATUIN_AI__ENDPOINT
+        end
     else if not set -q ATUIN_SYNC_ADDRESS
         # Personal, but no sync server configured yet. Force sync OFF rather
         # than letting atuin fall back to its upstream default of

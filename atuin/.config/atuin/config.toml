@@ -13,14 +13,43 @@
 # key absent, it applies. So a key that varies by profile MUST NOT appear in this
 # file at all. Setting it to a "default" here silently disables the override.
 #
-# Absent on purpose, supplied from ~/.config/dotfiles/local.env (see
-# commands/.local/share/dotfiles/required-env):
+# Absent on purpose. These are supplied from the untracked 99-local drop-in of
+# each shell — ~/.config/fish/conf.d/99-local.fish, ~/.config/bashrc/99-local,
+# ~/.config/zshrc/99-local — and NOT from ~/.config/dotfiles/local.env.
+#
+# THAT DISTINCTION IS ENFORCED, not stylistic: `dotfiles-local-env --check`
+# fails outright on any ATUIN_* key in local.env. gen-local-env.sh writes an
+# empty placeholder for every variable in the manifest, and an empty ATUIN_*
+# does not read as "unset" — it is parsed, it fails, and it takes settings
+# loading down for the whole binary. So listing one in required-env would break
+# every atuin command on a freshly provisioned machine.
 #
 #   sync_address   ATUIN_SYNC_ADDRESS    self-hosted sync server; personal only
 #   auto_sync      ATUIN_AUTO_SYNC       false on the work machine
-#   ai.enabled     ATUIN_AI__ENABLED     needs an atuin-ai-server to be useful
-#   ai.endpoint    ATUIN_AI__ENDPOINT    private infra URL — never in this repo
-#   ai.model       ATUIN_AI__MODEL
+#   ai.enabled     ATUIN_AI__ENABLED     needs an atuin-ai-server (see below)
+#   ai.endpoint    ATUIN_AI__ENDPOINT    the atuin-ai-server, not the LLM
+#   ai.model       ATUIN_AI__MODEL       a server-side alias, not a model name
+#
+# THE AI KEYS ARE NOT IN `atuin default-config`. Read off the 18.19.0 binary:
+#
+#   ai.enabled  ai.endpoint  ai.endpoint_protocol ("auto"|"hub"|"oss")
+#   ai.api_token  ai.model  ai.db_path  ai.opening  ai.session_continue_minutes
+#   ai.yolo  ai.send_cwd
+#   ai.capabilities.{enable_history_search, enable_history_output,
+#                    enable_file_tools, enable_command_execution,
+#                    send_last_command}
+#
+# The client speaks the Atuin AI protocol, not OpenAI, so ai.endpoint cannot
+# point at Ollama directly — it points at an atuin-ai-server, which translates.
+# See the atuin-ai-server package in this repo. endpoint_protocol is set to
+# "oss" explicitly: "auto" would infer it correctly, but an inference is not
+# something to rest a no-egress guarantee on.
+#
+# The capabilities are all ON and ai.yolo is OFF. yolo is what makes that safe —
+# the assistant proposes and asks rather than acting. The nested keys do
+# override from the environment (ATUIN_AI__CAPABILITIES__ENABLE_FILE_TOOLS and
+# so on), verified with `atuin config get --resolved`, which is the flag that
+# shows the merged value; a bare `atuin config get` reads this file only.
 #
 # The split is personal-vs-work, not Linux-vs-macOS, which is why it rides
 # local.env rather than a per-host stow package.

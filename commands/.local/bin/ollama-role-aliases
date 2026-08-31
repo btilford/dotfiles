@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Create this host's role/* aliases in Ollama.
+#
+# Consumers name a ROLE, never a model. nvim, Continue and the LiteLLM gateway
+# all ask for "role/completion", and each host decides what that resolves to —
+# so a machine with different hardware serves different weights behind the same
+# name, and no consumer config changes. `sync-litellm-models` does exactly this
+# for the homelab's LiteLLM; this is the local-Ollama equivalent.
+#
+# `ollama cp` is a copy of the manifest, not a pointer. Re-pulling a base tag
+# therefore leaves the alias on the OLD weights, silently. That is the whole
+# reason this is a script you can re-run rather than two commands in a README.
+set -euo pipefail
+
+# role<TAB>model. Keep the roles in step with sync-litellm-models:145-178.
+#
+# role/chat must be NON-THINKING and must call tools. atuin AI runs with file
+# tools and command execution enabled, so a model that cannot emit a tool call
+# is useless to it, and one that thinks first pays that latency on every query.
+# Measured here 2026-08-31, same prompt and same tool schema:
+#
+#   qwen3:8b           thinks, cannot be stopped  |  --
+#   qwen2.5-coder:7b   no thinking                |  NO tool call emitted
+#   qwen2.5:7b         no thinking                |  correct tool call
+#
+# qwen3's thinking cannot be disabled through an OpenAI-compatible endpoint,
+# which is the only kind atuin-ai-server speaks: `think: false` works on
+# Ollama's native /api/chat and is ignored on /v1/chat/completions,
+# `chat_template_kwargs.enable_thinking` is ignored too, `PARAMETER think false`
+# is not a Modelfile parameter, and `SYSTEM /no_think` does not reach the newer
+# template. The fix has to be model choice, not configuration.
+#
+# That a *coder* model lost on tool calling is the reason role/chat is not one:
+# these are CLI questions, so a coder looks like the obvious fit, and it answers
+# them well — it just cannot drive atuin's tools.
+#
+# role/reasoning is deliberately ABSENT. The homelab points it at a 35B; the
+# largest thing that belongs on this laptop is an 8B, and codecompanion's chat
+# and agent strategies want it. A missing model is an error at the point of use;
+# an alias quietly resolving to something four times smaller is a worse outcome
+# that looks like it worked.
+ROLES=$(
+  cat <<'EOF'
+role/completion	qwen2.5-coder:3b
+role/chat	qwen2.5:7b
+EOF
+)
+
+# Every reader of OLLAMA_HOST means something different by it (bind address,
+# client target, bare hostname for gen.nvim). Pin the client to loopback here so
+# this script cannot be aimed at a remote Ollama by an inherited value.
+export OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1}"
+case "$OLLAMA_HOST" in
+  127.0.0.1* | localhost* | "[::1]"*) ;;
+  *)
+    echo "ollama-role-aliases: refusing to run against non-loopback OLLAMA_HOST" >&2
+    exit 1
+    ;;
+esac
+
+if ! command -v ollama >/dev/null 2>&1; then
+  echo "ollama-role-aliases: ollama not on PATH, nothing to do" >&2
+  exit 0
+fi
+
+if ! ollama list >/dev/null 2>&1; then
+  echo "ollama-role-aliases: no Ollama server at $OLLAMA_HOST" >&2
+  exit 1
+fi
+
+status=0
+while IFS=$'\t' read -r role model; do
+  [ -n "$role" ] || continue
+
+  if ! ollama list | gawk -v m="$model" 'NR>1 && $1 == m { found=1 } END { exit !found }'; then
+    echo "  MISSING  $role -> $model   (run: ollama pull $model)" >&2
+    status=1
+    continue
+  fi
+
+  # Idempotent by construction: cp overwrites an existing alias, so re-running
+  # after a `pull` is how the alias gets refreshed onto the new weights.
+  ollama cp "$model" "$role" >/dev/null
+  echo "  ok       $role -> $model"
+done <<<"$ROLES"
+
+exit "$status"

@@ -485,6 +485,94 @@ outright (`[[ -f $c ]] && source $c || source $f`). Neither `custom/` dir exists
 yet. That is the clean way to neutralise one stowed file on one machine — e.g. a
 Linux-only drop-in on the Mac — with no repo change and no unstowing.
 
+## Local inference: the gate is the endpoint, not the machine
+
+Every AI consumer here — nvim, atuin, Continue — points at **one endpoint per
+host**, and whether it runs at all is decided by *where that endpoint is*, not by
+whose laptop it is.
+
+The rule that replaced: `nvim/.../plugins/ai.lua` used to gate on
+`DOTFILES_PROFILE == "personal"`, and the atuin shell drop-ins did the same. That
+answers "whose laptop is this", which is the wrong question — what matters is
+where the buffer text goes. It also made "work" mean "no AI at all", which ruled
+out the case this section exists for: **an inference server running on the work
+machine itself**, which sends nothing anywhere.
+
+Three variables, in order of authority:
+
+| Variable | Effect |
+| --- | --- |
+| `DOTFILES_AI=off` | kill switch. Nothing loads, whatever else is set. |
+| `AI_GATEWAY` | this host's OpenAI-compatible endpoint. Falls back to `LITELLM_GATEWAY`. |
+| `DOTFILES_PROFILE` | `personal` permits a **remote** gateway; anything else permits **loopback only**. |
+
+So the homelab keeps working unchanged, a work laptop can run its own models,
+and a work laptop cannot reach the homelab gateway. Absence of a gateway means
+OFF, never "try somewhere else" — the same rule as the empty `ATUIN_*` variables
+below. `ai.lua` matches loopback **literals** only: a hostname that resolves to
+127.0.0.1 today is not a guarantee, and this decides whether work code leaves the
+machine.
+
+**This was not hypothetical.** This Mac had `DOTFILES_PROFILE=personal` in
+`local.env`, so minuet and codecompanion were live and pointed at the homelab
+gateway, and `OLLAMA_HOST` pointed at the homelab too — a plain `ollama pull` on
+the laptop went there and timed out.
+
+### Roles, not model names
+
+`commands/.local/bin/ollama-role-aliases` creates `role/completion` and
+`role/chat` as `ollama cp` copies, the local counterpart of the role aliases
+`sync-litellm-models` gives the homelab. Consumers name the role; each host
+decides the weights. **Re-run it after any `ollama pull`** — `ollama cp` copies a
+manifest rather than pointing at one, so a re-pulled base tag silently leaves the
+alias on the old weights.
+
+`role/reasoning` is deliberately absent locally. The homelab points it at a 35B
+and codecompanion's chat and agent strategies want it; a missing model is an
+error at the point of use, whereas an alias quietly resolving to something a
+quarter the size looks like it worked.
+
+### `role/chat` has two hard requirements, and they eliminated the obvious pick
+
+atuin AI runs with file tools and command execution enabled, so the chat model
+must **call tools** and must **not think** — a thinking preamble is paid on every
+query. Measured 2026-08-31, same prompt and tool schema:
+
+| Model | Thinking | Tool call |
+| --- | --- | --- |
+| `qwen3:8b` | yes, cannot be disabled | — |
+| `qwen2.5-coder:7b` | no | **none emitted** |
+| `qwen2.5:7b` | no | correct |
+
+qwen3's thinking cannot be switched off through an OpenAI-compatible endpoint,
+which is the only kind atuin-ai-server speaks: `think: false` works on Ollama's
+native `/api/chat` and is **ignored** on `/v1/chat/completions`,
+`chat_template_kwargs.enable_thinking` is ignored too, `PARAMETER think false` is
+not a Modelfile parameter, and `SYSTEM /no_think` does not reach the newer
+template. The fix has to be model choice, not configuration.
+
+That a *coder* model lost on tool calling is worth remembering: these are CLI
+questions, so a coder looks like the obvious fit and answers them well — it just
+cannot drive the tools.
+
+### macOS specifics
+
+- **The cask is `ollama-app`; the formula is `ollama`.** Different tokens, so no
+  ambiguity — but the formula has a history of broken MLX on Apple Silicon.
+- **Our LaunchAgent runs the server, not Ollama.app.** The app installs its own
+  login agent and two servers cannot share 11434. `ollama serve` from the agent
+  still resolves the MLX runners, which live beside the binary inside the bundle.
+- **launchd is fine with a stowed symlink** — the systemd "never `systemctl
+  enable` a stowed unit" hazard has no launchd analogue.
+- **Env goes in the plist's `EnvironmentVariables`**, not `launchctl setenv`:
+  setenv does not survive a reboot and cannot be committed.
+- **`OLLAMA_HOST` must be a bare host with no port.** Three things read it — the
+  server (bind address), the CLI (target), and gen.nvim (a hostname it formats
+  `http://%s:%s` against 11434). Only the bare form is right for all three.
+- **MLX is per model and is not automatic.** There are no `-mlx`/nvfp4 tags for
+  the small models this host serves, so they run the GGUF path. Check `ollama ps`
+  for `PROCESSOR = 100% GPU`.
+
 ## atuin: a personal/work split that is not an OS split
 
 `atuin` (shell history, sync, AI) is the first package whose config varies by
@@ -572,7 +660,7 @@ Two things this depends on, neither of them local to these files:
 
 ## Structure
 
-- **Cross-platform**: `atuin`, `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`, `workmux`, `tuicr`, `gh`, `gh-dash`
+- **Cross-platform**: `atuin`, `atuin-ai-server`, `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`, `workmux`, `tuicr`, `continue`, `gh`, `gh-dash`
 - **macOS-only**: `aerc`, `ghostty`, `macos`
 - **Linux-only**: `hyprland`, `rofi`, `konsole`, `kmonad`, `terminator`, `yakuake`, `brave-linux`, `xdg`
 - **Shared base**: `base`
@@ -718,6 +806,9 @@ mise run setup:frozen                      # skip-worktree bits, PER CLONE (.sto
 mise run setup:git-spice                   # git-spice: template, forge URL, auth, hooks
 glab auth login --hostname <host>          # then: mise run glab:config, PER CLONE
 install -m 600 ~/.config/aerc/accounts.conf{.example,}   # then fill it in
+launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.dotfiles.ollama.plist  # macOS
+mise run setup:ollama-roles                # role/* aliases; RE-RUN AFTER ollama pull
+mise run setup:atuin-ai-server             # docker: atuin-ai-server on 127.0.0.1:8080
 atuin hook install claude-code             # atuin agent hooks, one per agent
 atuin hook install codex
 atuin hook install pi

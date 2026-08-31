@@ -1,0 +1,27 @@
+# Run with: mise run setup:atuin-ai-server
+#
+# A compose file rather than a `docker run` line in a README, because the two
+# things that make this safe — the loopback-only publish and the image digest —
+# are then committed and reviewable instead of retyped per machine.
+services:
+  atuin-ai:
+    container_name: atuin-ai
+    # PINNED BY DIGEST, NOT :latest. A tag is mutable: it can be repointed at
+    # new code with no commit here, which is both a supply-chain hole and a
+    # source of things breaking with nothing changed. Same rule this repo
+    # applies to GitHub Actions and GitLab images. Refresh with:
+    #   docker inspect --format='{{index .RepoDigests 0}}' <image>:latest
+    image: ghcr.io/atuinsh/atuin-ai-server@sha256:3d11028588ebfddb0685169e35cbc7121d3577b6eee3831e845fbe5c28e48d92
+    restart: unless-stopped
+    ports:
+      # THE 127.0.0.1 PREFIX IS THE SECURITY BOUNDARY. Bare "8080:8080"
+      # publishes on every interface, and this server has no auth by default —
+      # that would put an unauthenticated LLM gateway on the corporate LAN.
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./config.toml:/etc/atuin-ai/config.toml:ro
+    # Reaches the host's loopback-bound Ollama. Explicit rather than relying on
+    # Docker Desktop's implicit entry, so the failure is a clear DNS error
+    # instead of a silent connection refused.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
