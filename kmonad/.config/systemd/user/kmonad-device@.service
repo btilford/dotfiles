@@ -1,0 +1,81 @@
+[Unit]
+Description=KMonad remap for /%I
+Documentation=https://github.com/kmonad/kmonad
+
+# NOT the distro's kmonad@.service, and not a replacement for it.
+#
+# /usr/lib/systemd/system/kmonad@.service is
+#     ExecStart=/usr/bin/kmonad %E/kmonad/%i.kbd
+# — one config file per instance, with input/output baked into its defcfg. That
+# cannot drive linux-shared.kbd, whose whole model is ONE layout reused across
+# every board, with `input`/`output` overridden per process on the command line
+# (its defcfg carries a deliberate PLACEHOLDER path that fails loudly). This unit
+# is the override-model counterpart. The two coexist; different scopes, different
+# names.
+
+# A USER UNIT, DELIBERATELY.
+#
+# kmonad needs read on /dev/input/eventN (root:input 0660) and read/write on
+# /dev/uinput (0666). Since btilford joined the `input` group on 2026-09-01 a
+# login session already carries both, so root buys nothing here — and a system
+# unit would then need its own User=/SupplementaryGroups= plumbing to drop back
+# down to the same access.
+#
+# CAVEAT: the systemd --user manager inherits its groups from the login session
+# that started it. Adding the group does not reach an already-running manager, so
+# this unit fails with EACCES on /dev/input/eventN until the next full re-login.
+# `newgrp` does not help — it only affects the shell you run it in.
+
+# A permanently-absent device would otherwise restart forever; give up instead.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=exec
+
+# THE INSTANCE NAME IS A systemd-ESCAPED ABSOLUTE PATH, NOT A BARE DEVICE NAME.
+#
+# %I is the unescaped instance, so the instance must be produced by
+#
+#     systemd-escape --path /dev/input/by-id/<id>
+#
+# and %I turns it back into that path. This is the reason for the escaping dance
+# rather than a bare by-id name: it makes ONE template serve every kind of
+# keyboard, which a hardcoded /dev/input/by-id/ prefix cannot —
+#
+#   * USB boards      -> /dev/input/by-id/usb-...-event-kbd
+#   * laptop built-in -> /dev/input/by-path/platform-i8042-serio-0-event-kbd
+#                        (i8042 boards get NO by-id symlink at all)
+#
+# --path also escapes literal '-' as '\x2d', so device names full of hyphens
+# survive the round trip. Writing the instance by hand does not work; run
+# systemd-escape. See README.md for the enable recipe.
+#
+# THE LEADING SLASH IN "/%I" IS LOAD-BEARING. `systemd-escape --path` strips
+# leading and trailing slashes, and %I does NOT put them back, so a bare %I
+# expands to a RELATIVE path (dev/input/by-id/...) and kmonad dies with
+# `openFdAt: does not exist`. Verified 2026-09-01.
+#
+# by-id / by-path, never eventN: the event number is assigned in probe order and
+# changes across reboots and replugs, so a unit pinned to event16 silently grabs
+# whatever device lands there next.
+#
+# The single quotes are systemd's, and it strips them; the double quotes inside
+# survive into the argument, which is what kmonad's sexp parser requires. Do not
+# "simplify" them away.
+#
+# Each instance needs a DISTINCT sink name or two running instances are
+# indistinguishable in `libinput list-devices`. %I keeps them apart. Note
+# uinput's UINPUT_MAX_NAME_SIZE is 80 bytes; a very long by-id name plus the
+# "KMonad " prefix can reach it, and kmonad fails at sink creation if it does.
+ExecStart=/usr/bin/kmonad -i 'device-file "/%I"' -o 'uinput-sink "KMonad /%I"' %h/.config/kmonad/linux-shared.kbd
+
+# Unplugging the keyboard makes kmonad exit non-zero; this handles the replug.
+Restart=on-failure
+RestartSec=3
+
+# Keystrokes are latency-sensitive; the distro unit uses the same nice level.
+Nice=-20
+
+[Install]
+WantedBy=default.target

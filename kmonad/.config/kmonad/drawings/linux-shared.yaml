@@ -1,0 +1,320 @@
+layout: {qmk_info_json: linux-shared.info.json, layout_name: LAYOUT}
+layers:
+  base:
+  - {t: '$$mdi:keyboard-esc$$'}
+  - {t: f1}
+  - {t: f2}
+  - {t: f3}
+  - {t: f4}
+  - {t: f5}
+  - {t: f6}
+  - {t: f7}
+  - {t: f8}
+  - {t: f9}
+  - {t: f10}
+  - {t: f11}
+  - {t: f12}
+  - {t: Print}
+  - {t: PrtSc}
+  - {t: → passthru, type: layer}
+  - {t: Pause}
+  - {t: '`'}
+  - {t: '1'}
+  - {t: '2'}
+  - {t: '3'}
+  - {t: '4'}
+  - {t: '5'}
+  - {t: '6'}
+  - {t: '7'}
+  - {t: '8'}
+  - {t: '9'}
+  - {t: '0'}
+  - {t: '-'}
+  - {t: '='}
+  - {t: '$$mdi:backspace-outline$$'}
+  - {t: Ins}
+  - {t: Home}
+  - {t: PgUp}
+  - {t: Num Lk}
+  - {t: /}
+  - {t: '*'}
+  - {t: '-'}
+  - {t: '$$mdi:keyboard-tab$$'}
+  - {t: q}
+  - {t: w}
+  - {t: e}
+  - {t: r}
+  - {t: t}
+  - {t: y}
+  - {t: u}
+  - {t: i}
+  - {t: o}
+  - {t: p}
+  - {t: '['}
+  - {t: ']'}
+  - {t: \}
+  - {t: Del}
+  - {t: End}
+  - {t: PgDn}
+  - {t: '7'}
+  - {t: '8'}
+  - {t: '9'}
+  - {t: +}
+  - {t: '$$mdi:keyboard-esc$$'}
+  - {t: a, h: Super}
+  - {t: s, h: Ctrl}
+  - {t: d, h: Alt}
+  - {t: f, h: motion}
+  - {t: g}
+  - {t: h}
+  - {t: j}
+  - {t: k, h: AltGr}
+  - {t: l, h: Ctrl}
+  - {t: ;, h: Super}
+  - {t: ''''}
+  - {t: '$$mdi:keyboard-return$$'}
+  - {t: '4'}
+  - {t: '5'}
+  - {t: '6'}
+  - {t: '$$mdi:apple-keyboard-shift$$'}
+  - {t: z}
+  - {t: x}
+  - {t: c}
+  - {t: v}
+  - {t: b}
+  - {t: n}
+  - {t: m}
+  - {t: ','}
+  - {t: .}
+  - {t: /}
+  - {t: '$$mdi:apple-keyboard-shift$$'}
+  - {t: '$$mdi:arrow-up$$'}
+  - {t: '1'}
+  - {t: '2'}
+  - {t: '3'}
+  - {t: Enter}
+  - {t: Ctrl}
+  - {t: Fn}
+  - {t: Super}
+  - {t: '$$mdi:apple-keyboard-shift$$'}
+  - {t: '$$mdi:keyboard-space$$'}
+  - {t: '$$mdi:apple-keyboard-shift$$'}
+  - {t: '$$mdi:menu$$'}
+  - {t: Ctrl}
+  - {t: '$$mdi:arrow-left$$'}
+  - {t: '$$mdi:arrow-down$$'}
+  - {t: '$$mdi:arrow-right$$'}
+  - {t: '0'}
+  - {t: .}
+  passthru:
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: → base, type: layer}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  motion:
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: Home}
+  - {t: PgDn}
+  - {t: PgUp}
+  - {t: ▽, type: trans}
+  - {t: Print}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: '$$mdi:arrow-left$$'}
+  - {t: '$$mdi:arrow-down$$'}
+  - {t: '$$mdi:arrow-up$$'}
+  - {t: '$$mdi:arrow-right$$'}
+  - {t: End}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
+  - {t: ▽, type: trans}
