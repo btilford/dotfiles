@@ -71,8 +71,31 @@ hl.on("hyprland.start", function()
   -- Dock
   -- hl.exec_cmd("nwg-dock-hyprland")
 
-  -- Polkit agent
-  hl.exec_cmd("/usr/lib/polkit-kde-agent/polkit-kde-authentication-agent-1")
+  -- Polkit agent: the systemd unit first, scripts/Polkit.sh (which probes a list of
+  -- known agent paths) as fallback.
+  --
+  -- This was previously a hardcoded
+  -- "/usr/lib/polkit-kde-agent/polkit-kde-authentication-agent-1", which is not
+  -- where Arch puts it -- polkit-kde-agent ships /usr/lib/polkit-kde-authentication-agent-1,
+  -- with no polkit-kde-agent/ directory. So the path never existed, no agent ever
+  -- started, and EVERY polkit prompt on this host failed silently: no error, no
+  -- window, the calling app simply reports polkit missing or hangs. Found 2026-09-01
+  -- via Bazecor, which pkexecs to install its udev rule.
+  --
+  -- A hardcoded path is what caused this, so do not reintroduce one; the agent
+  -- location differs across distros and across KDE/GNOME builds.
+  --
+  -- polkit-kde-agent ships plasma-polkit-agent.service, but it is a STATIC user unit:
+  -- it cannot be `systemctl --user enable`d, and Plasma normally pulls it in through
+  -- plasma-workspace.target, which nothing does here. Starting it explicitly is the
+  -- deterministic option and matches the KDE bits already started below (kwalletd6,
+  -- kded6). Polkit.sh is only the fallback -- it probes a list whose FIRST hit on this
+  -- host is the gnome agent, and two agents registering for one session is a worse
+  -- failure than none.
+  hl.exec_cmd(
+    "sh -c 'systemctl --user start plasma-polkit-agent.service "
+      .. "|| exec $HOME/.config/hypr/scripts/Polkit.sh'"
+  )
 
   -- KWallet and KDED6
   hl.exec_cmd("kwalletd6")
