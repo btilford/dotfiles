@@ -5,8 +5,6 @@ continuation_prompt = '[ ▶▶ ](blink fg: #ff7044)'
 add_newline = false
 
 
-
-
 # 1. os hostname/user
 # 2. directory
 # 3. git
@@ -111,7 +109,6 @@ symbol = " "
 format = '[$symbol](bg:color_d fg:fg_d)'
 
 
-
 [package]
 style = "bg:color_c fg:fg_c"
 format = '[$symbol($version)]($style)'
@@ -182,11 +179,9 @@ format = '[ $symbol ($version) ]($style)'
 
 [time]
 disabled = false
-time_format = "%R" # Hour:Minute Format
+time_format = "%R"             # Hour:Minute Format
 style = "bg:color_d fg:fg_d"
 format = '[  $time ]($style)'
-
-
 
 
 [java]
@@ -232,7 +227,6 @@ format = '[ $symbol ($version) ]($style)'
 symbol = " "
 style = "bg:color_c fg:fg_c"
 format = '[ $symbol ($version) ]($style)'
-
 
 
 [os.symbols]

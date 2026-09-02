@@ -11,72 +11,71 @@ tab_size = 2
 [opener]
 
 play = [
-    # Audio
-    { run = 'audacity "$@"', block = false, for = "unix",  orphan = true, esc = "Audacity" },
-    { run = 'audacious "$@"', block = false, for = "unix",  orphan = true, desc = "Audacious" },
-    { run = 'deadbeef "$@"', block = false, for = "unix",  orphan = true, desc = "DeadBeef" },
-    # Video
-    { run = 'vlc "$@"', block = false, for = "unix",  orphan = true, desc = "VLC" },
-    { run = 'shotcut "$@"', block = false, for = "unix", orphan = true, desc = "Shotcut Editor" },
+  # Audio
+  { run = 'audacity "$@"', block = false, for = "unix", orphan = true, esc = "Audacity" },
+  { run = 'audacious "$@"', block = false, for = "unix", orphan = true, desc = "Audacious" },
+  { run = 'deadbeef "$@"', block = false, for = "unix", orphan = true, desc = "DeadBeef" },
+  # Video
+  { run = 'vlc "$@"', block = false, for = "unix", orphan = true, desc = "VLC" },
+  { run = 'shotcut "$@"', block = false, for = "unix", orphan = true, desc = "Shotcut Editor" },
 ]
 
 edit = [
-    { run = '$EDITOR "$@"', block = true, for = "unix", desc = "Edit" },
-    { run = 'nvim "$@"', block = true, for = "unix", desc = "NVIM" },
-    { run = 'kate "$@"', block = false, orphan = true, for = "unix", desc = "Kate" },
-    { run = 'vi "$@"', block = true, for = "unix", desc = "Vim" },
-    { run = 'idea "$@"', block = false, orphan = true, for = "unix", desc = "IntelliJ" },
-    { run = 'webstorm "$@"', block = false, orphan = true, for = "unix", desc = "Webstorm" },
-    { run = 'pycharm "$@"', block = false, orphan = true, for = "unix", desc = "PyCharm" },
-    { run = 'datagrip "$@"', block = false, orphan = true, for = "unix", desc = "DataGrip" },
-    { run = 'studio "$@"', block = false, orphan = true, for = "unix", desc = "Android Studio" },
-    { run = 'goland "$@"', block = false, orphan = true, for = "unix", desc = "Goland" },
-    { run = 'meld "$@"', block = false, orphan = true, for = "unix", desc = "Meld" },
-    { run = 'micro "$@"', block = true, for = "unix", desc = "Micro" },
-    { run = 'nano "$@"', block = true, for = "unix", desc = "Nano" },
+  { run = '$EDITOR "$@"', block = true, for = "unix", desc = "Edit" },
+  { run = 'nvim "$@"', block = true, for = "unix", desc = "NVIM" },
+  { run = 'kate "$@"', block = false, orphan = true, for = "unix", desc = "Kate" },
+  { run = 'vi "$@"', block = true, for = "unix", desc = "Vim" },
+  { run = 'idea "$@"', block = false, orphan = true, for = "unix", desc = "IntelliJ" },
+  { run = 'webstorm "$@"', block = false, orphan = true, for = "unix", desc = "Webstorm" },
+  { run = 'pycharm "$@"', block = false, orphan = true, for = "unix", desc = "PyCharm" },
+  { run = 'datagrip "$@"', block = false, orphan = true, for = "unix", desc = "DataGrip" },
+  { run = 'studio "$@"', block = false, orphan = true, for = "unix", desc = "Android Studio" },
+  { run = 'goland "$@"', block = false, orphan = true, for = "unix", desc = "Goland" },
+  { run = 'meld "$@"', block = false, orphan = true, for = "unix", desc = "Meld" },
+  { run = 'micro "$@"', block = true, for = "unix", desc = "Micro" },
+  { run = 'nano "$@"', block = true, for = "unix", desc = "Nano" },
 ]
 
-open = [
-    { run = 'xdg-open "$@"', block = false, orphan = true, desc = "Open" },
-]
+open = [{ run = 'xdg-open "$@"', block = false, orphan = true, desc = "Open" }]
 
 [open]
 
 prepend_rules = [
 
-    { url = "*.html", use = ["open", "edit"] },
+  { url = "*.html", use = [
+    "open",
+    "edit",
+  ] },
 
-    { url = "*.json", use = "edit" },
-    { url = "*.lua", use = "edit" },
-    { url = "*.java", use = "edit" },
-    { url = "*.kt", use = "edit" },
-    { url = "*.kts", use = "edit" },
-    { url = "*.ts", use = "edit" },
-    { url = "*.js", use = "edit" },
-    { url = "*.tsx", use = "edit" },
-    { url = "*.jsx", use = "edit" },
-    { url = "*.sh", use = "edit" },
-    { url = "*.fish", use = "edit" },
-    { url = "*.bash", use = "edit" },
-    { url = "*rc", use = "edit" },
-    { url = "*.conf", use = "edit" },
-    { url = "*.toml", use = "edit" },
-    { url = "*.yaml", use = "edit" },
-    { url = "*.yml", use = "edit" },
-    { url = "*.md", use = ["edit", "open"] },
-    { url = "*.go", use = "edit" },
-    { url = "*.groovy", use = "edit" },
-    { url = "*.scala", use = "edit" },
+  { url = "*.json", use = "edit" },
+  { url = "*.lua", use = "edit" },
+  { url = "*.java", use = "edit" },
+  { url = "*.kt", use = "edit" },
+  { url = "*.kts", use = "edit" },
+  { url = "*.ts", use = "edit" },
+  { url = "*.js", use = "edit" },
+  { url = "*.tsx", use = "edit" },
+  { url = "*.jsx", use = "edit" },
+  { url = "*.sh", use = "edit" },
+  { url = "*.fish", use = "edit" },
+  { url = "*.bash", use = "edit" },
+  { url = "*rc", use = "edit" },
+  { url = "*.conf", use = "edit" },
+  { url = "*.toml", use = "edit" },
+  { url = "*.yaml", use = "edit" },
+  { url = "*.yml", use = "edit" },
+  { url = "*.md", use = [
+    "edit",
+    "open",
+  ] },
+  { url = "*.go", use = "edit" },
+  { url = "*.groovy", use = "edit" },
+  { url = "*.scala", use = "edit" },
 ]
 
-append_rules = [
-    { mime = "*/*", use = "open" },
-]
+append_rules = [{ mime = "*/*", use = "open" }]
 
-rules = [
-    { mime = "text/*", use = "edit" },
-    { mime = "video/*", use = "play" },
-]
+rules = [{ mime = "text/*", use = "edit" }, { mime = "video/*", use = "play" }]
 
 
 [input]
