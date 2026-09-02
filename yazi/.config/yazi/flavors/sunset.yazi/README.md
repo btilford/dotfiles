@@ -3,15 +3,14 @@
 </div>
 
 <h3 align="center">
-	Sunset Flavor for <a href="https://github.com/sxyazi/yazi">Yazi</a>
+ Sunset Flavor for <a href="https://github.com/sxyazi/yazi">Yazi</a>
 </h3>
 
 ## 👀 Preview
 
-<img src="preview.png" width="600" />
+<img src="preview.png" width="600" alt="Sunset flavor preview" />
 
 ## 🎨 Installation
-
 
 ```bash
 ya pack -a PinThePenguinOne/sunset
@@ -20,7 +19,6 @@ ya pack -a PinThePenguinOne/sunset
 ## ⚙️ Usage
 
 Add the these lines to your `theme.toml` configuration file to use it:
-
 
 ```toml
 [flavor]

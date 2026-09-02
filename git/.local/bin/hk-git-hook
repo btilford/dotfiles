@@ -26,18 +26,41 @@ shift
 # Kill switch, matching the one `hk install` generates: HK=0 git commit ...
 [ "${HK:-1}" = "0" ] && exit 0
 
-# Not on PATH in a login-less context (a GUI client, an editor's git
-# integration): fall back to the mise shim, which resolves the active version.
-if ! command -v hk > /dev/null 2>&1; then
-  shim="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/hk"
-  if [ -x "$shim" ]; then
-    exec "$shim" run "$event" --from-hook "$@"
-  fi
-  # Exit 0, not 1. Unlike the secret gate this is a convenience runner: a
-  # machine mid-bootstrap, with the config stowed before the tool is installed,
-  # must still be able to commit. The secret scan itself does not depend on hk —
-  # ~/.config/git/hooks/pre-commit gates every repo whether hk is present or not.
-  exit 0
+# Tool dependencies come from the repo's own mise.toml: hk itself, plus the
+# linters the steps call (shfmt, stylua, taplo, yamllint, jq, betterleaks, nu
+# and the shell analyzer). A line here must not BEGIN with the analyzer's name
+# followed by a comma — that parses as a directive and fails its own gate.
+# `mise x` puts all of them on PATH, resolved from the config of the repo being
+# committed to, so it is tried FIRST: it covers the tools and the runner in one
+# step, and it is the only branch that works when git was invoked from an
+# environment with no mise activation — a GUI client, an editor's git
+# integration, a desktop launcher.
+#
+# NOT `HK_MISE=1`: that variable is read by `hk install`, where it decides
+# whether the generated hook wraps itself in `mise x`. It does nothing for an
+# already-running hk, so it cannot substitute for the wrapper here. Verified on
+# hk 1.56.1 — with PATH stripped to /usr/bin:/bin, HK_MISE=1 still failed with
+# `yamllint: command not found`, while `mise x -- hk check` passed.
+#
+# markdownlint-cli2 and luacheck are NOT covered: bun owns global JS CLIs and
+# luacheck has no mise backend, so those two steps guard on `command -v`.
+if command -v mise > /dev/null 2>&1; then
+  exec mise x -- hk run "$event" --from-hook "$@"
 fi
 
-exec hk run "$event" --from-hook "$@"
+# No mise. Take hk from PATH if it is there.
+if command -v hk > /dev/null 2>&1; then
+  exec hk run "$event" --from-hook "$@"
+fi
+
+# Neither: fall back to the mise shim by path, in case only the data dir exists.
+shim="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/hk"
+if [ -x "$shim" ]; then
+  exec "$shim" run "$event" --from-hook "$@"
+fi
+
+# Exit 0, not 1. Unlike the secret gate this is a convenience runner: a machine
+# mid-bootstrap, with the config stowed before the tool is installed, must still
+# be able to commit. The secret scan itself does not depend on hk —
+# ~/.config/git/hooks/pre-commit gates every repo whether hk is present or not.
+exit 0

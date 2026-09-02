@@ -32,7 +32,7 @@ draw_config:
       font-size: 10px;
       font-weight: bold;
     }
- 
+
     text.label {
       stroke: #dfdfde;
       stroke-width: 12;
@@ -78,7 +78,7 @@ draw_config:
       translate: 8px 13px;
       font-size: 8px;
       opacity: 1.0;
-    } 
+    }
 
     .combo.text_with_symbol.tap {
       translate: -1px 1px;
@@ -100,7 +100,7 @@ draw_config:
     }
     text.label { stroke: #22272e; }
     rect.held, rect.combo.held { fill: #5a3f3f; }
-  glyph_tap_size: 22 
+  glyph_tap_size: 22
   glyph_hold_size: 16
   glyph_shifted_size: 16
   glyphs: {}
