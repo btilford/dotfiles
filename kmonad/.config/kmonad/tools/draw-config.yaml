@@ -1,0 +1,106 @@
+# keymap-drawer draw_config for the kmonad diagrams.
+#
+# COPIED VERBATIM from keymap-drawer/corne-42.yaml in the zmk-config repo, minus
+# its parse_config (that half is ZMK devicetree parsing, which has no meaning for
+# kmonad -- tools/kmonad-draw.py does the parsing here).
+#
+# The point of the copy is that the kmonad diagram and the firmware diagrams read
+# as one set: same palette, same dark-mode handling, same glyph sizes. If the ZMK
+# styling changes, re-copy rather than hand-editing, and keep the two in step.
+
+draw_config:
+  # Dark mode follows the viewer's prefers-color-scheme. keymap-drawer emits both
+  # palettes and a media query, so one SVG works on a light README and a dark one.
+  dark_mode: auto
+
+  append_colon_to_layer_header: false
+  draw_key_sides: true
+
+  svg_extra_style: |
+
+    /* Backgrounds. Gradients rather than raster images so the SVG stays
+       self-contained -- an external image href breaks offline and is stripped
+       by GitHub's sanitizer. */
+    svg.keymap {
+      background: linear-gradient(160deg, #f7f8fa 0%, #eceff3 55%, #e4e9ef 100%);
+    }
+    rect.layer, rect.keymap {
+      fill: none;
+    }
+    svg.keymap {
+      font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    text.label {
+      stroke: #dfdfde;
+      stroke-width: 12;
+      stroke-linejoin: round;
+    }
+
+    rect.combo, rect.combo-separate {
+      opacity: 0.95;
+      stroke: #c9cccf;
+      stroke-width: 0.5;
+      fill: #d7eaed;
+    }
+    path.combo {
+      stroke-dasharray: 4, 4;
+      stroke-opacity: 0.3;
+    }
+
+    rect.held, rect.combo.held {
+      fill: #ebdada;
+    }
+
+    .trans.tap, .ghost.tap {
+      opacity: 0.5;
+    }
+
+    .shifted {
+      translate: -9px 3px;
+      opacity: 0.3;
+    }
+
+    .toggle.shifted {
+      translate: -12px 17px;
+      opacity: 1.0;
+    }
+    .toggle.hold {
+      translate: 12px -25px;
+    }
+
+    .text_with_symbol.tap {
+      translate: -1px 1px;
+    }
+    .text_with_symbol.shifted {
+      translate: 8px 13px;
+      font-size: 8px;
+      opacity: 1.0;
+    }
+
+    .combo.text_with_symbol.tap {
+      translate: -1px 1px;
+    }
+    .combo.text_with_symbol.shifted {
+      translate: 7px 5px;
+      font-size: 8px;
+      opacity: 1.0;
+    }
+  svg_style_dark: |
+    svg.keymap {
+      fill: #d1d6db;
+      background: linear-gradient(160deg, #1b1f24 0%, #22272e 55%, #1a1e23 100%);
+    }
+    rect.key { fill: #3f4750; }
+    rect.combo, rect.combo-separate {
+      fill: #2d4a52;
+      stroke: #5b6a74;
+    }
+    text.label { stroke: #22272e; }
+    rect.held, rect.combo.held { fill: #5a3f3f; }
+  glyph_tap_size: 22
+  glyph_hold_size: 16
+  glyph_shifted_size: 16
+  glyphs: {}

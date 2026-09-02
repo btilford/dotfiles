@@ -1,0 +1,7 @@
+# This package installs NOTHING. Everything in it is reference material, because
+# ~/.config/Bazecor is an Electron profile, not a config directory -- see README.
+#
+# A package-local ignore REPLACES stow's built-in list (which covers README.*),
+# it does not add to it, so README.* is repeated here.
+README.*
+config\.example\.json

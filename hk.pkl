@@ -11,34 +11,153 @@
 ///
 /// Replaced lefthook.yml on 2026-08-24. The two exclusion lists and the
 /// selector comments below are carried over verbatim; read them before editing.
+///
+/// Every step that hk ships a builtin for AMENDS that builtin rather than
+/// restating it. A builtin carries more than the command: the file selector
+/// (`match_any` with `types`, which reads a shebang and therefore finds the
+/// extensionless commands in commands/.local/bin that no glob can), the
+/// check/check_diff/fix split, `batch`, and `effect = "read" | "write"`, which
+/// is what lets hk schedule steps in parallel and lock the ones that write.
+/// A hand-written step throws all of that away. Override only what this repo
+/// needs, and say why in a comment beside it.
 amends "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Config.pkl"
 
+import "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Builtins.pkl"
+
 local linters = new Mapping<String, Step> {
-  ["shfmt"] {
-    glob = List("*.sh", "*.bash")
+  // Repo style flags: 2-space indent, indent switch cases, redirect operators
+  // followed by a space. Not shfmt defaults, so both directions are overridden.
+  // The builtin's selector is WIDER than the old `*.sh`/`*.bash` glob — it also
+  // matches by shebang, which is the same rule mise-scripts/shell-files.sh uses
+  // and reaches the extensionless commands on PATH.
+  ["shfmt"] = (Builtins.shfmt) {
+    exclude = List("**/*.sample", "**/RofiEmoji.sh", "**/*.zsh")
+    check_diff = "shfmt -d -i 2 -ci -sr {{files}}"
     fix = "shfmt -w -i 2 -ci -sr {{files}}"
   }
-  ["stylua"] {
-    glob = List("*.lua")
-    // Same two exclusions as mise-scripts/lua-files.sh: the frozen colors.lua
-    // seed and the wallust render template. Kept in step — see that script.
+  // Same two exclusions as mise-scripts/lua-files.sh: the frozen colors.lua
+  // seed and the wallust render template. Kept in step — see that script.
+  ["stylua"] = (Builtins.stylua) {
     exclude = List(
       "hyprland/.config/hypr/lua/colors.lua",
       "wallust/.config/wallust/templates/colors-hyprland.lua"
     )
-    fix = "stylua {{files}}"
   }
-  ["taplo"] {
-    glob = List("*.toml")
-    fix = "taplo fmt {{files}}"
+  // The builtin is `taplo lint`, which does NOT check formatting. fmt:toml
+  // formats, so use the format builtin and keep this a fixer as before.
+  ["taplo"] = (Builtins.taplo_format) {}
+  // markdownlint-cli2, not the builtin's `markdownlint`: cli2 is what bun
+  // installs globally and what the metapac `core` group declares.
+  //
+  // mise cannot supply this one: its only registry entry is
+  // `npm:markdownlint-cli2`, which would need a node runtime and would make npm
+  // a second owner of a global JS CLI — both ruled out in CLAUDE.md, since bun
+  // owns those. So it comes from bun's global prefix (~/.bun/bin) on PATH, and
+  // `mise x` in the hook shim does NOT cover it.
+  //
+  // Absence is therefore a FAILURE, not a skip. A gate that silently checks
+  // nothing is worse than no gate: the commit passes, CI runs the same tool and
+  // fails, and the reason is invisible at the point where it could be fixed.
+  // The message names the install command so the fix takes one line.
+  ["markdownlint"] = (Builtins.markdown_lint) {
+    check = """
+      command -v markdownlint-cli2 > /dev/null 2>&1 || {
+        echo "hk: markdownlint-cli2 is not on PATH, so markdown is NOT linted." >&2
+        echo "  Install it:  mise run metapac -- sync" >&2
+        echo "  Declared in: metapac/.config/metapac/groups/core.toml  [bun]" >&2
+        echo "  Direct:      bun install --global markdownlint-cli2" >&2
+        echo "  Bun's global prefix (~/.bun/bin) must be on PATH." >&2
+        exit 1
+      }
+      markdownlint-cli2 {{files}}
+      """
+    fix = """
+      command -v markdownlint-cli2 > /dev/null 2>&1 || {
+        echo "hk: markdownlint-cli2 is not on PATH, so markdown is NOT formatted." >&2
+        echo "  Install it:  mise run metapac -- sync" >&2
+        echo "  Declared in: metapac/.config/metapac/groups/core.toml  [bun]" >&2
+        echo "  Direct:      bun install --global markdownlint-cli2" >&2
+        echo "  Bun's global prefix (~/.bun/bin) must be on PATH." >&2
+        exit 1
+      }
+      markdownlint-cli2 --fix {{files}}
+      """
   }
-  ["markdownlint"] {
-    glob = List("*.md")
-    fix = "markdownlint-cli2 --fix {{files}}"
-  }
+  // No builtin for fish.
   ["fish-syntax"] {
     glob = List("*.fish")
     check = "for f in {{files}}; do fish --no-execute \"$f\"; done"
+  }
+  ["yamllint"] = (Builtins.yamllint) {
+    // Both files are gitignored and machine-provisioned. They are absent in a
+    // fresh clone, so CI never sees them, but they DO exist on a provisioned
+    // machine. Excluding them keeps this selecting the same set as
+    // mise-scripts/yaml-files.sh, which the lint task and both CI surfaces
+    // share. Their committed .example siblings are linted.
+    exclude = List(
+      "docker/.docker/mcp/config.yaml",
+      "gh/.config/gh/hosts.yml"
+    )
+    // Drop the builtin's --strict, which promotes warnings to errors. .yamllint
+    // already decides what matters here: it extends `relaxed` and re-enables
+    // the rules this repo cares about.
+    check = "yamllint {{files}}"
+  }
+  ["shellcheck"] = (Builtins.shellcheck) {
+    // Same exclusions and severity as mise-scripts/shell-files.sh and the
+    // lint:shellcheck CI job, so the hook and CI cannot disagree. Vendored
+    // scripts carry style noise, hence error severity only.
+    exclude = List("**/*.sample", "**/RofiEmoji.sh", "**/*.zsh")
+    check = "shellcheck --severity=error -e SC1090,SC1091,SC2148 {{files}}"
+  }
+  // NOT `Builtins.jq`: that one diffs each file against `jq .` output, i.e. it
+  // is a FORMATTER check, and it would reflow every hand-maintained config in
+  // the repo. lint:json asks the weaker question — does this parse.
+  ["json-parse"] {
+    glob = List("*.json")
+    check = "for f in {{files}}; do jq empty \"$f\" || exit 1; done"
+  }
+  // No builtin for nushell. `nu --ide-check` always exits 0, so gate on
+  // diagnostic entries. It also resolves source/use targets and reports
+  // "File not found" for machine-local paths — env noise, not syntax. Same
+  // filter as lint:nu.
+  ["nu-parse"] {
+    glob = List("*.nu")
+    check = """
+      rc=0
+      for f in {{files}}; do
+        out=$(nu --ide-check 1 "$f")
+        errs=$(printf '%s\\n' "$out" | grep '"type":"diagnostic"' | grep -iv 'not found' || true)
+        if [ -n "$errs" ]; then
+          echo "nu parse error in: $f"
+          printf '%s\\n' "$errs"
+          rc=1
+        fi
+      done
+      exit $rc
+      """
+  }
+  ["luacheck"] = (Builtins.luacheck) {
+    // luacheck is NOT in the mise registry — it is a lua rock with no binary
+    // release — so it comes from the OS package manager and `mise x` in the
+    // hook shim does not cover it. metapac declares it per OS: `luacheck` in
+    // groups/desktop-arch.toml, `luacheck` in groups/macos.toml (brew).
+    //
+    // Absence is a FAILURE, not a skip, for the same reason as markdownlint
+    // above: a silent skip turns a green commit into a red CI run with no local
+    // signal. Selene is not a substitute — it takes one std per run and has no
+    // equivalent of .luacheckrc's per-path globals.
+    check = """
+      command -v luacheck > /dev/null 2>&1 || {
+        echo "hk: luacheck is not installed, so lua is NOT linted." >&2
+        echo "  Install it:  mise run metapac -- sync" >&2
+        echo "  Declared in: metapac/.config/metapac/groups/desktop-arch.toml  [arch]" >&2
+        echo "               metapac/.config/metapac/groups/macos.toml         [brew]" >&2
+        echo "  Direct:      pacman -S luacheck   |   brew install luacheck" >&2
+        exit 1
+      }
+      luacheck --no-color {{files}}
+      """
   }
   ["no-local-values"] {
     check = "mise-scripts/no-local-values.sh"
@@ -46,9 +165,9 @@ local linters = new Mapping<String, Step> {
   // `betterleaks dir` over the selected files, not `betterleaks git --staged`:
   // the pre-commit hook stashes unstaged changes, so what is on disk IS the
   // staged content, and this way the same step also does something useful under
-  // `hk check --all`. Unredacted on purpose: author's own terminal, own content.
-  ["betterleaks"] {
-    types = List("text")
+  // `hk check --all`. The builtin passes --redact; dropped on purpose here,
+  // since this runs in the author's own terminal on the author's own content.
+  ["betterleaks"] = (Builtins.betterleaks) {
     check = "betterleaks dir -c .betterleaks.toml --no-banner {{files}}"
   }
   // Structural: a credential-named value must be a reference, not a literal.

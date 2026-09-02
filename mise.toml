@@ -382,12 +382,19 @@ description = "luacheck every tracked lua file"
 # aqua installs and no luacheck-bundled image is in use, the same divergence as the
 # rest. GitHub Actions already apt-installs lua-check and runs the full suite, so the
 # widened scope reaches the strict gate with no workflow change.
+# Absence FAILS, it does not skip. A gate that silently checks nothing reports
+# success while checking nothing, which is how the formatting backlog built up
+# under lefthook. The hk luacheck step fails the same way — keep the two in step.
 run = """
-if command -v luacheck >/dev/null 2>&1; then
-  git ls-files '*.lua' | xargs -r luacheck --no-color
-else
-  echo "luacheck not installed — skipping lua lint"
+if ! command -v luacheck >/dev/null 2>&1; then
+  echo "luacheck is not installed, so lua is NOT linted." >&2
+  echo "  Install it:  mise run metapac -- sync" >&2
+  echo "  Declared in: metapac/.config/metapac/groups/desktop-arch.toml  [arch]" >&2
+  echo "               metapac/.config/metapac/groups/macos.toml         [brew]" >&2
+  echo "  Direct:      pacman -S luacheck   |   brew install luacheck" >&2
+  exit 1
 fi
+git ls-files '*.lua' | xargs -r luacheck --no-color
 """
 
 [tasks."lint:stylua"]
@@ -406,13 +413,20 @@ exit $rc
 """
 
 [tasks."lint:fish"]
-description = "fish syntax check (skipped where fish is absent, e.g. CI)"
+description = "fish syntax check — fails if fish is absent"
+# Absence FAILS, same reasoning as lint:lua above. fish is declared directly in
+# groups/macos.toml and arrives on Arch as a dependency of cachyos-fish-config;
+# the GitHub workflow apt-installs it. So every surface that runs this has it.
 run = """
-if command -v fish >/dev/null 2>&1; then
-  git ls-files '*.fish' | xargs -r -n1 fish --no-execute
-else
-  echo "fish not installed — skipping fish syntax check"
+if ! command -v fish >/dev/null 2>&1; then
+  echo "fish is not installed, so fish syntax is NOT checked." >&2
+  echo "  Install it:  mise run metapac -- sync" >&2
+  echo "  Declared in: metapac/.config/metapac/groups/macos.toml  [brew]" >&2
+  echo "               on Arch it comes in via cachyos-fish-config" >&2
+  echo "  Direct:      pacman -S fish   |   brew install fish" >&2
+  exit 1
 fi
+git ls-files '*.fish' | xargs -r -n1 fish --no-execute
 """
 
 # ---------------------------------------------------------------------------

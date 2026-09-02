@@ -1,0 +1,25 @@
+{
+	"settings": {
+		"backupFolder": "REPLACE_ME/Dygma/Backups",
+		"backupFrequency": 0,
+		"language": "en-US",
+		"darkMode": "system",
+		"hideBluetoothExperimental": false,
+		"showDefaults": false,
+		"verbose": false,
+		"allowBeta": true,
+		"version": "1.10.0"
+	},
+	"neurons": [],
+	"lens": {
+		"enabled": false,
+		"opacity": 0.85,
+		"showUnderglow": false,
+		"layout": "en-US",
+		"layerNames": [],
+		"overlayMode": true,
+		"overlayAutoShow": true,
+		"resizeMode": false,
+		"migratedFromStandalone": true
+	}
+}

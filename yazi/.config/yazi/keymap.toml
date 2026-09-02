@@ -1,13 +1,16 @@
 [[mgr.prepend_keymap]]
-on   = "!"
-for  = "unix"
-run  = 'shell "$SHELL" --block'
+on = "!"
+for = "unix"
+run = 'shell "$SHELL" --block'
 desc = "Open $SHELL here"
 
 [[mgr.prepend_keymap]]
 on = "y"
 for = "unix"
-run = ['shell -- for path in "$@"; do echo "$path"; done | wl-copy -t text/uri-list', 'yank']
+run = [
+  'shell -- for path in "$@"; do echo "$path"; done | wl-copy -t text/uri-list',
+  'yank',
+]
 
 [[mgr.prepend_keymap]]
 on = "?"

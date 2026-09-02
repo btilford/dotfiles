@@ -78,6 +78,12 @@ brew = { packages = [
   "lazygit",
   "logcli",
   "lua",
+  # Lua linter for `mise run lint:lua` and the hk luacheck step. Declared per OS
+  # like git-spice: not in the mise registry (a lua rock, no binary release), so
+  # `mise x` cannot supply it — brew here, extra/luacheck on Arch. Both steps
+  # FAIL rather than skip when it is absent, so a Mac without this entry could
+  # not commit a lua file.
+  "luacheck",
   "lua-language-server",
   "luarocks",
   "make",

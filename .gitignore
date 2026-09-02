@@ -90,3 +90,4 @@ fish/.config/fish/completions/wt.fish
 # tip does NOT remove the one historical blob, which is benign: an empty
 # terminator skeleton, no credentials. See docs/publish-audit.md.
 terminator/.config/terminator/config.bak
+__pycache__/
