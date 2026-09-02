@@ -45,6 +45,30 @@ Two fields are deliberately altered from the captured original:
   scrub gate rejects it, so it ships as `REPLACE_ME` for the `sed` above.
 - `neurons` — emptied. Never commit a populated one.
 
+## How Bazecor is installed here
+
+An **AppImage**, not a package — `~/Applications/Bazecor-1.10.0-x64_<hash>.AppImage`,
+registered by appimagelauncher (which writes
+`~/.local/share/applications/appimagekit_<hash>-Bazecor.desktop`). So `which bazecor`
+finds nothing and `pacman -Q bazecor` fails; neither means it is absent. Check
+`~/Applications/` and `~/.config/Bazecor/logs/main.log` instead.
+
+Upstream ships .deb/.rpm/AppImage only; there is no official Arch package.
+
+## It needs polkit, and this host had no polkit agent
+
+Bazecor calls `pkexec` to install its udev rule for the keyboard's serial device. If no
+polkit **authentication agent** is running it reports polkit as missing — even though
+`polkitd` is fine, because the agent is the piece that draws the prompt.
+
+That was broken on this host until 2026-09-01: `hyprland`'s `autostart.lua` pointed at a
+path Arch does not use, so no agent had ever started and every privileged prompt failed
+silently. Fixed in the hyprland package. If Bazecor reports polkit missing again, check
+`pgrep -af polkit-.*authentication-agent` before suspecting Bazecor.
+
+Note the device is `root:uucp 660`, so a user in `uucp` can already reach
+`/dev/ttyACM0` without any udev rule.
+
 ## Settings that matter
 
 - `backupFolder` — where layout backups are exported. **Take a backup before touching
