@@ -40,7 +40,7 @@ set -euo pipefail
 # an alias quietly resolving to something four times smaller is a worse outcome
 # that looks like it worked.
 ROLES=$(
-  cat <<'EOF'
+  cat << 'EOF'
 role/completion	qwen2.5-coder:3b
 role/chat	qwen2.5:7b
 EOF
@@ -58,12 +58,12 @@ case "$OLLAMA_HOST" in
     ;;
 esac
 
-if ! command -v ollama >/dev/null 2>&1; then
+if ! command -v ollama > /dev/null 2>&1; then
   echo "ollama-role-aliases: ollama not on PATH, nothing to do" >&2
   exit 0
 fi
 
-if ! ollama list >/dev/null 2>&1; then
+if ! ollama list > /dev/null 2>&1; then
   echo "ollama-role-aliases: no Ollama server at $OLLAMA_HOST" >&2
   exit 1
 fi
@@ -80,8 +80,8 @@ while IFS=$'\t' read -r role model; do
 
   # Idempotent by construction: cp overwrites an existing alias, so re-running
   # after a `pull` is how the alias gets refreshed onto the new weights.
-  ollama cp "$model" "$role" >/dev/null
+  ollama cp "$model" "$role" > /dev/null
   echo "  ok       $role -> $model"
-done <<<"$ROLES"
+done <<< "$ROLES"
 
 exit "$status"
