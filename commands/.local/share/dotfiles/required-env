@@ -17,16 +17,18 @@ NAS_MOUNT_ROOT	optional	mount-library.sh (private repo)	defaults to $HOME/nas
 HOME_NET_PREFIXES	optional	mount-library.sh (private repo)	defaults to the built-in prefix list
 INFISICAL_DOMAIN	required	commands/.local/bin/sync-litellm-models	script exits when unset
 INFISICAL_PROJECT	required	commands/.local/bin/sync-litellm-models	project id, not a credential
-LITELLM_GATEWAY	required	sync-litellm-models, nvim ai.lua	nvim falls back to http://localhost:4000
+LITELLM_GATEWAY	required	sync-litellm-models, nvim ai.lua	LiteLLM specifically; ai.lua reads it only as an AI_GATEWAY fallback. No default: absent means off
+AI_GATEWAY	required	nvim ai.lua, atuin ai, continue	OpenAI-compatible endpoint for THIS host; loopback unless DOTFILES_PROFILE=personal
+DOTFILES_AI	optional	nvim ai.lua	kill switch: "off" disables every AI integration whatever else is set
 LEMONADE_URL	optional	commands/.local/bin/sync-litellm-models	
 OLLAMA_URL	optional	commands/.local/bin/sync-litellm-models	
-OLLAMA_HOST	optional	nvim/.config/nvim/lua/plugins/ai.lua	read via vim.env, so needs environment.d
+OLLAMA_HOST	optional	nvim ai.lua (gen.nvim), ollama LaunchAgent	BARE HOST, NO PORT: gen.nvim appends :11434 itself. read via vim.env, so needs environment.d
 HERMES_TUI_GATEWAY_URL	optional	fish/.config/fish/conf.d/hermes.fish	defaults to http://localhost:8642
 VOL_SCREENSHOT_ARCHIVE	optional	mise-scripts/visuals	
 DOTFILES_SCREENSHOT_ARCHIVE	optional	mise-scripts/visual-archive.sh	
 DOTFILES_LEMONADE_PREFIX	optional	commands/.local/bin/sync-litellm-models	host-qualified model prefix, e.g. <host>.lemonade; falls back to "lemonade"
 DOTFILES_OLLAMA_PREFIX	optional	commands/.local/bin/sync-litellm-models	host-qualified model prefix, e.g. <host>.ollama; falls back to "ollama"
-DOTFILES_PROFILE	optional	nvim plugins/ai.lua (and future profile gates)	"personal" enables local AI; ANY other value or unset = work, i.e. off
+DOTFILES_PROFILE	optional	nvim ai.lua, atuin shell drop-ins	"personal" permits a REMOTE gateway; any other value or unset permits loopback only
 HF_HOME	optional	shared model store (lemonade, llama.cpp toolbox, llama-swap)	unset = each tool caches separately, which is how the stores diverged
 HF_HUB_CACHE	optional	shared model store	same
 DOTFILES_LLAMASWAP_PREFIX	optional	commands/.local/bin/sync-litellm-models	host-qualified prefix, e.g. <host>.llamaswap; falls back to "llamaswap"

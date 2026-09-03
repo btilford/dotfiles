@@ -1,28 +1,60 @@
--- WORK MACHINES GET NO LOCAL AI. This is a hard requirement, not a preference:
--- the homelab gateway, its models and its hostnames must not be reached from,
--- or named on, the work laptop.
+-- A WORK MACHINE MUST NOT REACH THE HOMELAB GATEWAY. This is a hard
+-- requirement, not a preference: that gateway, its models and its hostnames
+-- must not be contacted from, or named on, the work laptop.
 --
--- The gate is explicit rather than inferred. It defaults to "work", so a machine
--- that has not opted in gets nothing — the safe direction for a rule whose
--- failure mode is "private infrastructure contacted from a work device". Set
--- DOTFILES_PROFILE=personal in ~/.config/dotfiles/local.env to enable.
+-- The gate tests the ENDPOINT, not the machine's identity. A profile check
+-- answers "whose laptop is this", which is the wrong question — what matters is
+-- where the buffer text goes. An endpoint on this host's loopback is safe
+-- anywhere; a remote one is not, whatever the profile says. Keying on the
+-- profile also made "work" mean "no AI at all", which blocks the supported
+-- case: an inference server running on the work machine itself.
 --
--- This replaced an inferred gate that was actively harmful:
+-- Three variables, in order of authority:
+--
+--   DOTFILES_AI=off   kill switch. Nothing loads, whatever else is set.
+--   AI_GATEWAY        this host's OpenAI-compatible endpoint. Falls back to
+--                     LITELLM_GATEWAY so the homelab keeps working unchanged.
+--   DOTFILES_PROFILE  "personal" permits a remote gateway. Anything else, or
+--                     unset, permits loopback only.
+--
+-- Absence of a gateway means OFF, never "try somewhere else". That rule is why
+-- the inferred gate it replaced was harmful:
 --
 --   local litellm = vim.env.LITELLM_GATEWAY or "http://localhost:4000"
 --
--- With LITELLM_GATEWAY unset — exactly the work-machine case — that did not
--- disable anything. It loaded every adapter pointed at localhost:4000, so the
--- plugins appeared installed and failed only at the moment of use, with an
--- error that looks like a network fault rather than a machine that was never
--- meant to have them. Absence of a value must mean OFF, not "try somewhere
--- else". Same rule as the empty ATUIN_* variables in the repo CLAUDE.md.
-local profile = vim.env.DOTFILES_PROFILE or "work"
-local local_ai = profile == "personal"
+-- With the variable unset it disabled nothing — it loaded every adapter pointed
+-- at localhost:4000, so the plugins appeared installed and failed only at the
+-- moment of use, looking like a network fault rather than a machine that was
+-- never meant to have them. Same rule as the empty ATUIN_* variables in the
+-- repo CLAUDE.md.
+local gateway = vim.env.AI_GATEWAY or vim.env.LITELLM_GATEWAY
 
--- Only meaningful when local_ai is true; the specs that use it do not load
--- otherwise. No fallback on purpose — see above.
-local litellm = vim.env.LITELLM_GATEWAY
+-- Loopback literals only. A hostname that merely resolves to 127.0.0.1 today is
+-- not the same guarantee — DNS can move, and this decides whether work code
+-- leaves the machine.
+local function is_loopback(url)
+  if not url then
+    return false
+  end
+  -- Bracketed IPv6 first: "[^/:]+" would otherwise stop at the first colon of
+  -- "[::1]" and return "[", which is truthy and short-circuits the `or`.
+  local host = url:match("^https?://%[([^%]]+)%]") or url:match("^https?://([^/:]+)")
+  return host == "127.0.0.1" or host == "localhost" or host == "::1"
+end
+
+local local_ai
+if vim.env.DOTFILES_AI == "off" or gateway == nil or gateway == "" then
+  local_ai = false
+elseif (vim.env.DOTFILES_PROFILE or "work") == "personal" then
+  local_ai = true
+else
+  local_ai = is_loopback(gateway)
+end
+
+-- Named for the variable that supplies it, not for whatever happens to be
+-- serving: LiteLLM on the homelab, Ollama on a laptop. The adapters below only
+-- load when local_ai is true, so this is never nil at a use site.
+local litellm = gateway
 
 -- The API key is NOT read from the environment. Nothing exports it, nothing
 -- caches it to disk, and no shell calls infisical at startup — see
@@ -61,6 +93,16 @@ local api_key_retry_after = 0
 local API_KEY_RETRY_COOLDOWN_S = 60
 
 local function neovim_api_key()
+  -- A loopback gateway is this machine's own inference server and takes no
+  -- auth, so there is no key to fetch. Short-circuit before the shell-out:
+  -- everything in the comment above about per-keystroke cost applies here too,
+  -- and on a machine with no Infisical access this would otherwise buy a 60s
+  -- error cooldown, plus an error toast, for a credential nothing wants. The
+  -- adapters require a non-nil value, hence a placeholder rather than nil.
+  if is_loopback(gateway) then
+    return "local"
+  end
+
   if api_key_cache then
     return api_key_cache
   end
@@ -98,7 +140,7 @@ end, { desc = "Forget the memoised NEOVIM_API_KEY (after secrets-refresh)" })
 return {
   {
     "NickvanDyke/opencode.nvim",
-    -- Personal machines only; see DOTFILES_PROFILE at the top of this file.
+    -- Loads only when an AI gateway is configured and permitted; see the top of this file.
     cond = local_ai,
     dependencies = {
       -- Recommended for `ask()` and `select()`.
@@ -199,7 +241,7 @@ return {
   {
     -- ka codium
     "David-Kunz/gen.nvim",
-    -- Personal machines only; see DOTFILES_PROFILE at the top of this file.
+    -- Loads only when an AI gateway is configured and permitted; see the top of this file.
     cond = local_ai,
     opts = {
       model = "qwen3-coder-next", -- The default model to use.
@@ -257,7 +299,7 @@ return {
   -- },
   {
     "olimorris/codecompanion.nvim",
-    -- Personal machines only; see DOTFILES_PROFILE at the top of this file.
+    -- Loads only when an AI gateway is configured and permitted; see the top of this file.
     cond = local_ai,
     dependencies = {
       "nvim-lua/plenary.nvim",
@@ -346,12 +388,27 @@ return {
           use_default_prompt_library = true,
         },
       })
+
+      -- role/reasoning is a 35B on the homelab and has no local equivalent: the
+      -- largest model that belongs on a laptop is an 8B. Chat and agent are
+      -- left pointing at it deliberately, so they fail with a missing-model
+      -- error rather than quietly answering from something a quarter the size —
+      -- a silent downgrade on agent work is the worse outcome. Inline edits use
+      -- role/completion and work normally.
+      if is_loopback(gateway) then
+        vim.notify(
+          "chat and agent need role/reasoning, which this host does not serve.\n"
+            .. "Inline edits and minuet completion are unaffected.",
+          vim.log.levels.WARN,
+          { title = "codecompanion" }
+        )
+      end
     end,
   },
 
   {
     "milanglacier/minuet-ai.nvim",
-    -- Personal machines only; see DOTFILES_PROFILE at the top of this file.
+    -- Loads only when an AI gateway is configured and permitted; see the top of this file.
     cond = local_ai,
     dependencies = { "nvim-lua/plenary.nvim" },
     config = function()
@@ -373,8 +430,20 @@ return {
         },
         context_window = 4096,
         context_ratio = 0.75,
-        throttle = 1000,
-        debounce = 400,
+
+        -- Tuned to the round trip, which differs by an order of magnitude
+        -- between the two backends this file serves. Measured on the local
+        -- Ollama, 2026-08-31: role/completion (qwen2.5-coder:3b) answers in
+        -- 171ms to first token at 57 tok/s, warm and fully on GPU. The previous
+        -- 1000/400 was fitted to the homelab gateway across the network, and at
+        -- local latency it is the dominant cost — it makes a fast model feel
+        -- slower than it is.
+        --
+        -- These are a floor, not a target: too low and every keystroke burns a
+        -- request the next keystroke discards, which on a laptop is battery and
+        -- heat rather than someone else's GPU.
+        throttle = is_loopback(gateway) and 400 or 1000,
+        debounce = is_loopback(gateway) and 150 or 400,
         notify = false,
         virtualtext = {
           auto_trigger_ft = {},

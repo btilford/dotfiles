@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Ollama server on macOS. The Linux half of this package is
+  .config/systemd/user/ollama.service; this is the same job for launchd.
+
+  WE RUN THE SERVER, NOT THE MENU-BAR APP. The cask's Ollama.app installs its
+  own login agent, and two servers cannot share port 11434. Do not launch the
+  app while this agent is loaded. The binary at /opt/homebrew/bin/ollama is a
+  symlink into Ollama.app/Contents/Resources, which is also where mlx_metal_v3
+  and mlx_metal_v4 live, so `ollama serve` from here still resolves the MLX
+  runners — the app is not needed for them.
+
+  Env vars live here rather than in `launchctl setenv`, which the Ollama docs
+  suggest: setenv does not survive a reboot, and it cannot be committed. Values
+  set here apply at spawn, so there is no ordering race and nothing to restart.
+
+  OLLAMA_HOST HAS NO PORT, AND MUST NOT GAIN ONE. It is the bind address here,
+  but `required-env` already declares OLLAMA_HOST for a second reader:
+  nvim's gen.nvim block treats it as a bare hostname and formats
+  "http://%s:%s" against port 11434. The documented "127.0.0.1:11434" form
+  would give that reader "http://127.0.0.1:11434:11434". Ollama defaults the
+  port, so the bare address satisfies both.
+
+  ProgramArguments goes through `sh -lc` for one reason: launchd does not
+  expand ~ or $HOME in any path key, and this repo does not put absolute home
+  paths in config. The login shell also supplies PATH, so ollama resolves by
+  name.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.dotfiles.ollama</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>-lc</string>
+        <string>mkdir -p "$HOME/.local/state/ollama" &amp;&amp; exec ollama serve &gt;&gt; "$HOME/.local/state/ollama/server.log" 2&gt;&amp;1</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- The sandbox control. Never 0.0.0.0: that binds the LAN with no auth. -->
+        <key>OLLAMA_HOST</key>
+        <string>127.0.0.1</string>
+
+        <!-- The 4096 default truncates silently. Sized for the small models
+             this host serves, not for a 27B. -->
+        <key>OLLAMA_CONTEXT_LENGTH</key>
+        <string>8192</string>
+
+        <!-- Completion and chat models stay resident together, so inline
+             completion never pays a cold load. The "=1" rule in the team doc is
+             a 27B memory-ceiling rule and does not apply at ~7 GB. -->
+        <key>OLLAMA_MAX_LOADED_MODELS</key>
+        <string>2</string>
+
+        <key>OLLAMA_KEEP_ALIVE</key>
+        <string>30m</string>
+
+        <key>OLLAMA_FLASH_ATTENTION</key>
+        <string>1</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ProcessType</key>
+    <string>Interactive</string>
+</dict>
+</plist>

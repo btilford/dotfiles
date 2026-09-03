@@ -22,7 +22,14 @@ if command -v atuin > /dev/null 2>&1; then
     # Every atuin command then errors, including the eval below. The
     # machine-local files in this repo are generated with empty placeholders, so
     # this is a live hazard, not a theoretical one.
-    for _atuin_var in ATUIN_SYNC_ADDRESS ATUIN_AUTO_SYNC ATUIN_AI__ENABLED ATUIN_AI__ENDPOINT ATUIN_AI__MODEL; do
+    for _atuin_var in ATUIN_SYNC_ADDRESS ATUIN_AUTO_SYNC \
+        ATUIN_AI__ENABLED ATUIN_AI__ENDPOINT ATUIN_AI__ENDPOINT_PROTOCOL ATUIN_AI__MODEL \
+        ATUIN_AI__YOLO ATUIN_AI__SEND_CWD \
+        ATUIN_AI__CAPABILITIES__ENABLE_HISTORY_SEARCH \
+        ATUIN_AI__CAPABILITIES__ENABLE_HISTORY_OUTPUT \
+        ATUIN_AI__CAPABILITIES__ENABLE_FILE_TOOLS \
+        ATUIN_AI__CAPABILITIES__ENABLE_COMMAND_EXECUTION \
+        ATUIN_AI__CAPABILITIES__SEND_LAST_COMMAND; do
         [[ -z ${(P)_atuin_var} ]] && unset "$_atuin_var"
     done
     unset _atuin_var
@@ -44,9 +51,22 @@ if command -v atuin > /dev/null 2>&1; then
     #
     # The agent hooks and local history are unaffected — they need no server,
     # which is the whole point of giving work atuin at all.
+    #
+    # AI IS A SEPARATE QUESTION FROM SYNC, and used to be conflated with it.
+    # This branch unset the AI keys outright, so "work" meant "no assistant at
+    # all" — which also ruled out the safe case: an atuin-ai-server on this very
+    # machine, which sends nothing anywhere. What matters is where the prompt
+    # goes, so test the endpoint, exactly as nvim's ai.lua does. A remote
+    # endpoint is refused on a work profile; loopback is fine on any profile.
     if [ "${DOTFILES_PROFILE:-work}" != "personal" ]; then
         export ATUIN_AUTO_SYNC=false
-        unset ATUIN_SYNC_ADDRESS ATUIN_AI__ENABLED ATUIN_AI__ENDPOINT
+        unset ATUIN_SYNC_ADDRESS
+        case "${ATUIN_AI__ENDPOINT-}" in
+            http://127.0.0.1 | http://127.0.0.1:* | \
+                http://localhost | http://localhost:* | \
+                "http://[::1]" | "http://[::1]:"*) ;;
+            *) unset ATUIN_AI__ENABLED ATUIN_AI__ENDPOINT ;;
+        esac
     elif [ -z "${ATUIN_SYNC_ADDRESS-}" ]; then
         # Personal, but no sync server configured yet. Force sync OFF rather
         # than letting atuin fall back to its upstream default of
@@ -58,4 +78,21 @@ if command -v atuin > /dev/null 2>&1; then
     fi
 
     eval "$(atuin init zsh)"
+
+    # `how size disk` -> proposes the df/du command.
+    #
+    # "$*" and not "$@": `atuin ai inline` takes the query as ONE positional
+    # argument, so passing the words separately would send only the first and
+    # silently drop the rest.
+    #
+    # `inline` proposes onto the prompt and does not execute — the same posture
+    # as enter_accept = false in config.toml. It is a function rather than an
+    # alias so the arguments land in the right place.
+    how() {
+        if [ "$#" -eq 0 ]; then
+            echo "usage: how <what you want to do>   e.g. how size disk" >&2
+            return 2
+        fi
+        atuin ai inline -- "$*"
+    }
 fi

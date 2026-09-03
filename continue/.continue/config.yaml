@@ -1,0 +1,55 @@
+# Continue — chat and inline completion in IntelliJ, VS Code and its own nvim
+# plugin. One global file serves all three; the IDE only supplies the UI, so
+# nothing here depends on where the IDE is installed.
+#
+# 127.0.0.1 IS HARDCODED ON PURPOSE. Everywhere else in this repo a
+# machine-specific endpoint resolves from the environment, because a private
+# hostname must not be published. A loopback address is not private
+# infrastructure — it names no host but this one — and Continue's local
+# config.yaml has no dependable env-var interpolation, so the alternative would
+# be an untracked file for a value that is safe to publish. This is also what
+# makes the file honest: it cannot silently be pointed somewhere else.
+#
+# The models are role/* ALIASES in Ollama, not concrete tags. Each host decides
+# what a role resolves to — see commands/.local/bin/ollama-role-aliases — so
+# this file does not change when the weights do.
+name: dotfiles-local
+version: 0.0.1
+schema: v1
+
+models:
+  # role/chat is qwen2.5:7b. Non-thinking and tool-capable; see the measurements
+  # in ollama-role-aliases for why it is not the coder model.
+  - name: Local chat
+    provider: ollama
+    model: role/chat
+    apiBase: http://127.0.0.1:11434
+    roles:
+      - chat
+      - edit
+      - apply
+      - summarize
+    defaultCompletionOptions:
+      temperature: 0.2
+
+  # role/completion is qwen2.5-coder:3b — small on purpose. This sits behind a
+  # keystroke, so time to first token matters more than model size: measured
+  # 171ms warm on this host, against 213ms for the 7B.
+  - name: Local autocomplete
+    provider: ollama
+    model: role/completion
+    apiBase: http://127.0.0.1:11434
+    roles:
+      - autocomplete
+    defaultCompletionOptions:
+      temperature: 0.1
+      maxTokens: 256
+
+# No embeddings or reranking model is declared. Continue falls back to its
+# bundled local embedder, which keeps indexing on this machine; naming a remote
+# one here would send repository content off the host for every index.
+context:
+  - provider: code
+  - provider: diff
+  - provider: terminal
+  - provider: problems

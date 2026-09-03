@@ -1,0 +1,39 @@
+# atuin-ai-server — the translator between the atuin client and a plain LLM.
+#
+# The atuin CLI speaks the Atuin AI protocol, not OpenAI, so it cannot be
+# pointed at Ollama directly. This server is the supported way to close that
+# gap: it runs the same engine as the hosted Atuin AI, with stateless defaults —
+# no accounts, no database, no usage limits, no recording.
+#
+# Nothing here is private infrastructure. `host.docker.internal` is Docker's
+# name for this machine, and the port is loopback-published, so this file is
+# safe in a public repo.
+#
+# WHY host.docker.internal AND NOT 127.0.0.1: inside the container, 127.0.0.1 is
+# the container. The Mac container runtimes (OrbStack here, Docker Desktop the
+# same way) resolve this name to the host and originate the connection
+# host-side, so it reaches an Ollama bound to loopback only — verified, this
+# returns the version handshake. That is a macOS-runtime behaviour and NOT how
+# Linux behaves, so do not copy this line to the homelab.
+endpoint = "http://host.docker.internal:11434/v1"
+
+# Only published on 127.0.0.1 by the compose file beside this. The server has no
+# auth by default; the boundary is the port binding, not the application.
+port = 8080
+
+default_model = "chat"
+
+# The alias is what the atuin client asks for (ATUIN_AI__MODEL), so consumers
+# never name a concrete model — same indirection as the role/* aliases in
+# commands/.local/bin/ollama-role-aliases, which is what `model` resolves to.
+#
+# role/chat is qwen2.5:7b. It has to be non-thinking AND able to call tools,
+# because atuin AI runs with file tools and command execution enabled. qwen3:8b
+# fails the first (its thinking cannot be switched off over an OpenAI endpoint)
+# and qwen2.5-coder:7b fails the second. See the measurements in
+# ollama-role-aliases.
+[[models]]
+alias = "chat"
+name = "Qwen2.5 7B"
+description = "Local qwen2.5:7b via Ollama, through the role/chat alias"
+model = "role/chat"

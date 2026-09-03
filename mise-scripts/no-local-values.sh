@@ -131,6 +131,26 @@ if [ -r "$env_file" ]; then
       DOTFILES_PROFILE | HF_HOME | HF_HUB_CACHE) continue ;;
     esac
 
+    # LOOPBACK VALUES ARE EXEMPT BY VALUE, NOT BY VARIABLE NAME.
+    #
+    # A loopback address resolves to whatever host reads it, so it names no
+    # machine and discloses no network — it is the one class of endpoint that is
+    # safe to publish by construction. Once a machine runs its own inference
+    # server, its AI_GATEWAY and OLLAMA_HOST are loopback, and a name-based
+    # exemption would then wave through whatever those variables held next.
+    # Testing the value keeps the gate armed if either is ever repointed at a
+    # real host.
+    #
+    # This is what lets 127.0.0.1 appear in continue/.continue/config.yaml, the
+    # ollama LaunchAgent and the atuin-ai-server compose file — all of which need
+    # a literal, because those formats have no environment interpolation.
+    case "$val" in
+      127.0.0.1 | 127.0.0.1:* | \
+        http://127.0.0.1 | http://127.0.0.1[:/]* | \
+        localhost | localhost:* | http://localhost | http://localhost[:/]* | \
+        "[::1]" | "[::1]:"* | "http://[::1]" | "http://[::1][:/]"*) continue ;;
+    esac
+
     # Short values produce false positives (a bare port, "true", an empty var).
     [ ${#val} -ge 8 ] || continue
 

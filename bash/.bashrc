@@ -48,4 +48,6 @@ fi
 
 [[ -f "${HOME}/.bash_completions/hf.sh" ]] && source "${HOME}/.bash_completions/hf.sh"
 
+# worktrunk must stay in this file, not a ~/.config/bashrc drop-in: `wt config shell
+# install` reads only ~/.bashrc, so it appends this line again whenever it is absent.
 if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init bash)"; fi

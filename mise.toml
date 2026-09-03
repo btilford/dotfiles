@@ -134,6 +134,22 @@ description = "Apply the skip-worktree bits in .stow-frozen (per clone — the b
 # rotation. Pass -- --check to audit instead of apply; exits 1 if any are unset.
 run = "./mise-scripts/freeze-generated.sh"
 
+[tasks."setup:ollama-roles"]
+description = "Create this host's role/* aliases in the local Ollama (per machine)"
+# Consumers name a role, never a model — the same indirection sync-litellm-models
+# gives the homelab. Re-run after `ollama pull`: `ollama cp` copies a manifest
+# rather than pointing at one, so a re-pulled base tag leaves the alias on the
+# old weights and says nothing. Refuses a non-loopback OLLAMA_HOST.
+run = "ollama-role-aliases"
+
+[tasks."setup:atuin-ai-server"]
+description = "Start atuin-ai-server on 127.0.0.1:8080 (per machine — it starts a container)"
+# The atuin client speaks the Atuin AI protocol, not OpenAI, so it cannot reach
+# Ollama directly; this is the translator. The compose file pins the image by
+# digest and publishes on loopback only — that publish is the security boundary,
+# since the server has no auth by default.
+run = "docker compose -f ~/.config/atuin-ai-server/compose.yaml up -d"
+
 [tasks."setup:git-spice"]
 description = "Per-machine git-spice bootstrap: template, forge URL, auth, hooks (idempotent)"
 # Supersedes setup:git-template for a fresh machine — it runs that step itself and
