@@ -32,6 +32,8 @@ brew = { packages = [
   "devtoys",
   "diffutils",
   "direnv",
+  "docker",
+  "docker-compose",
   "docker-credential-helper",
   "dotnet@9",
   "ed",
@@ -100,12 +102,12 @@ brew = { packages = [
   # 2x decode and 3-5x prompt processing versus the GGUF path on this hardware.
   # The two tokens differ, so this cannot resolve to the wrong one by accident.
   "ollama-app",
-  "orbstack",
   "p7zip",
   "pctl",
   "php",
   "pipx",
   "podman",
+  "podman-compose",
   "podman-desktop",
   "podman-tui",
   "postgresql@14",
