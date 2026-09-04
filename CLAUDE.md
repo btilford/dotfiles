@@ -694,10 +694,23 @@ Two things this depends on, neither of them local to these files:
 
 ## Structure
 
-- **Cross-platform**: `atuin`, `atuin-ai-server`, `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `zellij`, `wezterm`, `metapac`, `workmux`, `tuicr`, `continue`, `gh`, `gh-dash`
-- **macOS-only**: `aerc`, `ghostty`, `macos`
-- **Linux-only**: `hyprland`, `rofi`, `konsole`, `kmonad`, `terminator`, `yakuake`, `brave-linux`, `xdg`
+- **Cross-platform**: `atuin`, `atuin-ai-server`, `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `metapac`, `workmux`, `tuicr`, `continue`, `ghostty`, `gh`, `gh-dash`
+- **macOS-only**: `aerc`, `macos`
+- **Linux-only**: `hyprland`, `rofi`, `konsole`, `kmonad`, `brave-linux`, `xdg`
 - **Shared base**: `base`
+- **Dormant**: `terminator`, `wezterm`, `yakuake`, `zellij`. Kept for the config,
+  not in use on any machine, and none of the four is declared in metapac. Expect
+  them to read `unstowed` in `mise run status` — that is the correct state, not a
+  package waiting to be stowed.
+
+`ghostty` was listed as macOS-only and is not: it runs on Linux, is installed on
+the Arch box, and its package is stowed there. Only the `macos-option-as-alt`
+note in the Alt+e section is macOS-specific, and it lives in that section.
+
+**A package can be legitimately PARTIAL.** `ollama` carries a macOS LaunchAgent
+plist alongside its cross-platform files, so on Linux it reports `2/3 linked`
+forever. `mise run status -- -v` names the missing file, which is how to tell
+that case from a package that genuinely needs re-stowing.
 
 ## Branches
 
