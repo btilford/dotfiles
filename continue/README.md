@@ -1,12 +1,12 @@
 # continue
 
 [Continue](https://continue.dev) — chat and inline completion, pointed at this
-machine's own Ollama. One global `~/.continue/config.yaml` serves IntelliJ,
+machine's own Ollama. One global `~/.continue/config.json` serves IntelliJ,
 VS Code and Continue's own nvim plugin.
 
 ## Why the config is IDE-agnostic
 
-Continue reads `~/.continue/config.yaml` regardless of which editor loads it, so
+Continue reads `~/.continue/config.json` regardless of which editor loads it, so
 nothing here depends on where the IDE is installed — which matters on a machine
 where IntelliJ comes from JetBrains Toolbox and its path is not fixed. Only the
 plugin install is per-IDE, and that is a marketplace click.
@@ -82,9 +82,9 @@ User Token:                                blank is correct
 ```
 
 The first and third belong to Continue's **remote config sync** — pulling
-`config.yaml` from a Continue-hosted or enterprise server. Fill either one and
-the plugin stops reading your local file. They are not the model endpoint; that
-is `apiBase` in `config.yaml`.
+the config from a Continue-hosted or enterprise server. Fill either one and the
+plugin stops reading your local file. They are not the model endpoint; that is
+`apiBase` in `config.json`.
 
 The telemetry toggle is rendered by the plugin's **webview**, in Continue's own
 settings page:
@@ -94,12 +94,12 @@ settings page:
 
 It can be shown disabled when an org or hub policy controls it.
 
-Not set in `config.yaml` here on purpose: `allowAnonymousTelemetry` is a key of
-the `config.json` and `.continuerc.json` schemas, both of which the plugin ships;
-neither is the YAML schema. An unknown key risks failing validation for the whole
-file, and upstream has had the flag reported as ineffective anyway
+`allowAnonymousTelemetry: false` **is** set in `config.json`, which the flag
+belongs to — it is absent from the YAML schema, which is one more reason this
+package is on JSON. Do not trust it on its own: upstream has had the flag
+reported as ineffective
 ([continuedev/continue#2082](https://github.com/continuedev/continue/issues/2082)),
-so the toggle is the honest instruction.
+so turn the webview toggle off as well.
 
 This matters more here than it normally would: the point of pointing Continue at
 127.0.0.1 is that nothing leaves the machine, and the plugin's own reporting is a
@@ -120,12 +120,11 @@ The first should name the `name:` values from this file — `Local chat`,
 serving requests from 127.0.0.1. If the first shows hub assistant names instead,
 the profile picker in the sidebar is on a hub assistant, not `local`.
 
-### Autocomplete quality cannot be tuned from this file
+### This package uses config.json, and that is the whole reason
 
 `tabAutocompleteOptions` is a **`config.json` key with no `config.yaml`
-equivalent**, the same trap as `allowAnonymousTelemetry`. Tested 2026-09-04:
-added to `config.yaml`, core restarted so the file was re-read, and the effective
-value did not move.
+equivalent**. Tested 2026-09-04: set in `config.yaml`, core restarted so the file
+was re-read, and the effective value did not move.
 
 ```console
 $ tail -1 ~/.continue/dev_data/0.2.0/autocomplete.jsonl | jq -c '{maxPromptTokens}'
@@ -135,18 +134,53 @@ $ tail -1 ~/.continue/dev_data/0.2.0/autocomplete.jsonl | jq -c '{maxPromptToken
 It is **ignored, not rejected** — no validation error, completions keep working —
 so a value set there looks applied and never is. The plugin's own
 `~/.continue/config_schema.json` self-identifies as `config.json`, which is what
-makes this easy to get wrong: the schema sitting next to the YAML file does not
-describe the YAML file.
+makes this easy to get wrong: the schema sitting beside the config does not
+describe it.
 
-The practical effect is a quality ceiling. Continue budgets 1024 prompt tokens
-with `prefixPercentage 0.3`, so the model sees roughly 300 tokens of prefix
-whatever `OLLAMA_CONTEXT_LENGTH` is set to, and on a large file a 3B model mostly
-echoes the line above. `defaultCompletionOptions` on the model *is* honoured, but
-it sets sampling, not Continue's prompt budget.
+That knob is worth the format. Continue's default budget of 1024 tokens at
+`prefixPercentage 0.3` gives the model about 1200 characters, and at that size a
+3B does not complete code, it repeats the line above or redeclares a variable
+that already exists further up the file. Measured on a 115-line Kotlin file,
+same model and temperature, with the true continuation removed from the suffix:
 
-`autocomplete.jsonl` is the check for any claim about autocomplete behaviour: it
-records the effective options, the prompt, the completion, and whether it was
-accepted, once per keystroke-completion.
+| prefix given | completion |
+| --- | --- |
+| ~1200 chars | `val storeHash = "abc123"` — redeclares an existing val |
+| ~2900 chars | `stubGetStoreSuccess(storeHash = storeHash)` — correct call, reuses the val |
+
+**Cost of raising it is latency, and it is roughly linear.** Prompt eval
+dominates, so a bigger window is paid on every keystroke. Measured against a
+26 KB file with the cursor three quarters in:
+
+| `maxPromptTokens` | prefix | latency |
+| --- | --- | --- |
+| 1024 | 2 KB | 891 ms |
+| 2048 | 4 KB | 2.4 s |
+| 4096 | 8 KB | 3.6 s |
+| 6144 | 12 KB | 4.7 s |
+
+`2048` is the setting here. `4096` was tried first and produced a 6.25 s
+round trip on a real file — long enough that every suggestion was cancelled by
+the next keystroke. Drop to `1024` if it feels slow: with
+`prefixPercentage 0.5` that is still 2 KB of prefix, which is above the point
+where the completions stopped being wrong, at the latency the old config had.
+
+**Re-measure rather than trusting this table.** Every completion appends its
+effective options, prompt, completion and accepted flag to
+`~/.continue/dev_data/0.2.0/autocomplete.jsonl`, so the answer for your file and
+your hardware is one keystroke away.
+
+### The config file holds no comments
+
+JSON has no comment syntax, so the reasoning that used to live beside each key is
+in this README instead: [why 127.0.0.1 is hardcoded](#why-127001-is-hardcoded-here),
+[models are roles](#models-are-roles), and
+[no embedding model](#no-embedding-model-is-declared). Keep them in step — a key
+changed here without its paragraph is a key nobody can explain later.
+
+`context` in the old YAML is `contextProviders` in JSON, and the chat model's
+`roles:` list has no JSON equivalent: `models` are the chat, edit and apply
+models, and `tabAutocompleteModel` is a separate single entry.
 
 ### Dead autocomplete is an Ollama fault, not a config fault
 
@@ -176,7 +210,7 @@ exception, deliberately:
 
 - a loopback address names no host but this one, so it is not infrastructure
   disclosure
-- Continue's local `config.yaml` has no dependable env-var interpolation, so the
+- Continue's local config has no dependable env-var interpolation, so the
   alternative is an untracked file holding a value that is safe to publish
 - hardcoding it means the file cannot quietly be repointed at a remote endpoint
 
