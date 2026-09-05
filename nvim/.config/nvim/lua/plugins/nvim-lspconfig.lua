@@ -116,13 +116,11 @@ return {
           --  Useful when you're not sure what type a variable is and you want to see
           --  the definition of its *type*, not where it was *defined*.
           map("grt", require("telescope.builtin").lsp_type_definitions, "[G]oto [T]ype Definition")
-          -- Example key mapping in init.lua or a similar configuration file
-          vim.api.nvim_set_keymap(
-            "n",
-            "<leader>ca",
-            "<cmd>lua vim.lsp.buf.code_action()<CR>",
-            { noremap = true, silent = true }
-          )
+          -- Same action as `gra`, on the leader key most people reach for first.
+          -- Through `map` like every sibling: `nvim_set_keymap` made it global
+          -- and undescribed, so the first LSP attach took `<leader>ca` away from
+          -- CodeCompanion in every buffer, and no keymap picker could find it.
+          map("<leader>ca", vim.lsp.buf.code_action, "Code [A]ction", { "n", "x" })
 
           -- This function resolves a difference between neovim nightly (version 0.11) and stable (version 0.10)
           ---@param client vim.lsp.Client

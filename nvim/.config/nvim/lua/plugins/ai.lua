@@ -410,7 +410,12 @@ return {
     "milanglacier/minuet-ai.nvim",
     -- Loads only when an AI gateway is configured and permitted; see the top of this file.
     cond = local_ai,
-    dependencies = { "nvim-lua/plenary.nvim" },
+    -- LuaSnip is a dependency for keymap precedence, not for any API. Both map
+    -- <C-k> and <C-e>, lazy.nvim orders unrelated specs arbitrarily, and the
+    -- last config to run wins -- so the two keys did different things in
+    -- different sessions. A dependency edge makes this config the later one,
+    -- every time, and the maps below then layer over LuaSnip deliberately.
+    dependencies = { "nvim-lua/plenary.nvim", "L3MON4D3/LuaSnip" },
     config = function()
       require("minuet").setup({
         provider = "openai_compatible",
@@ -451,25 +456,90 @@ return {
         },
       })
 
-      -- Explicit keymaps so they appear in telescope/fzf keymap search
-      vim.keymap.set("i", "<Tab>", function()
-        require("minuet").accept()
-      end, { desc = "AI (Minuet): Accept completion", silent = true })
-      vim.keymap.set("i", "<S-Tab>", function()
-        require("minuet").accept_line()
-      end, { desc = "AI (Minuet): Accept line", silent = true })
+      -- Explicit keymaps so they appear in telescope/fzf keymap search.
+      --
+      -- The actions live on `minuet.virtualtext`, not on `minuet` itself, which
+      -- exports only setup and the model/provider switchers. The top-level calls
+      -- these replace raised "attempt to call field ... (a nil value)" on every
+      -- press, and `minuet.complete` never existed at all — a manual trigger is
+      -- `action.next` on a buffer with no request yet.
+      local action = require("minuet.virtualtext").action
+
+      -- Tab and Shift-Tab keep their own meaning when no suggestion is showing.
+      -- The accept actions are a silent no-op without one, so an unconditional
+      -- map swallowed every press: no snippet jump, no indent. Order matches
+      -- blink's default preset, which owns both keys for snippet navigation.
+      local function accept_or_fallback(key, accept, snippet_jump)
+        local termcode = vim.keycode(key)
+        return function()
+          if action.is_visible() then
+            accept()
+          elseif not require("blink.cmp")[snippet_jump]() then
+            -- "i" puts the key at the front of the typeahead, so it lands at
+            -- the cursor instead of after whatever is still being typed.
+            vim.api.nvim_feedkeys(termcode, "ni", false)
+          end
+        end
+      end
+
+      vim.keymap.set(
+        "i",
+        "<Tab>",
+        accept_or_fallback("<Tab>", action.accept, "snippet_forward"),
+        { desc = "AI (Minuet): Accept completion", silent = true }
+      )
+      vim.keymap.set(
+        "i",
+        "<S-Tab>",
+        accept_or_fallback("<S-Tab>", action.accept_line, "snippet_backward"),
+        { desc = "AI (Minuet): Accept line", silent = true }
+      )
       vim.keymap.set("i", "<C-y>", function()
-        require("minuet").complete()
+        action.next()
       end, { desc = "AI (Minuet): Trigger completion", silent = true })
-      vim.keymap.set("i", "<C-k>", function()
-        require("minuet").prev()
-      end, { desc = "AI (Minuet): Previous suggestion", silent = true })
+      -- <C-k> and <C-e> belong to LuaSnip. minuet takes them only while a
+      -- suggestion is on screen, which never coincides with a snippet being
+      -- expandable or a choice node being active.
+      --
+      -- Neither falls through to the native insert-mode key when nothing
+      -- applies: <C-k> opens a digraph prompt and <C-e> copies the character
+      -- from the line below. Inserting either by accident is worse than the
+      -- no-op LuaSnip already did here.
+      local function suggestion_first(accept, fallback)
+        return function()
+          if action.is_visible() then
+            accept()
+          else
+            fallback()
+          end
+        end
+      end
+
+      vim.keymap.set(
+        "i",
+        "<C-k>",
+        -- Gated on is_visible, so this never triggers a request the way bare
+        -- `action.prev` does -- that is <C-y>'s job, and doing both from one key
+        -- made an expand attempt fire off a completion instead.
+        suggestion_first(action.prev, function()
+          require("luasnip").expand()
+        end),
+        { desc = "AI (Minuet): Previous suggestion / Luasnip expand", silent = true }
+      )
       vim.keymap.set("i", "<C-j>", function()
-        require("minuet").next()
+        action.next()
       end, { desc = "AI (Minuet): Next suggestion", silent = true })
-      vim.keymap.set("i", "<C-e>", function()
-        require("minuet").dismiss()
-      end, { desc = "AI (Minuet): Dismiss completion", silent = true })
+      vim.keymap.set(
+        "i",
+        "<C-e>",
+        suggestion_first(action.dismiss, function()
+          local ls = require("luasnip")
+          if ls.choice_active() then
+            ls.change_choice(1)
+          end
+        end),
+        { desc = "AI (Minuet): Dismiss completion / Luasnip choice", silent = true }
+      )
     end,
   },
 }

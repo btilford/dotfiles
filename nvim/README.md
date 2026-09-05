@@ -44,12 +44,27 @@ Moving the entry into an `nvim/.stow-local-ignore` fixes it, with one catch: a
 package-local ignore file **replaces** stow's built-in list rather than adding to
 it, so it would also have to name `README.*` and `CLAUDE.md`.
 
-## AI plugins are gated OFF by default — and that is deliberate
+## The AI gate tests the endpoint, not the machine
 
-`lua/plugins/ai.lua` reads `DOTFILES_PROFILE` and defaults it to **`work`**. Only
-`DOTFILES_PROFILE=personal` (in `~/.config/dotfiles/local.env`) loads the local-AI
-adapters. Work machines get no local AI: the homelab gateway, its models and its
-hostnames must not be reached from — or named on — a work laptop.
+`lua/plugins/ai.lua` decides on **where the buffer text goes**, not on whose
+laptop this is. Three variables, in order of authority:
+
+| Variable | Effect |
+| --- | --- |
+| `DOTFILES_AI=off` | kill switch. Nothing loads, whatever else is set. |
+| `AI_GATEWAY` | this host's OpenAI-compatible endpoint. Falls back to `LITELLM_GATEWAY`. |
+| `DOTFILES_PROFILE` | `personal` permits a **remote** gateway; anything else permits **loopback only**. |
+
+So the homelab keeps working, a work laptop can serve its own models over
+loopback, and a work laptop cannot reach the homelab gateway. No gateway means
+OFF — never "try somewhere else".
+
+This replaced a `DOTFILES_PROFILE == "personal"` check, which answered "whose
+laptop is this". That is the wrong question, and it ruled out the case this gate
+exists for: **an inference server running on the work machine itself**, which
+sends nothing anywhere. Loopback is matched as a literal — a hostname that
+resolves to 127.0.0.1 today is not a guarantee, and this decides whether work
+code leaves the machine.
 
 The gate is explicit rather than inferred because the inferred version was
 actively harmful:
@@ -58,11 +73,11 @@ actively harmful:
 local litellm = vim.env.LITELLM_GATEWAY or "http://localhost:4000"
 ```
 
-With `LITELLM_GATEWAY` unset — exactly the work-machine case — that disabled
-nothing. Every adapter loaded pointed at localhost, so the plugins looked
-installed and failed only at the moment of use, with an error that reads like a
-network fault rather than a machine that was never meant to have them. **Absence
-of a value must mean OFF, not "try somewhere else."**
+With the variable unset, that disabled nothing. Every adapter loaded pointed at
+localhost, so the plugins looked installed and failed only at the moment of use,
+with an error that reads like a network fault rather than a machine that was
+never meant to have them. **Absence of a value must mean OFF, not "try somewhere
+else."**
 
 The API key is not read from the environment at config load either. It is fetched
 when an adapter actually needs it, through `dotfiles-secrets` — which resolves
@@ -76,6 +91,52 @@ Anything launched from a desktop entry or a systemd unit needs the
 ```sh
 ln -s ~/.config/dotfiles/local.env ~/.config/environment.d/50-local.conf
 ```
+
+## `:Cheatsheet` — AI, completion and LSP keys
+
+`<leader>sc`, or `:Cheatsheet` (add `float` for a static window instead of the
+telescope picker).
+
+It exists because `:Telescope keymaps` reports these wrongly. blink.cmp runs its
+preset from its own layer rather than through a keymap, so a scan cannot see it
+and reports only the map blink falls back to. Several keys are shared that way:
+`<C-y>` accepts a blink item while the menu is open and asks minuet for a
+suggestion otherwise.
+
+`lua/cheatsheet.lua` collects the list from live keymaps, matching the `AI (…):`,
+`Luasnip:` and `LSP:` prefixes and Trouble's `(…)` suffix — so a new binding
+appears on the sheet with no edit here, provided it carries one of those labels.
+blink's preset is the one part it cannot scan, and is listed in the module beside
+a note to keep it in step with `plugins/blink.lua`.
+
+Rows marked `(buf)` are buffer-local and beat the global map of the same key
+silently. `<leader>ca` is the case that matters: an LSP code action wherever a
+server is attached, the CodeCompanion menu everywhere else.
+
+### `<C-k>` and `<C-e>` are layered, not raced
+
+Both keys are LuaSnip's. `plugins/ai.lua` re-maps them when minuet loads, taking
+the key only while a suggestion is on screen and calling LuaSnip otherwise —
+states that never coincide, so both plugins keep their key.
+
+Two details hold it together. LuaSnip is listed in the minuet spec's
+`dependencies` **for keymap precedence, not for any API**, which is what makes
+this config reliably the later one. And minuet's branch is gated on
+`is_visible`, because bare `action.prev` fires off a completion request when
+nothing is showing — so an attempt to expand a snippet would have triggered the
+model instead.
+
+Neither key falls through to its native insert-mode meaning when nothing
+applies: `<C-k>` opens a digraph prompt and `<C-e>` copies the character from the
+line below, and inserting either by accident is worse than the no-op LuaSnip
+already did.
+
+A key two plugins map shows once, owned by whichever config ran last — and
+lazy.nvim orders unrelated specs arbitrarily, so that is not always the same
+plugin from one session to the next. `<C-k>` and `<C-e>` hit this: minuet and
+LuaSnip both claim them, and the sheet caught the two disagreeing between runs.
+They are now layered rather than raced — see below — but the general hazard is
+why the sheet is generated live instead of written down.
 
 ## Testing a branch
 

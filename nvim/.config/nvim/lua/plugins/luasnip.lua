@@ -9,6 +9,9 @@ return {
 
     config = function()
       local ls = require("luasnip")
+      -- <C-K> and <C-E> are re-mapped by plugins/ai.lua when minuet loads, which
+      -- layers a suggestion check in front of these and calls back into them.
+      -- They stay the base behaviour for any machine with AI gated off.
       vim.keymap.set({ "i" }, "<C-K>", function()
         ls.expand()
       end, { desc = "Luasnip: Expand snippet" })

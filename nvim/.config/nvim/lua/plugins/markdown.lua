@@ -1,19 +1,18 @@
--- local obsidianWorkspaces = {}
--- local notes = "~/Documents/personal-notes/notes/"
--- local worknotes = "~/Projects/<employer>/notes/"
--- if ( !vim.fn.empty(vim.fn.glob(notes)) and vim.fn.isdirectory(notes) ) then
--- 	obsidianWorkspaces[#obsidianWorkspaces + 1] = {
--- 		name = "notes",
--- 		path = "~/Documents/personal-notes/notes/",
--- 	}
--- end
--- if ( !vim.fn.empty(vim.fn.glob(worknotes)) and vim.fn.isdirectory(worknotes) ) then
--- 	obsidianWorkspaces[#obsidianWorkspaces + 1] = {
--- 		name = "work",
--- 		path = "~/Projects/<employer>/notes/",
--- 	}
--- end
+-- Vault paths name an employer and a personal directory layout, so they live in
+-- an untracked module: ~/.config/nvim/lua/obsidian-workspaces.lua. Provision it
+-- from obsidian-workspaces.example.lua.
 --
+-- A bare require here aborted the whole plugin import on any machine without the
+-- module, which took obsidian.nvim and every other spec in this file down with
+-- it. Absence now means obsidian.nvim does not load, and nothing else changes.
+local workspaces
+do
+  local ok, module = pcall(require, "obsidian-workspaces")
+  if ok and type(module) == "table" and not vim.tbl_isempty(module) then
+    workspaces = module
+  end
+end
+
 return {
   {
     "TobinPalmer/pastify.nvim",
@@ -104,6 +103,7 @@ return {
     priority = 1001,
     version = "*",
     lazy = false,
+    cond = workspaces ~= nil,
     -- ft = "markdown",
     dependencies = {
       "nvim-lua/plenary.nvim",
@@ -123,7 +123,7 @@ return {
       new_notes_location = "Inbox",
       preferred_link_style = "markdown",
       open_notes_in = "vsplit",
-      workspaces = require("obsidian-workspaces"),
+      workspaces = workspaces or {},
       completion = {
 
         nvim_cmp = false,
