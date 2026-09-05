@@ -26,6 +26,13 @@
   expand ~ or $HOME in any path key, and this repo does not put absolute home
   paths in config. The login shell also supplies PATH, so ollama resolves by
   name.
+
+  THE WARM JOB IS A SEPARATE AGENT: com.dotfiles.ollama-warm.plist. A cold load
+  of role/completion takes about seventeen seconds here, Continue cancels an
+  inline-completion request after about three, and Ollama aborts a load when its
+  client disconnects. So the keystroke path can never complete a first load, and
+  the env vars below cannot help: KEEP_ALIVE only starts after a load succeeds.
+  That agent carries the full account.
 -->
 <plist version="1.0">
 <dict>
@@ -50,12 +57,15 @@
         <key>OLLAMA_CONTEXT_LENGTH</key>
         <string>8192</string>
 
-        <!-- Completion and chat models stay resident together, so inline
-             completion never pays a cold load. The "=1" rule in the team doc is
-             a 27B memory-ceiling rule and does not apply at ~7 GB. -->
+        <!-- Completion and chat models stay resident together. The "=1" rule
+             in the team doc is a 27B memory-ceiling rule and does not apply at
+             ~7 GB. This does not by itself keep completion warm — see the note
+             on ollama-warm-roles above. -->
         <key>OLLAMA_MAX_LOADED_MODELS</key>
         <string>2</string>
 
+        <!-- com.dotfiles.ollama-warm re-pins role/completion on a 15m
+             interval, so this value must stay above that interval. -->
         <key>OLLAMA_KEEP_ALIVE</key>
         <string>30m</string>
 

@@ -35,6 +35,7 @@ called `ollama`, and it has a history of broken MLX packaging on Apple Silicon
 ```sh
 stow -R --no-folding -t ~ ollama
 launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.dotfiles.ollama.plist
+launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.dotfiles.ollama-warm.plist
 mise run setup:ollama-roles
 ```
 
@@ -91,6 +92,51 @@ indirection `sync-litellm-models` gives the homelab.
 **Re-run it after any `ollama pull`.** `ollama cp` copies a manifest rather than
 pointing at one, so re-pulling a base tag leaves the alias on the old weights
 and says nothing.
+
+### role/completion is re-pinned every 15 minutes, and the keep-alive cannot do it
+
+`com.dotfiles.ollama-warm.plist` runs `commands/.local/bin/ollama-warm-roles` at
+login and every 900 seconds after. It loads `role/completion` with
+`keep_alive: -1`. Without it inline completion never returns one suggestion, and
+the failure is invisible from the editor.
+
+A cold load of the 3B takes about **17 seconds** on this host. Continue cancels
+an inline-completion request after about **3**, and Ollama aborts a load when
+its client disconnects:
+
+```console
+level=WARN msg="client connection closed before llama-server finished loading, aborting load"
+```
+
+So each keystroke starts a load that dies. The model never becomes resident, and
+the next keystroke starts over. Measured 2026-09-04: **46 aborted loads and zero
+`llama runner started` lines** in `server.log`, against 164 ms once warm.
+
+`OLLAMA_KEEP_ALIVE` cannot break this. It applies after a load succeeds, and no
+load succeeds.
+
+**The interval is what makes it durable, not the `-1`.** Continue's requests omit
+`keep_alive`, so Ollama applies the server default and *replaces* the pin —
+`api/ps` then reports 30 minutes out, not the far-future date the pin sets. A
+one-shot warm at login therefore lapses after the first idle half-hour. Re-pinning
+on an interval shorter than `OLLAMA_KEEP_ALIVE` means the model can never unload,
+whichever of the two wrote the current timer. Raise the keep-alive freely; do not
+drop it below the 900 second interval.
+
+Only `role/completion` is pinned. Chat is user-initiated, so it can pay a cold
+load. A pin on chat as well would hold about 5 GB more.
+
+Check it:
+
+```sh
+cat ~/.local/state/ollama/warm.log        # "ok  role/completion pinned"
+launchctl print gui/$UID/com.dotfiles.ollama-warm | grep -E 'runs|interval'
+curl -s http://127.0.0.1:11434/api/ps | jq -c '.models[] | {name, expires_at}'
+```
+
+What matters is that `role/completion` is listed at all, not how far out its
+`expires_at` is — see the note above on why the pin gets overwritten. If the log
+is empty, the `commands` package is not stowed.
 
 On this machine [`llama-swap`](../llama-swap) is the primary serving layer —
 ollama is kept for the models and tooling that only speak its API.

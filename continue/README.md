@@ -22,15 +22,72 @@ The config itself arrives by stow.
 One `~/.continue` serves every JetBrains IDE on the machine — IntelliJ, GoLand,
 DataGrip, PyCharm and WebStorm all read the same file.
 
+### JetBrains 2026.2+: patch the plugin or nothing works
+
+**Continue 1.0.67 does not run on IntelliJ 2026.2 unpatched.** Redo this on every
+machine and after every plugin update. Symptom, in `idea.log`:
+
+```console
+SEVERE - ToolWindowManagerImpl - Cannot init toolwindow ContinuePluginToolWindowFactory
+Caused by: java.lang.ClassNotFoundException: com.intellij.ui.jcef.JBCefApp
+  PluginClassLoader(plugin=Continue 1.0.67)
+```
+
+JCEF moved out of the core platform classpath into the `com.intellij.modules.jcef`
+module, and IntelliJ shows a module's classes only to plugins that declare a
+dependency on it. Continue's `plugin.xml` declares `modules.platform`,
+`plugins.terminal` and optional `modules.json` — not jcef — so its classloader
+cannot see `JBCefApp`. Its whole UI and its config handshake are JCEF, so the
+plugin is inert: no core process, no autocomplete, and the sidebar cannot draw.
+
+Fix by adding the one missing line to the installed jar:
+
+```sh
+# IntelliJ must be CLOSED — it holds the jar open.
+jar=~/"Library/Application Support/JetBrains/IntelliJIdea2026.2/plugins/continue-intellij-extension/lib/continue-intellij-extension-1.0.67.jar"
+cp "$jar" "$jar.bak"
+work=$(mktemp -d) && cd "$work" && mkdir -p META-INF
+unzip -p "$jar" META-INF/plugin.xml \
+  | sed 's|\(  <depends>org.jetbrains.plugins.terminal</depends>\)|\1\n  <depends>com.intellij.modules.jcef</depends>|' \
+  > META-INF/plugin.xml
+zip -q "$jar" META-INF/plugin.xml
+unzip -p "$jar" META-INF/plugin.xml | grep depends    # must list modules.jcef
+```
+
+Revert with `cp "$jar.bak" "$jar"`. Adjust the IDE directory per product and
+version; the plugin path is otherwise identical for GoLand, PyCharm and the rest.
+
+**The runtime is a red herring, so do not chase it.** JetBrains Toolbox installs
+a `-nomod` JBR here, and the missing-class error looks like a runtime fault. It
+is not: the bundled `Web Browser (JCEF)` plugin loads fine on nomod, and swapping
+to a `jbr_jcef` runtime does not clear the error. Verify with
+`grep 'Loaded bundled plugins' idea.log | tr ',' '\n' | grep -i jcef`. Avoid the
+`-fd` builds entirely — those are fastdebug, and the IDE is barely usable on one.
+
 ### Telemetry is ON by default, and the toggle is not where you would look
 
 The plugin bundles `posthog` and `sentry` jars and ships with anonymous
 telemetry **enabled** (`"default": true` in its own `config_schema.json`).
 
-**It is not in the IDE's settings dialog.** The plugin's IntelliJ settings class
-holds exactly two fields, `shownWelcomeDialog` and `displayEditorTooltip`, so
-there is nothing to find under Settings → Tools. The toggle is rendered by the
-plugin's **webview**, in Continue's own settings page:
+**It is not in the IDE's settings dialog.** Settings → Tools → Continue has six
+controls and none of them is telemetry:
+
+```text
+Remote Config Server URL:                  blank is correct
+Remote Config Sync Period (in minutes):    60
+User Token:                                blank is correct
+[ ] Enable Tab Autocomplete
+[ ] Display Editor Tooltip
+[ ] Show IDE completions side-by-side
+```
+
+The first and third belong to Continue's **remote config sync** — pulling
+`config.yaml` from a Continue-hosted or enterprise server. Fill either one and
+the plugin stops reading your local file. They are not the model endpoint; that
+is `apiBase` in `config.yaml`.
+
+The telemetry toggle is rendered by the plugin's **webview**, in Continue's own
+settings page:
 
 > Continue sidebar → settings (gear) → **Telemetry** section, just above
 > **Appearance** → turn off **Allow Anonymous Telemetry**
@@ -62,6 +119,54 @@ The first should name the `name:` values from this file — `Local chat`,
 `Local autocomplete` — under a `local` profile. The second should show Ollama
 serving requests from 127.0.0.1. If the first shows hub assistant names instead,
 the profile picker in the sidebar is on a hub assistant, not `local`.
+
+### Autocomplete quality cannot be tuned from this file
+
+`tabAutocompleteOptions` is a **`config.json` key with no `config.yaml`
+equivalent**, the same trap as `allowAnonymousTelemetry`. Tested 2026-09-04:
+added to `config.yaml`, core restarted so the file was re-read, and the effective
+value did not move.
+
+```console
+$ tail -1 ~/.continue/dev_data/0.2.0/autocomplete.jsonl | jq -c '{maxPromptTokens}'
+{"maxPromptTokens":1024}          # after setting 4096 in config.yaml
+```
+
+It is **ignored, not rejected** — no validation error, completions keep working —
+so a value set there looks applied and never is. The plugin's own
+`~/.continue/config_schema.json` self-identifies as `config.json`, which is what
+makes this easy to get wrong: the schema sitting next to the YAML file does not
+describe the YAML file.
+
+The practical effect is a quality ceiling. Continue budgets 1024 prompt tokens
+with `prefixPercentage 0.3`, so the model sees roughly 300 tokens of prefix
+whatever `OLLAMA_CONTEXT_LENGTH` is set to, and on a large file a 3B model mostly
+echoes the line above. `defaultCompletionOptions` on the model *is* honoured, but
+it sets sampling, not Continue's prompt budget.
+
+`autocomplete.jsonl` is the check for any claim about autocomplete behaviour: it
+records the effective options, the prompt, the completion, and whether it was
+accepted, once per keystroke-completion.
+
+### Dead autocomplete is an Ollama fault, not a config fault
+
+Both checks above can pass while inline completion returns nothing, so a silent
+autocomplete is not evidence that the IDE missed this file. Read the status
+codes rather than the request paths:
+
+```sh
+grep -a '/v1/chat/completions' ~/.local/state/ollama/server.log \
+  | awk -F'|' '{gsub(/ /,"",$2); print $2}' | sort | uniq -c
+```
+
+A wall of **499** means Continue cancelled each request before Ollama answered —
+the cold-load deadlock described in [`ollama/README.md`](../ollama/README.md).
+The fix is `ollama-warm-roles`, which the LaunchAgent runs at login. Check that
+the model is pinned before you read anything else in this file:
+
+```sh
+curl -s http://127.0.0.1:11434/api/ps | jq -c '.models[] | {name, expires_at}'
+```
 
 ## Why 127.0.0.1 is hardcoded here
 

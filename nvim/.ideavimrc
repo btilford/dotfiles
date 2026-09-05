@@ -72,7 +72,7 @@ map <leader>f <Action>(ReformatCode)
 nmap si <Action>(GotoAction)
 nmap sc <Action>(GotoClass)
 nmap sf <Action>(GotoFile)
-# Grep Search
+" Grep Search
 nmap sg <Action>(SearchEverywhere)
 nmap sw <Action>($SearchWeb)
 nmap ss <Action>(GotoSymbol)
@@ -129,3 +129,36 @@ nmap <C-n> <Action>(NextOccurence)
 " map <leader>ac <Action>(EditorPopupMenu.GoTo)
 " ShowIntentionActions
 "
+
+" ----------------------------------------------
+" Continue (AI)
+" ----------------------------------------------
+" The plugin binds chat and edit to ctrl/meta I and J, and BOTH are unusable
+" here: meta does not survive this machine's key remapping, and ctrl I / ctrl J
+" are assigned to vim in IdeaVim's conflict table. Leader sequences avoid the
+" contest — they are plain keys, so nothing else claims them.
+"
+" Continue's editor tooltip advertises "chat alt+j | edit alt+i". That label is
+" wrong: no action is bound to alt J or alt I anywhere in the plugin.
+nmap <leader>ac <Action>(continue.focusContinueInput)
+vmap <leader>ac <Action>(continue.focusContinueInput)
+nmap <leader>ae <Action>(continue.inlineEdit)
+vmap <leader>ae <Action>(continue.inlineEdit)
+nmap <leader>aa <Action>(continue.acceptDiff)
+nmap <leader>ar <Action>(continue.rejectDiff)
+
+" ----------------------------------------------
+" Shortcut handlers
+" ----------------------------------------------
+" NOT SET HERE. `sethandler` parses without error and has no effect — tested
+" 2026-09-04 with a full IDE restart, and the shortcut never reaches IdeaVim's
+" conflict table. Set the handler in Settings -> Editor -> Vim instead, which
+" writes vim_settings.xml and works.
+"
+" This keymap's parent is NetBeans 6.5, which takes these from the mappings
+" above: <C-y> $Redo, <C-h> Replace, <C-k> HippieBackwardCompletion,
+" <C-n> NewElement, <Tab>/<S-Tab> indent and unindent.
+"
+" Do NOT give <Tab> to vim there. That table has one owner per shortcut with no
+" mode split, so vim would take insert-mode <Tab> too — which is the key that
+" accepts an inline completion.

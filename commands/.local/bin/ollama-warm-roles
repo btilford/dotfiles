@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Load role/completion into memory and pin it there.
+#
+# Inline completion sits behind a keystroke, so Continue cancels a request in
+# about three seconds. A cold load of the 3B takes about seventeen seconds on
+# this host, and Ollama aborts a load when its client disconnects. The result is
+# a deadlock: every keystroke starts a load, and every load dies. The model
+# never becomes resident, and autocomplete never returns one suggestion.
+# Measured 2026-09-04 — 46 aborted loads and zero runner starts in the log.
+#
+# OLLAMA_KEEP_ALIVE cannot fix this. It applies after a load succeeds, and no
+# load succeeds. The load must therefore happen once from a client that waits.
+set -euo pipefail
+
+# keep_alive -1 pins the model for the life of the server. The 30m default lets
+# it unload after an idle period. The next keystroke then re-enters the
+# deadlock.
+WARM_ROLE="role/completion"
+WAIT_SECONDS=60
+
+# Every reader of OLLAMA_HOST means something different by it. Pin the client to
+# loopback so this cannot be aimed at a remote Ollama by an inherited value.
+export OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1}"
+case "$OLLAMA_HOST" in
+  127.0.0.1* | localhost* | "[::1]"*) ;;
+  *)
+    echo "ollama-warm-roles: refusing to run against non-loopback OLLAMA_HOST" >&2
+    exit 1
+    ;;
+esac
+
+api="http://${OLLAMA_HOST%%:*}:11434"
+
+if ! command -v curl > /dev/null 2>&1; then
+  echo "ollama-warm-roles: curl not on PATH, nothing to do" >&2
+  exit 0
+fi
+
+# Called at login beside `ollama serve`, so the server is not up yet.
+waited=0
+until curl -sf -m 2 "$api/api/version" > /dev/null 2>&1; do
+  if [ "$waited" -ge "$WAIT_SECONDS" ]; then
+    echo "ollama-warm-roles: no server at $api after ${WAIT_SECONDS}s" >&2
+    exit 1
+  fi
+  sleep 2
+  waited=$((waited + 2))
+done
+
+# An empty prompt makes /api/generate load the model and return. The long
+# timeout is the point: this client waits where Continue will not.
+if curl -sf -m 300 "$api/api/generate" \
+  -H 'content-type: application/json' \
+  -d "{\"model\":\"$WARM_ROLE\",\"keep_alive\":-1}" > /dev/null; then
+  echo "  ok       $WARM_ROLE pinned"
+else
+  echo "ollama-warm-roles: failed to load $WARM_ROLE (is the alias created?)" >&2
+  exit 1
+fi
