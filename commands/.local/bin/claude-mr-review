@@ -20,10 +20,22 @@ The cost is that reviews only happen while this box is up. That is the trade.
 IDEMPOTENCY HAS NO LOCAL STATE
 ------------------------------
 Each summary note carries an HTML-comment marker naming the exact commit it
-reviewed. Before reviewing, the script reads the MR's existing notes and skips
-the MR if a marker for the current head SHA is already there. So re-running is
-free, a new push re-reviews, and nothing breaks if the cache is wiped or the
-script runs from somewhere else. `--force` overrides.
+reviewed. Before reviewing, the script reads the MR's existing notes and sorts
+the MR into one of three states:
+
+    current  a marker names this exact head          -> skip, always
+    stale    reviewed before, head has moved since   -> re-review (--no-follow-up
+                                                        to skip these instead)
+    none     never reviewed                          -> review
+
+So re-running is free, a new push earns a fresh review, and nothing breaks if the
+cache is wiped or the script runs from somewhere else. `--force` reviews
+regardless of state.
+
+Re-reviewing stale MRs is the default because a moved head is usually a real
+change worth looking at. It is not free: each one is a full uncached prefill, and
+an automated fix pushes a new head and so earns itself another review. That cycle
+is what `--max-rounds` bounds.
 
 REVIEWS RUN AGAINST A REAL CHECKOUT
 -----------------------------------
@@ -144,6 +156,8 @@ class MR:
     description: str
     target_branch: str
     web_url: str
+    created_at: str = ""
+    updated_at: str = ""
 
 
 def read_repos(explicit: list[str] | None) -> list[Repo]:
@@ -205,7 +219,7 @@ def list_open_mrs(repo: Repo, include_drafts: bool) -> list[MR]:
     if repo.forge == "github":
         raw = gh(["pr", "list", "--repo", repo.path, "--state", "open",
                   "--limit", "100", "--json",
-                  "number,title,body,headRefOid,baseRefName,url,isDraft"])
+                  "number,title,body,headRefOid,baseRefName,url,isDraft,createdAt,updatedAt"])
         mrs = []
         for m in json.loads(raw or "[]"):
             if m.get("isDraft") and not include_drafts:
@@ -214,13 +228,16 @@ def list_open_mrs(repo: Repo, include_drafts: bool) -> list[MR]:
                           title=m.get("title") or "",
                           description=m.get("body") or "",
                           target_branch=m.get("baseRefName") or "",
-                          web_url=m.get("url") or ""))
+                          web_url=m.get("url") or "",
+                          created_at=m.get("createdAt") or "",
+                          updated_at=m.get("updatedAt") or ""))
         return mrs
 
     raw = glab(
         repo.host,
         ["api", f"projects/{repo.path.replace('/', '%2F')}/merge_requests"
-         "?state=opened&per_page=100", "--paginate"],
+         "?state=opened&per_page=100&order_by=created_at&sort=asc",
+         "--paginate"],
     )
     # --paginate concatenates JSON arrays; normalise both shapes.
     chunks = re.sub(r"\]\s*\[", ",", raw.strip()) or "[]"
@@ -239,22 +256,39 @@ def list_open_mrs(repo: Repo, include_drafts: bool) -> list[MR]:
                 description=m.get("description") or "",
                 target_branch=m.get("target_branch") or "",
                 web_url=m.get("web_url") or "",
+                created_at=m.get("created_at") or "",
+                updated_at=m.get("updated_at") or "",
             )
         )
     return mrs
 
 
-def already_reviewed(mr: MR) -> bool:
-    """True when a summary note already names this exact head SHA."""
+def review_state(mr: MR) -> str:
+    """One of 'none', 'current', 'stale'.
+
+    'current'  a review already names this exact head — nothing to do.
+    'stale'    reviewed before, but the branch has moved since.
+    'none'     never reviewed.
+
+    The distinction exists because re-reviewing on every push is the expensive
+    default. An active stack gets pushed to constantly, and each re-review is a
+    full uncached prefill; worse, an automated fix pushes a new head and so
+    earns itself another review, which is the review->fix->review cycle the
+    round cap has to keep catching. Follow-ups are therefore opt-in
+    (--follow-up), and unattended runs only pick up MRs nobody has looked at.
+    """
     try:
         raw = read_notes(mr)
     except RuntimeError as exc:
         log(f"  warn: could not read notes ({exc}); assuming not reviewed")
-        return False
-    for m in MARKER_RE.finditer(raw):
+        return "none"
+    seen = list(MARKER_RE.finditer(raw))
+    if not seen:
+        return "none"
+    for m in seen:
         if mr.sha.startswith(m.group(1)):
-            return True
-    return False
+            return "current"
+    return "stale"
 
 
 def read_notes(mr: MR) -> str:
@@ -323,12 +357,30 @@ def ensure_checkout(mr: MR) -> Path:
         if dest.exists():
             shutil.rmtree(dest)
         log(f"  cloning {remote}")
+        # --template= (empty) suppresses init.templateDir. These checkouts hold
+        # code from branches nobody has vetted yet -- that is what they are for
+        # -- and a read-only review has no business running the global
+        # post-checkout hook (git-spice auto-init) over them.
         subprocess.run(
-            ["git", "clone", "--quiet", "--filter=blob:none", remote, str(dest)],
+            ["git", "clone", "--quiet", "--filter=blob:none",
+             "--template=", remote, str(dest)],
             check=True, timeout=900,
+            env={**os.environ, "MISE_IGNORED_CONFIG_PATHS": str(CACHE_DIR)},
         )
+        subprocess.run(["git", "-C", str(dest), "config", "core.hooksPath",
+                        "/dev/null"], check=True, timeout=60)
+
+    # git runs the credential helper with cwd set to the repository, and that
+    # helper is `glab`, which on this machine is a mise shim. mise therefore
+    # tries to load the *MR's own* mise.toml and refuses it as untrusted,
+    # printing a block of errors on every fetch. Ignoring the cache tree is the
+    # correct fix rather than trusting it: an unvetted branch's tool config is
+    # exactly what should not be loaded here.
+    env = {**os.environ,
+           "MISE_IGNORED_CONFIG_PATHS": str(CACHE_DIR)}
 
     def git(*args, **kw):
+        kw.setdefault("env", env)
         return subprocess.run(["git", "-C", str(dest), *args], check=True, timeout=600, **kw)
 
     head_ref = (f"refs/pull/{mr.iid}/head" if mr.repo.forge == "github"
@@ -346,6 +398,7 @@ def build_diff(checkout: Path, mr: MR) -> str:
         ["git", "-C", str(checkout), "diff", "--merge-base",
          f"origin/{mr.target_branch}", "HEAD"],
         capture_output=True, text=True, timeout=120,
+        env={**os.environ, "MISE_IGNORED_CONFIG_PATHS": str(CACHE_DIR)},
     )
     if proc.returncode != 0:
         raise RuntimeError(f"git diff failed: {proc.stderr.strip()}")
@@ -512,12 +565,11 @@ def post_summary(mr: MR, body: str) -> None:
          timeout=120)
 
 
-def review_mr(mr: MR, args) -> str:
-    log(f"\n{mr.repo} !{mr.iid} {mr.sha[:8]} — {mr.title[:60]}")
-
-    if not args.force and already_reviewed(mr):
-        log("  skip: already reviewed at this commit")
-        return "skipped"
+def review_mr(mr: MR, args, state: str = "none") -> str:
+    # State was already decided by the ordering pass in main(); re-checking here
+    # would mean a second notes fetch per MR for an answer we already have.
+    label = " (follow-up)" if state == "stale" else ""
+    log(f"\n{mr.repo} !{mr.iid} {mr.sha[:8]}{label} — {mr.title[:60]}")
 
     checkout = ensure_checkout(mr)
     diff = build_diff(checkout, mr)
@@ -568,10 +620,17 @@ def main() -> int:
     p.add_argument("--repo", action="append",
                    help="<host>/<namespace/project>; repeatable. Overrides repos.list")
     p.add_argument("--mr", type=int, help="review only this MR iid (needs a single --repo)")
-    p.add_argument("--limit", type=int, default=10,
-                   help="max MRs to review per run (default 10)")
+    p.add_argument("--limit", type=int, default=6,
+                   help="max MRs to review per run, across all repos (default 6). "
+                        "Applied after ordering, so never-reviewed MRs get the "
+                        "budget before follow-ups do.")
     p.add_argument("--drafts", action="store_true", help="include draft MRs")
-    p.add_argument("--force", action="store_true", help="re-review even if this commit was reviewed")
+    p.add_argument("--follow-up", action=argparse.BooleanOptionalAction, default=True,
+                   help="re-review an MR whose head moved since its last review "
+                        "(default). --no-follow-up reviews only MRs nobody has "
+                        "reviewed at all, which is the cheaper unattended mode.")
+    p.add_argument("--force", action="store_true",
+                   help="review regardless, even if this exact commit was reviewed")
     p.add_argument("--inline", action="store_true",
                    help="also post per-finding inline diff comments")
     p.add_argument("--dry-run", action="store_true",
@@ -601,6 +660,7 @@ def main() -> int:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
     queue: list[dict] = []
+    candidates: list[MR] = []
     tally = {"reviewed": 0, "skipped": 0, "failed": 0, "dry-run": 0}
     for repo in repos:
         try:
@@ -630,10 +690,54 @@ def main() -> int:
                 queue.append(item)
             continue
 
-        log(f"\n=== {repo}: {len(mrs)} open MR(s) ===")
-        for mr in mrs[: args.limit]:
+        log(f"{repo}: {len(mrs)} open MR(s)")
+        candidates.extend(mrs)
+
+    if not args.queue and candidates:
+        # Ordering is global, not per-repo: with a run budget this small, a busy
+        # repo must not be able to spend it before a quieter repo is even looked
+        # at. Sort every open MR by age first, then classify in that order.
+        #
+        # Oldest first makes the queue FIFO, so nothing starves. created_at is
+        # zero-padded ISO-8601, so a string sort is a date sort; an MR missing
+        # the field sorts last rather than crashing.
+        candidates.sort(key=lambda m: (m.created_at or "9999", m.iid))
+
+        fresh: list[tuple[MR, str]] = []
+        stale: list[tuple[MR, str]] = []
+        for mr in candidates:
+            # A never-reviewed MR always outranks a follow-up, so once the
+            # budget is full of fresh ones nothing later can displace them and
+            # there is no reason to keep spending API calls classifying.
+            if len(fresh) >= args.limit:
+                log(f"  budget full ({args.limit} new); "
+                    f"stopped classifying at {len(fresh) + len(stale)} of "
+                    f"{len(candidates)} open MR(s)")
+                break
+
+            state = "none" if args.force else review_state(mr)
+            if state == "current":
+                tally["skipped"] += 1
+                continue
+            if state == "stale":
+                if not args.follow_up:
+                    tally["skipped"] += 1
+                    continue
+                stale.append((mr, state))
+            else:
+                fresh.append((mr, state))
+
+        # Follow-ups only get the budget that new MRs left behind.
+        ordered = (fresh + stale)[: args.limit]
+        deferred = len(fresh) + len(stale) - len(ordered)
+        log(f"\n=== reviewing {len(ordered)} this run "
+            f"({len(fresh)} new, {len(stale)} follow-up available, "
+            f"{tally['skipped']} already current"
+            + (f", {deferred} deferred to next run" if deferred else "") + ") ===")
+
+        for mr, state in ordered:
             try:
-                tally[review_mr(mr, args)] += 1
+                tally[review_mr(mr, args, state)] += 1
             except Exception as exc:
                 log(f"  FAILED: {exc}")
                 tally["failed"] += 1

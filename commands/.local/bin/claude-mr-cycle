@@ -30,7 +30,7 @@ LOG="$STATE_DIR/cycle.log"
 mkdir -p "$STATE_DIR"
 
 # Tunables, overridable from ~/.config/claude-mr-review/cycle.env
-REVIEW_LIMIT="${REVIEW_LIMIT:-10}"     # max MRs reviewed per repo per cycle
+REVIEW_LIMIT="${REVIEW_LIMIT:-6}"      # max MRs reviewed per cycle, all repos
 FIX_MAX_LAUNCH="${FIX_MAX_LAUNCH:-1}"  # max fix agents started per cycle
 MAX_ROUNDS="${MAX_ROUNDS:-3}"          # review/fix rounds before giving up
 MIN_SEVERITY="${MIN_SEVERITY:-medium}" # findings below this are not auto-fixed
