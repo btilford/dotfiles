@@ -164,11 +164,18 @@ alt-8 = 'workspace 8'
 alt-9 = 'workspace 9'
 alt-0 = 'workspace 10'
 
-# The keyboard leader sends ctrl-1 to ctrl-5 to reach a workspace, and ctrl-left
-# and ctrl-right to step between them. Those sequences were written for native
-# macOS Spaces. AeroSpace runs on one native Space, so the sequences reach
-# AeroSpace workspaces through the bindings below instead. Removing them breaks
-# nine keyboard leader sequences. See `macos/README.md`.
+# AeroSpace wins over native macOS Spaces. There is one native Space, and nothing
+# here ever addresses it. The bindings below take the seven shortcuts that used to
+# drive Spaces and point them at AeroSpace workspaces instead.
+#
+# The keyboard leader in `macos.dtsi` sends ctrl-1 to ctrl-5 to reach a desktop,
+# and ctrl-left or ctrl-right to step between them. Nine of its sequences depend
+# on the seven bindings below. Removing one breaks the keyboard.
+#
+# REQUIRED SETUP, or macOS swallows these before AeroSpace sees them. In System
+# Settings > Keyboard > Keyboard Shortcuts > Mission Control, clear every
+# "Switch to Desktop N" shortcut and both "Move left/right a space" shortcuts.
+# Read `macos/README.md` for the rest of the once-per-machine steps.
 ctrl-1 = 'workspace 1'
 ctrl-2 = 'workspace 2'
 ctrl-3 = 'workspace 3'
@@ -286,9 +293,14 @@ n = 'split opposite'
 r = 'layout horizontal vertical'
 q = ['close', 'mode main']
 f = ['fullscreen', 'mode main']
-m = ['macos-native-fullscreen', 'mode main']
+m = ['fullscreen --no-outer-gaps', 'mode main']
 t = ['layout floating tiling', 'mode main']
 s = 'mode swap'
+# `m` is the Hyprland maximize binding. AeroSpace has no separate maximize, so it
+# is a fullscreen that also fills the gaps. `macos-native-fullscreen` is
+# deliberately NOT used: it creates a native macOS Space, and this config treats
+# native Spaces as if they do not exist. The same goes for
+# `macos-native-minimize`, which hides a window from the tiling tree.
 esc = 'mode main'
 
 # Focus.

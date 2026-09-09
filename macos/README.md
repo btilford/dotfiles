@@ -163,13 +163,16 @@ Nine of them reach a desktop by sending `ctrl-1` to `ctrl-5`, `ctrl-left` or
 | `d n` | `ctrl-right` | Next desktop |
 | `d p` | `ctrl-left` | Previous desktop |
 
-Those sequences were written for native macOS Spaces. AeroSpace does not use
-native Spaces. It runs on one Space, so every `ctrl-N` sequence would stop
-working the moment AeroSpace takes over.
+Those sequences were written for native macOS Spaces. AeroSpace wins over native
+Spaces, so every `ctrl-N` sequence would stop working the moment AeroSpace takes
+over.
 
 `.aerospace.toml` therefore binds `ctrl-1` to `ctrl-5`, `ctrl-left` and
 `ctrl-right` to the matching AeroSpace workspaces. The firmware needs no change.
 **Do not remove those seven bindings.** Removing one breaks the keyboard.
+
+macOS must not eat those seven shortcuts first. Read "Native Spaces do not exist"
+below for the setting to clear.
 
 The workspace order is fixed, and `[[on-window-detected]]` rules keep each
 application on its own workspace:
@@ -189,11 +192,45 @@ AeroSpace workspaces keep their numbers rather than application names, so that
 `alt-1` to `alt-0` still match `SUPER + 1` to `SUPER + 0` on Linux. The table
 above is the meaning of each number.
 
-Two more points about that repository:
+Two firmware sequences still call native macOS window management, and both fight
+AeroSpace:
 
-- `zmk-config` is a separate repository. Change nothing in it from this package.
-- The preference "Automatically rearrange Spaces based on most recent use" must
-  stay off.
+| Sequence | Sends | Problem |
+|---|---|---|
+| `w f` | `ctrl-cmd-f` | Native fullscreen creates a native Space. |
+| `w i` | `cmd-m` | Minimize hides the window from the tiling tree. |
+
+Use `alt-w f` and `alt-w m` instead. Repointing the two firmware sequences is a
+job for the `zmk-config` repository, which is a separate repository. Change
+nothing in it from this package.
+
+### Native Spaces do not exist
+
+AeroSpace wins every conflict with native macOS Spaces. Treat native Spaces as if
+they are not there. The AeroSpace guide states the same intent:
+
+> The intended workflow of using AeroSpace workspaces is to only have one macOS
+> Space [...] and don't interact with macOS Spaces anymore.
+
+Do these once per machine. Without them, macOS handles the shortcut before
+AeroSpace sees it, and the keyboard leader breaks.
+
+1. Open Mission Control. Delete every desktop except one.
+2. Open System Settings > Desktop & Dock > Mission Control.
+3. Turn off "Displays have separate Spaces". The AeroSpace guide reports that
+   macOS is more stable with it off.
+4. Turn off "Automatically rearrange Spaces based on most recent use".
+5. Open System Settings > Keyboard > Keyboard Shortcuts > Mission Control.
+6. Clear every "Switch to Desktop N" shortcut.
+7. Clear "Move left a space" and "Move right a space".
+
+Two AeroSpace commands are deliberately unused for the same reason.
+`macos-native-fullscreen` creates a native Space, and `macos-native-minimize`
+hides a window from the tiling tree. The `window` mode uses `fullscreen` on `f`
+and `fullscreen --no-outer-gaps` on `m` instead.
+
+`automatically-unhide-macos-hidden-apps = true` is set for the same reason. It
+keeps `cmd-h` from taking a window out of the tiling tree.
 
 ### Direction keys are `hjkl`
 
