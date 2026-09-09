@@ -12,6 +12,32 @@ Stow package. macOS only. `stow --no-folding macos` from `~/dotfiles`.
 Hyprland layout on Linux, with workspaces and keyboard-driven focus rather than
 Spaces. Read "AeroSpace mirrors the Hyprland keymap" below for the mapping.
 
+## Installing AeroSpace and Raycast
+
+Both come from metapac, and both are **personal Mac only**. They are declared in
+`metapac/.config/metapac/groups/macos-personal.toml`.
+
+`metapac-hostname-key` appends `DOTFILES_PROFILE` to the macOS key, so that file
+reaches a machine whose `~/.config/dotfiles/local.env` reads
+`DOTFILES_PROFILE=personal`. A Mac with no profile set resolves to plain `macos`
+and gets the shared set only. To install:
+
+```sh
+mise run metapac -- sync
+```
+
+AeroSpace comes from a third-party tap, `nikitabobko/tap`, so the package name
+carries the tap. Trust the tap once per machine, or the sync aborts:
+
+```sh
+brew trust nikitabobko/tap
+```
+
+Raycast is an ordinary homebrew-cask package. It covers two Hyprland bindings
+that have no macOS counterpart: the application launcher on `SUPER + r`, and the
+clipboard history on `SUPER + y`. Bind both inside Raycast, not in
+`.aerospace.toml`.
+
 **`DefaultKeyBinding.dict`** is a Cocoa text-system keybinding table, applied to
 every AppKit text field on the machine. It is the only way to get Emacs/readline
 motions into native apps; nothing about it is per-app.
@@ -127,8 +153,8 @@ and offers neither command.
 |---|---|
 | `SUPER + Escape` | `wlogout` power menu. macOS has no scriptable equivalent. |
 | `SUPER + slash` | Keymap cheatsheet overlay (quickshell). |
-| `SUPER + r`, `SUPER + CTRL + RETURN` | Application launcher. macOS uses `cmd-space`. |
-| `SUPER + y`, `open-cmd` `v` | Clipboard history (clipborg, quickshell). |
+| `SUPER + r`, `SUPER + CTRL + RETURN` | Application launcher. Bind it inside Raycast. |
+| `SUPER + y`, `open-cmd` `v` | Clipboard history. Bind it inside Raycast. |
 | `SUPER + i`, `SUPER + SHIFT + N`, `SUPER + c` | Notification and clock drawers (quickshell). |
 | `open-cmd` `e`, `u`, `i` | Emoji, glyph and icon pickers (rofi launcher). macOS has `ctrl-cmd-space`. |
 | `system-cmd` `b` | Restart the status bar (waybar or quickshell). |

@@ -242,9 +242,9 @@ alt-t = 'mode time'
 # NO MACOS EQUIVALENT, so these Hyprland binds are not carried over:
 #   SUPER + Escape        session and power menu (no scriptable macOS dialog)
 #   SUPER + slash         keymap cheatsheet overlay (quickshell)
-#   SUPER + r             application launcher (macOS uses cmd-space)
+#   SUPER + r             application launcher (bind it inside Raycast)
 #   SUPER + CTRL + RETURN application launcher (same)
-#   SUPER + y             clipboard history (clipborg, Linux only)
+#   SUPER + y             clipboard history (bind it inside Raycast)
 #   SUPER + i             notification drawer (quickshell)
 #   SUPER + SHIFT + N     dismiss all notifications (quickshell)
 #   SUPER + c             clock drawer (quickshell)
@@ -268,7 +268,7 @@ esc = 'mode main'
 # NO MACOS EQUIVALENT: e (emoji picker), u (glyph picker) and i (icon browser)
 # all call `hyprland/.config/hypr/scripts/Launcher.sh`, which needs rofi or
 # quickshell. macOS has its own emoji picker on ctrl-cmd-space.
-# NO MACOS EQUIVALENT: v (clipboard history) needs clipborg or quickshell.
+# NO MACOS EQUIVALENT: v (clipboard history). Bind it inside Raycast instead.
 
 # ---------------------------------------------------------------------------
 # system — Hyprland submap `system-cmd`, leader SUPER + s

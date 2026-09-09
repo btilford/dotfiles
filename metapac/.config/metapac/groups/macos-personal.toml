@@ -1,0 +1,31 @@
+# macos-personal — the personal Mac only (host key: macos-personal).
+#
+# Overlay on top of macos.toml, which both Macs share. metapac-hostname-key
+# appends the profile from DOTFILES_PROFILE, so this file reaches a machine whose
+# local.env says `DOTFILES_PROFILE=personal` and no other. A Mac with no profile
+# set resolves to plain `macos` and never sees this file.
+#
+# Put a package here when the work machine must not have it. Anything both Macs
+# want belongs in macos.toml, and anything both platforms want belongs in
+# core.toml.
+
+brew = { packages = [
+  # AeroSpace, the tiling window manager. Config in the `macos` stow package at
+  # macos/.aerospace.toml; read macos/README.md before changing a binding.
+  #
+  # THIRD-PARTY TAP, so the token carries it. There is no `aerospace` cask in
+  # homebrew-cask, and a bare "aerospace" would not resolve. The tap must also be
+  # trusted once per machine, alongside the other third-party taps:
+  #   brew trust nikitabobko/tap
+  #
+  # Personal only: AeroSpace takes over the keymap and replaces native macOS
+  # Spaces outright, which is not a change to make on a managed work machine.
+  "nikitabobko/tap/aerospace",
+  # Raycast, the application launcher. homebrew-cask core, no tap.
+  #
+  # macOS has Spotlight on cmd-space already, so this is a preference rather than
+  # a gap. It pairs with AeroSpace: neither the Hyprland launcher bind
+  # (SUPER + r, rofi or quickshell) nor its clipboard-history bind has a macOS
+  # counterpart, and Raycast covers both.
+  "raycast",
+] }

@@ -17,6 +17,35 @@ set -uo pipefail
 key=arch
 [ "$(uname)" = Darwin ] && key=macos
 
+# macOS splits by profile as well as by OS. A work Mac and a personal Mac run the
+# same base set (macos.toml) but diverge on top of it, so the key carries the
+# profile the same way the Arch key carries the GPU vendor below.
+#
+# DOTFILES_PROFILE is the repo's existing personal/work seam — nvim ai.lua and
+# the atuin drop-ins already gate on it, so there is nothing new to provision.
+# It is `optional` in required-env, and UNSET MUST STAY SAFE: an unrecognised or
+# absent value resolves to plain `macos`, which is the shared set and exactly
+# what this script returned before the split.
+#
+# The variable is read from local.env when it is not already exported. This task
+# runs during bootstrap, before any shell drop-in exists to export it, and a
+# bootstrap run that silently picked the wrong half would install the wrong
+# packages. DOTFILES_LOCAL_ENV overrides the path, as it does for every other
+# reader in this repo.
+if [ "$key" = macos ]; then
+  profile="${DOTFILES_PROFILE:-}"
+  if [ -z "$profile" ]; then
+    local_env="${DOTFILES_LOCAL_ENV:-$HOME/.config/dotfiles/local.env}"
+    if [ -r "$local_env" ]; then
+      profile=$(sed -n 's/^DOTFILES_PROFILE=//p' "$local_env" | tail -n 1)
+    fi
+  fi
+  case "$profile" in
+    personal) key=macos-personal ;;
+    work) key=macos-work ;;
+  esac
+fi
+
 # GPU-vendor packages (amd-gpu.toml, nvidia-gpu.toml, intel-gpu.toml) apply
 # only to a host that actually has that vendor's controller. A host can carry
 # more than one (e.g. an Intel iGPU + Nvidia dGPU laptop), so the suffix is

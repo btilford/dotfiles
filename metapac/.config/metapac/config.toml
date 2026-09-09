@@ -16,6 +16,14 @@
 # only pulled in for a hostname key that names that vendor — adding a new
 # vendor combination to the fleet means adding its key here.
 #
+# macOS splits by PROFILE for the same reason Arch splits by GPU vendor: one base
+# set, plus a per-machine overlay. metapac-hostname-key reads DOTFILES_PROFILE
+# (the repo's existing personal/work seam) and appends it. Every macOS key keeps
+# `macos` in its group list, so the base set is shared and only the overlay
+# diverges. Plain `macos` is the fallback for an unset or unrecognised profile:
+# it is the shared set alone, which is what the key resolved to before the split,
+# so a machine with no local.env is unchanged.
+#
 # Backends (final set): arch, brew, bun, cargo, flatpak, mise, uv.
 # pipx is deliberately absent — uv owns global Python CLIs.
 # zypper is absent — no openSUSE host in the fleet.
@@ -30,12 +38,16 @@ arch = ["arch", "bun", "cargo", "flatpak", "mise", "uv"]
 arch-amd = ["arch", "bun", "cargo", "flatpak", "mise", "uv"]
 arch-intel-nvidia = ["arch", "bun", "cargo", "flatpak", "mise", "uv"]
 macos = ["brew", "cargo", "mise", "uv", "bun"]
+macos-personal = ["brew", "cargo", "mise", "uv", "bun"]
+macos-work = ["brew", "cargo", "mise", "uv", "bun"]
 
 [hostname_groups]
 arch = ["core", "desktop-arch"]
 arch-amd = ["core", "desktop-arch", "amd-gpu"]
 arch-intel-nvidia = ["core", "desktop-arch", "intel-gpu", "nvidia-gpu"]
 macos = ["core", "macos"]
+macos-personal = ["core", "macos", "macos-personal"]
+macos-work = ["core", "macos", "macos-work"]
 
 [arch]
 # Required: routes AUR installs through the aur-policy PreBuildCommand gate.

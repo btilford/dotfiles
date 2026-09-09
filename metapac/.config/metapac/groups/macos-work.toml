@@ -1,0 +1,16 @@
+# macos-work — the work Mac only (host key: macos-work).
+#
+# Overlay on top of macos.toml, which both Macs share. metapac-hostname-key
+# appends the profile from DOTFILES_PROFILE, so this file reaches a machine whose
+# local.env says `DOTFILES_PROFILE=work` and no other. A Mac with no profile set
+# resolves to plain `macos` and never sees this file.
+#
+# Deliberately empty. The file exists so that the `macos-work` group key in
+# config.toml resolves, and so that a work-only package has an obvious home.
+#
+# NOTHING HERE MAY NAME AN EMPLOYER. This repository is mirrored to a public
+# GitHub. An internal tool name, an internal tap, or a private registry URL is
+# infrastructure disclosure and is permanent once pushed. A package that cannot
+# be named belongs in a machine-local file outside this repository, not here.
+
+brew = { packages = [] }
