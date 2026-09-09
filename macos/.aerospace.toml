@@ -1,122 +1,158 @@
-# Place a copy of this config to ~/.aerospace.toml
-# After that, you can edit ~/.aerospace.toml to your liking
+# AeroSpace — the macOS counterpart of the Hyprland setup in `hyprland/`.
+#
+# The keymap mirrors `hyprland/.config/hypr/lua/keybindings.lua`. That config is
+# modal: a leader key opens a submap, and the next key acts inside it. AeroSpace
+# binding modes are the direct equivalent, so the leader letters and the inner
+# letters are the same.
+#
+# MODIFIER. Hyprland uses SUPER, the key beside the space bar. This config writes
+# `alt` for that key. On this Mac, System Settings swaps Option and Command, and
+# that swap happens below the event tap AeroSpace reads. AeroSpace therefore sees
+# `alt` when the Command key is pressed. Do not read `alt` here as "the Option
+# key". Read `macos/README.md` for the full mapping table and for the list of
+# Hyprland behavior that AeroSpace cannot reproduce.
+#
+# This file is untested. No Mac was available when it was written.
 
-# You can use it to add commands that run after login to macOS user session.
-# 'start-at-login' needs to be 'true' for 'after-login-command' to work
-# Available commands: https://nikitabobko.github.io/AeroSpace/commands
 after-login-command = []
-
-# You can use it to add commands that run after AeroSpace startup.
-# 'after-startup-command' is run after 'after-login-command'
-# Available commands : https://nikitabobko.github.io/AeroSpace/commands
 after-startup-command = []
 
-# Start AeroSpace at login
 start-at-login = true
 
 # Normalizations. See: https://nikitabobko.github.io/AeroSpace/guide#normalization
 enable-normalization-flatten-containers = true
 enable-normalization-opposite-orientation-for-nested-containers = true
 
-# See: https://nikitabobko.github.io/AeroSpace/guide#layouts
-# The 'accordion-padding' specifies the size of accordion padding
-# You can set 0 to disable the padding feature
 accordion-padding = 30
 
-# Possible values: tiles|accordion
+# Hyprland `general.layout` is "master" on multi-monitor and "scrolling" on a
+# single monitor (see lua/layout-auto.lua). AeroSpace has neither. `tiles` is the
+# closest root layout.
 default-root-container-layout = 'tiles'
-
-# Possible values: horizontal|vertical|auto
-# 'auto' means: wide monitor (anything wider than high) gets horizontal orientation,
-#               tall monitor (anything higher than wide) gets vertical orientation
 default-root-container-orientation = 'auto'
 
-# Mouse follows focus when focused monitor changes
-# Drop it from your config, if you don't like this behavior
-# See https://nikitabobko.github.io/AeroSpace/guide#on-focus-changed-callbacks
-# See https://nikitabobko.github.io/AeroSpace/commands#move-mouse
-# Fallback value (if you omit the key): on-focused-monitor-changed = []
+# Matches the stock sample and keeps the pointer with the focused monitor.
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
-# You can effectively turn off macOS "Hide application" (cmd-h) feature by toggling this flag
-# Useful if you don't use this macOS feature, but accidentally hit cmd-h or cmd-alt-h key
-# Also see: https://nikitabobko.github.io/AeroSpace/goodies#disable-hide-app
-automatically-unhide-macos-hidden-apps = false
+# Hyprland has no "hide application" concept, so cmd-h must not make a window
+# disappear from the tiling tree.
+automatically-unhide-macos-hidden-apps = true
 
-# Possible values: (qwerty|dvorak|colemak)
-# See https://nikitabobko.github.io/AeroSpace/guide#key-mapping
 [key-mapping]
 preset = 'qwerty'
 
-# Gaps between windows (inner-*) and between monitor edges (outer-*).
-# Possible values:
-# - Constant:     gaps.outer.top = 8
-# - Per monitor:  gaps.outer.top = [{ monitor.main = 16 }, { monitor."some-pattern" = 32 }, 24]
-#                 In this example, 24 is a default value when there is no match.
-#                 Monitor pattern is the same as for 'workspace-to-monitor-force-assignment'.
-#                 See:
-#                 https://nikitabobko.github.io/AeroSpace/guide#assign-workspaces-to-monitors
+# Gaps copied from `hyprland/.config/hypr/lua/windows.lua`:
+#   gaps_in = 4, gaps_out = { top = 6, right = 2, bottom = 2, left = 2 }
+# AeroSpace has no rounding, no border width, no blur, no shadow and no shaders,
+# so nothing in lua/decorations.lua carries over.
 [gaps]
-inner.horizontal = 8
-inner.vertical = 8
-outer.left = 8
-outer.bottom = 8
-outer.top = 8
-outer.right = 8
-# 'main' binding mode declaration
-# See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
-# 'main' binding mode must be always presented
-# Fallback value (if you omit the key): mode.main.binding = {}
+inner.horizontal = 4
+inner.vertical = 4
+outer.left = 2
+outer.bottom = 2
+outer.top = 6
+outer.right = 2
+
+# Workspace-to-monitor pinning.
+#
+# Hyprland pins workspaces 1-10 across four displays through the machine-local
+# MON alias table. The MacBook usually runs one display, where every assignment
+# below is a no-op, so the block stays commented out. To use it, uncomment it.
+# Only the patterns `main` and `secondary` are used here. Never write a monitor
+# name or a panel serial into this file — this repository is public.
+#
+# [workspace-to-monitor-force-assignment]
+# 1 = 'main'
+# 2 = 'secondary'
+# 3 = 'secondary'
+# 4 = 'secondary'
+# 5 = 'main'
+# 6 = 'secondary'
+# 7 = 'secondary'
+# 8 = 'secondary'
+# 9 = 'main'
+# 10 = 'secondary'
+
+# ---------------------------------------------------------------------------
+# Window rules
+# ---------------------------------------------------------------------------
+# `hyprland/.config/hypr/lua/windowrules.lua` is 236 lines. AeroSpace can express
+# only "float this window" and "send it to a workspace". Size, position, opacity,
+# blur, border and animation rules have no equivalent and are dropped.
+#
+# Most of the Hyprland float list is Linux software (pavucontrol, blueman,
+# nm-connection-editor, wlogout, rofi, xwaylandvideobridge). Only the rules with a
+# macOS counterpart are ported.
+#
+# Verify every bundle identifier on the machine with:  aerospace list-apps
+# Workspaces 1 to 5 hold one application each, in the order the keyboard leader
+# expects. Read "The keyboard leader depends on ctrl-1 to ctrl-5" in
+# `macos/README.md` before you change a number here.
+[[on-window-detected]]
+if.app-id = 'com.brave.Browser'
+run = ['move-node-to-workspace 1']
+
+[[on-window-detected]]
+if.app-id = 'com.mitchellh.ghostty'
+run = ['move-node-to-workspace 2']
+
+[[on-window-detected]]
+if.app-id = 'notion.id'
+run = ['move-node-to-workspace 4']
+
+[[on-window-detected]]
+if.app-id = 'md.obsidian'
+run = ['move-node-to-workspace 5']
+
+[[on-window-detected]]
+if.app-id = 'com.apple.calculator'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'com.apple.ActivityMonitor'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'net.mullvad.vpn'
+run = ['layout floating']
+
+# Hyprland pins JetBrains Toolbox to workspace 1. Here workspace 1 holds the
+# browser and workspace 3 is the IDE workspace, so the Toolbox goes to 3. The
+# bundle identifier of the IDE itself differs per product, so verify it with
+# `aerospace list-apps` and add a rule for it beside this one.
+[[on-window-detected]]
+if.app-id = 'com.jetbrains.toolbox'
+run = ['layout floating', 'move-node-to-workspace 3']
+
+# ---------------------------------------------------------------------------
+# Main mode
+# ---------------------------------------------------------------------------
 [mode.main.binding]
 
-# All possible keys:
-# - Letters.        a, b, c, ..., z
-# - Numbers.        0, 1, 2, ..., 9
-# - Keypad numbers. keypad0, keypad1, keypad2, ..., keypad9
-# - F-keys.         f1, f2, ..., f20
-# - Special keys.   minus, equal, period, comma, slash, backslash, quote, semicolon,
-#                   backtick, leftSquareBracket, rightSquareBracket, space, enter, esc,
-#                   backspace, tab, pageUp, pageDown, home, end, forwardDelete,
-#                   sectionSign (ISO keyboards only, european keyboards only)
-# - Keypad special. keypadClear, keypadDecimalMark, keypadDivide, keypadEnter, keypadEqual,
-#                   keypadMinus, keypadMultiply, keypadPlus
-# - Arrows.         left, down, up, right
-
-# All possible modifiers: cmd, alt, ctrl, shift
-
-# All possible commands: https://nikitabobko.github.io/AeroSpace/commands
-
-# See: https://nikitabobko.github.io/AeroSpace/commands#exec-and-forget
-# You can uncomment the following lines to open up terminal with alt + enter shortcut
-# (like in i3)
-# alt-enter = '''exec-and-forget osascript -e '
-# tell application "Terminal"
-#     do script
-#     activate
-# end tell'
-# '''
-
-# See: https://nikitabobko.github.io/AeroSpace/commands#layout
-alt-slash = 'layout tiles horizontal vertical'
-alt-comma = 'layout accordion horizontal vertical'
-
-# See: https://nikitabobko.github.io/AeroSpace/commands#focus
+# Focus. Hyprland: SUPER + h/j/k/l.
 alt-h = 'focus left'
 alt-j = 'focus down'
 alt-k = 'focus up'
 alt-l = 'focus right'
 
-# See: https://nikitabobko.github.io/AeroSpace/commands#move
+# Move the focused window. Hyprland keeps this inside the window submap on
+# CTRL + h/j/k/l, and that binding is kept there too.
 alt-shift-h = 'move left'
 alt-shift-j = 'move down'
 alt-shift-k = 'move up'
 alt-shift-l = 'move right'
 
-# See: https://nikitabobko.github.io/AeroSpace/commands#resize
-alt-minus = 'resize smart -50'
-alt-equal = 'resize smart +50'
+# Close. Hyprland: SUPER + Q, and SUPER + SHIFT + Q force-kills the process.
+# AeroSpace cannot kill a process. `--quit-if-last-window` quits the application
+# when its last window closes, which is the nearest macOS behavior.
+alt-q = 'close'
+alt-shift-q = 'close --quit-if-last-window'
 
-# See: https://nikitabobko.github.io/AeroSpace/commands#workspace
+# Workspaces 1-10. Hyprland: SUPER + 1 .. SUPER + 0.
 alt-1 = 'workspace 1'
 alt-2 = 'workspace 2'
 alt-3 = 'workspace 3'
@@ -126,90 +162,290 @@ alt-6 = 'workspace 6'
 alt-7 = 'workspace 7'
 alt-8 = 'workspace 8'
 alt-9 = 'workspace 9'
-alt-a = 'workspace A' # In your config, you can drop workspace bindings that you don't need
-alt-b = 'workspace B'
-alt-c = 'workspace C'
-alt-d = 'workspace D'
-alt-e = 'workspace E'
-# alt-f = 'workspace F'
-alt-g = 'workspace G'
-alt-i = 'workspace I'
-alt-m = 'workspace M'
-# alt-n = 'workspace N'
-alt-o = 'workspace O'
-alt-p = 'workspace P'
-alt-q = 'workspace Q'
-# alt-r = 'workspace R'
-alt-s = 'workspace S'
-alt-t = 'workspace T'
-alt-u = 'workspace U'
-alt-v = 'workspace V'
-alt-w = 'workspace W'
-alt-x = 'workspace X'
-alt-y = 'workspace Y'
-# alt-z = 'workspace Z'
+alt-0 = 'workspace 10'
 
-# See: https://nikitabobko.github.io/AeroSpace/commands#move-node-to-workspace
-alt-shift-1 = 'move-node-to-workspace 1'
-alt-shift-2 = 'move-node-to-workspace 2'
-alt-shift-3 = 'move-node-to-workspace 3'
-alt-shift-4 = 'move-node-to-workspace 4'
-alt-shift-5 = 'move-node-to-workspace 5'
-alt-shift-6 = 'move-node-to-workspace 6'
-alt-shift-7 = 'move-node-to-workspace 7'
-alt-shift-8 = 'move-node-to-workspace 8'
-alt-shift-9 = 'move-node-to-workspace 9'
-alt-shift-a = 'move-node-to-workspace A'
-alt-shift-b = 'move-node-to-workspace B'
-alt-shift-c = 'move-node-to-workspace C'
-alt-shift-d = 'move-node-to-workspace D'
-alt-shift-e = 'move-node-to-workspace E'
-# alt-shift-f = 'move-node-to-workspace F'
-alt-shift-g = 'move-node-to-workspace G'
-alt-shift-i = 'move-node-to-workspace I'
-alt-shift-m = 'move-node-to-workspace M'
-# alt-shift-n = 'move-node-to-workspace N'
-alt-shift-o = 'move-node-to-workspace O'
-alt-shift-p = 'move-node-to-workspace P'
-alt-shift-q = 'move-node-to-workspace Q'
-# alt-shift-r = 'move-node-to-workspace R'
-alt-shift-s = 'move-node-to-workspace S'
-alt-shift-t = 'move-node-to-workspace T'
-alt-shift-u = 'move-node-to-workspace U'
-alt-shift-v = 'move-node-to-workspace V'
-alt-shift-w = 'move-node-to-workspace W'
-alt-shift-x = 'move-node-to-workspace X'
-alt-shift-y = 'move-node-to-workspace Y'
-# alt-shift-z = 'move-node-to-workspace Z'
+# The keyboard leader sends ctrl-1 to ctrl-5 to reach a workspace, and ctrl-left
+# and ctrl-right to step between them. Those sequences were written for native
+# macOS Spaces. AeroSpace runs on one native Space, so the sequences reach
+# AeroSpace workspaces through the bindings below instead. Removing them breaks
+# nine keyboard leader sequences. See `macos/README.md`.
+ctrl-1 = 'workspace 1'
+ctrl-2 = 'workspace 2'
+ctrl-3 = 'workspace 3'
+ctrl-4 = 'workspace 4'
+ctrl-5 = 'workspace 5'
+ctrl-right = 'workspace --wrap-around next'
+ctrl-left = 'workspace --wrap-around prev'
 
-# See: https://nikitabobko.github.io/AeroSpace/commands#workspace-back-and-forth
-alt-tab = 'workspace-back-and-forth'
-# See: https://nikitabobko.github.io/AeroSpace/commands#move-workspace-to-monitor
-alt-shift-tab = 'move-workspace-to-monitor --wrap-around next'
+# Workspaces 11-13. On Linux these are pinned to the XREAL glasses. The glasses
+# are not used with the MacBook, so the workspaces stay unpinned. macOS needs the
+# fn key for the function row unless the keyboard preference is changed.
+alt-f1 = 'workspace 11'
+alt-f2 = 'workspace 12'
+alt-f3 = 'workspace 13'
+alt-shift-f1 = 'move-node-to-workspace 11'
+alt-shift-f2 = 'move-node-to-workspace 12'
+alt-shift-f3 = 'move-node-to-workspace 13'
 
-# See: https://nikitabobko.github.io/AeroSpace/commands#mode
-alt-shift-semicolon = 'mode service'
+# Move the window to a workspace without following it.
+# Hyprland: SUPER + ALT + x/c/v/s/d/f/w/e/r/b. macOS cannot send two alt keys, so
+# the second modifier is ctrl.
+alt-ctrl-x = 'move-node-to-workspace 1'
+alt-ctrl-c = 'move-node-to-workspace 2'
+alt-ctrl-v = 'move-node-to-workspace 3'
+alt-ctrl-s = 'move-node-to-workspace 4'
+alt-ctrl-d = 'move-node-to-workspace 5'
+alt-ctrl-f = 'move-node-to-workspace 6'
+alt-ctrl-w = 'move-node-to-workspace 7'
+alt-ctrl-e = 'move-node-to-workspace 8'
+alt-ctrl-r = 'move-node-to-workspace 9'
+alt-ctrl-b = 'move-node-to-workspace 10'
 
-alt-f = 'fullscreen'
-# 'service' binding mode declaration.
-# See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
-[mode.service.binding]
-esc = ['reload-config', 'mode main']
-r = ['flatten-workspace-tree', 'mode main'] # reset layout
-f = [
-  'layout floating tiling',
+# Hyprland: SUPER + ALT + h/l move the window to the previous or next workspace.
+alt-ctrl-h = 'move-node-to-workspace --wrap-around prev'
+alt-ctrl-l = 'move-node-to-workspace --wrap-around next'
+
+# Workspace cycling. Hyprland: SUPER + Tab and SUPER + SHIFT + Tab.
+alt-tab = 'workspace --wrap-around next'
+alt-shift-tab = 'workspace --wrap-around prev'
+
+# Layout cycle. Hyprland: SUPER + SHIFT + L cycles dwindle, master and scrolling.
+# AeroSpace has only two layouts, so this toggles tiles and accordion. The key
+# moves to alt-slash because alt-shift-l already moves a window to the right.
+alt-slash = 'layout tiles accordion'
+
+# Reload the config. Hyprland: SUPER + SHIFT + R.
+alt-shift-r = 'reload-config'
+
+# Hyprland also locks the session on CTRL + ALT + L. That combination is
+# alt-ctrl-l here, which already moves a window to the next workspace, so the
+# lock binding lives only in the `system` mode on `l`.
+
+# File manager. Hyprland: SUPER + E opens yazi in a Ghostty window.
+alt-e = 'exec-and-forget open -na Ghostty --args -e yazi'
+
+# Mode leaders. Each one matches a Hyprland submap leader.
+alt-o = 'mode open'
+alt-s = 'mode system'
+alt-w = 'mode window'
+alt-d = 'mode workspace'
+alt-f = 'mode focus'
+alt-t = 'mode time'
+
+# NO MACOS EQUIVALENT, so these Hyprland binds are not carried over:
+#   SUPER + Escape        session and power menu (no scriptable macOS dialog)
+#   SUPER + slash         keymap cheatsheet overlay (quickshell)
+#   SUPER + r             application launcher (macOS uses cmd-space)
+#   SUPER + CTRL + RETURN application launcher (same)
+#   SUPER + y             clipboard history (clipborg, Linux only)
+#   SUPER + i             notification drawer (quickshell)
+#   SUPER + SHIFT + N     dismiss all notifications (quickshell)
+#   SUPER + c             clock drawer (quickshell)
+#   SUPER + n             notification submap (quickshell)
+#   SUPER + m             timer submap (quickshell)
+#   SUPER + g             toggle window group (AeroSpace has no groups)
+#   SUPER + CTRL + down   focus the first empty workspace
+#   SUPER + mouse drag    move and resize (AeroSpace has no mouse bindings)
+#   SUPER + scroll        workspace cycling (AeroSpace has no scroll bindings)
+#   XF86 media and brightness keys (macOS handles its own media row)
+
+# ---------------------------------------------------------------------------
+# open — Hyprland submap `open-cmd`, leader SUPER + o
+# ---------------------------------------------------------------------------
+[mode.open.binding]
+b = ['exec-and-forget open -a "Brave Browser"', 'mode main']
+t = ['exec-and-forget open -na Ghostty', 'mode main']
+c = ['exec-and-forget open -a Calculator', 'mode main']
+z = ['exec-and-forget open -a "Activity Monitor"', 'mode main']
+esc = 'mode main'
+# NO MACOS EQUIVALENT: e (emoji picker), u (glyph picker) and i (icon browser)
+# all call `hyprland/.config/hypr/scripts/Launcher.sh`, which needs rofi or
+# quickshell. macOS has its own emoji picker on ctrl-cmd-space.
+# NO MACOS EQUIVALENT: v (clipboard history) needs clipborg or quickshell.
+
+# ---------------------------------------------------------------------------
+# system — Hyprland submap `system-cmd`, leader SUPER + s
+# ---------------------------------------------------------------------------
+[mode.system.binding]
+# Hyprland cycles DPMS to clear hotplug artifacts. The nearest macOS action is a
+# display sleep. macOS has no per-monitor form, so `d` and `shift-d` are the same.
+d = ['exec-and-forget pmset displaysleepnow', 'mode main']
+shift-d = ['exec-and-forget pmset displaysleepnow', 'mode main']
+r = ['reload-config', 'mode main']
+l = ['exec-and-forget pmset displaysleepnow', 'mode main']
+esc = 'mode main'
+# NO MACOS EQUIVALENT: b restarts the status bar (waybar or quickshell).
+# NO MACOS EQUIVALENT: e opens the session and power menu (wlogout).
+
+# ---------------------------------------------------------------------------
+# window — Hyprland submap `window-cmd`, leader SUPER + w
+# ---------------------------------------------------------------------------
+[mode.window.binding]
+tab = 'focus dfs-next'
+n = 'split opposite'
+r = 'layout horizontal vertical'
+q = ['close', 'mode main']
+f = ['fullscreen', 'mode main']
+m = ['macos-native-fullscreen', 'mode main']
+t = ['layout floating tiling', 'mode main']
+s = 'mode swap'
+esc = 'mode main'
+
+# Focus.
+h = 'focus left'
+j = 'focus down'
+k = 'focus up'
+l = 'focus right'
+
+# Move the window inside the tree.
+ctrl-h = 'move left'
+ctrl-j = 'move down'
+ctrl-k = 'move up'
+ctrl-l = 'move right'
+
+# Resize. Hyprland uses 10 pixels for the small step and 100 for the large one.
+# AeroSpace resize units are also pixels.
+shift-h = 'resize width -10'
+shift-j = 'resize height +10'
+shift-k = 'resize height -10'
+shift-l = 'resize width +10'
+ctrl-shift-h = 'resize width -100'
+ctrl-shift-j = 'resize height +100'
+ctrl-shift-k = 'resize height -100'
+ctrl-shift-l = 'resize width +100'
+
+# Hyprland `comma` swaps with the master window and `period` rolls the stack.
+# AeroSpace has no master area, so both become a swap along the tree order.
+comma = 'swap dfs-prev'
+period = 'swap dfs-next'
+
+# NO AEROSPACE EQUIVALENT: c centers a floating window. AeroSpace places
+# floating windows itself and offers no center command.
+# NO AEROSPACE EQUIVALENT: ALT + h/j/k/l nudge a floating window by 10 pixels.
+# NO AEROSPACE EQUIVALENT: SUPER + l sets the dwindle layout.
+
+# ---------------------------------------------------------------------------
+# swap — Hyprland submap `window-swap`, reached with `s` inside `window`
+# ---------------------------------------------------------------------------
+[mode.swap.binding]
+h = 'swap left'
+j = 'swap down'
+k = 'swap up'
+l = 'swap right'
+esc = 'mode window'
+
+# ---------------------------------------------------------------------------
+# workspace — Hyprland submap `workspace-cmd`, leader SUPER + d
+# ---------------------------------------------------------------------------
+[mode.workspace.binding]
+tab = 'workspace --wrap-around next'
+shift-tab = 'workspace --wrap-around prev'
+ctrl-tab = 'move-node-to-workspace --focus-follows-window --wrap-around next'
+ctrl-shift-tab = 'move-node-to-workspace --focus-follows-window --wrap-around prev'
+
+# Move the window to a workspace and follow it.
+ctrl-x = ['move-node-to-workspace --focus-follows-window 1', 'mode main']
+ctrl-c = ['move-node-to-workspace --focus-follows-window 2', 'mode main']
+ctrl-v = ['move-node-to-workspace --focus-follows-window 3', 'mode main']
+ctrl-s = ['move-node-to-workspace --focus-follows-window 4', 'mode main']
+ctrl-d = ['move-node-to-workspace --focus-follows-window 5', 'mode main']
+ctrl-f = ['move-node-to-workspace --focus-follows-window 6', 'mode main']
+ctrl-w = ['move-node-to-workspace --focus-follows-window 7', 'mode main']
+ctrl-e = ['move-node-to-workspace --focus-follows-window 8', 'mode main']
+ctrl-r = ['move-node-to-workspace --focus-follows-window 9', 'mode main']
+ctrl-b = ['move-node-to-workspace --focus-follows-window 10', 'mode main']
+
+# Focus a workspace.
+1 = ['workspace 1', 'mode main']
+2 = ['workspace 2', 'mode main']
+3 = ['workspace 3', 'mode main']
+4 = ['workspace 4', 'mode main']
+5 = ['workspace 5', 'mode main']
+6 = ['workspace 6', 'mode main']
+7 = ['workspace 7', 'mode main']
+8 = ['workspace 8', 'mode main']
+9 = ['workspace 9', 'mode main']
+0 = ['workspace 10', 'mode main']
+
+l = ['layout tiles accordion', 'mode main']
+esc = 'mode main'
+# NO MACOS EQUIVALENT: w, shift-w and t choose a wallpaper or a theme. Both call
+# wallust and the Hyprland scripts directory.
+
+# ---------------------------------------------------------------------------
+# focus — Hyprland submap `focus-cmd`, leader SUPER + f
+# ---------------------------------------------------------------------------
+# Hyprland focuses a window by its Wayland class. AeroSpace has no
+# focus-by-application command. Each application has its own workspace instead,
+# so focusing one is a workspace switch. The letters match the keyboard leader:
+# b browser, t terminal, i IDE, n Notion, o Obsidian.
+[mode.focus.binding]
+b = ['workspace 1', 'mode main']
+t = ['workspace 2', 'mode main']
+i = ['workspace 3', 'mode main']
+n = ['workspace 4', 'mode main']
+o = ['workspace 5', 'mode main']
+l = ['focus-back-and-forth', 'mode main']
+esc = 'mode main'
+
+# ---------------------------------------------------------------------------
+# time — Hyprland submap `time-cmd`, leader SUPER + t
+# ---------------------------------------------------------------------------
+# The Linux side calls `hyprland/.config/hypr/scripts/CopyDateTime.sh`, which
+# writes to the Wayland clipboard with wl-copy. The formats below are the same
+# table, written for BSD date and pbcopy. printf is used instead of echo so that
+# no trailing newline is copied.
+#
+# One difference: `iso` uses `date -Iseconds` on Linux, which prints the offset as
+# +00:00. BSD date has no -Iseconds, so %z prints the offset as +0000.
+[mode.time.binding]
+d = [
+  '''exec-and-forget printf '%s' "$(date +%Y-%m-%d)" | pbcopy''',
   'mode main',
-] # Toggle between floating and tiling layout
-backspace = ['close-all-windows-but-current', 'mode main']
+]
+shift-d = [
+  '''exec-and-forget printf '%s' "$(date -u +%Y-%m-%d)" | pbcopy''',
+  'mode main',
+]
+t = [
+  '''exec-and-forget printf '%s' "$(date +%H:%M:%S)" | pbcopy''',
+  'mode main',
+]
+shift-t = [
+  '''exec-and-forget printf '%s' "$(date -u +%H:%M:%S)" | pbcopy''',
+  'mode main',
+]
+b = [
+  '''exec-and-forget printf '%s' "$(date '+%Y-%m-%d %H:%M:%S')" | pbcopy''',
+  'mode main',
+]
+shift-b = [
+  '''exec-and-forget printf '%s' "$(date -u '+%Y-%m-%d %H:%M:%S')" | pbcopy''',
+  'mode main',
+]
+i = [
+  '''exec-and-forget printf '%s' "$(date +%Y-%m-%dT%H:%M:%S%z)" | pbcopy''',
+  'mode main',
+]
+shift-i = [
+  '''exec-and-forget printf '%s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" | pbcopy''',
+  'mode main',
+]
+s = [
+  '''exec-and-forget printf '%s' "$(date +%Y-%m-%dT%H:%M:%S)" | pbcopy''',
+  'mode main',
+]
+e = ['''exec-and-forget printf '%s' "$(date +%s)" | pbcopy''', 'mode main']
+n = [
+  '''exec-and-forget printf '%s' "$(date +%b-%d-%a)" | pbcopy''',
+  'mode main',
+]
+esc = 'mode main'
 
-# sticky is not yet supported https://github.com/nikitabobko/AeroSpace/issues/2
-#s = ['layout sticky tiling', 'mode main']
-
-alt-shift-h = ['join-with left', 'mode main']
-alt-shift-j = ['join-with down', 'mode main']
-alt-shift-k = ['join-with up', 'mode main']
-alt-shift-l = ['join-with right', 'mode main']
-
-down = 'volume down'
-up = 'volume up'
-shift-down = ['volume set 0', 'mode main']
+# ---------------------------------------------------------------------------
+# Dropped submaps
+# ---------------------------------------------------------------------------
+# notif-cmd (SUPER + n) and timer-cmd (SUPER + m) are not carried over. Every
+# binding in both calls `qs ipc call ...`, the quickshell IPC. quickshell is
+# Wayland software and does not run on macOS. macOS has its own Notification
+# Center, and no timer service that AeroSpace can drive.
