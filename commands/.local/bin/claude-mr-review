@@ -1,0 +1,655 @@
+#!/usr/bin/env python3
+"""
+claude-mr-review — run Claude Code as a GitLab MR reviewer, locally.
+
+Reviews open merge requests on the repos listed in
+~/.config/claude-mr-review/repos.list and posts findings back as MR notes.
+
+WHY THIS IS NOT A CI JOB
+------------------------
+The obvious alternative is Anthropic's GitLab CI/CD integration, which needs a
+`CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) stored where the runner can
+reach it. That token is a one-year credential against a Claude subscription, and
+an MR can edit `.gitlab-ci.yml` — so any job the MR defines could print the token
+out. Running here instead means the credential never leaves this machine: this
+script uses the interactive `claude` login already in ~/.claude, and there is no
+secret to store, mask, rotate, or leak.
+
+The cost is that reviews only happen while this box is up. That is the trade.
+
+IDEMPOTENCY HAS NO LOCAL STATE
+------------------------------
+Each summary note carries an HTML-comment marker naming the exact commit it
+reviewed. Before reviewing, the script reads the MR's existing notes and skips
+the MR if a marker for the current head SHA is already there. So re-running is
+free, a new push re-reviews, and nothing breaks if the cache is wiped or the
+script runs from somewhere else. `--force` overrides.
+
+REVIEWS RUN AGAINST A REAL CHECKOUT
+-----------------------------------
+A diff alone reads badly — the reviewer cannot see the function the changed line
+sits in, or the CLAUDE.md that says what this repo cares about. So each MR is
+fetched into a cache clone at refs/merge-requests/<iid>/head and Claude runs with
+that checkout as its working directory, which also makes it pick up the repo's
+own CLAUDE.md automatically. Tools are read-only: no Edit, no Write.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import textwrap
+from dataclasses import dataclass
+from pathlib import Path
+
+CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "claude-mr-review"
+REPOS_FILE = CONFIG_DIR / "repos.list"
+PROMPT_FILE = CONFIG_DIR / "prompt.md"
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "claude-mr-review"
+
+MARKER_RE = re.compile(r"<!--\s*claude-mr-review\s+sha=([0-9a-f]{7,40})\s*-->")
+DATA_RE = re.compile(r"<!--\s*claude-mr-review-data\s+([A-Za-z0-9+/=]+)\s*-->")
+
+# Read-only by construction. Claude gets no Edit/Write/NotebookEdit, and Bash is
+# absent too: a reviewer that can run arbitrary commands from an untrusted branch
+# is a code-execution path, not a review.
+ALLOWED_TOOLS = "Read,Grep,Glob"
+
+DEFAULT_PROMPT = """\
+You are reviewing a GitLab merge request. The repository is checked out at the
+MR's head commit in your working directory, so you can read any file for context.
+
+Review ONLY what the diff changes. Do not report pre-existing problems in
+untouched code, and do not restate what the change does.
+
+Prioritise, in order:
+1. Correctness bugs — logic errors, off-by-one, wrong operator, unhandled None,
+   broken edge case, a race, a resource that is never closed.
+2. Security — injection, auth/authz gaps, secrets in code, unsafe deserialisation,
+   path traversal.
+3. Silent failure — a swallowed exception, a bare except, a fallback that hides a
+   real error, an error path that returns success.
+4. Contract breaks — a changed signature, return shape, or config key with callers
+   the diff does not update.
+
+Do NOT report: style, formatting, naming preferences, missing docstrings, or
+"consider adding a test" without a specific untested branch that can break.
+
+Be concrete. Every finding must name what breaks and under what input or state.
+If you are not confident a finding is real, leave it out — a short accurate review
+is worth more than a long speculative one. Zero findings is a valid, common result.
+
+Respond with ONLY a JSON object, no prose around it, no markdown fence:
+
+{
+  "summary": "one or two sentences on the change and its overall risk",
+  "findings": [
+    {
+      "file": "path/relative/to/repo/root.py",
+      "line": 42,
+      "severity": "high|medium|low",
+      "title": "short label, under 60 chars",
+      "body": "what breaks, under what conditions, and the fix"
+    }
+  ]
+}
+"""
+
+
+def log(msg: str) -> None:
+    print(msg, file=sys.stderr, flush=True)
+
+
+def die(msg: str, code: int = 1):
+    log(f"error: {msg}")
+    sys.exit(code)
+
+
+@dataclass
+class Repo:
+    host: str
+    path: str
+
+    @property
+    def forge(self) -> str:
+        """github.com uses `gh` and PR semantics; everything else is GitLab.
+
+        Self-hosted GitLab is the common case here, so GitLab is the default
+        rather than the special case. GitHub Enterprise hosts would need adding
+        explicitly; there are none in play.
+        """
+        return "github" if self.host == "github.com" else "gitlab"
+
+    @property
+    def unit(self) -> str:
+        return "PR" if self.forge == "github" else "MR"
+
+    def __str__(self) -> str:
+        return f"{self.host}:{self.path}"
+
+
+@dataclass
+class MR:
+    repo: Repo
+    iid: int
+    sha: str
+    title: str
+    description: str
+    target_branch: str
+    web_url: str
+
+
+def read_repos(explicit: list[str] | None) -> list[Repo]:
+    """One repo per line: `<host> <namespace/project>`. '#' comments, blanks ignored."""
+    if explicit:
+        out = []
+        for spec in explicit:
+            host, _, path = spec.partition("/")
+            if not path:
+                die(f"--repo needs <host>/<namespace/project>, got {spec!r}")
+            out.append(Repo(host, path))
+        return out
+
+    if not REPOS_FILE.exists():
+        die(
+            f"no repo list at {REPOS_FILE}\n"
+            "  create it with one repo per line, e.g.\n"
+            "    gitlab.example.com  myuser/myproject\n"
+            "    github.com          myuser/myproject"
+        )
+
+    repos: list[Repo] = []
+    for lineno, raw in enumerate(REPOS_FILE.read_text().splitlines(), 1):
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) != 2:
+            die(f"{REPOS_FILE}:{lineno}: expected `<host> <namespace/project>`, got {raw!r}")
+        repos.append(Repo(parts[0], parts[1]))
+    if not repos:
+        die(f"{REPOS_FILE} lists no repos")
+    return repos
+
+
+def glab(host: str, args: list[str], check: bool = True, timeout: int = 120,
+         stdin: str | None = None) -> str:
+    env = {**os.environ, "GITLAB_HOST": host}
+    proc = subprocess.run(
+        ["glab", *args], env=env, capture_output=True, text=True, timeout=timeout,
+        input=stdin,
+    )
+    if check and proc.returncode != 0:
+        raise RuntimeError(f"glab {' '.join(args)} failed on {host}: {proc.stderr.strip()}")
+    return proc.stdout
+
+
+def gh(args: list[str], check: bool = True, timeout: int = 120,
+       stdin: str | None = None) -> str:
+    proc = subprocess.run(
+        ["gh", *args], capture_output=True, text=True, timeout=timeout, input=stdin
+    )
+    if check and proc.returncode != 0:
+        raise RuntimeError(f"gh {' '.join(args)} failed: {proc.stderr.strip()}")
+    return proc.stdout
+
+
+def list_open_mrs(repo: Repo, include_drafts: bool) -> list[MR]:
+    if repo.forge == "github":
+        raw = gh(["pr", "list", "--repo", repo.path, "--state", "open",
+                  "--limit", "100", "--json",
+                  "number,title,body,headRefOid,baseRefName,url,isDraft"])
+        mrs = []
+        for m in json.loads(raw or "[]"):
+            if m.get("isDraft") and not include_drafts:
+                continue
+            mrs.append(MR(repo=repo, iid=m["number"], sha=m["headRefOid"],
+                          title=m.get("title") or "",
+                          description=m.get("body") or "",
+                          target_branch=m.get("baseRefName") or "",
+                          web_url=m.get("url") or ""))
+        return mrs
+
+    raw = glab(
+        repo.host,
+        ["api", f"projects/{repo.path.replace('/', '%2F')}/merge_requests"
+         "?state=opened&per_page=100", "--paginate"],
+    )
+    # --paginate concatenates JSON arrays; normalise both shapes.
+    chunks = re.sub(r"\]\s*\[", ",", raw.strip()) or "[]"
+    data = json.loads(chunks)
+
+    mrs = []
+    for m in data:
+        if m.get("draft") and not include_drafts:
+            continue
+        mrs.append(
+            MR(
+                repo=repo,
+                iid=m["iid"],
+                sha=m["sha"],
+                title=m.get("title") or "",
+                description=m.get("description") or "",
+                target_branch=m.get("target_branch") or "",
+                web_url=m.get("web_url") or "",
+            )
+        )
+    return mrs
+
+
+def already_reviewed(mr: MR) -> bool:
+    """True when a summary note already names this exact head SHA."""
+    try:
+        raw = read_notes(mr)
+    except RuntimeError as exc:
+        log(f"  warn: could not read notes ({exc}); assuming not reviewed")
+        return False
+    for m in MARKER_RE.finditer(raw):
+        if mr.sha.startswith(m.group(1)):
+            return True
+    return False
+
+
+def read_notes(mr: MR) -> str:
+    if mr.repo.forge == "github":
+        # Only issue comments carry our marker; review comments are a separate
+        # collection and never hold the summary note.
+        return gh(["pr", "view", str(mr.iid), "--repo", mr.repo.path,
+                   "--json", "comments"])
+    return glab(
+        mr.repo.host,
+        ["api", f"projects/{mr.repo.path.replace('/', '%2F')}"
+         f"/merge_requests/{mr.iid}/notes?per_page=100", "--paginate"],
+    )
+
+
+def queue_item(mr: MR, raw_notes: str) -> dict | None:
+    """Turn an MR's review history into one actionable work item, or None.
+
+    An item is actionable only when the newest review payload names the MR's
+    *current* head. A stale payload means the branch moved after the review, so
+    its findings may already be fixed or no longer apply — re-review first
+    rather than acting on a description of code that is gone.
+    """
+    payloads = DATA_RE.findall(raw_notes)
+    if not payloads:
+        return None
+
+    latest = None
+    for blob in payloads:
+        try:
+            latest = json.loads(base64.b64decode(blob))
+        except Exception:
+            continue
+
+    if not latest or latest.get("sha") != mr.sha:
+        return None
+
+    findings = latest.get("findings") or []
+    if not findings:
+        return None
+
+    return {
+        "host": mr.repo.host,
+        "repo": mr.repo.path,
+        "iid": mr.iid,
+        "sha": mr.sha,
+        "title": mr.title,
+        "target_branch": mr.target_branch,
+        "web_url": mr.web_url,
+        # One round == one review posted. A fix pushes a new head, which earns a
+        # fresh review and increments this. Capping it is what stops
+        # review -> fix -> review from running all night on a finding the fixer
+        # cannot actually resolve.
+        "rounds": len(MARKER_RE.findall(raw_notes)),
+        "findings": findings,
+    }
+
+
+def ensure_checkout(mr: MR) -> Path:
+    """Clone-once cache, then fetch this MR's head ref and detach onto it."""
+    dest = CACHE_DIR / mr.repo.host / mr.repo.path
+    remote = f"https://{mr.repo.host}/{mr.repo.path}.git"
+
+    if not (dest / ".git").exists():
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.exists():
+            shutil.rmtree(dest)
+        log(f"  cloning {remote}")
+        subprocess.run(
+            ["git", "clone", "--quiet", "--filter=blob:none", remote, str(dest)],
+            check=True, timeout=900,
+        )
+
+    def git(*args, **kw):
+        return subprocess.run(["git", "-C", str(dest), *args], check=True, timeout=600, **kw)
+
+    head_ref = (f"refs/pull/{mr.iid}/head" if mr.repo.forge == "github"
+                else f"refs/merge-requests/{mr.iid}/head")
+    git("fetch", "--quiet", "origin",
+        f"+{head_ref}:refs/mr/{mr.iid}",
+        f"+refs/heads/{mr.target_branch}:refs/remotes/origin/{mr.target_branch}")
+    git("checkout", "--quiet", "--detach", f"refs/mr/{mr.iid}")
+    return dest
+
+
+def build_diff(checkout: Path, mr: MR) -> str:
+    """Diff against the merge base, so a stacked MR shows only its own commits."""
+    proc = subprocess.run(
+        ["git", "-C", str(checkout), "diff", "--merge-base",
+         f"origin/{mr.target_branch}", "HEAD"],
+        capture_output=True, text=True, timeout=120,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"git diff failed: {proc.stderr.strip()}")
+    return proc.stdout
+
+
+def run_claude(checkout: Path, mr: MR, diff: str, model: str | None,
+               max_diff_bytes: int, timeout: int) -> dict:
+    prompt_head = PROMPT_FILE.read_text() if PROMPT_FILE.exists() else DEFAULT_PROMPT
+
+    truncated = ""
+    if len(diff) > max_diff_bytes:
+        diff = diff[:max_diff_bytes]
+        truncated = (
+            f"\n\n[diff truncated at {max_diff_bytes} bytes — review what is shown "
+            "and say in the summary that the diff was truncated]\n"
+        )
+
+    prompt = (
+        f"{prompt_head}\n"
+        f"---\n"
+        f"MR: {mr.repo} !{mr.iid} — {mr.title}\n"
+        f"Target branch: {mr.target_branch}\n"
+        f"Head: {mr.sha}\n\n"
+        f"Description:\n{mr.description.strip() or '(none)'}\n\n"
+        f"---\nDiff:\n\n```diff\n{diff}\n```{truncated}\n"
+    )
+
+    cmd = ["claude", "-p", prompt, "--allowedTools", ALLOWED_TOOLS,
+           "--permission-mode", "plan", "--output-format", "text"]
+    if model:
+        cmd += ["--model", model]
+
+    proc = subprocess.run(
+        cmd, cwd=str(checkout), capture_output=True, text=True, timeout=timeout,
+        env={**os.environ,
+             # Never let an API credential silently outrank the subscription
+             # login: ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN both take
+             # precedence over it, so a stray value here would move this to
+             # pay-per-token billing with no visible change in behaviour.
+             "ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""},
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"claude exited {proc.returncode}: {proc.stderr.strip()[:500]}")
+
+    return parse_review(proc.stdout)
+
+
+def parse_review(out: str) -> dict:
+    """Claude is asked for bare JSON but sometimes fences it or adds a preamble."""
+    text = out.strip()
+    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
+    if fence:
+        text = fence.group(1)
+    else:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end > start:
+            text = text[start:end + 1]
+
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"could not parse review JSON: {exc}; got: {out.strip()[:300]}")
+
+    if not isinstance(data, dict):
+        raise RuntimeError("review JSON was not an object")
+    data.setdefault("summary", "")
+    data.setdefault("findings", [])
+    if not isinstance(data["findings"], list):
+        raise RuntimeError("review 'findings' was not a list")
+    return data
+
+
+SEV_ORDER = {"high": 0, "medium": 1, "low": 2}
+SEV_LABEL = {"high": "🔴 high", "medium": "🟠 medium", "low": "🟡 low"}
+
+
+def render_summary(mr: MR, review: dict, inline_posted: list[bool]) -> str:
+    findings = review["findings"]
+    lines = [f"## Claude review — `{mr.sha[:8]}`", ""]
+    if review["summary"]:
+        lines += [review["summary"].strip(), ""]
+
+    if not findings:
+        lines.append("No findings. Reviewed the diff against the merge base with the repo checked out.")
+    else:
+        counts = {}
+        for f in findings:
+            counts[f.get("severity", "low")] = counts.get(f.get("severity", "low"), 0) + 1
+        tally = ", ".join(f"{n} {s}" for s, n in
+                          sorted(counts.items(), key=lambda kv: SEV_ORDER.get(kv[0], 9)))
+        lines += [f"**{len(findings)} finding(s)** — {tally}", ""]
+
+        for f, posted in zip(findings, inline_posted):
+            sev = SEV_LABEL.get(f.get("severity", "low"), f.get("severity", "low"))
+            loc = f.get("file", "?")
+            if f.get("line"):
+                loc += f":{f['line']}"
+            note = " _(also commented inline)_" if posted else ""
+            lines += [f"### {sev} — {f.get('title', 'finding')}", "",
+                      f"`{loc}`{note}", "", (f.get("body") or "").strip(), ""]
+
+    # The marker doubles as the handoff to whatever acts on these findings.
+    # Carrying the payload here rather than in a queue file means GitLab stays
+    # the single source of truth: a fixer can be started days later, from
+    # another machine, with no local state to go stale or be wiped. Base64
+    # because a raw JSON body can contain `--`, which would close the comment.
+    payload = base64.b64encode(
+        json.dumps({"sha": mr.sha, "iid": mr.iid, "repo": str(mr.repo),
+                    "round": review.get("round", 1),
+                    "findings": findings}, separators=(",", ":")).encode()
+    ).decode()
+
+    lines += ["", "---",
+              "<sub>Generated by `claude-mr-review` on cachyos-fwd. "
+              "Re-runs skip this commit; a new push re-reviews.</sub>",
+              "", f"<!-- claude-mr-review sha={mr.sha} -->",
+              f"<!-- claude-mr-review-data {payload} -->"]
+    return "\n".join(lines)
+
+
+def post_inline(mr: MR, f: dict) -> bool:
+    """Inline notes fail whenever the line is not in the MR's latest diff version.
+
+    That is routine (context lines, moved code, a stale line number), not an
+    error worth stopping for — the finding still reaches the summary note, so a
+    failure here loses nothing but the anchor.
+    """
+    path, line = f.get("file"), f.get("line")
+    if not path or not line:
+        return False
+    sev = SEV_LABEL.get(f.get("severity", "low"), "")
+    body = f"**{sev} — {f.get('title', 'finding')}**\n\n{(f.get('body') or '').strip()}"
+
+    if mr.repo.forge == "github":
+        try:
+            gh(["api", f"repos/{mr.repo.path}/pulls/{mr.iid}/comments",
+                "-f", f"body={body}", "-f", f"commit_id={mr.sha}",
+                "-f", f"path={path}", "-F", f"line={int(line)}",
+                "-f", "side=RIGHT"], timeout=60)
+            return True
+        except (RuntimeError, ValueError, subprocess.TimeoutExpired):
+            return False
+
+    try:
+        glab(mr.repo.host,
+             ["mr", "note", "create", str(mr.iid), "-R", mr.repo.path,
+              "--file", str(path), "--line", str(int(line)), "-m", body],
+             timeout=60)
+        return True
+    except (RuntimeError, ValueError, subprocess.TimeoutExpired):
+        return False
+
+
+def post_summary(mr: MR, body: str) -> None:
+    if mr.repo.forge == "github":
+        # --body-file - avoids an argv-length limit on long reviews.
+        gh(["pr", "comment", str(mr.iid), "--repo", mr.repo.path, "--body-file", "-"],
+           stdin=body, timeout=120)
+        return
+    glab(mr.repo.host,
+         ["mr", "note", "create", str(mr.iid), "-R", mr.repo.path, "-m", body],
+         timeout=120)
+
+
+def review_mr(mr: MR, args) -> str:
+    log(f"\n{mr.repo} !{mr.iid} {mr.sha[:8]} — {mr.title[:60]}")
+
+    if not args.force and already_reviewed(mr):
+        log("  skip: already reviewed at this commit")
+        return "skipped"
+
+    checkout = ensure_checkout(mr)
+    diff = build_diff(checkout, mr)
+    if not diff.strip():
+        log("  skip: empty diff against merge base")
+        return "skipped"
+    log(f"  diff {len(diff)} bytes; running claude"
+        f"{' (' + args.model + ')' if args.model else ''}")
+
+    if args.dry_run:
+        log("  dry-run: not calling claude, not posting")
+        return "dry-run"
+
+    review = run_claude(checkout, mr, diff, args.model, args.max_diff_bytes, args.timeout)
+    findings = sorted(review["findings"],
+                      key=lambda f: SEV_ORDER.get(f.get("severity", "low"), 9))
+    review["findings"] = findings
+    log(f"  {len(findings)} finding(s)")
+
+    if args.no_post:
+        print(json.dumps(review, indent=2))
+        return "reviewed"
+
+    inline_posted = [post_inline(mr, f) for f in findings] if args.inline else [False] * len(findings)
+    post_summary(mr, render_summary(mr, review, inline_posted))
+    log(f"  posted → {mr.web_url}")
+    return "reviewed"
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(
+        prog="claude-mr-review",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Review open GitLab MRs with Claude Code, locally.",
+        epilog=textwrap.dedent(f"""\
+            config:
+              {REPOS_FILE}
+                  one `<host> <namespace/project>` per line, '#' comments
+              {PROMPT_FILE}
+                  optional — replaces the built-in review prompt
+
+            examples:
+              claude-mr-review --dry-run
+              claude-mr-review --repo github.com/myuser/myproject --mr 12 --no-post
+              claude-mr-review --limit 5 --inline
+        """),
+    )
+    p.add_argument("--repo", action="append",
+                   help="<host>/<namespace/project>; repeatable. Overrides repos.list")
+    p.add_argument("--mr", type=int, help="review only this MR iid (needs a single --repo)")
+    p.add_argument("--limit", type=int, default=10,
+                   help="max MRs to review per run (default 10)")
+    p.add_argument("--drafts", action="store_true", help="include draft MRs")
+    p.add_argument("--force", action="store_true", help="re-review even if this commit was reviewed")
+    p.add_argument("--inline", action="store_true",
+                   help="also post per-finding inline diff comments")
+    p.add_argument("--dry-run", action="store_true",
+                   help="list what would be reviewed; never calls claude, never posts")
+    p.add_argument("--no-post", action="store_true",
+                   help="run the review, print JSON to stdout, post nothing")
+    p.add_argument("--queue", action="store_true",
+                   help="emit actionable findings as JSON and exit; reviews nothing. "
+                        "Consumed by claude-mr-fix.")
+    p.add_argument("--max-rounds", type=int, default=3,
+                   help="with --queue, drop MRs already reviewed this many times "
+                        "(default 3); stops a review/fix cycle running away")
+    p.add_argument("--model", help="claude --model override (e.g. sonnet)")
+    p.add_argument("--timeout", type=int, default=1800, help="per-MR claude timeout, seconds")
+    p.add_argument("--max-diff-bytes", type=int, default=400_000,
+                   help="truncate diffs larger than this (default 400000)")
+    args = p.parse_args()
+
+    for tool in ("glab", "claude", "git"):
+        if not shutil.which(tool):
+            die(f"{tool} not found on PATH")
+
+    if args.mr and (not args.repo or len(args.repo) != 1):
+        die("--mr requires exactly one --repo")
+
+    repos = read_repos(args.repo)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    queue: list[dict] = []
+    tally = {"reviewed": 0, "skipped": 0, "failed": 0, "dry-run": 0}
+    for repo in repos:
+        try:
+            mrs = list_open_mrs(repo, args.drafts)
+        except Exception as exc:
+            log(f"{repo}: cannot list MRs: {exc}")
+            tally["failed"] += 1
+            continue
+
+        if args.mr:
+            mrs = [m for m in mrs if m.iid == args.mr]
+            if not mrs:
+                die(f"{repo}: no open MR !{args.mr}")
+
+        if args.queue:
+            for mr in mrs:
+                try:
+                    item = queue_item(mr, read_notes(mr))
+                except Exception as exc:
+                    log(f"{repo} !{mr.iid}: {exc}")
+                    continue
+                if not item:
+                    continue
+                if item["rounds"] >= args.max_rounds:
+                    log(f"{repo} !{mr.iid}: {item['rounds']} rounds, at cap — skipping")
+                    continue
+                queue.append(item)
+            continue
+
+        log(f"\n=== {repo}: {len(mrs)} open MR(s) ===")
+        for mr in mrs[: args.limit]:
+            try:
+                tally[review_mr(mr, args)] += 1
+            except Exception as exc:
+                log(f"  FAILED: {exc}")
+                tally["failed"] += 1
+
+    if args.queue:
+        json.dump(queue, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        log(f"{len(queue)} actionable MR(s)")
+        return 0
+
+    log("\n" + ", ".join(f"{v} {k}" for k, v in tally.items() if v))
+    return 1 if tally["failed"] else 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)

@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""
+git-spice-safe-submit — submit a tracked branch, refusing to drop remote commits.
+
+WHY THIS EXISTS
+---------------
+`git-spice branch submit` force-pushes with lease. Lease protects against pushing
+over a remote that moved since you last fetched; it does NOT protect against a
+local history that legitimately fast-forwards from your own last fetch but has
+*lost* a commit along the way — a bad rebase, a dropped conflict resolution, an
+`amend` that swallowed someone else's work. The lease is happy; the commit is
+gone.
+
+That is the exact failure an unattended fix agent can cause overnight. So this
+wrapper answers one question before letting the submit through:
+
+    is every commit currently on the remote branch still represented in the
+    history about to replace it?
+
+"Represented" means either literally reachable from the new head, or present as
+a rebase of itself — same patch, new SHA. Patch-id is how git itself decides
+that, so this uses `git patch-id` rather than comparing messages or SHAs.
+
+If anything is unaccounted for, this exits non-zero and prints exactly which
+commits would vanish. It does not try to fix the situation: recovering a
+half-rebased stack is a judgment call, not a script's decision.
+
+USAGE
+    git-spice-safe-submit [--dry-run] [--] [extra args for `git-spice branch submit`]
+
+Run it from inside the worktree of the branch to submit.
+"""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+
+
+def run(args: list[str], check: bool = True, cwd: str | None = None) -> str:
+    proc = subprocess.run(args, capture_output=True, text=True, cwd=cwd, timeout=600)
+    if check and proc.returncode != 0:
+        raise RuntimeError(f"{' '.join(args)} failed: {proc.stderr.strip()}")
+    return proc.stdout.strip()
+
+
+def die(msg: str, code: int = 1):
+    print(f"git-spice-safe-submit: {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+def patch_ids(rev_range: str) -> dict[str, str]:
+    """Map patch-id -> commit sha for every commit in the range.
+
+    Merge commits have no single patch and `git patch-id` emits nothing for
+    them, so they simply do not appear here; they are handled by the
+    reachability check instead.
+    """
+    out = subprocess.run(
+        f"git log --no-merges --pretty=%H {rev_range} | "
+        "while read c; do git show \"$c\" | git patch-id --stable; done",
+        shell=True, capture_output=True, text=True, timeout=600,
+    )
+    ids = {}
+    for line in out.stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 2:
+            ids[parts[0]] = parts[1]
+    return ids
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(add_help=True)
+    ap.add_argument("--dry-run", action="store_true",
+                    help="run the safety check and report, but do not submit")
+    ap.add_argument("--remote", default="origin")
+    ap.add_argument("extra", nargs="*",
+                    help="extra args passed through to `git-spice branch submit`")
+    args = ap.parse_args()
+
+    try:
+        branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    except RuntimeError as exc:
+        die(f"not in a git repo? {exc}")
+    if branch == "HEAD":
+        die("HEAD is detached; submit needs a branch")
+
+    local = run(["git", "rev-parse", "HEAD"])
+
+    # Fetch first: the whole check is meaningless against a stale remote ref.
+    run(["git", "fetch", "--quiet", args.remote, branch], check=False)
+
+    remote_ref = f"refs/remotes/{args.remote}/{branch}"
+    exists = subprocess.run(["git", "rev-parse", "--verify", "--quiet", remote_ref],
+                            capture_output=True, text=True).returncode == 0
+
+    if not exists:
+        print(f"branch {branch!r} is not on {args.remote} yet — nothing can be lost")
+    else:
+        remote_head = run(["git", "rev-parse", remote_ref])
+        if remote_head == local:
+            print(f"{branch}: local and {args.remote} already identical ({local[:8]})")
+        else:
+            # Commits on the remote that are not reachable from the new head.
+            missing = [c for c in run(
+                ["git", "rev-list", f"{local}..{remote_head}"]).splitlines() if c]
+
+            if not missing:
+                ahead = run(["git", "rev-list", "--count", f"{remote_head}..{local}"])
+                print(f"{branch}: fast-forward, {ahead} new commit(s), nothing dropped")
+            else:
+                # Not reachable — but a rebase gives the same patch a new SHA,
+                # which is legitimate. Compare patches, not identities.
+                #
+                # Collect patches from the merge base forward, not just from the
+                # old remote head: after a restack the two histories diverge at
+                # the base, and a rebased commit sits on the local side of that
+                # fork. Anchoring at remote_head alone would miss it and report
+                # every restacked commit as lost.
+                new_patches = set(patch_ids(f"{remote_head}..{local}"))
+                base = run(["git", "merge-base", local, remote_head], check=False)
+                if base:
+                    new_patches |= set(patch_ids(f"{base}..{local}"))
+
+                old_ids = patch_ids(f"{local}..{remote_head}")
+                lost = []
+                for pid, sha in old_ids.items():
+                    if pid not in new_patches:
+                        subject = run(["git", "log", "-1", "--pretty=%h %s", sha],
+                                      check=False)
+                        lost.append(subject or sha)
+
+                unaccounted_merges = [
+                    c for c in missing if c not in old_ids.values()
+                    and run(["git", "rev-list", "--count", "--merges",
+                             f"{c}^!"], check=False) == "1"
+                ]
+
+                if lost or unaccounted_merges:
+                    print(f"REFUSING to submit {branch}.", file=sys.stderr)
+                    print(f"These commits are on {args.remote}/{branch} and would be "
+                          f"discarded:", file=sys.stderr)
+                    for entry in lost:
+                        print(f"  lost:  {entry}", file=sys.stderr)
+                    for c in unaccounted_merges:
+                        print(f"  merge: {c[:8]}", file=sys.stderr)
+                    print("\nNothing was pushed. Reconcile by hand — a half-rebased "
+                          "stack is not something to auto-resolve.", file=sys.stderr)
+                    return 2
+
+                print(f"{branch}: {len(old_ids)} remote commit(s) rebased, all patches "
+                      f"accounted for")
+
+    if args.dry_run:
+        print("--dry-run: not submitting")
+        return 0
+
+    cmd = ["git-spice", "branch", "submit", "--no-prompt", "--fill", *args.extra]
+    print(f"+ {' '.join(cmd)}")
+    proc = subprocess.run(cmd)
+    return proc.returncode
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except RuntimeError as exc:
+        die(str(exc))
+    except KeyboardInterrupt:
+        sys.exit(130)

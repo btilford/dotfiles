@@ -1,0 +1,17 @@
+[Unit]
+Description=Claude MR review + fix cycle
+# Reviews need the forge and the Anthropic API; a cycle with no network just
+# fails every repo and burns a slot.
+After=network-online.target
+
+[Service]
+Type=oneshot
+# systemd will not start a second instance while this one is active, and the
+# script also takes a flock — see the comment in claude-mr-cycle for why both.
+EnvironmentFile=-%h/.config/claude-mr-review/cycle.env
+ExecStart=%h/.local/bin/claude-mr-cycle
+# A review pass over several repos can legitimately take a long time; the flock
+# means an overrun is skipped rather than stacked, so a generous cap is safe.
+TimeoutStartSec=3h
+Nice=10
+IOSchedulingClass=idle

@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+"""
+claude-mr-fix — launch fix agents for findings that claude-mr-review posted.
+
+Phase 2 of the MR loop. Reads the actionable queue from `claude-mr-review
+--queue`, and for each MR launches one agent in its own worktree and tmux
+session to address that MR's findings.
+
+IT NEVER TALKS TO A RUNNING AGENT
+---------------------------------
+If any live pane is already working in a repo's primary checkout or one of its
+worktrees, this skips that repo entirely and leaves the findings in the MR note
+for a later run. There is deliberately no send-keys path: targeting a tmux
+session by name resolves as a *window* first, and `wt switch` renames the
+current window to `<branch>-<repo>`, so a name-targeted send-keys has previously
+typed a prompt straight into a different live agent's pane. Queuing sidesteps
+the whole class of bug instead of guarding against it.
+
+Launches use `tmux new-session -d ... 'cmd'`, where the command is argv rather
+than simulated keystrokes, so there is nothing to misroute.
+
+WORKTREES COME FROM `wt`, NOT RAW GIT
+-------------------------------------
+`wt switch mr:<iid>` resolves the MR to its branch, creates the worktree and
+copies in the ignored-but-needed files (.mcp.json, .claude/) that a bare
+`git worktree add` leaves behind — an agent without those starts with no MCP
+servers and no project config.
+
+PUSHING IS GUARDED, NOT FORBIDDEN
+---------------------------------
+The agent may push to the MR branch, because that is the whole point of an
+overnight loop. What it may not do is lose a commit. It is told to add a new
+commit rather than amend, and to submit only through `git-spice-safe-submit`,
+which refuses the push if any commit currently on the remote would be discarded.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+PRIMARY_ROOTS = [Path.home() / "Projects" / "public",
+                 Path.home() / "Projects",
+                 Path.home() / "work"]
+WORKTREE_ROOT = Path.home() / "worktrees"
+
+# Panes running one of these are treated as "an agent is working here".
+AGENT_COMMANDS = {"claude", "workmux", "opencode", "pi", "hermes", "aider", "codex"}
+
+FIX_PROMPT = """\
+You are fixing review findings on an open GitLab merge request.
+
+MR: {repo} !{iid} — {title}
+Branch is already checked out in this worktree. Target branch: {target}
+{url}
+
+A previous automated review posted these findings. Address each one you agree
+with:
+
+{findings}
+
+RULES
+
+1. Judgement first. These findings came from an automated reviewer and some will
+   be wrong or not worth acting on. For any finding you do not fix, say so and
+   why — do not fix something you believe is correct as written just because it
+   was reported.
+
+2. Scope. Change only what a finding calls for. Do not refactor adjacent code,
+   do not reformat, do not "improve" anything unasked. This lands on someone
+   else's open MR.
+
+3. Commit additively. Use `git-spice commit create` for a NEW commit. Do NOT
+   amend, do NOT rebase, do NOT reset. The MR should show your fix as its own
+   reviewable change on top of the existing work.
+
+4. Submit only through the guard:
+
+       git-spice-safe-submit
+
+   It fetches, verifies that no commit currently on the remote would be lost,
+   and then runs `git-spice branch submit`. If it refuses, STOP and report why —
+   do not work around it, do not `git push --force`, do not push by hand.
+
+5. If you cannot fix something safely, leave it and say so. A partial fix that
+   is correct beats a complete one that is not.
+
+When done, report: what you fixed, what you deliberately did not fix and why,
+and whether the submit succeeded.
+"""
+
+
+def log(msg: str) -> None:
+    print(msg, file=sys.stderr, flush=True)
+
+
+def die(msg: str, code: int = 1):
+    log(f"claude-mr-fix: {msg}")
+    sys.exit(code)
+
+
+def live_panes() -> list[tuple[str, str, str]]:
+    proc = subprocess.run(
+        ["tmux", "list-panes", "-a", "-F",
+         "#{pane_id}\t#{pane_current_command}\t#{pane_current_path}"],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        return []  # no server running == nothing is busy
+    out = []
+    for line in proc.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) == 3:
+            out.append((parts[0], parts[1], parts[2]))
+    return out
+
+
+def primary_for(repo_path: str, override: dict[str, str]) -> Path | None:
+    name = repo_path.rstrip("/").split("/")[-1]
+    if repo_path in override:
+        return Path(override[repo_path]).expanduser()
+    for root in PRIMARY_ROOTS:
+        cand = root / name
+        if (cand / ".git").exists():
+            return cand
+    return None
+
+
+def busy_panes_for(primary: Path, repo_name: str) -> list[tuple[str, str, str]]:
+    """Panes running an agent inside this repo's primary checkout or worktrees."""
+    hits = []
+    wt_root = WORKTREE_ROOT / repo_name
+    for pane_id, cmd, path in live_panes():
+        if cmd not in AGENT_COMMANDS:
+            continue
+        p = Path(path)
+        if p == primary or primary in p.parents or wt_root == p or wt_root in p.parents:
+            hits.append((pane_id, cmd, path))
+    return hits
+
+
+def render_findings(findings: list[dict]) -> str:
+    out = []
+    for i, f in enumerate(findings, 1):
+        loc = f.get("file", "?")
+        if f.get("line"):
+            loc += f":{f['line']}"
+        out.append(
+            f"{i}. [{f.get('severity', 'low')}] {f.get('title', 'finding')}\n"
+            f"   {loc}\n"
+            f"   {(f.get('body') or '').strip()}"
+        )
+    return "\n\n".join(out)
+
+
+def launch(item: dict, primary: Path, model: str | None, dry_run: bool) -> str | None:
+    repo_name = item["repo"].rstrip("/").split("/")[-1]
+    iid = item["iid"]
+    session = f"mrfix-{repo_name}-{iid}"
+
+    prompt = FIX_PROMPT.format(
+        repo=item["repo"], iid=iid, title=item["title"],
+        target=item.get("target_branch", ""),
+        url=item.get("web_url", ""),
+        findings=render_findings(item["findings"]),
+    )
+
+    # wt resolves both, but the shortcut differs by forge: pr:{N} hits the
+    # GitHub API, mr:{N} the GitLab one. Passing the wrong one just fails to
+    # resolve the branch.
+    ref = f"pr:{iid}" if item.get("host") == "github.com" else f"mr:{iid}"
+    agent = f"claude --model {model}" if model else "claude"
+    inner = ["wt", "switch", ref, "-x", agent, "--", prompt]
+    inner_cmd = " ".join(shlex.quote(a) for a in inner)
+
+    cmd = ["tmux", "new-session", "-d", "-P", "-F", "#{pane_id}",
+           "-s", session, "-c", str(primary), inner_cmd]
+
+    if dry_run:
+        log(f"  dry-run: tmux new-session -d -s {session} -c {primary}")
+        log(f"           {inner_cmd[:160]}...")
+        return None
+
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"tmux launch failed: {proc.stderr.strip()}")
+    return proc.stdout.strip()
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        prog="claude-mr-fix",
+        description="Launch fix agents for findings posted by claude-mr-review.",
+        epilog="Reads the queue from `claude-mr-review --queue`. Skips any repo "
+               "that already has a live agent pane.",
+    )
+    ap.add_argument("--queue-file", help="read queue JSON from a file instead of "
+                                         "invoking claude-mr-review --queue")
+    ap.add_argument("--repo", action="append",
+                    help="restrict to <host>/<namespace/project>; passed through")
+    ap.add_argument("--max-launch", type=int, default=1,
+                    help="how many agents to start this run (default 1)")
+    ap.add_argument("--max-rounds", type=int, default=3,
+                    help="skip MRs already reviewed this many times (default 3)")
+    ap.add_argument("--min-severity", choices=["high", "medium", "low"], default="low",
+                    help="ignore findings below this severity (default low = all)")
+    ap.add_argument("--model", help="model for the fix agent, e.g. sonnet")
+    ap.add_argument("--primary", action="append", default=[],
+                    help="<namespace/project>=<local path> when autodiscovery misses")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="show what would launch; start nothing")
+    args = ap.parse_args()
+
+    override = {}
+    for spec in args.primary:
+        k, _, v = spec.partition("=")
+        if not v:
+            die(f"--primary needs <namespace/project>=<path>, got {spec!r}")
+        override[k] = v
+
+    if args.queue_file:
+        queue = json.loads(Path(args.queue_file).read_text())
+    else:
+        cmd = ["claude-mr-review", "--queue", "--max-rounds", str(args.max_rounds)]
+        for r in args.repo or []:
+            cmd += ["--repo", r]
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+        if proc.returncode != 0:
+            die(f"claude-mr-review --queue failed:\n{proc.stderr.strip()}")
+        queue = json.loads(proc.stdout or "[]")
+
+    rank = {"high": 0, "medium": 1, "low": 2}
+    floor = rank[args.min_severity]
+
+    launched = 0
+    for item in queue:
+        if launched >= args.max_launch:
+            log(f"reached --max-launch {args.max_launch}; "
+                f"{len(queue) - launched} MR(s) left queued")
+            break
+
+        item["findings"] = [f for f in item["findings"]
+                            if rank.get(f.get("severity", "low"), 2) <= floor]
+        if not item["findings"]:
+            continue
+
+        tag = f"{item['repo']} !{item['iid']}"
+        repo_name = item["repo"].rstrip("/").split("/")[-1]
+
+        # Also enforced here, not only in `claude-mr-review --queue`: a queue
+        # supplied with --queue-file never passed through that check, and the
+        # runaway this cap exists to stop is unattended by definition.
+        if item.get("rounds", 0) >= args.max_rounds:
+            log(f"{tag}: {item['rounds']} rounds, at cap {args.max_rounds} — skipping")
+            continue
+
+        primary = primary_for(item["repo"], override)
+        if primary is None:
+            log(f"{tag}: no local checkout found under "
+                f"{', '.join(str(r) for r in PRIMARY_ROOTS)} — "
+                f"pass --primary {item['repo']}=<path>")
+            continue
+
+        busy = busy_panes_for(primary, repo_name)
+        if busy:
+            where = ", ".join(f"{pid} {cmd}" for pid, cmd, _ in busy)
+            log(f"{tag}: agent already live ({where}) — leaving queued")
+            continue
+
+        log(f"{tag}: {len(item['findings'])} finding(s), round {item['rounds']} "
+            f"→ launching in {primary}")
+        try:
+            pane = launch(item, primary, args.model, args.dry_run)
+        except RuntimeError as exc:
+            log(f"{tag}: {exc}")
+            continue
+        if pane:
+            log(f"  pane {pane}  (attach: tmux attach -t {pane})")
+        launched += 1
+
+    if not queue:
+        log("queue empty — nothing to fix")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)

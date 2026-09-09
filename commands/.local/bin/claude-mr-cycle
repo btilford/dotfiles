@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+#
+# claude-mr-cycle — one full review-then-fix pass over the configured repos.
+#
+# Phase 1 reviews every open MR/PR whose head has not been reviewed yet.
+# Phase 2 launches fix agents for whatever that produced.
+#
+# WHY flock RATHER THAN TRUSTING systemd
+# --------------------------------------
+# systemd already refuses to start a second instance of a service that is still
+# active, so the timer alone would mostly do this. It does not cover a manual
+# run racing the timer, which is exactly what happens while tuning the thing.
+# `flock -n` covers both and costs one line.
+#
+# Exiting 0 (not an error) when the lock is held is deliberate: an overrun is a
+# normal outcome for a long review pass, not a failure worth alerting on.
+#
+# NOTE ON PHASE 2 AND LONG-RUNNING AGENTS
+# ---------------------------------------
+# Fix agents are launched detached in tmux and outlive this script, so the lock
+# does NOT wait for them. That is correct: claude-mr-fix independently skips any
+# repo that still has a live agent pane, so the next cycle will not pile a
+# second agent onto a repo that is still busy.
+
+set -uo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/claude-mr-review"
+LOCK="$STATE_DIR/cycle.lock"
+LOG="$STATE_DIR/cycle.log"
+mkdir -p "$STATE_DIR"
+
+# Tunables, overridable from ~/.config/claude-mr-review/cycle.env
+REVIEW_LIMIT="${REVIEW_LIMIT:-10}"     # max MRs reviewed per repo per cycle
+FIX_MAX_LAUNCH="${FIX_MAX_LAUNCH:-1}"  # max fix agents started per cycle
+MAX_ROUNDS="${MAX_ROUNDS:-3}"          # review/fix rounds before giving up
+MIN_SEVERITY="${MIN_SEVERITY:-medium}" # findings below this are not auto-fixed
+ENABLE_FIX="${ENABLE_FIX:-1}"          # 0 = review only, launch nothing
+REVIEW_MODEL="${REVIEW_MODEL:-}"
+FIX_MODEL="${FIX_MODEL:-}"
+
+exec 9> "$LOCK"
+if ! flock -n 9; then
+  echo "$(date -Is) previous cycle still running (pid $(cat "$LOCK" 2> /dev/null)); exiting" >&2
+  exit 0
+fi
+echo $$ >&9
+
+log() { echo "$(date -Is) $*"; }
+
+log "=== cycle start ==="
+
+review_args=(--limit "$REVIEW_LIMIT")
+[ -n "$REVIEW_MODEL" ] && review_args+=(--model "$REVIEW_MODEL")
+
+log "phase 1: review"
+if ! claude-mr-review "${review_args[@]}"; then
+  log "phase 1 reported failures (continuing to phase 2 with whatever landed)"
+fi
+
+if [ "$ENABLE_FIX" != "1" ]; then
+  log "phase 2 disabled (ENABLE_FIX=$ENABLE_FIX)"
+  log "=== cycle end ==="
+  exit 0
+fi
+
+fix_args=(--max-launch "$FIX_MAX_LAUNCH" --max-rounds "$MAX_ROUNDS"
+  --min-severity "$MIN_SEVERITY")
+[ -n "$FIX_MODEL" ] && fix_args+=(--model "$FIX_MODEL")
+
+log "phase 2: fix"
+claude-mr-fix "${fix_args[@]}"
+
+log "=== cycle end ==="
