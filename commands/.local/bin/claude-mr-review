@@ -56,7 +56,8 @@ WORKTREES COME FROM WORKMUX
 `workmux add origin/<branch>` creates the worktree on the MR's branch, runs the
 post_create hook (`wt-setup-worktree`, which copies the ignored-but-needed files
 an agent wants), and starts the named agent profile with the prompt — in a tmux
-session of its own, under the session name passed as --name. The profile
+session of its own, with the handle passed as --name. That handle also names the
+worktree directory; the tmux session gets an icon prefixed to it. The profile
 (default `unattended-opus`, from the workmux config) supplies
 `--permission-mode auto`, which an unattended run needs: the fix commits and
 pushes, and a permission prompt would stall it all night.
@@ -449,9 +450,7 @@ def prepare_branch(primary: Path, mr: MR, handle: str) -> str | None:
                check=False).returncode != 0:
             return f"{holder} has commits that are not on origin/{branch}"
         log(f"  recycling finished worktree {holder}")
-        subprocess.run(["workmux", "remove", "--force", "--keep-branch", handle],
-                       cwd=str(primary), check=True, capture_output=True,
-                       text=True, timeout=300)
+        workmux(primary, "remove", "--force", "--keep-branch", handle)
 
     local = git(primary, "rev-parse", "--verify", "--quiet",
                 f"refs/heads/{branch}", check=False).stdout.strip()
@@ -461,6 +460,14 @@ def prepare_branch(primary: Path, mr: MR, handle: str) -> str | None:
             return f"local {branch} has diverged from origin/{branch}"
         git(primary, "branch", "--force", branch, remote)
     return None
+
+
+def workmux(primary: Path, *args: str) -> None:
+    proc = subprocess.run(["workmux", *args], cwd=str(primary),
+                          capture_output=True, text=True, timeout=600)
+    if proc.returncode != 0:
+        detail = (proc.stderr.strip() or proc.stdout.strip()).splitlines()
+        raise RuntimeError(f"workmux {args[0]} failed: {' / '.join(detail[-3:])}")
 
 
 def choose_level(primary: Path, mr: MR, high_lines: int, high_files: int) -> tuple[str, int, int]:
@@ -489,11 +496,16 @@ def launch(primary: Path, mr: MR, handle: str, level: str, args) -> None:
     # Workmux is called directly, not through the `wm` wrapper: prepare_branch
     # already fetched, and `wm` would add `--base <default>`, which must not
     # apply to a branch that already exists on the remote.
-    cmd = ["workmux", "add", f"origin/{mr.source_branch}",
-           "--background", "--name", handle, "--agent", args.agent,
-           "--prompt", prompt]
-    subprocess.run(cmd, cwd=str(primary), check=True, capture_output=True,
-                   text=True, timeout=600)
+    #
+    # `origin/<branch>` makes workmux create the local branch from the remote,
+    # and it refuses outright when that local branch already exists. An existing
+    # one has already been fast-forwarded to the MR head by prepare_branch, so
+    # it is checked out by its bare name instead.
+    has_local = git(primary, "rev-parse", "--verify", "--quiet",
+                    f"refs/heads/{mr.source_branch}", check=False).returncode == 0
+    ref = mr.source_branch if has_local else f"origin/{mr.source_branch}"
+    workmux(primary, "add", ref, "--background", "--name", handle,
+            "--agent", args.agent, "--prompt", prompt)
 
 
 def handle_mr(mr: MR, rounds: int, args, override: dict[str, str],
@@ -546,7 +558,8 @@ def handle_mr(mr: MR, rounds: int, args, override: dict[str, str],
     post_marker(mr, level, args.fix)
     launch(primary, mr, handle, level, args)
     busy_repos.add(str(mr.repo))
-    log(f"  launched → tmux session {handle}")
+    # Not a tmux session name: workmux prefixes its sessions with an icon.
+    log(f"  launched → workmux handle {handle} (find it in `workmux dashboard`)")
     return "launched"
 
 
