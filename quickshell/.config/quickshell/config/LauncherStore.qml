@@ -107,6 +107,22 @@ Singleton {
         return root.recent[kind] || "";
     }
 
+    // Every recorded key of one kind, with the label it was recorded under. Memory only, like
+    // scoreOf(). Exists for the one kind whose history is not a subset of a list the launcher
+    // already builds: a run command with arguments (`mullvad disconnect`) is no $PATH entry,
+    // so unless the history itself becomes rows it is recorded and never offered again.
+    function keysFor(kind) {
+        const prefix = String(kind) + "\x1f";
+        const out = [];
+        for (const id in root.stats)
+            if (id.indexOf(prefix) === 0)
+                out.push({
+                    key: id.slice(prefix.length),
+                    label: root.stats[id].label || id.slice(prefix.length)
+                });
+        return out;
+    }
+
     // ---------------------------------------------------------------------------------------
     // SQL plumbing. The same single escaping rule as NotifyStore: a value reaches SQL inside one
     // quoted string and `'` is doubled. There is no second escaping context here — do not
