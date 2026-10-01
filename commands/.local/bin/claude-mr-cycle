@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# claude-mr-cycle — one full review-then-fix pass over the configured repos.
+# claude-mr-cycle — one pass of claude-mr-review over the configured repos.
 #
-# Phase 1 reviews every open MR/PR whose head has not been reviewed yet.
-# Phase 2 launches fix agents for whatever that produced.
+# Each pass launches up to REVIEW_LIMIT workmux agents, one per MR/PR whose head
+# has not been handled yet, each running `/code-review <level> --fix --comment`.
 #
 # WHY flock RATHER THAN TRUSTING systemd
 # --------------------------------------
@@ -13,30 +13,28 @@
 # `flock -n` covers both and costs one line.
 #
 # Exiting 0 (not an error) when the lock is held is deliberate: an overrun is a
-# normal outcome for a long review pass, not a failure worth alerting on.
+# normal outcome, not a failure worth alerting on.
 #
-# NOTE ON PHASE 2 AND LONG-RUNNING AGENTS
-# ---------------------------------------
-# Fix agents are launched detached in tmux and outlive this script, so the lock
-# does NOT wait for them. That is correct: claude-mr-fix independently skips any
-# repo that still has a live agent pane, so the next cycle will not pile a
-# second agent onto a repo that is still busy.
+# NOTE ON LONG-RUNNING AGENTS
+# ---------------------------
+# Agents are launched detached by workmux and outlive this script, so the lock
+# does NOT wait for them. That is correct: claude-mr-review marks an MR's head as
+# handled when it launches, and skips any repo that still has a live agent pane,
+# so the next cycle will not pile a second agent onto work still in progress.
 
 set -uo pipefail
 
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/claude-mr-review"
 LOCK="$STATE_DIR/cycle.lock"
-LOG="$STATE_DIR/cycle.log"
 mkdir -p "$STATE_DIR"
 
 # Tunables, overridable from ~/.config/claude-mr-review/cycle.env
-REVIEW_LIMIT="${REVIEW_LIMIT:-6}"      # max MRs reviewed per cycle, all repos
-FIX_MAX_LAUNCH="${FIX_MAX_LAUNCH:-1}"  # max fix agents started per cycle
-MAX_ROUNDS="${MAX_ROUNDS:-3}"          # review/fix rounds before giving up
-MIN_SEVERITY="${MIN_SEVERITY:-medium}" # findings below this are not auto-fixed
-ENABLE_FIX="${ENABLE_FIX:-1}"          # 0 = review only, launch nothing
-REVIEW_MODEL="${REVIEW_MODEL:-}"
-FIX_MODEL="${FIX_MODEL:-}"
+REVIEW_LIMIT="${REVIEW_LIMIT:-6}" # max agents launched per cycle, all repos
+MAX_ROUNDS="${MAX_ROUNDS:-3}"     # review/fix rounds before giving up
+ENABLE_FIX="${ENABLE_FIX:-0}"     # 0 = comment only; 1 = --fix, commit, submit
+REVIEW_AGENT="${REVIEW_AGENT:-}"  # workmux agent profile, e.g. unattended-sonnet
+HIGH_LINES="${HIGH_LINES:-}"      # changed lines above which the level is high
+HIGH_FILES="${HIGH_FILES:-}"      # changed files above which the level is high
 
 exec 9> "$LOCK"
 if ! flock -n 9; then
@@ -47,27 +45,14 @@ echo $$ >&9
 
 log() { echo "$(date -Is) $*"; }
 
-log "=== cycle start ==="
+args=(--limit "$REVIEW_LIMIT" --max-rounds "$MAX_ROUNDS")
+[ "$ENABLE_FIX" = "1" ] || args+=(--no-fix)
+[ -n "$REVIEW_AGENT" ] && args+=(--agent "$REVIEW_AGENT")
+[ -n "$HIGH_LINES" ] && args+=(--high-lines "$HIGH_LINES")
+[ -n "$HIGH_FILES" ] && args+=(--high-files "$HIGH_FILES")
 
-review_args=(--limit "$REVIEW_LIMIT")
-[ -n "$REVIEW_MODEL" ] && review_args+=(--model "$REVIEW_MODEL")
-
-log "phase 1: review"
-if ! claude-mr-review "${review_args[@]}"; then
-  log "phase 1 reported failures (continuing to phase 2 with whatever landed)"
-fi
-
-if [ "$ENABLE_FIX" != "1" ]; then
-  log "phase 2 disabled (ENABLE_FIX=$ENABLE_FIX)"
-  log "=== cycle end ==="
-  exit 0
-fi
-
-fix_args=(--max-launch "$FIX_MAX_LAUNCH" --max-rounds "$MAX_ROUNDS"
-  --min-severity "$MIN_SEVERITY")
-[ -n "$FIX_MODEL" ] && fix_args+=(--model "$FIX_MODEL")
-
-log "phase 2: fix"
-claude-mr-fix "${fix_args[@]}"
-
-log "=== cycle end ==="
+log "=== cycle start (ENABLE_FIX=$ENABLE_FIX) ==="
+claude-mr-review "${args[@]}"
+rc=$?
+log "=== cycle end (rc=$rc) ==="
+exit "$rc"
