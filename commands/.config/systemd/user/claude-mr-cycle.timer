@@ -1,0 +1,18 @@
+[Unit]
+Description=Hourly Claude MR review + fix cycle
+
+[Timer]
+# Top of every hour. If the previous run is still going, systemd skips this
+# trigger rather than queuing it, and claude-mr-cycle's flock catches the
+# manual-run race as well.
+OnCalendar=hourly
+# Spread the start so a review pass never collides with the vault sync or the
+# 04:00 vzdump window on the cluster.
+RandomizedDelaySec=5m
+AccuracySec=1m
+# Do not fire a missed run on resume — a laptop waking at noon should not
+# immediately review everything it slept through.
+Persistent=false
+
+[Install]
+WantedBy=timers.target

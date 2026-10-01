@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#
+# claude-mr-cycle — one pass of claude-mr-review over the configured repos.
+#
+# Each pass launches up to REVIEW_LIMIT workmux agents, one per MR/PR whose head
+# has not been handled yet, each running `/code-review <level> --fix --comment`.
+#
+# WHY flock RATHER THAN TRUSTING systemd
+# --------------------------------------
+# systemd already refuses to start a second instance of a service that is still
+# active, so the timer alone would mostly do this. It does not cover a manual
+# run racing the timer, which is exactly what happens while tuning the thing.
+# `flock -n` covers both and costs one line.
+#
+# Exiting 0 (not an error) when the lock is held is deliberate: an overrun is a
+# normal outcome, not a failure worth alerting on.
+#
+# NOTE ON LONG-RUNNING AGENTS
+# ---------------------------
+# Agents are launched detached by workmux and outlive this script, so the lock
+# does NOT wait for them. That is correct: claude-mr-review marks an MR's head as
+# handled when it launches, and skips any repo that still has a live agent pane,
+# so the next cycle will not pile a second agent onto work still in progress.
+
+set -uo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/claude-mr-review"
+LOCK="$STATE_DIR/cycle.lock"
+mkdir -p "$STATE_DIR"
+
+# Tunables, overridable from ~/.config/claude-mr-review/cycle.env
+REVIEW_LIMIT="${REVIEW_LIMIT:-6}" # max agents launched per cycle, all repos
+MAX_ROUNDS="${MAX_ROUNDS:-3}"     # review/fix rounds before giving up
+ENABLE_FIX="${ENABLE_FIX:-0}"     # 0 = comment only; 1 = --fix, commit, submit
+REVIEW_AGENT="${REVIEW_AGENT:-}"  # workmux agent profile, e.g. unattended-sonnet
+HIGH_LINES="${HIGH_LINES:-}"      # changed lines above which the level is high
+HIGH_FILES="${HIGH_FILES:-}"      # changed files above which the level is high
+
+exec 9> "$LOCK"
+if ! flock -n 9; then
+  echo "$(date -Is) previous cycle still running (pid $(cat "$LOCK" 2> /dev/null)); exiting" >&2
+  exit 0
+fi
+echo $$ >&9
+
+log() { echo "$(date -Is) $*"; }
+
+args=(--limit "$REVIEW_LIMIT" --max-rounds "$MAX_ROUNDS")
+[ "$ENABLE_FIX" = "1" ] || args+=(--no-fix)
+[ -n "$REVIEW_AGENT" ] && args+=(--agent "$REVIEW_AGENT")
+[ -n "$HIGH_LINES" ] && args+=(--high-lines "$HIGH_LINES")
+[ -n "$HIGH_FILES" ] && args+=(--high-files "$HIGH_FILES")
+
+log "=== cycle start (ENABLE_FIX=$ENABLE_FIX) ==="
+claude-mr-review "${args[@]}"
+rc=$?
+log "=== cycle end (rc=$rc) ==="
+exit "$rc"

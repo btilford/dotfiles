@@ -1,0 +1,723 @@
+#!/usr/bin/env python3
+"""
+claude-mr-review — review and fix open GitLab MRs / GitHub PRs with Claude Code,
+locally, one workmux agent per MR.
+
+For each open MR on the repos in ~/.config/claude-mr-review/repos.list whose
+head has not been handled yet, this picks a review effort level from the size of
+the diff and launches an unattended agent in a workmux worktree of that MR's
+branch, which runs:
+
+    /code-review <medium|high> --fix --comment <MR URL>
+
+then commits what it fixed and submits it through `git-spice-safe-submit`. The
+review itself — finding, judging, commenting, fixing — belongs to the built-in
+`/code-review` command. This script only decides *which* MRs, *at what level*,
+and *where*, and keeps that decision idempotent.
+
+WHY THIS IS NOT A CI JOB
+------------------------
+Anthropic's GitLab CI/CD integration needs a `CLAUDE_CODE_OAUTH_TOKEN` stored
+where the runner can reach it. That is a one-year credential against a Claude
+subscription, and an MR can edit `.gitlab-ci.yml`, so any job the MR defines
+could print it. Running here, the interactive `claude` login never leaves this
+machine. The cost is that reviews only happen while this box is up.
+
+IDEMPOTENCY HAS NO LOCAL STATE
+------------------------------
+At launch the script posts a short MR note carrying an HTML-comment marker that
+names the exact head commit handed to the agent. Before launching, it reads the
+MR's notes and sorts the MR into one of three states:
+
+    current  a marker names this exact head          -> skip, always
+    stale    handled before, head has moved since    -> re-run (--no-follow-up
+                                                        to skip these instead)
+    none     never handled                           -> run
+
+The marker is posted at launch rather than when the agent finishes, so the next
+hourly run cannot launch a second agent onto an MR whose first one is still
+working. A fix pushes a new head, which makes the MR stale and earns it another
+round; the number of markers is the round count, and `--max-rounds` caps it so
+review -> fix -> review cannot run all night on a finding the fixer cannot
+resolve. Nothing breaks if this machine's state is wiped: the forge is the
+single source of truth.
+
+LEVEL IS CHOSEN FROM THE DIFF
+-----------------------------
+`medium` reports only the findings /code-review is most confident in; `high`
+widens coverage and accepts less certain ones. A small change gets medium, so a
+one-line fix does not draw speculative findings. A change over --high-lines
+changed lines or --high-files files gets high. Lockfiles and other generated
+files are left out of both counts: a dependency bump is thousands of lines that
+nobody reviews line by line.
+
+WORKTREES COME FROM WORKMUX
+---------------------------
+`workmux add origin/<branch>` creates the worktree on the MR's branch, runs the
+post_create hook (`wt-setup-worktree`, which copies the ignored-but-needed files
+an agent wants), and starts the named agent profile with the prompt — in a tmux
+session of its own, with the handle passed as --name. That handle also names the
+worktree directory; the tmux session gets an icon prefixed to it. The profile
+(default `unattended-opus`, from the workmux config) supplies
+`--permission-mode auto`, which an unattended run needs: the fix commits and
+pushes, and a permission prompt would stall it all night.
+
+IT NEVER TALKS TO A RUNNING AGENT
+---------------------------------
+If any live pane is already running an agent in a repo's primary checkout or one
+of its worktrees, that repo is skipped and its MRs wait for a later run. There is
+deliberately no send-keys path: targeting a tmux session by name resolves as a
+window first, and a name-targeted send-keys has previously typed a prompt
+straight into a different live agent's pane.
+
+PUSHING IS GUARDED, NOT FORBIDDEN
+---------------------------------
+The agent may push to the MR branch; that is the point. It may not lose a
+commit. It is told to add a new commit rather than amend, and to submit only
+through `git-spice-safe-submit`, which refuses the push if any commit currently
+on the remote would be discarded. `--no-fix` drops `--fix` and the submit steps
+entirely, for a comment-only pass.
+"""
+
+from __future__ import annotations
+
+import argparse
+import fnmatch
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import textwrap
+from dataclasses import dataclass
+from pathlib import Path
+
+CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "claude-mr-review"
+REPOS_FILE = CONFIG_DIR / "repos.list"
+
+PRIMARY_ROOTS = [Path.home() / "Projects" / "public",
+                 Path.home() / "Projects",
+                 Path.home() / "work"]
+WORKTREE_ROOT = Path.home() / "worktrees"
+
+MARKER_RE = re.compile(r"<!--\s*claude-mr-review\s+sha=([0-9a-f]{7,40})\s*-->")
+
+# Panes running one of these are treated as "an agent is working here".
+# `workmux` is deliberately absent: its panes are the sidebar (`_sidebar-run`),
+# which sits in every workmux session and would hold each repo busy forever.
+AGENT_COMMANDS = {"claude", "opencode", "pi", "hermes", "aider", "codex"}
+
+# Excluded from the size that picks the level. Generated content inflates the
+# count without adding anything a reviewer reads.
+GENERATED = ["*.lock", "*-lock.json", "*-lock.yaml", "*.lockb", "go.sum",
+             "*.min.js", "*.min.css", "*.snap", "*.map"]
+
+PROMPT = """\
+Run the code-review skill on this {unit} with these arguments:
+
+    {level}{fix_flag} --comment {url}
+
+The branch of {repo} {sigil}{iid} ("{title}") is already checked out in this
+worktree, at {sha}, which is the {unit}'s current head.
+{fix_rules}"""
+
+FIX_RULES = """
+When the review is done and it changed files:
+
+1. Commit additively with `git-spice commit create --no-prompt -m "<message>"`.
+   A NEW commit -- do NOT amend, rebase, or reset. The {unit} must show the fix
+   as its own reviewable change on top of the existing work.
+2. Submit only through the guard:
+
+       git-spice-safe-submit
+
+   It fetches, refuses the push if any commit on the remote would be lost, then
+   runs `git-spice branch submit`. If it refuses, STOP and report why. Do not
+   work around it, do not `git push --force`, do not push by hand.
+
+If the review found nothing worth fixing, commit nothing and push nothing.
+
+Finish by reporting what was fixed, what was deliberately left and why, and
+whether the submit succeeded.
+"""
+
+
+def log(msg: str) -> None:
+    print(msg, file=sys.stderr, flush=True)
+
+
+def die(msg: str, code: int = 1):
+    log(f"error: {msg}")
+    sys.exit(code)
+
+
+@dataclass
+class Repo:
+    host: str
+    path: str
+
+    @property
+    def forge(self) -> str:
+        """github.com uses `gh` and PR semantics; everything else is GitLab.
+
+        Self-hosted GitLab is the common case here, so GitLab is the default
+        rather than the special case.
+        """
+        return "github" if self.host == "github.com" else "gitlab"
+
+    @property
+    def unit(self) -> str:
+        return "PR" if self.forge == "github" else "MR"
+
+    @property
+    def sigil(self) -> str:
+        return "#" if self.forge == "github" else "!"
+
+    @property
+    def name(self) -> str:
+        return self.path.rstrip("/").split("/")[-1]
+
+    def __str__(self) -> str:
+        return f"{self.host}:{self.path}"
+
+
+@dataclass
+class MR:
+    repo: Repo
+    iid: int
+    sha: str
+    title: str
+    source_branch: str
+    target_branch: str
+    web_url: str
+    from_fork: bool = False
+    created_at: str = ""
+
+    @property
+    def tag(self) -> str:
+        return f"{self.repo} {self.repo.sigil}{self.iid}"
+
+
+def read_repos(explicit: list[str] | None) -> list[Repo]:
+    """One repo per line: `<host> <namespace/project>`. '#' comments, blanks ignored."""
+    if explicit:
+        out = []
+        for spec in explicit:
+            host, _, path = spec.partition("/")
+            if not path:
+                die(f"--repo needs <host>/<namespace/project>, got {spec!r}")
+            out.append(Repo(host, path))
+        return out
+
+    if not REPOS_FILE.exists():
+        die(
+            f"no repo list at {REPOS_FILE}\n"
+            "  create it with one repo per line, e.g.\n"
+            "    gitlab.example.com  myuser/myproject\n"
+            "    github.com          myuser/myproject"
+        )
+
+    repos: list[Repo] = []
+    for lineno, raw in enumerate(REPOS_FILE.read_text().splitlines(), 1):
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) != 2:
+            die(f"{REPOS_FILE}:{lineno}: expected `<host> <namespace/project>`, got {raw!r}")
+        repos.append(Repo(parts[0], parts[1]))
+    if not repos:
+        die(f"{REPOS_FILE} lists no repos")
+    return repos
+
+
+def glab(host: str, args: list[str], check: bool = True, timeout: int = 120,
+         stdin: str | None = None) -> str:
+    env = {**os.environ, "GITLAB_HOST": host}
+    proc = subprocess.run(
+        ["glab", *args], env=env, capture_output=True, text=True, timeout=timeout,
+        input=stdin,
+    )
+    if check and proc.returncode != 0:
+        raise RuntimeError(f"glab {' '.join(args)} failed on {host}: {proc.stderr.strip()}")
+    return proc.stdout
+
+
+def gh(args: list[str], check: bool = True, timeout: int = 120,
+       stdin: str | None = None) -> str:
+    proc = subprocess.run(
+        ["gh", *args], capture_output=True, text=True, timeout=timeout, input=stdin
+    )
+    if check and proc.returncode != 0:
+        raise RuntimeError(f"gh {' '.join(args)} failed: {proc.stderr.strip()}")
+    return proc.stdout
+
+
+def git(repo_dir: Path, *args: str, check: bool = True,
+        timeout: int = 300) -> subprocess.CompletedProcess:
+    proc = subprocess.run(["git", "-C", str(repo_dir), *args],
+                          capture_output=True, text=True, timeout=timeout)
+    if check and proc.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
+    return proc
+
+
+def list_open_mrs(repo: Repo, include_drafts: bool) -> list[MR]:
+    if repo.forge == "github":
+        raw = gh(["pr", "list", "--repo", repo.path, "--state", "open",
+                  "--limit", "100", "--json",
+                  "number,title,headRefName,headRefOid,baseRefName,url,"
+                  "isDraft,isCrossRepository,createdAt"])
+        mrs = []
+        for m in json.loads(raw or "[]"):
+            if m.get("isDraft") and not include_drafts:
+                continue
+            mrs.append(MR(repo=repo, iid=m["number"], sha=m["headRefOid"],
+                          title=m.get("title") or "",
+                          source_branch=m.get("headRefName") or "",
+                          target_branch=m.get("baseRefName") or "",
+                          web_url=m.get("url") or "",
+                          from_fork=bool(m.get("isCrossRepository")),
+                          created_at=m.get("createdAt") or ""))
+        return mrs
+
+    raw = glab(
+        repo.host,
+        ["api", f"projects/{repo.path.replace('/', '%2F')}/merge_requests"
+         "?state=opened&per_page=100&order_by=created_at&sort=asc",
+         "--paginate"],
+    )
+    # --paginate concatenates JSON arrays; normalise both shapes.
+    chunks = re.sub(r"\]\s*\[", ",", raw.strip()) or "[]"
+    data = json.loads(chunks)
+
+    mrs = []
+    for m in data:
+        if m.get("draft") and not include_drafts:
+            continue
+        mrs.append(
+            MR(
+                repo=repo,
+                iid=m["iid"],
+                sha=m["sha"],
+                title=m.get("title") or "",
+                source_branch=m.get("source_branch") or "",
+                target_branch=m.get("target_branch") or "",
+                web_url=m.get("web_url") or "",
+                from_fork=m.get("source_project_id") != m.get("target_project_id"),
+                created_at=m.get("created_at") or "",
+            )
+        )
+    return mrs
+
+
+def read_notes(mr: MR) -> str:
+    """Every note body on the MR, joined.
+
+    The bodies must be decoded, not searched as raw JSON: both glab and gh
+    print Go-encoded JSON, which escapes `<` as `\\u003c`, so a marker regex run
+    over the raw output never matches and every run reviews the same commit
+    again.
+    """
+    if mr.repo.forge == "github":
+        # Only issue comments carry our marker; review comments are a separate
+        # collection and never hold it.
+        raw = gh(["pr", "view", str(mr.iid), "--repo", mr.repo.path,
+                  "--json", "comments"])
+        notes = json.loads(raw or "{}").get("comments") or []
+    else:
+        raw = glab(
+            mr.repo.host,
+            ["api", f"projects/{mr.repo.path.replace('/', '%2F')}"
+             f"/merge_requests/{mr.iid}/notes?per_page=100", "--paginate"],
+        )
+        # --paginate concatenates JSON arrays; normalise both shapes.
+        notes = json.loads(re.sub(r"\]\s*\[", ",", raw.strip()) or "[]")
+    return "\n".join(n.get("body") or "" for n in notes)
+
+
+def review_state(mr: MR) -> tuple[str, int]:
+    """('none' | 'current' | 'stale', rounds so far).
+
+    A note that cannot be read is treated as 'none' with zero rounds. That can
+    only cost a duplicate run; refusing would silently stop the repo forever.
+    """
+    try:
+        raw = read_notes(mr)
+    except (RuntimeError, ValueError) as exc:
+        log(f"  warn: {mr.tag}: could not read notes ({exc}); assuming not reviewed")
+        return "none", 0
+    seen = MARKER_RE.findall(raw)
+    if not seen:
+        return "none", 0
+    if any(mr.sha.startswith(s) for s in seen):
+        return "current", len(seen)
+    return "stale", len(seen)
+
+
+def post_marker(mr: MR, level: str, fix: bool) -> None:
+    mode = "--fix --comment" if fix else "--comment"
+    body = (f"Claude review started on `{mr.sha[:8]}` — "
+            f"`/code-review {level} {mode}`. Findings follow as their own comments.\n\n"
+            f"<sub>Launched by `claude-mr-review`. Re-runs skip this commit; "
+            f"a new push re-reviews.</sub>\n\n"
+            f"<!-- claude-mr-review sha={mr.sha} -->")
+    if mr.repo.forge == "github":
+        # --body-file - avoids an argv-length limit.
+        gh(["pr", "comment", str(mr.iid), "--repo", mr.repo.path, "--body-file", "-"],
+           stdin=body, timeout=120)
+        return
+    glab(mr.repo.host,
+         ["mr", "note", "create", str(mr.iid), "-R", mr.repo.path, "-m", body],
+         timeout=120)
+
+
+# --- local checkout -------------------------------------------------------
+
+def primary_for(repo: Repo, override: dict[str, str]) -> Path | None:
+    if repo.path in override:
+        return Path(override[repo.path]).expanduser()
+    for root in PRIMARY_ROOTS:
+        cand = root / repo.name
+        if (cand / ".git").exists():
+            return cand
+    return None
+
+
+def live_panes() -> list[tuple[str, str, str]]:
+    proc = subprocess.run(
+        ["tmux", "list-panes", "-a", "-F",
+         "#{pane_id}\t#{pane_current_command}\t#{pane_current_path}"],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        return []  # no server running == nothing is busy
+    out = []
+    for line in proc.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) == 3:
+            out.append((parts[0], parts[1], parts[2]))
+    return out
+
+
+def finished_mr_panes(primary: Path) -> set[str]:
+    """Panes of agents this script launched that workmux reports as done.
+
+    A finished claude stays open at its prompt, so its pane still runs `claude`
+    and would hold the repo busy until someone closes it by hand. Only this
+    script's own `mr-*` worktrees are excused: a person's idle session might be
+    waiting on them for a reason, so it still counts as busy.
+    """
+    proc = subprocess.run(["workmux", "status", "--json"], cwd=str(primary),
+                          capture_output=True, text=True, timeout=60)
+    if proc.returncode != 0:
+        return set()  # unknown == busy, the conservative answer
+    try:
+        rows = json.loads(proc.stdout or "[]")
+    except json.JSONDecodeError:
+        return set()
+    return {r["pane_id"] for r in rows
+            if r.get("status") == "done" and r.get("pane_id")
+            and str(r.get("worktree", "")).startswith("mr-")}
+
+
+def busy_panes_for(primary: Path, repo_name: str) -> list[tuple[str, str, str]]:
+    """Panes running an agent inside this repo's primary checkout or worktrees."""
+    hits = []
+    wt_root = WORKTREE_ROOT / repo_name
+    finished = finished_mr_panes(primary)
+    for pane_id, cmd, path in live_panes():
+        if cmd not in AGENT_COMMANDS or pane_id in finished:
+            continue
+        p = Path(path)
+        if p == primary or primary in p.parents or wt_root == p or wt_root in p.parents:
+            hits.append((pane_id, cmd, path))
+    return hits
+
+
+def worktree_holding(primary: Path, branch: str) -> Path | None:
+    """The worktree that has `branch` checked out, or None."""
+    out = git(primary, "worktree", "list", "--porcelain").stdout
+    current: Path | None = None
+    for line in out.splitlines():
+        if line.startswith("worktree "):
+            current = Path(line.split(" ", 1)[1])
+        elif line == f"branch refs/heads/{branch}":
+            return current
+    return None
+
+
+def fetch_mr(primary: Path, mr: MR) -> str | None:
+    """Fetch the MR's source and target branches. Returns a skip reason, or None.
+
+    Only remote-tracking refs move here, so a dry run may call it too.
+    """
+    branch = mr.source_branch
+    git(primary, "fetch", "--quiet", "origin",
+        f"+refs/heads/{branch}:refs/remotes/origin/{branch}",
+        f"+refs/heads/{mr.target_branch}:refs/remotes/origin/{mr.target_branch}")
+    remote = git(primary, "rev-parse", f"refs/remotes/origin/{branch}").stdout.strip()
+    if remote != mr.sha:
+        return f"origin/{branch} is {remote[:8]}, MR says {mr.sha[:8]} (push in flight?)"
+    return None
+
+
+def prepare_branch(primary: Path, mr: MR, handle: str) -> str | None:
+    """Make the local branch equal to the MR head. Returns a skip reason, or None.
+
+    workmux checks out an existing local branch as it is, so a stale local
+    branch would hand the agent old code and the guard would then refuse its
+    push. A fast-forward is safe to do here; anything else is a human's call.
+    """
+    branch = mr.source_branch
+    remote = mr.sha
+
+    holder = worktree_holding(primary, branch)
+    if holder is not None:
+        # Only a worktree this script made for this MR may be recycled, and only
+        # when nothing in it would be lost: no local edits, no unpushed commits.
+        if holder.name != handle:
+            return f"{branch} is checked out at {holder}"
+        if git(holder, "status", "--porcelain").stdout.strip():
+            return f"{holder} has uncommitted changes"
+        head = git(holder, "rev-parse", "HEAD").stdout.strip()
+        if git(primary, "merge-base", "--is-ancestor", head, remote,
+               check=False).returncode != 0:
+            return f"{holder} has commits that are not on origin/{branch}"
+        log(f"  recycling finished worktree {holder}")
+        workmux(primary, "remove", "--force", "--keep-branch", handle)
+
+    local = git(primary, "rev-parse", "--verify", "--quiet",
+                f"refs/heads/{branch}", check=False).stdout.strip()
+    if local and local != remote:
+        if git(primary, "merge-base", "--is-ancestor", local, remote,
+               check=False).returncode != 0:
+            return f"local {branch} has diverged from origin/{branch}"
+        git(primary, "branch", "--force", branch, remote)
+    return None
+
+
+def workmux(primary: Path, *args: str) -> None:
+    proc = subprocess.run(["workmux", *args], cwd=str(primary),
+                          capture_output=True, text=True, timeout=600)
+    if proc.returncode != 0:
+        detail = (proc.stderr.strip() or proc.stdout.strip()).splitlines()
+        raise RuntimeError(f"workmux {args[0]} failed: {' / '.join(detail[-3:])}")
+
+
+def choose_level(primary: Path, mr: MR, high_lines: int, high_files: int) -> tuple[str, int, int]:
+    """('medium' | 'high', changed lines, changed files), generated files excluded."""
+    out = git(primary, "diff", "--numstat", "--merge-base",
+              f"refs/remotes/origin/{mr.target_branch}", mr.sha).stdout
+    lines = files = 0
+    for row in out.splitlines():
+        added, deleted, path = row.split("\t", 2)
+        if any(fnmatch.fnmatch(Path(path).name, g) for g in GENERATED):
+            continue
+        files += 1
+        if added != "-":  # '-' marks a binary file: counts as a file, not as lines
+            lines += int(added) + int(deleted)
+    level = "high" if lines > high_lines or files > high_files else "medium"
+    return level, lines, files
+
+
+def launch(primary: Path, mr: MR, handle: str, level: str, args) -> None:
+    prompt = PROMPT.format(
+        unit=mr.repo.unit, level=level, fix_flag=" --fix" if args.fix else "",
+        url=mr.web_url, repo=mr.repo.path, sigil=mr.repo.sigil, iid=mr.iid,
+        title=mr.title, sha=mr.sha,
+        fix_rules=FIX_RULES.format(unit=mr.repo.unit) if args.fix else "",
+    )
+    # Workmux is called directly, not through the `wm` wrapper: prepare_branch
+    # already fetched, and `wm` would add `--base <default>`, which must not
+    # apply to a branch that already exists on the remote.
+    #
+    # `origin/<branch>` makes workmux create the local branch from the remote,
+    # and it refuses outright when that local branch already exists. An existing
+    # one has already been fast-forwarded to the MR head by prepare_branch, so
+    # it is checked out by its bare name instead.
+    has_local = git(primary, "rev-parse", "--verify", "--quiet",
+                    f"refs/heads/{mr.source_branch}", check=False).returncode == 0
+    ref = mr.source_branch if has_local else f"origin/{mr.source_branch}"
+    workmux(primary, "add", ref, "--background", "--name", handle,
+            "--agent", args.agent, "--prompt", prompt)
+
+
+def handle_mr(mr: MR, rounds: int, args, override: dict[str, str],
+              busy_repos: set[str]) -> str:
+    log(f"\n{mr.tag} {mr.sha[:8]} round {rounds + 1} — {mr.title[:60]}")
+
+    if rounds >= args.max_rounds:
+        log(f"  skip: {rounds} rounds, at cap {args.max_rounds}")
+        return "skipped"
+    if args.fix and mr.from_fork:
+        log("  skip: source branch is on a fork; a fix cannot be pushed")
+        return "skipped"
+
+    primary = primary_for(mr.repo, override)
+    if primary is None:
+        log(f"  skip: no local checkout under "
+            f"{', '.join(str(r) for r in PRIMARY_ROOTS)} — "
+            f"pass --primary {mr.repo.path}=<path>")
+        return "skipped"
+
+    # A repo launched earlier in this run counts as busy before its pane has
+    # had time to show up in `tmux list-panes`.
+    if str(mr.repo) in busy_repos:
+        log("  defer: an agent was launched in this repo earlier in this run")
+        return "deferred"
+    busy = busy_panes_for(primary, mr.repo.name)
+    if busy:
+        where = ", ".join(f"{pid} {cmd}" for pid, cmd, _ in busy)
+        log(f"  defer: agent already live in this repo ({where})")
+        return "deferred"
+
+    handle = f"mr-{mr.repo.name}-{mr.iid}"
+    reason = fetch_mr(primary, mr)
+    if reason is None and not args.dry_run:
+        reason = prepare_branch(primary, mr, handle)
+    if reason:
+        log(f"  skip: {reason}")
+        return "skipped"
+
+    level, lines, files = choose_level(primary, mr, args.high_lines, args.high_files)
+    log(f"  {lines} line(s) in {files} file(s) → /code-review {level}")
+
+    if args.dry_run:
+        busy_repos.add(str(mr.repo))
+        log(f"  dry-run: would launch workmux {handle} in {primary}")
+        return "dry-run"
+
+    # Marker first: if the launch then fails, the MR waits for its next push
+    # rather than relaunching every hour into the same failure.
+    post_marker(mr, level, args.fix)
+    launch(primary, mr, handle, level, args)
+    busy_repos.add(str(mr.repo))
+    # Not a tmux session name: workmux prefixes its sessions with an icon.
+    log(f"  launched → workmux handle {handle} (find it in `workmux dashboard`)")
+    return "launched"
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(
+        prog="claude-mr-review",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Review and fix open MRs/PRs with /code-review, one workmux "
+                    "agent per MR.",
+        epilog=textwrap.dedent(f"""\
+            config:
+              {REPOS_FILE}
+                  one `<host> <namespace/project>` per line, '#' comments
+
+            examples:
+              claude-mr-review --dry-run
+              claude-mr-review --repo github.com/myuser/myproject --mr 12
+              claude-mr-review --no-fix --limit 2
+        """),
+    )
+    p.add_argument("--repo", action="append",
+                   help="<host>/<namespace/project>; repeatable. Overrides repos.list")
+    p.add_argument("--mr", type=int, help="handle only this MR iid (needs a single --repo)")
+    p.add_argument("--limit", type=int, default=6,
+                   help="max agents to launch per run, across all repos (default 6). "
+                        "Applied after ordering, so never-reviewed MRs get the "
+                        "budget before follow-ups do. At most one per repo.")
+    p.add_argument("--drafts", action="store_true", help="include draft MRs")
+    p.add_argument("--follow-up", action=argparse.BooleanOptionalAction, default=True,
+                   help="re-run an MR whose head moved since its last round "
+                        "(default). --no-follow-up handles only MRs nobody has "
+                        "reviewed at all.")
+    p.add_argument("--force", action="store_true",
+                   help="run regardless, even if this exact commit was handled")
+    p.add_argument("--fix", action=argparse.BooleanOptionalAction, default=True,
+                   help="pass --fix and let the agent commit and submit (default). "
+                        "--no-fix only comments.")
+    p.add_argument("--max-rounds", type=int, default=3,
+                   help="leave an MR alone after this many rounds (default 3)")
+    p.add_argument("--high-lines", type=int, default=300,
+                   help="changed lines above which the level is high (default 300)")
+    p.add_argument("--high-files", type=int, default=8,
+                   help="changed files above which the level is high (default 8)")
+    p.add_argument("--agent", default="unattended-opus",
+                   help="workmux agent profile to launch (default unattended-opus)")
+    p.add_argument("--primary", action="append", default=[],
+                   help="<namespace/project>=<local path> when autodiscovery misses")
+    p.add_argument("--dry-run", action="store_true",
+                   help="list what would launch and at what level; fetches, "
+                        "but posts and launches nothing")
+    args = p.parse_args()
+
+    for tool in ("glab", "claude", "git", "workmux", "tmux"):
+        if not shutil.which(tool):
+            die(f"{tool} not found on PATH")
+
+    if args.mr and (not args.repo or len(args.repo) != 1):
+        die("--mr requires exactly one --repo")
+
+    override = {}
+    for spec in args.primary:
+        k, _, v = spec.partition("=")
+        if not v:
+            die(f"--primary needs <namespace/project>=<path>, got {spec!r}")
+        override[k] = v
+
+    candidates: list[MR] = []
+    tally = {"launched": 0, "skipped": 0, "deferred": 0, "failed": 0, "dry-run": 0}
+    for repo in read_repos(args.repo):
+        try:
+            mrs = list_open_mrs(repo, args.drafts)
+        except Exception as exc:
+            log(f"{repo}: cannot list MRs: {exc}")
+            tally["failed"] += 1
+            continue
+        if args.mr:
+            mrs = [m for m in mrs if m.iid == args.mr]
+            if not mrs:
+                die(f"{repo}: no open MR !{args.mr}")
+        log(f"{repo}: {len(mrs)} open MR(s)")
+        candidates.extend(mrs)
+
+    # Ordering is global, not per-repo: a busy repo must not spend the budget
+    # before a quieter one is looked at. Oldest first makes it FIFO, so nothing
+    # starves. created_at is zero-padded ISO-8601, so a string sort is a date
+    # sort; an MR missing the field sorts last rather than crashing.
+    candidates.sort(key=lambda m: (m.created_at or "9999", m.iid))
+
+    fresh: list[tuple[MR, int]] = []
+    stale: list[tuple[MR, int]] = []
+    current = 0
+    # Every open MR is classified -- one notes call each -- rather than stopping
+    # once `limit` new ones are found: only one agent runs per repo, so a busy
+    # repo's extra MRs would otherwise fill the list and starve the rest.
+    for mr in candidates:
+        state, rounds = ("none", 0) if args.force else review_state(mr)
+        if state == "current":
+            current += 1
+        elif state == "stale":
+            if args.follow_up:
+                stale.append((mr, rounds))
+        else:
+            fresh.append((mr, rounds))
+
+    log(f"\n=== {len(fresh)} new, {len(stale)} follow-up, {current} already current ===")
+
+    busy_repos: set[str] = set()
+    for mr, rounds in fresh + stale:
+        if tally["launched"] + tally["dry-run"] >= args.limit:
+            break
+        try:
+            tally[handle_mr(mr, rounds, args, override, busy_repos)] += 1
+        except Exception as exc:
+            log(f"  FAILED: {exc}")
+            tally["failed"] += 1
+
+    log("\n" + (", ".join(f"{v} {k}" for k, v in tally.items() if v) or "nothing to do"))
+    return 1 if tally["failed"] else 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)
