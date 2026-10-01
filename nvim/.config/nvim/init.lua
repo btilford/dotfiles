@@ -17,6 +17,9 @@ vim.g.have_nerd_font = true
 --  For more options, you can see `:help option-list`
 require("options")
 require("mappings")
+-- Registers :Cheatsheet and <leader>sc. Cheap at startup: the command body only
+-- runs when called, so telescope is loaded by then.
+require("cheatsheet")
 
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info

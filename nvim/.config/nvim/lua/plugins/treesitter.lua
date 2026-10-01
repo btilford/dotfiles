@@ -55,9 +55,10 @@ return {
         "gitattributes",
         "dockerfile",
         "fish",
-        "tmux",
         "regex",
         -- "dot" removed: tree-sitter-dot repo has broken branch structure
+        -- "tmux" removed: not in the main branch parser registry, so install()
+        -- warns "skipping unsupported language" on every startup
       })
     end,
   },

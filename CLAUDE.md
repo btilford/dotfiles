@@ -43,7 +43,8 @@ the code actually needs.
 Untracked, provision from the `.example` beside it: `docker/.docker/mcp/config.yaml`
 (holds a Google app password), `hyprland/.config/hypr/lua/monitors.local.lua`,
 `pi-agent/.pi/agent/models.json`, `quickshell/.config/quickshell/notifications.json`,
-`aerc/.config/aerc/accounts.conf`.
+`aerc/.config/aerc/accounts.conf`, `nvim/.config/nvim/lua/obsidian-workspaces.lua`
+(vault paths; obsidian.nvim does not load without it).
 
 `accounts.conf` is the one of those that **no structural gate can read** —
 `lint:mcp-config` only parses JSON and YAML, and aerc's account file is INI. So

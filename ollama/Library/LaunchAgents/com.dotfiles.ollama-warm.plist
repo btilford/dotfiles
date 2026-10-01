@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Keeps role/completion resident, at login and every 15 minutes after.
+
+  THE PIN DOES NOT SURVIVE ON ITS OWN, which is why this is periodic rather
+  than a one-shot at login. ollama-warm-roles loads the model with
+  keep_alive -1, but Continue's requests omit keep_alive, so Ollama applies
+  the server default (OLLAMA_KEEP_ALIVE=30m in com.dotfiles.ollama.plist) and
+  REPLACES the pin. After 30 idle minutes the model unloads, and the next
+  keystroke re-enters the cancelled-cold-load deadlock the script exists to
+  prevent. Re-pinning on an interval shorter than that keeps it loaded.
+
+  StartInterval, not a hand-rolled sleep loop: launchd owns the schedule, so
+  nothing lingers after `ollama serve` restarts and there is no duplicate
+  process to guard against.
+
+  The interval must stay well under OLLAMA_KEEP_ALIVE. Raising the keep-alive
+  without raising this is safe; lowering it below 15m is not.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.dotfiles.ollama-warm</string>
+
+    <!-- $HOME, because launchd expands no path key and PATH under `sh -l`
+         does not carry ~/.local/bin. The -x test keeps this a silent no-op on
+         a machine where the commands package is not stowed. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>-lc</string>
+        <string>warm="$HOME/.local/bin/ollama-warm-roles"; [ -x "$warm" ] &amp;&amp; exec "$warm" &gt;&gt; "$HOME/.local/state/ollama/warm.log" 2&gt;&amp;1</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StartInterval</key>
+    <integer>900</integer>
+
+    <!-- Never KeepAlive: this is a job that finishes, not a server. -->
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
