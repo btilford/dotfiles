@@ -104,7 +104,9 @@ WORKTREE_ROOT = Path.home() / "worktrees"
 MARKER_RE = re.compile(r"<!--\s*claude-mr-review\s+sha=([0-9a-f]{7,40})\s*-->")
 
 # Panes running one of these are treated as "an agent is working here".
-AGENT_COMMANDS = {"claude", "workmux", "opencode", "pi", "hermes", "aider", "codex"}
+# `workmux` is deliberately absent: its panes are the sidebar (`_sidebar-run`),
+# which sits in every workmux session and would hold each repo busy forever.
+AGENT_COMMANDS = {"claude", "opencode", "pi", "hermes", "aider", "codex"}
 
 # Excluded from the size that picks the level. Generated content inflates the
 # count without adding anything a reviewer reads.
@@ -311,16 +313,28 @@ def list_open_mrs(repo: Repo, include_drafts: bool) -> list[MR]:
 
 
 def read_notes(mr: MR) -> str:
+    """Every note body on the MR, joined.
+
+    The bodies must be decoded, not searched as raw JSON: both glab and gh
+    print Go-encoded JSON, which escapes `<` as `\\u003c`, so a marker regex run
+    over the raw output never matches and every run reviews the same commit
+    again.
+    """
     if mr.repo.forge == "github":
         # Only issue comments carry our marker; review comments are a separate
         # collection and never hold it.
-        return gh(["pr", "view", str(mr.iid), "--repo", mr.repo.path,
-                   "--json", "comments"])
-    return glab(
-        mr.repo.host,
-        ["api", f"projects/{mr.repo.path.replace('/', '%2F')}"
-         f"/merge_requests/{mr.iid}/notes?per_page=100", "--paginate"],
-    )
+        raw = gh(["pr", "view", str(mr.iid), "--repo", mr.repo.path,
+                  "--json", "comments"])
+        notes = json.loads(raw or "{}").get("comments") or []
+    else:
+        raw = glab(
+            mr.repo.host,
+            ["api", f"projects/{mr.repo.path.replace('/', '%2F')}"
+             f"/merge_requests/{mr.iid}/notes?per_page=100", "--paginate"],
+        )
+        # --paginate concatenates JSON arrays; normalise both shapes.
+        notes = json.loads(re.sub(r"\]\s*\[", ",", raw.strip()) or "[]")
+    return "\n".join(n.get("body") or "" for n in notes)
 
 
 def review_state(mr: MR) -> tuple[str, int]:
@@ -331,7 +345,7 @@ def review_state(mr: MR) -> tuple[str, int]:
     """
     try:
         raw = read_notes(mr)
-    except RuntimeError as exc:
+    except (RuntimeError, ValueError) as exc:
         log(f"  warn: {mr.tag}: could not read notes ({exc}); assuming not reviewed")
         return "none", 0
     seen = MARKER_RE.findall(raw)
@@ -387,12 +401,34 @@ def live_panes() -> list[tuple[str, str, str]]:
     return out
 
 
+def finished_mr_panes(primary: Path) -> set[str]:
+    """Panes of agents this script launched that workmux reports as done.
+
+    A finished claude stays open at its prompt, so its pane still runs `claude`
+    and would hold the repo busy until someone closes it by hand. Only this
+    script's own `mr-*` worktrees are excused: a person's idle session might be
+    waiting on them for a reason, so it still counts as busy.
+    """
+    proc = subprocess.run(["workmux", "status", "--json"], cwd=str(primary),
+                          capture_output=True, text=True, timeout=60)
+    if proc.returncode != 0:
+        return set()  # unknown == busy, the conservative answer
+    try:
+        rows = json.loads(proc.stdout or "[]")
+    except json.JSONDecodeError:
+        return set()
+    return {r["pane_id"] for r in rows
+            if r.get("status") == "done" and r.get("pane_id")
+            and str(r.get("worktree", "")).startswith("mr-")}
+
+
 def busy_panes_for(primary: Path, repo_name: str) -> list[tuple[str, str, str]]:
     """Panes running an agent inside this repo's primary checkout or worktrees."""
     hits = []
     wt_root = WORKTREE_ROOT / repo_name
+    finished = finished_mr_panes(primary)
     for pane_id, cmd, path in live_panes():
-        if cmd not in AGENT_COMMANDS:
+        if cmd not in AGENT_COMMANDS or pane_id in finished:
             continue
         p = Path(path)
         if p == primary or primary in p.parents or wt_root == p or wt_root in p.parents:

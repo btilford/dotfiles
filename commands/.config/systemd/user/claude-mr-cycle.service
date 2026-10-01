@@ -1,17 +1,23 @@
 [Unit]
 Description=Claude MR review + fix cycle
-# Reviews need the forge and the Anthropic API; a cycle with no network just
-# fails every repo and burns a slot.
+# Launching needs the forge; a cycle with no network just fails every repo and
+# burns a slot.
 After=network-online.target
 
 [Service]
 Type=oneshot
 # systemd will not start a second instance while this one is active, and the
 # script also takes a flock — see the comment in claude-mr-cycle for why both.
+#
+# The session secrets cache carries GITLAB_TOKEN. glab's own token sits in the
+# keyring, which a unit cannot reach, so without this every self-hosted GitLab
+# call answered HTTP 401 and each cycle failed every repo. The leading `-` keeps
+# the unit startable on a machine with no secrets cache.
+EnvironmentFile=-%t/dotfiles/secrets.env
 EnvironmentFile=-%h/.config/claude-mr-review/cycle.env
 ExecStart=%h/.local/bin/claude-mr-cycle
-# A review pass over several repos can legitimately take a long time; the flock
-# means an overrun is skipped rather than stacked, so a generous cap is safe.
-TimeoutStartSec=3h
+# A cycle only classifies MRs and launches agents; the agents run detached in
+# tmux and are not part of this unit. Thirty minutes is generous for that.
+TimeoutStartSec=30min
 Nice=10
 IOSchedulingClass=idle
