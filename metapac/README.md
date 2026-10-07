@@ -14,6 +14,7 @@ Replaced `pug`, whose gist-syncing pacman hook had been broken since 2024.
   groups/core.toml         cross-platform: cargo, bun (installable on every host)
   groups/desktop-arch.toml Arch/CachyOS only: arch, flatpak, mise, cargo, uv, bun
   groups/macos.toml        macOS only: brew, mise, cargo, bun
+  groups/wsl-ubuntu.toml   WSL Ubuntu/Debian only: apt, mise, cargo
 ```
 
 One config for every host. Per-machine divergence lives in the
@@ -24,6 +25,7 @@ in separate stow packages.
 |------|----------|--------|
 | `arch` (Linux/Arch) | `arch`, `bun`, `cargo`, `flatpak`, `mise`, `uv` | `core`, `desktop-arch` |
 | `macos` (macOS) | `brew`, `cargo`, `mise`, `uv`, `bun` | `core`, `macos` |
+| `wsl-ubuntu` (WSL Ubuntu/Debian) | `apt`, `bun`, `cargo`, `mise` | `core`, `wsl-ubuntu` |
 
 **Moving a package `core` → `desktop-arch` is Arch-neutral** (Arch enables both
 groups) and drops it only from the Mac's set — the safe way to make a shared
@@ -45,6 +47,7 @@ entry Arch-only. The reverse (`core` → `macos`) makes it macOS-only.
      pre-clone them serially into `~/.cache/paru/clone` — paru then only fetches.
    - macOS: `cargo install metapac --locked` (no brew formula; `--locked` avoids
      a newer-rustc transitive pull — bump with `rustup update stable` if needed).
+   - WSL Ubuntu: `cargo install metapac --locked`, after the WSL bootstrap below.
 2. **Stow.** `stow --no-folding metapac` from `~/dotfiles` (one package at a time
    with `--no-folding`, per repo rules).
 3. **macOS only — bridge the config path (REQUIRED, see gotcha below):**
@@ -61,6 +64,38 @@ entry Arch-only. The reverse (`core` → `macos`) makes it macOS-only.
    reports clean and `clean` is a no-op; prune deliberately later.
 6. **Verify:** `metapac unmanaged` silent, `metapac sync` reports nothing missing,
    **before** ever running `metapac clean`.
+
+### WSL Ubuntu bootstrap
+
+`metapac-hostname-key` returns `wsl-ubuntu` when `/proc/sys/kernel/osrelease`
+says `microsoft` and `/etc/os-release` is Ubuntu/Debian. Another WSL distro gets
+an unkeyed `wsl-<id>`, so metapac no-ops. The apt backend runs `sudo apt`, so run
+it interactively.
+
+Four things must exist before the first `metapac sync`, because no backend can
+provide them in time:
+
+```sh
+sudo apt install -y build-essential pkg-config libssl-dev curl git stow
+curl -fsSL https://sh.rustup.rs | sh -s -- -y        # cargo backend
+curl -fsSL https://mise.run | sh                     # mise backend
+curl -fsSL https://bun.sh/install | bash             # bun backend: no Ubuntu
+                                                     # package; Apt/Bun run before Mise
+cargo install metapac --locked
+mise use -g github:abhinav/git-spice                 # not a registry short name,
+                                                     # so metapac can't declare it
+```
+
+Then stow `commands` + `metapac`, open a new shell, and run `metapac sync`.
+
+- **Git must be ≥ 2.54, and Ubuntu 26.04 ships 2.53.** `git/hk.gitconfig`
+  registers hk through config-based hooks (2.54+). Older git ignores them
+  silently, and `hooks/pre-commit` stands down in any repo whose `hk.pkl` runs
+  betterleaks, so those repos get **no secret scan at all**. Install from the
+  PPA first: `sudo add-apt-repository ppa:git-core/ppa && sudo apt install git`.
+- **The `apt` group starts with `apt-mark showmanual`** from the fresh install.
+  Run `metapac unmanaged` before any `clean`, because anything installed by hand
+  since then is on the removal list.
 
 ## Gotchas
 
