@@ -6,7 +6,7 @@ Stow package. `stow --no-folding wezterm` from `~/dotfiles`.
 |------|-------------|
 | `.config/wezterm/wezterm.lua` | `~/.config/wezterm/wezterm.lua` |
 
-Eleven lines, three of them commented out. `Darcula (base16)` colour scheme,
+Eleven lines of shared config, three of them commented out, plus a Windows-only block. `Darcula (base16)` colour scheme,
 `JetBrains Mono`, everything else stock:
 
 ```lua
@@ -31,3 +31,22 @@ Two commented lines are worth knowing about before uncommenting either:
 
 Config is Lua, reloaded live on save; a syntax error leaves the previous config
 running rather than blanking the terminal.
+
+## Windows: opens straight into WSL
+
+On Windows (`wezterm.target_triple` contains `windows`) the default domain is
+the first WSL distro whose name starts with `Ubuntu`, matched by prefix so a
+distro upgrade needs no edit and `podman-machine-default` is never picked. New
+panes start in the WSL home (`default_cwd = "~"`) rather than the Windows cwd.
+PowerShell and cmd are deliberately not configured.
+
+There is no stow on Windows. Point WezTerm at the Windows checkout instead of
+linking:
+
+```powershell
+setx WEZTERM_CONFIG_FILE "$env:USERPROFILE\dotfiles\wezterm\.config\wezterm\wezterm.lua"
+```
+
+Install from the official portable zip into `%LOCALAPPDATA%\Programs\WezTerm`
+when winget has no per-user installer (`wez.wezterm` is machine-scope only, so
+it needs UAC).
