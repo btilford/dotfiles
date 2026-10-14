@@ -22,6 +22,7 @@ cargo = { packages = [
   # than arch/bun: it is published only to crates.io, with no AUR or npm entry.
   "workmux",
   "tuicr",
+  "plannotator-tui",
 ] }
 
 # Global JS CLIs go through bun, not npm — one owner, same as uv owns Python.
