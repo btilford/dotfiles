@@ -20,9 +20,9 @@
 /// is what lets hk schedule steps in parallel and lock the ones that write.
 /// A hand-written step throws all of that away. Override only what this repo
 /// needs, and say why in a comment beside it.
-amends "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Config.pkl"
+amends "package://github.com/jdx/hk/releases/download/v2.5.0/hk@2.5.0#/Config.pkl"
 
-import "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Builtins.pkl"
+import "package://github.com/jdx/hk/releases/download/v2.5.0/hk@2.5.0#/Builtins.pkl"
 
 local linters = new Mapping<String, Step> {
   // Repo style flags: 2-space indent, indent switch cases, redirect operators

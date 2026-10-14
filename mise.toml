@@ -37,7 +37,8 @@ yamllint = "latest"
 jq = "latest"
 # hk — git hook manager, replaced lefthook 2026-08-24. Config is hk.pkl; hk
 # bundles its own pkl evaluator (pklr), so no pkl CLI is needed here or in CI.
-hk = "latest"
+# Major pinned to the hk.pkl package version: hk 2 cannot evaluate a 1.x config.
+hk = "2"
 "ubi:nushell/nushell" = { version = "latest", exe = "nu" }
 
 # ---------------------------------------------------------------------------
