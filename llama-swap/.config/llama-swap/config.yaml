@@ -227,6 +227,16 @@ models:
       -ngl 99 --flash-attn on -c 131072
       --spec-type draft-mtp --spec-draft-n-max 2
     ttl: 900
+    # Qwen3.6 thinks by default and puts it all in reasoning_content, leaving
+    # `content` empty until the think block ends. Clients that can't send
+    # chat_template_kwargs (Obsidian Web Clipper's interpreter) then get a blank
+    # answer. `:nothink` is an alias to the SAME loaded instance — no reload, no
+    # second copy in memory — with thinking switched off per request.
+    filters:
+      setParamsByID:
+        "${MODEL_ID}:nothink":
+          chat_template_kwargs:
+            enable_thinking: false
 
 # EVERY MODEL MUST BE IN A GROUP.
 #
