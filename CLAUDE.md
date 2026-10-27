@@ -745,9 +745,32 @@ at `~/.config/metapac/`; group files are the source of truth.
   `[arch] package_manager = "paru"` is required so AUR installs stay behind the
   aur-policy gate. `npm` and `pipx` are deliberately disabled.
 - **Group files:** `core.toml` (cross-platform), `desktop-arch.toml` (Arch),
-  `macos.toml` (macOS). Moving a package `core` → `desktop-arch` is Arch-neutral
-  (Arch enables both) and only drops it from the Mac's set — the safe way to make
-  a `core` entry Arch-only.
+  `macos.toml` (both Macs), `macos-personal.toml` and `macos-work.toml` (one Mac
+  each). Moving a package `core` → `desktop-arch` is Arch-neutral (Arch enables
+  both) and only drops it from the Mac's set — the safe way to make a `core`
+  entry Arch-only.
+- **macOS splits by profile, the way Arch splits by GPU vendor.**
+  `metapac-hostname-key` appends `DOTFILES_PROFILE` to the macOS key, giving
+  `macos-personal` or `macos-work`. Both keys keep `macos` in their group list,
+  so the base set stays shared and only the overlay diverges. An unset or
+  unrecognised profile resolves to plain `macos` — the shared set alone, which is
+  what the key returned before the split, so a machine with no `local.env` is
+  unaffected. The script reads `local.env` directly when the variable is not
+  exported, because `mise run metapac` runs during bootstrap before any shell
+  drop-in exists to export it.
+
+  `DOTFILES_PROFILE` stays **optional** in `required-env`. Do not make it
+  required: `gen-local-env.sh` writes an empty placeholder for every manifest
+  entry, and an empty value here is the safe fallback anyway.
+
+  **`macos-work.toml` must not name an employer.** This repo is public. A
+  work-only package that cannot be named belongs in a machine-local file, not in
+  that group.
+- **A third-party tap goes in the package name.** metapac passes the token
+  straight to brew, so a cask outside homebrew-cask needs its full
+  `<tap>/<token>` form — `nikitabobko/tap/aerospace`, not `aerospace`, which
+  resolves to nothing. Add the tap to the `brew trust` bootstrap line below as
+  well, or `metapac sync` aborts on it.
 - **One owner per tool class.** bun owns global JS CLIs, uv owns global Python
   CLIs, mise owns runtimes. Never enable `npm`/`pipx` alongside them — two
   backends claiming the same tool breaks sync/clean semantics. The one
@@ -849,7 +872,7 @@ need interactive auth:
 
 ```bash
 gh extension install dlvhdr/gh-dash        # gh-dash (no package backend)
-brew trust jetbrains/utils shopify/shopify gammons/tap rimio-ai/rimz  # macOS, or metapac sync aborts
+brew trust jetbrains/utils shopify/shopify gammons/tap rimio-ai/rimz nikitabobko/tap  # macOS, or metapac sync aborts
 mise run hooks                             # hk -> .git/hooks, PER CLONE (fallback)
 mise run setup:frozen                      # skip-worktree bits, PER CLONE (.stow-frozen)
 mise run setup:git-spice                   # git-spice: template, forge URL, auth, hooks
