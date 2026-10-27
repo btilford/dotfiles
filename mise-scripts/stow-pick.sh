@@ -52,13 +52,19 @@ command -v fzf > /dev/null 2>&1 || {
   exit 1
 }
 
-# --preview re-runs the status script filtered to one package. Running the real
-# thing keeps the preview honest: there is no second implementation to drift.
+# One verbose scan feeds both the list and the preview. The preview used to re-run
+# the whole status script on every cursor move — a full scan of every package to
+# show one of them. The summary lines are the same in -v output, so the list is
+# just those lines.
+report=$(mktemp) || exit 1
+trap 'rm -f "$report"' EXIT
+"$status_script" -v > "$report"
+
 selected=$(
-  "$status_script" | grep -E '^[✓✗·] ' | fzf \
+  grep -E '^[✓✗·] ' "$report" | fzf \
     --multi \
     --header="Tab to select, Enter to $mode  ·  ✓ stowed  ✗ PARTIAL  · not stowed" \
-    --preview="$status_script -v | awk -v p={2} '\$2==p{f=1;print;next} /^[✓✗·] /{f=0} f'" \
+    --preview="awk -v p={2} '\$2==p{f=1;print;next} /^[✓✗·] /{f=0} f' '$report'" \
     --preview-window=right,60%,wrap |
     awk '{print $2}'
 )
