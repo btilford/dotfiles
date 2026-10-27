@@ -34,6 +34,15 @@ entry Arch-only. The reverse (`core` → `macos`) makes it macOS-only.
 1. **Install metapac.**
    - Arch: from the AUR (`paru -S metapac`) — `[arch] package_manager = "paru"`
      keeps AUR installs behind the aur-policy gate.
+   - Arch, **before the first sync**: install every enabled backend's binary
+     from the OS repos — `sudo pacman -S --needed flatpak bun uv rustup` then
+     `rustup default stable`. metapac queries *all* backends before installing
+     anything, so a fresh machine dies on the first missing one (`flatpak
+     remotes … NotFound`); a mise-shimmed `uv` doesn't count, because
+     `mise run metapac` puts `/usr/bin` first.
+   - Arch: a first sync clones ~100 AUR PKGBUILDs at once and aur.archlinux.org
+     answers some with `Recv failure: Connection reset by peer`. Re-run, or
+     pre-clone them serially into `~/.cache/paru/clone` — paru then only fetches.
    - macOS: `cargo install metapac --locked` (no brew formula; `--locked` avoids
      a newer-rustc transitive pull — bump with `rustup update stable` if needed).
 2. **Stow.** `stow --no-folding metapac` from `~/dotfiles` (one package at a time

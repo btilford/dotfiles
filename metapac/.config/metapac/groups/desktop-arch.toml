@@ -310,7 +310,7 @@ arch = { packages = [
   "libopenraw",
   "libplasma",
   "librecad",
-  "librewolf-bin",
+  "librewolf",
   "libva-utils",
   "libvirt",
   "libwnck3",
