@@ -37,9 +37,12 @@ if command -v plasma-apply-colorscheme > /dev/null 2>&1; then
   plasma-apply-colorscheme "$kde_scheme" > /dev/null
 fi
 
+# --follow-symlinks: qt6ct.conf is a stow link into base/. Plain `sed -i` writes a
+# new file and renames it over the link, so every login silently replaced the link
+# with a real copy and the repo stopped reaching it.
 qt6ct_conf="$HOME/.config/qt6ct/qt6ct.conf"
 if [ -f "$qt6ct_conf" ]; then
-  sed -i "s|^color_scheme_path=.*$|color_scheme_path=$qt6ct_colors|" "$qt6ct_conf"
+  sed -i --follow-symlinks "s|^color_scheme_path=.*$|color_scheme_path=$qt6ct_colors|" "$qt6ct_conf"
 fi
 
 echo "$mode" > "$HOME/.cache/.theme_mode"

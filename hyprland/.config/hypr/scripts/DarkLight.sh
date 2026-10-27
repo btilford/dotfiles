@@ -38,7 +38,7 @@ swww="swww img"
 effect="--transition-bezier .43,1.19,1,.4 --transition-fps 60 --transition-type grow --transition-pos 0.925,0.977 --transition-duration 2"
 
 # Determine current theme mode
-if [ "$(cat $HOME/.cache/.theme_mode)" = "Light" ]; then
+if [ "$(cat "$HOME"/.cache/.theme_mode)" = "Light" ]; then
   next_mode="Dark"
   # Logic for Dark mode
   wallpaper_path="$dark_wallpapers"
@@ -138,7 +138,7 @@ else
 fi
 
 # Update wallpaper using swww command
-$swww "${next_wallpaper}" $effect
+$swww "${next_wallpaper}" "$effect"
 
 # Set Kvantum Manager theme & QT5/QT6 settings
 if [ "$next_mode" = "Dark" ]; then
@@ -152,14 +152,14 @@ else
 fi
 
 sed -i "s|^color_scheme_path=.*$|color_scheme_path=$qt5ct_color_scheme|" "$HOME/.config/qt5ct/qt5ct.conf"
-sed -i "s|^color_scheme_path=.*$|color_scheme_path=$qt6ct_color_scheme|" "$HOME/.config/qt6ct/qt6ct.conf"
+sed -i --follow-symlinks "s|^color_scheme_path=.*$|color_scheme_path=$qt6ct_color_scheme|" "$HOME/.config/qt6ct/qt6ct.conf"
 kvantummanager --set "$kvantum_theme"
 
 # set the rofi color for background
 if [ "$next_mode" = "Dark" ]; then
-  sed -i '/^background:/s/.*/background: rgba(0,0,0,0.7);/' $wallust_rofi
+  sed -i '/^background:/s/.*/background: rgba(0,0,0,0.7);/' "$wallust_rofi"
 else
-  sed -i '/^background:/s/.*/background: rgba(255,255,255,0.9);/' $wallust_rofi
+  sed -i '/^background:/s/.*/background: rgba(255,255,255,0.9);/' "$wallust_rofi"
 fi
 
 # GTK themes and icons switching
@@ -173,10 +173,10 @@ set_custom_gtk_theme() {
 
   if [ "$mode" == "Light" ]; then
     search_keywords="*Light*"
-    gsettings set $color_setting 'prefer-light'
+    gsettings set "$color_setting" 'prefer-light'
   elif [ "$mode" == "Dark" ]; then
     search_keywords="*Dark*"
-    gsettings set $color_setting 'prefer-dark'
+    gsettings set "$color_setting" 'prefer-dark'
   else
     echo "Invalid mode provided."
     return 1
@@ -200,11 +200,11 @@ set_custom_gtk_theme() {
       selected_theme=${themes[$RANDOM % ${#themes[@]}]}
     fi
     echo "Selected GTK theme for $mode mode: $selected_theme"
-    gsettings set $theme_setting "$selected_theme"
+    gsettings set "$theme_setting" "$selected_theme"
 
     # Flatpak GTK apps (themes)
     if command -v flatpak &> /dev/null; then
-      flatpak --user override --filesystem=$HOME/.themes
+      flatpak --user override --filesystem="$HOME"/.themes
       sleep 0.5
       flatpak --user override --env=GTK_THEME="$selected_theme"
     fi
@@ -219,15 +219,15 @@ set_custom_gtk_theme() {
       selected_icon=${icons[$RANDOM % ${#icons[@]}]}
     fi
     echo "Selected icon theme for $mode mode: $selected_icon"
-    gsettings set $icon_setting "$selected_icon"
+    gsettings set "$icon_setting" "$selected_icon"
 
     ## QT5ct icon_theme
     sed -i "s|^icon_theme=.*$|icon_theme=$selected_icon|" "$HOME/.config/qt5ct/qt5ct.conf"
-    sed -i "s|^icon_theme=.*$|icon_theme=$selected_icon|" "$HOME/.config/qt6ct/qt6ct.conf"
+    sed -i --follow-symlinks "s|^icon_theme=.*$|icon_theme=$selected_icon|" "$HOME/.config/qt6ct/qt6ct.conf"
 
     # Flatpak GTK apps (icons)
     if command -v flatpak &> /dev/null; then
-      flatpak --user override --filesystem=$HOME/.icons
+      flatpak --user override --filesystem="$HOME"/.icons
       sleep 0.5
       flatpak --user override --env=ICON_THEME="$selected_icon"
     fi
@@ -242,7 +242,7 @@ set_custom_gtk_theme "$next_mode"
 # Update theme mode for the next cycle
 update_theme_mode
 
-${SCRIPTSDIR}/WallustSwww.sh &&
+"${SCRIPTSDIR}"/WallustSwww.sh &&
   sleep 2
 # kill process
 for pid1 in waybar rofi swaync ags swaybg; do
@@ -250,7 +250,7 @@ for pid1 in waybar rofi swaync ags swaybg; do
 done
 
 sleep 1
-${SCRIPTSDIR}/Refresh.sh
+"${SCRIPTSDIR}"/Refresh.sh
 
 sleep 0.5
 # Display notifications for theme and icon changes
