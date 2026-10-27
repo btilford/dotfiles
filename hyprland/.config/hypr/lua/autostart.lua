@@ -99,7 +99,16 @@ hl.on("hyprland.start", function()
 
   -- KWallet and KDED6
   hl.exec_cmd("kwalletd6")
-  hl.exec_cmd("kded6")
+  -- kded6 is here for the tray, KWallet and network/bluetooth services, NOT for its
+  -- gtkconfig module. That module rewrites ~/.gtkrc-2.0 and xsettingsd.conf from
+  -- Plasma's settings at every startup: it replaced base/'s stow links with real
+  -- files carrying an empty GTK theme and Gdk/WindowScalingFactor 2, which made
+  -- XWayland GTK apps draw at double size on top of Hyprland's own 1.5 scaling.
+  -- Disable it in the same shell, before kded6 reads its config.
+  hl.exec_cmd(
+    "sh -c 'kwriteconfig6 --file kded6rc --group Module-gtkconfig --key autoload false; "
+      .. "exec kded6'"
+  )
 
   -- Unlock the wallet from the password PAM already captured at login.
   --
