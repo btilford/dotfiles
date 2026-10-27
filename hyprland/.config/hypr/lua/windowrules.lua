@@ -234,3 +234,22 @@ hl.layer_rule({
   blur = true,
   ignore_alpha = 0.3,
 })
+
+-- satty (screenshot annotator, scripts/Screenshot.sh). Tiled, it would squash a
+-- full-monitor capture into half a screen.
+hl.window_rule({
+  name = "satty",
+  match = { class = "^(com.gabm.satty)$" },
+  float = true,
+  center = true,
+  size = vec2("80%", "80%"),
+})
+
+-- flameshot's capture overlay must not tile or animate in.
+hl.window_rule({
+  name = "flameshot",
+  match = { class = "^(flameshot)$" },
+  float = true,
+  no_anim = true,
+  pin = true,
+})

@@ -1,0 +1,51 @@
+# Linux Voice Assistant (LVA): turns this machine into a Home Assistant voice
+# satellite. Wake word runs locally in the container (microWakeWord); audio is
+# only streamed to Home Assistant after the wake word. HA adopts it through the
+# ESPHome integration (auto-discovered over mDNS, or add <host>:6053 by hand).
+#
+# Rootless podman quadlet, in the user session on purpose: it needs this user's
+# PipeWire/PulseAudio socket, which only exists once the session is up.
+# See voice-satellite/README.md for install, per-machine settings and firewall.
+
+[Unit]
+Description=Linux Voice Assistant (Home Assistant voice satellite)
+Documentation=https://github.com/OHF-Voice/linux-voice-assistant
+After=pipewire-pulse.service
+Wants=pipewire-pulse.service
+
+[Container]
+# v1.1.15, pinned by digest. Bump deliberately.
+Image=ghcr.io/ohf-voice/linux-voice-assistant@sha256:5a6ecf5ad5ee871851331c47885b0b0fdf81b2a5e6e33824093b557028d619b6
+ContainerName=linux-voice-assistant
+
+# ESPHome API (6053) and mDNS announcements need the host network.
+Network=host
+
+# Talk to the session's PipeWire through its PulseAudio-compatible socket.
+# Rootless podman maps container root to this user, so the socket is readable.
+Volume=%t/pulse/native:/run/lva/pulse.sock
+Environment=PULSE_SERVER=unix:/run/lva/pulse.sock
+# PipeWire's pulse server needs no cookie; stop the entrypoint creating one.
+Environment=PULSE_COOKIE=DISABLED
+
+# Downloaded wake word models and the preferences HA writes back (mute, gain).
+Volume=lva-local:/app/local
+Volume=lva-config:/app/configuration
+
+# Defaults; per-machine overrides (device names, wake word, satellite name)
+# go in the untracked env file. CLIENT_NAME defaults to the hostname.
+Environment=CLIENT_NAME=%H
+Environment=PORT=6053
+# The peripheral WebSocket API (6055, LED rings/buttons on Pi hats) is unused on a desktop
+# and unauthenticated; keep it off.
+Environment=DISABLE_PERIPHERAL_API=1
+EnvironmentFile=%h/.config/linux-voice-assistant/lva.env
+
+[Service]
+# Quadlet's EnvironmentFile has no optional '-' form; make sure the file exists.
+ExecStartPre=/usr/bin/touch %h/.config/linux-voice-assistant/lva.env
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

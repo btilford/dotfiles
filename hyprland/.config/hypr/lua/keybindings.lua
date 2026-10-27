@@ -912,3 +912,74 @@ hl.bind(
   ),
   { description = "File manager (yazi)" }
 )
+
+-- Screenshots. Capture + annotation live in scripts/Screenshot.sh; these binds only pick
+-- a target and an action. Print alone is the flameshot-style "select, then annotate";
+-- the modifiers are the no-editor quick paths (copy to clipboard AND save).
+--
+-- exec_cmd, never os.execute: satty and slurp both run until the user finishes, and
+-- os.execute would hold Hyprland's main thread for that whole time (see time_run above).
+local function shot(args)
+  return hl.dsp.exec_cmd('sh -c "$HOME/.config/hypr/scripts/Screenshot.sh ' .. args .. '"')
+end
+
+hl.bind("Print", shot("area edit"), { description = "Screenshot area, annotate (satty)" })
+hl.bind("SHIFT + Print", shot("area copy"), { description = "Screenshot area to clipboard + file" })
+hl.bind(
+  "CTRL + Print",
+  shot("active copy"),
+  { description = "Screenshot window to clipboard + file" }
+)
+hl.bind(
+  "ALT + Print",
+  shot("output copy"),
+  { description = "Screenshot monitor to clipboard + file" }
+)
+
+-- Same set on SUPER+P for keyboards without a Print key, plus the rarer verbs. Every verb
+-- resets the submap first: slurp takes the pointer and satty takes focus, and a submap
+-- left active would swallow the next keystroke.
+local function shot_run(args)
+  hl.dispatch(hl.dsp.submap("reset"))
+  hl.dispatch(shot(args))
+end
+
+hl.bind("SUPER + P", hl.dsp.submap("shot-cmd"), { description = "Screenshot submap [shot-cmd]" })
+hl.define_submap("shot-cmd", function()
+  -- lowercase annotate, SHIFT copy+save without an editor
+  hl.bind("a", function()
+    shot_run("area edit")
+  end, { description = "Area, annotate" })
+  hl.bind("SHIFT + a", function()
+    shot_run("area copy")
+  end, { description = "Area to clipboard + file" })
+  hl.bind("w", function()
+    shot_run("active edit")
+  end, { description = "Active window, annotate" })
+  hl.bind("SHIFT + w", function()
+    shot_run("active copy")
+  end, { description = "Active window to clipboard + file" })
+  hl.bind("m", function()
+    shot_run("output edit")
+  end, { description = "Focused monitor, annotate" })
+  hl.bind("SHIFT + m", function()
+    shot_run("output copy")
+  end, { description = "Focused monitor to clipboard + file" })
+  hl.bind("s", function()
+    shot_run("screen copy")
+  end, { description = "All monitors to clipboard + file" })
+  hl.bind("d", function()
+    shot_run("area edit 5")
+  end, { description = "Area after 5s delay, annotate (open the menu first)" })
+  hl.bind("l", function()
+    shot_run("last")
+  end, { description = "Re-open last screenshot in annotator" })
+  hl.bind("f", function()
+    shot_run("area flameshot")
+  end, { description = "Flameshot GUI (portal; asks which screen)" })
+  hl.bind("c", function()
+    hl.dispatch(hl.dsp.submap("reset"))
+    hl.dispatch(hl.dsp.exec_cmd("hyprpicker --autocopy --format=hex"))
+  end, { description = "Colour picker to clipboard (hyprpicker)" })
+  hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
+end)

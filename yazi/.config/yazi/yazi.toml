@@ -12,7 +12,7 @@ tab_size = 2
 
 play = [
   # Audio
-  { run = 'audacity "$@"', block = false, for = "unix", orphan = true, esc = "Audacity" },
+  { run = 'audacity "$@"', block = false, for = "unix", orphan = true, desc = "Audacity" },
   { run = 'audacious "$@"', block = false, for = "unix", orphan = true, desc = "Audacious" },
   { run = 'deadbeef "$@"', block = false, for = "unix", orphan = true, desc = "DeadBeef" },
   # Video
@@ -34,6 +34,19 @@ edit = [
   { run = 'meld "$@"', block = false, orphan = true, for = "unix", desc = "Meld" },
   { run = 'micro "$@"', block = true, for = "unix", desc = "Micro" },
   { run = 'nano "$@"', block = true, for = "unix", desc = "Nano" },
+]
+
+# Images. The first entry is what Enter does; `O` lists them all. Viewers first, then
+# editors. Not left to xdg-open, whose image/* default on this machine is rnote.
+image = [
+  { run = 'gwenview "$@"', block = false, orphan = true, for = "unix", desc = "Gwenview" },
+  { run = 'display "$@"', block = false, orphan = true, for = "unix", desc = "ImageMagick display" },
+  { run = 'satty --filename "$1" --output-filename "${1%.*}-annotated.png" --copy-command wl-copy', block = false, orphan = true, for = "unix", desc = "Satty (annotate)" },
+  { run = 'swappy -f "$1" -o "${1%.*}-annotated.png"', block = false, orphan = true, for = "unix", desc = "Swappy (annotate)" },
+  { run = 'gimp "$@"', block = false, orphan = true, for = "unix", desc = "GIMP" },
+  { run = 'krita "$@"', block = false, orphan = true, for = "unix", desc = "Krita" },
+  { run = 'inkscape "$@"', block = false, orphan = true, for = "unix", desc = "Inkscape" },
+  { run = 'xdg-open "$@"', block = false, orphan = true, desc = "Default app (xdg-open)" },
 ]
 
 open = [{ run = 'xdg-open "$@"', block = false, orphan = true, desc = "Open" }]
@@ -75,7 +88,11 @@ prepend_rules = [
 
 append_rules = [{ mime = "*/*", use = "open" }]
 
-rules = [{ mime = "text/*", use = "edit" }, { mime = "video/*", use = "play" }]
+rules = [
+  { mime = "text/*", use = "edit" },
+  { mime = "video/*", use = "play" },
+  { mime = "image/*", use = "image" },
+]
 
 
 [input]

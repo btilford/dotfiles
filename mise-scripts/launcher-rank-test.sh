@@ -168,6 +168,15 @@ seed app zz-dromedary Dromedary 8 8.0 1
 seed app zz-barnacle Barnacle 1 1.0 0
 # An emoji, to prove the pin is per kind rather than global.
 seed emoji "🦀" "crab" 3 3.0 0
+# Run commands WITH arguments, beside a bare `zzrank` binary on the rig's PATH. The store always
+# recorded the full command line, but only $PATH entries ever became rows, so a command run 18
+# times came back as the bare binary. `status` is the newer pick (the pin), `--flag value` the
+# heavier one.
+seed run "zzrank --flag value" "zzrank --flag value" 5 5.0 1
+seed run "zzrank status" "zzrank status" 2 2.0 0
+mkdir -p "$RUNTIME/bin"
+printf '#!/bin/sh\n' > "$RUNTIME/bin/zzrank"
+chmod +x "$RUNTIME/bin/zzrank"
 
 # --- private session bus -----------------------------------------------------
 DBUS_ADDR="$(dbus-daemon --session --fork --print-address --print-pid=3 3> "$RUNTIME/dbus.pid")"
@@ -344,6 +353,26 @@ if [ -f "$EMOJI_JSON" ]; then
 else
   warn "skipping the per-kind pin check (no $EMOJI_JSON)"
 fi
+
+# --- run history: the full command line comes back ---------------------------
+ipc_quiet launcher show run
+sleep 1.0
+got="$(labels run | head -2 | paste -sd, -)"
+check "run tab: past commands are offered with their arguments" \
+  "zzrank status,zzrank --flag value" "$got"
+if [ -n "$KBD_PID" ] && focus_ready; then
+  # The typed text itself is an exact match (tier 0) and leads, as it always has — what you
+  # typed is always runnable. Behind it the three are prefix matches (tier 1), so usage alone
+  # orders them, and the bare binary of the same name appears once, after the commands that
+  # were actually run.
+  wtype -s 40 -- "zzr" > /dev/null 2>&1
+  sleep 0.8
+  got="$(labels run | grep -vx zzr | head -3 | paste -sd, -)"
+  check "run query: a used command outranks its bare binary" \
+    "zzrank --flag value,zzrank status,zzrank" "$got"
+fi
+ipc_quiet launcher hide
+sleep 0.4
 
 # --- 6: the forget key -------------------------------------------------------
 # Ctrl+Del on the top row drops its history and it falls back to alphabetical position.

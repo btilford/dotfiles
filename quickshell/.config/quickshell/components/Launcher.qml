@@ -277,9 +277,12 @@ PanelWindow {
             return 0;
         if (s.indexOf(q) === 0)
             return 1;
+        // Every occurrence, not just the first: `lock` in "Unlock the lock screen" first lands
+        // inside "Unlock", and stopping there scored a real word-boundary match as substring.
         const at = s.indexOf(q);
-        if (at > 0 && " -_./:()[]".indexOf(s.charAt(at - 1)) >= 0)
-            return 2;
+        for (var b = at; b > 0; b = s.indexOf(q, b + 1))
+            if (" -_./:()[]".indexOf(s.charAt(b - 1)) >= 0)
+                return 2;
         if (at > 0)
             return 3;
         // subsequence, the same shape NotifyDrawer.matches() uses: "bldfl" finds "Build failed"
@@ -305,8 +308,9 @@ PanelWindow {
         // from this group's own kind, and it applies to one group only. Those two are the same
         // thing today — every mode maps 1:1 onto a kind, and combi's run group is only ever
         // built with a query typed, which switches the pin off anyway — but a future mode
-        // emitting two kinds, or a run group with an empty-query population, would silently move
-        // the pin off the tab it belongs to. Asking activeKind() keeps it where the rule says.
+        // emitting two kinds would silently move the pin off the tab it belongs to. Asking
+        // activeKind() keeps it where the rule says. The run tab's empty-query population (its
+        // history rows) is exactly that case done right: activeKind() is "run" there.
         //
         // And it does not exist at all while a query is typed.
         const pinKind = root.activeKind();
@@ -397,8 +401,29 @@ PanelWindow {
         }
 
         if (m === "run" || (m === "combi" && q.length)) {
-            const bins = root.pathBins.filter(b => q.length ? b.toLowerCase().includes(q) : false).slice(0, 50);
             const runRows = [];
+            // Commands run before, exactly as they were run — arguments and flags included. The
+            // store has always recorded the full command line, but only $PATH entries and the
+            // typed text ever became rows, so `mullvad disconnect` was written down 18 times and
+            // never offered back: typing `mull` showed the bare `mullvad`. These come first so
+            // a bin of the same name is deduplicated against them, and rankGroup puts the
+            // used one above the bare binary within the same match tier.
+            //
+            // With nothing typed this is the run tab's whole list, ordered by the per-kind pin
+            // and then usage. combi never gets here without a query.
+            const seen = {};
+            const history = LauncherStore.keysFor("run").filter(h => q.length ? h.key.toLowerCase().includes(q) : true).slice(0, 50);
+            for (const h of history) {
+                seen[h.key] = true;
+                runRows.push({
+                    kind: "run",
+                    label: h.key,
+                    sub: "history",
+                    icon: "",
+                    cmd: h.key
+                });
+            }
+            const bins = root.pathBins.filter(b => q.length ? b.toLowerCase().includes(q) && !seen[b] : false).slice(0, 50);
             for (const b of bins)
                 runRows.push({
                     kind: "run",
@@ -408,7 +433,7 @@ PanelWindow {
                     cmd: b
                 });
             // freeform: always allow running exactly what was typed
-            if (q.length && !bins.includes(effectiveQuery()))
+            if (q.length && !bins.includes(effectiveQuery()) && !seen[effectiveQuery()])
                 runRows.push({
                     kind: "run",
                     label: effectiveQuery(),

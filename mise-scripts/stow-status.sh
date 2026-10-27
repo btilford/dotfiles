@@ -96,18 +96,32 @@ done
 # BOTH files are read. stow itself only reads the package's own copy, so the
 # per-package file is the authoritative one and the root file is this repo's
 # convention for rules that apply everywhere.
-ignored() {
-  local rel="$1" base="$2" pkg="$3" pat file
-  # stow's own control files are never stowed, and they are not listed in
-  # .stow-local-ignore because stow handles them implicitly.
-  case "$base" in .stow-local-ignore | .stow-global-ignore) return 0 ;; esac
+# Patterns are loaded once per package into ignore_pats and matched with bash's
+# own ERE (`[[ =~ ]]`, the same dialect as grep -E). This used to fork two `grep`
+# processes per pattern per file — thousands of processes, and most of the
+# runtime of `mise run status` and the `mise run stow` picker.
+ignore_pats=()
+load_ignores() {
+  local pkg="$1" pat file
+  ignore_pats=()
   for file in "$repo_root/.stow-local-ignore" "$repo_root/$pkg/.stow-local-ignore"; do
     [ -r "$file" ] || continue
     while IFS= read -r pat; do
       case "$pat" in '' | '#'*) continue ;; esac
-      if printf '%s' "$base" | grep -qE "^${pat}$" 2> /dev/null; then return 0; fi
-      if printf '%s' "$rel" | grep -qE "^${pat}$" 2> /dev/null; then return 0; fi
+      ignore_pats+=("^${pat}\$")
     done < "$file"
+  done
+}
+
+ignored() {
+  local rel="$1" base="$2" re
+  # stow's own control files are never stowed, and they are not listed in
+  # .stow-local-ignore because stow handles them implicitly.
+  case "$base" in .stow-local-ignore | .stow-global-ignore) return 0 ;; esac
+  for re in "${ignore_pats[@]}"; do
+    # An invalid regex makes =~ return 2: no match, as grep's error was before.
+    [[ $base =~ $re ]] && return 0
+    [[ $rel =~ $re ]] && return 0
   done
   return 1
 }
@@ -170,6 +184,7 @@ for pkg_path in "$repo_root"/*/; do
   pkg=$(basename "$pkg_path")
   is_package "$pkg" || continue
   total_pkgs=$((total_pkgs + 1))
+  load_ignores "$pkg"
 
   n_linked=0 n_missing=0 n_shadowed=0 n_foreign=0 n_folded=0 n_total=0
   missing_list="" shadow_list="" foreign_list="" folded_list=""
@@ -180,8 +195,8 @@ for pkg_path in "$repo_root"/*/; do
 
   while IFS= read -r f; do
     rel=${f#"$repo_root/$pkg/"}
-    base=$(basename "$f")
-    ignored "$rel" "$base" "$pkg" && continue
+    base=${f##*/}
+    ignored "$rel" "$base" && continue
     git_ignores "$pkg/$rel" && continue
     n_total=$((n_total + 1))
 
