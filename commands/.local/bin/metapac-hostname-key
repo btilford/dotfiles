@@ -46,6 +46,25 @@ if [ "$key" = macos ]; then
   esac
 fi
 
+# WSL reports Linux like Arch does; the kernel release string is the tell. Only
+# Ubuntu/Debian distros are keyed — the group is apt-based. No GPU suffix: lspci
+# under WSL shows a virtual adapter, and GPU drivers live on the Windows side.
+if [ "$key" = arch ] && grep -qi microsoft /proc/sys/kernel/osrelease 2> /dev/null; then
+  . /etc/os-release 2> /dev/null
+  case "${ID:-}:${ID_LIKE:-}" in
+    ubuntu:* | debian:* | *:*debian*)
+      echo wsl-ubuntu
+      exit 0
+      ;;
+    # Unkeyed distro: a key with no config.toml rows makes metapac no-op with a
+    # "no backends" warning, the same safe fallback as an unknown hostname.
+    *)
+      echo "wsl-${ID:-unknown}"
+      exit 0
+      ;;
+  esac
+fi
+
 # GPU-vendor packages (amd-gpu.toml, nvidia-gpu.toml, intel-gpu.toml) apply
 # only to a host that actually has that vendor's controller. A host can carry
 # more than one (e.g. an Intel iGPU + Nvidia dGPU laptop), so the suffix is

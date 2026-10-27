@@ -24,7 +24,7 @@
 # it is the shared set alone, which is what the key resolved to before the split,
 # so a machine with no local.env is unchanged.
 #
-# Backends (final set): arch, brew, bun, cargo, flatpak, mise, uv.
+# Backends (final set): apt, arch, brew, bun, cargo, flatpak, mise, uv.
 # pipx is deliberately absent — uv owns global Python CLIs.
 # zypper is absent — no openSUSE host in the fleet.
 
@@ -40,6 +40,7 @@ arch-intel-nvidia = ["arch", "bun", "cargo", "flatpak", "mise", "uv"]
 macos = ["brew", "cargo", "mise", "uv", "bun"]
 macos-personal = ["brew", "cargo", "mise", "uv", "bun"]
 macos-work = ["brew", "cargo", "mise", "uv", "bun"]
+wsl-ubuntu = ["apt", "bun", "cargo", "mise"]
 
 [hostname_groups]
 arch = ["core", "desktop-arch"]
@@ -48,6 +49,7 @@ arch-intel-nvidia = ["core", "desktop-arch", "intel-gpu", "nvidia-gpu"]
 macos = ["core", "macos"]
 macos-personal = ["core", "macos", "macos-personal"]
 macos-work = ["core", "macos", "macos-work"]
+wsl-ubuntu = ["core", "wsl-ubuntu"]
 
 [arch]
 # Required: routes AUR installs through the aur-policy PreBuildCommand gate.

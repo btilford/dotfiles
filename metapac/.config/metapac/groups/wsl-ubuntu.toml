@@ -1,0 +1,91 @@
+# wsl-ubuntu — WSL Ubuntu/Debian packages (host key: wsl-ubuntu, via
+# metapac-hostname-key's /proc/sys/kernel/osrelease check).
+#
+# Scope is the CLI/TUI toolchain the shell, git and tmux packages expect. GUI
+# apps belong on the Windows side (winget), not here.
+#
+# Bootstrapped 2026-10-07 from a fresh Ubuntu 26.04 WSL install: the apt block
+# starts with the 26 entries `apt-mark showmanual` reported, so `metapac clean`
+# never offers to remove the base system. Everything below the marker is ours.
+#
+# apt holds only what the shells need before mise exists, plus build deps.
+# Everything versioned like the Arch box goes through mise: Ubuntu's names and
+# versions diverge (fd → fdfind, bat → batcat, older starship/atuin), while mise
+# installs the same upstream release on every host.
+#
+# Not declarable here — install by hand before the first sync (see README):
+#   rustup + cargo   cargo backend; core.toml compiles workmux/tuicr/just
+#   bun              Ubuntu has no package, and metapac runs Apt and Bun before
+#                    Mise, so neither apt nor mise can provide it in time
+#   mise             the mise backend needs it on PATH
+#   git-spice        not in the mise registry under a short name, and metapac
+#                    0.10 cannot manage prefixed (aqua:/github:) mise tools
+
+apt = { packages = [
+  # ── base system (apt-mark showmanual, 2026-10-07) ──
+  "apt",
+  "apt-transport-https",
+  "bash",
+  "coreutils",
+  "coreutils-from-uutils",
+  "dash",
+  "diffutils",
+  "dpkg",
+  "findutils",
+  "gnu-coreutils",
+  "grep",
+  "gzip",
+  "hostname",
+  "init",
+  "libattr1",
+  "ncurses-base",
+  "ncurses-bin",
+  "neovim",
+  "openssh-server",
+  "podman",
+  "rust-coreutils",
+  "tar",
+  "ubuntu-minimal",
+  "ubuntu-wsl",
+  "unzip",
+  "util-linux",
+  # ── shells + dotfiles plumbing ──
+  "fish",
+  "zsh",
+  "stow",
+  "tmux",
+  "git",
+  "curl",
+  "ca-certificates",
+  # ── build deps for core.toml's cargo crates (openssl-sys, cc) ──
+  "build-essential",
+  "pkg-config",
+  "libssl-dev",
+] }
+
+# metapac itself: no apt package, so it lives in cargo like on macOS.
+cargo = { packages = ["metapac"] }
+
+mise = { packages = [
+  "atuin",
+  "bat",
+  "betterleaks",
+  "carapace",
+  "delta",
+  "direnv",
+  "eza",
+  "fd",
+  "fzf",
+  "gh",
+  "glab",
+  "grype",
+  "hk",
+  "infisical",
+  "jq",
+  "lazygit",
+  "ripgrep",
+  "starship",
+  "yazi",
+  "zellij",
+  "zoxide",
+] }
