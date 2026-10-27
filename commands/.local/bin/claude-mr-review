@@ -42,6 +42,12 @@ review -> fix -> review cannot run all night on a finding the fixer cannot
 resolve. Nothing breaks if this machine's state is wiped: the forge is the
 single source of truth.
 
+A launch that fails after the marker is posted rewrites that note to say the
+review did not run, keeping the marker. Left alone, it still promised findings,
+and an MR nobody reviewed read as one whose review came back clean. No tmux
+server is checked before the marker instead: it is this machine's state, not
+the MR's, so the MR defers unmarked and the next run picks it up.
+
 LEVEL IS CHOSEN FROM THE DIFF
 -----------------------------
 `medium` reports only the findings /code-review is most confident in; `high`
@@ -356,7 +362,8 @@ def review_state(mr: MR) -> tuple[str, int]:
     return "stale", len(seen)
 
 
-def post_marker(mr: MR, level: str, fix: bool) -> None:
+def post_marker(mr: MR, level: str, fix: bool) -> str:
+    """Post the launch marker and return the note's id, for mark_failed."""
     mode = "--fix --comment" if fix else "--comment"
     body = (f"Claude review started on `{mr.sha[:8]}` — "
             f"`/code-review {level} {mode}`. Findings follow as their own comments.\n\n"
@@ -364,13 +371,49 @@ def post_marker(mr: MR, level: str, fix: bool) -> None:
             f"a new push re-reviews.</sub>\n\n"
             f"<!-- claude-mr-review sha={mr.sha} -->")
     if mr.repo.forge == "github":
-        # --body-file - avoids an argv-length limit.
-        gh(["pr", "comment", str(mr.iid), "--repo", mr.repo.path, "--body-file", "-"],
-           stdin=body, timeout=120)
-        return
-    glab(mr.repo.host,
-         ["mr", "note", "create", str(mr.iid), "-R", mr.repo.path, "-m", body],
-         timeout=120)
+        raw = gh(["api", f"repos/{mr.repo.path}/issues/{mr.iid}/comments",
+                  "-f", f"body={body}"], timeout=120)
+    else:
+        raw = glab(mr.repo.host,
+                   ["api", "-X", "POST",
+                    f"projects/{mr.repo.path.replace('/', '%2F')}"
+                    f"/merge_requests/{mr.iid}/notes", "-f", f"body={body}"],
+                   timeout=120)
+    return str(json.loads(raw)["id"])
+
+
+def mark_failed(mr: MR, note_id: str, error: str) -> None:
+    """Rewrite a marker whose launch failed so it no longer reads as a review.
+
+    The marker itself stays, so the MR still waits for its next push rather than
+    relaunching every hour into the same failure. Without the rewrite, the note
+    still says "Findings follow" forever, and an MR nobody reviewed looks like one
+    whose review came back clean.
+    """
+    body = (f"Claude review **did not run** on `{mr.sha[:8]}`: the agent failed to "
+            f"launch.\n\n```\n{error}\n```\n\n"
+            f"<sub>`claude-mr-review` skips this commit from now on; a new push, or "
+            f"`claude-mr-review --force --repo {mr.repo.host}/{mr.repo.path} "
+            f"--mr {mr.iid}`, re-reviews.</sub>\n\n"
+            f"<!-- claude-mr-review sha={mr.sha} -->")
+    try:
+        if mr.repo.forge == "github":
+            gh(["api", "-X", "PATCH",
+                f"repos/{mr.repo.path}/issues/comments/{note_id}",
+                "-f", f"body={body}"], timeout=120)
+        else:
+            glab(mr.repo.host,
+                 ["api", "-X", "PUT",
+                  f"projects/{mr.repo.path.replace('/', '%2F')}"
+                  f"/merge_requests/{mr.iid}/notes/{note_id}", "-f", f"body={body}"],
+                 timeout=120)
+    except RuntimeError as exc:
+        log(f"  warn: could not mark note {note_id} as failed ({exc})")
+
+
+def tmux_running() -> bool:
+    """workmux launches into tmux and refuses outright when no server is up."""
+    return subprocess.run(["tmux", "list-sessions"], capture_output=True).returncode == 0
 
 
 # --- local checkout -------------------------------------------------------
@@ -589,10 +632,21 @@ def handle_mr(mr: MR, rounds: int, args, override: dict[str, str],
         log(f"  dry-run: would launch workmux {handle} in {primary}")
         return "dry-run"
 
+    # No tmux server is a fact about this machine, not about the MR, so it
+    # defers with no marker. Checked after the dry-run return only so a dry run
+    # still reports the level.
+    if not tmux_running():
+        log("  defer: tmux is not running, and workmux needs it")
+        return "deferred"
+
     # Marker first: if the launch then fails, the MR waits for its next push
     # rather than relaunching every hour into the same failure.
-    post_marker(mr, level, args.fix)
-    launch(primary, mr, handle, level, args)
+    note_id = post_marker(mr, level, args.fix)
+    try:
+        launch(primary, mr, handle, level, args)
+    except Exception as exc:
+        mark_failed(mr, note_id, str(exc))
+        raise
     busy_repos.add(str(mr.repo))
     # Not a tmux session name: workmux prefixes its sessions with an icon.
     log(f"  launched → workmux handle {handle} (find it in `workmux dashboard`)")
