@@ -29,6 +29,11 @@ arch = { packages = [
   "atop",
   "atuin",
   "aur-scanner",
+  # manticore-projects/aurscan (the LLM scanner aur-policy drives). NOT on the
+  # AUR any more: it comes from upstream's signed [manticore] pacman repo, which
+  # must be in /etc/pacman.conf first or metapac rejects the whole sync as
+  # invalid — see metapac/README.md. Never `aurscan-git`: an unrelated ClamAV
+  # wrapper that installs the same /usr/bin/aurscan.
   "aurscan-bin",
   "awesome-terminal-fonts",
   "awww",
