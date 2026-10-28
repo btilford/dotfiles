@@ -142,7 +142,7 @@ brew = { packages = [
   "zoxide",
 ] }
 cargo = { packages = [
-  { name = "metapac", options = { version = "0.10.0", features = [
+  { name = "metapac", options = { version = "0.10.2", features = [
   ] } },
 ] }
 mise = { packages = [

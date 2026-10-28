@@ -29,7 +29,7 @@ arch = { packages = [
   "atop",
   "atuin",
   "aur-scanner",
-  "aurscan-git",
+  "aurscan-bin",
   "awesome-terminal-fonts",
   "awww",
   "bandwhich",
