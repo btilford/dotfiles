@@ -627,6 +627,12 @@ hl.define_submap("time-cmd", function()
     time_run("daily")
   end, { description = "Copy daily-note name (Aug-19-Wed)" })
 
+  -- Not a copy verb: the same surface as SUPER + c, reachable from here too. notif_run, not
+  -- time_run — the drawer takes an EXCLUSIVE grab, so the submap must reset first (see above).
+  hl.bind("c", function()
+    notif_run("qs ipc call clock drawer 2>/dev/null")
+  end, { description = "Clock drawer (weather, world clocks, calendar)" })
+
   hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
 end)
 -- Timers submap. Pure wiring over the `timers` IpcHandler in shell.qml (start/alarm/pomodoro/
