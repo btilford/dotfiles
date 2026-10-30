@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# paru, with mise's tool directories removed from PATH.
+#
+# makepkg runs build() and package() with the caller's PATH, and `mise activate`
+# puts its installs ahead of /usr/bin. So an AUR PKGBUILD that calls bare
+# `python` got mise's 3.12 instead of the system interpreter: python-* builds
+# died with "No module named build" (python-build is a system package), and
+# kahip's package() asked the wrong interpreter for its site-packages path.
+# Observed 2026-10-29, three separate builds in one `paru -Syu`. AUR packages
+# link against system libraries, so they must build with system tools.
+#
+# Lives in ~/.local/bin, which is first on PATH, so it covers every shell and
+# anything else that spawns paru by name — including metapac's arch backend.
+#
+# Set PARU_KEEP_MISE=1 to run with PATH untouched.
+
+set -uo pipefail
+
+self=$(readlink -f "$0")
+mise_dir=${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}
+
+new_path=
+real=
+IFS=: read -ra dirs <<< "$PATH"
+for d in "${dirs[@]}"; do
+  case "$d" in
+    "$mise_dir"/*) [ -n "${PARU_KEEP_MISE:-}" ] || continue ;;
+  esac
+  new_path=${new_path:+$new_path:}$d
+  # first paru on PATH that is not this script
+  if [ -z "$real" ] && [ -x "$d/paru" ] && [ "$(readlink -f "$d/paru")" != "$self" ]; then
+    real=$d/paru
+  fi
+done
+
+if [ -z "$real" ]; then
+  echo "paru: no paru binary on PATH besides this wrapper ($self)" >&2
+  exit 127
+fi
+
+PATH=$new_path exec "$real" "$@"
