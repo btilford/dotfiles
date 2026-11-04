@@ -45,7 +45,13 @@ wsl-ubuntu = ["apt", "bun", "cargo", "mise"]
 [hostname_groups]
 arch = ["core", "desktop-arch"]
 arch-amd = ["core", "desktop-arch", "amd-gpu"]
-arch-intel-nvidia = ["core", "desktop-arch", "intel-gpu", "nvidia-gpu"]
+arch-intel-nvidia = [
+  "core",
+  "desktop-arch",
+  "intel-gpu",
+  "nvidia-gpu",
+  "intel-nvidia-laptop",
+]
 macos = ["core", "macos"]
 macos-personal = ["core", "macos", "macos-personal"]
 macos-work = ["core", "macos", "macos-work"]
