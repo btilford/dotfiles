@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Auto-init and auto-track branches with git-spice, so any worktree is stackable
 # regardless of which tool created it (worktrunk, workmux, bare git worktree add).
+# Skips GitHub remotes, which stack with `gh stack` instead.
 #
 # Reached via the shim that init.templateDir installs into .git/hooks. Hooks live
 # in $GIT_COMMON_DIR/hooks, which every worktree of a repo shares, so one install
@@ -24,9 +25,11 @@ command -v git-spice > /dev/null 2>&1 || exit 0
 # File checkouts (`git checkout -- path`) are not branch changes.
 [ "${3:-0}" -eq 0 ] && exit 0
 
-# No remote means a scratch or throwaway repo. This is the only fence keeping
-# git-spice state out of repos that will never have a change request.
-git remote get-url origin > /dev/null 2>&1 || exit 0
+# No remote means a scratch or throwaway repo, with no change requests to stack.
+origin=$(git remote get-url origin 2> /dev/null) || exit 0
+
+# GitHub repos stack with `gh stack`; two trackers on one branch drift apart.
+case "$origin" in *github.com[:/]*) exit 0 ;; esac
 
 branch=$(git rev-parse --abbrev-ref HEAD 2> /dev/null) || exit 0
 [ "$branch" = HEAD ] && exit 0 # detached
