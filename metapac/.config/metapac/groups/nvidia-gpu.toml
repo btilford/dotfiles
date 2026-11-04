@@ -10,6 +10,7 @@ arch = { packages = [
   "lib32-nvidia-utils",
   "lib32-opencl-nvidia",
   "libva-nvidia-driver",
+  "linux-cachyos-lts-nvidia-open",
   "linux-cachyos-nvidia-open",
   "linux-firmware-nvidia",
   "nvidia-prime",
