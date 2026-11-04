@@ -1,0 +1,9 @@
+# intel-nvidia-laptop — packages for the one machine behind the
+# arch-intel-nvidia key: a System76 laptop that boots Limine with Snapper
+# snapshots and runs ufw, none of which the AMD desktop (GRUB) has.
+#
+# The key is a hardware descriptor, not a hostname (see config.toml), so a
+# second Intel+Nvidia Arch host would inherit this set too. If that happens,
+# split by what the packages are for instead of by machine.
+
+arch = { packages = ["limine-snapper-sync", "system76-firmware", "ufw-extras"] }
