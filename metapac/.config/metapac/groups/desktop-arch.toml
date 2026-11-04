@@ -369,6 +369,7 @@ arch = { packages = [
   "nemu",
   "neovim",
   "neovim-qt",
+  "netbird-bin",
   "netctl",
   "netdata",
   "netscanner",
