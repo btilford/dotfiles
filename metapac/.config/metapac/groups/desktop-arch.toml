@@ -709,7 +709,6 @@ arch = { packages = [
   "yt-dlp",
   "zeal",
   "zed",
-  "zephyr-sdk-bin",
   "zip",
   "zmk-studio-bin",
   "zoxide",
