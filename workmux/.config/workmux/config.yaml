@@ -345,7 +345,7 @@ sidebar:
    # Left sidebar width: absolute columns or percentage of terminal width.
    # Default: "10%" (clamped to 25-50 columns).
    # Explicit values are not clamped (minimum 10 columns).
-   width: 50       # absolute columns
+   width: 35       # absolute columns
    # width: "15%"  # percentage of terminal width
 
    # Top bar height in rows.
