@@ -26,10 +26,15 @@ entry:focus-within, button:focus { border-color: @accent; }
 entry > text > selection, entry selection { background-color: alpha(@accent, 0.5); color: @fg; }
 button label, entry text { color: @fg; }
 
-button.suggested-action { background-color: @accent; border-color: @accent; color: @bg; }
-button.suggested-action label { color: @bg; }
-button.suggested-action:hover { background-color: shade(@accent, 1.1); }
-button.destructive-action { background-color: @urgent; border-color: @urgent; color: @bg; }
-button.destructive-action label { color: @bg; }
+/* Light text on a DARKENED accent, never dark text on the raw accent. The accent
+   is wallust's color12 and its lightness changes with every wallpaper: with a
+   mid-grey accent, dark text measured 2.31:1. @fg stays light in a softdark
+   palette, and shade(…, 0.6) keeps the fill dark enough under it (~10:1). The
+   full accent is the border, so the button still reads as the accent colour. */
+button.suggested-action { background-color: shade(@accent, 0.6); border-color: @accent; color: @fg; }
+button.suggested-action label { color: @fg; font-weight: bold; }
+button.suggested-action:hover { background-color: shade(@accent, 0.75); }
+button.destructive-action { background-color: shade(@urgent, 0.6); border-color: @urgent; color: @fg; }
+button.destructive-action label { color: @fg; }
 
 popover > contents, popover > arrow { background-image: none; background-color: @bg; color: @fg; }
