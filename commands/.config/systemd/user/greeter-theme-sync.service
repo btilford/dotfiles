@@ -1,0 +1,6 @@
+[Unit]
+Description=Copy the wallust ReGreet CSS and current wallpaper to /var/lib/greetd-theme
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/greeter-theme-sync

@@ -1,0 +1,41 @@
+/* Fixed fallback theme for ReGreet. setup:greeter seeds it into
+ * /var/lib/greetd-theme/regreet.css; greeter-theme-sync replaces it with the
+ * wallust render (wallust/.config/wallust/templates/colors-regreet.css) once one
+ * exists. Keep the selectors in step with that template. */
+
+@define-color fg #d8dee9;
+@define-color bg #1e222a;
+@define-color accent #81a1c1;
+@define-color urgent #bf616a;
+
+window { color: @fg; }
+frame, .background { background-color: alpha(@bg, 0.75); border-radius: 12px; }
+label { color: @fg; }
+
+/* GTK draws button and entry fills with background-image in the default
+   theme, so a background-color alone never shows. Reset the image first. */
+button, entry, dropdown > button, combobox button {
+  background-image: none;
+  background-color: alpha(@bg, 0.9);
+  color: @fg;
+  border: 1px solid alpha(@accent, 0.5);
+  box-shadow: none;
+  text-shadow: none;
+}
+button:hover, dropdown > button:hover, combobox button:hover { background-color: alpha(@accent, 0.3); }
+entry:focus-within, button:focus { border-color: @accent; }
+entry > text > selection, entry selection { background-color: alpha(@accent, 0.5); color: @fg; }
+button label, entry text { color: @fg; }
+
+/* Light text on a DARKENED accent, never dark text on the raw accent. The accent
+   is wallust's color12 and its lightness changes with every wallpaper: with a
+   mid-grey accent, dark text measured 2.31:1. @fg stays light in a softdark
+   palette, and shade(…, 0.6) keeps the fill dark enough under it (~10:1). The
+   full accent is the border, so the button still reads as the accent colour. */
+button.suggested-action { background-color: shade(@accent, 0.6); border-color: @accent; color: @fg; }
+button.suggested-action label { color: @fg; font-weight: bold; }
+button.suggested-action:hover { background-color: shade(@accent, 0.75); }
+button.destructive-action { background-color: shade(@urgent, 0.6); border-color: @urgent; color: @fg; }
+button.destructive-action label { color: @fg; }
+
+popover > contents, popover > arrow { background-image: none; background-color: @bg; color: @fg; }

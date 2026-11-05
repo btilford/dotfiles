@@ -1,0 +1,12 @@
+# greetd: run ReGreet inside a greeter-only Hyprland.
+#
+# Installed to /etc/greetd by `mise run setup:greeter` — stow only targets $HOME.
+# Hyprland, not cage, because cage shows one output and mirrors nothing, and not
+# kwin, whose Wayland greeter is what segfaulted on every boot after kwin 6.8.2.
+
+[terminal]
+vt = 1
+
+[default_session]
+command = "start-hyprland -- --config /etc/greetd/hyprland.lua"
+user = "greeter"

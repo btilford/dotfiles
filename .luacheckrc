@@ -32,6 +32,9 @@ files["hyprland/.config/hypr/lua/**/*.lua"] = {
   globals = { "MON" },
 }
 
+-- The greetd greeter's Hyprland config: same compositor, same `hl` and MON.
+files["greeter/etc/greetd/*.lua"] = files["hyprland/.config/hypr/lua/**/*.lua"]
+
 files["nvim/.config/nvim/**/*.lua"] = {
   -- `vim` is mutated, not just read (vim.g.*, vim.opt.*), so it belongs in
   -- globals rather than read_globals. Snacks is set by folke/snacks.nvim.

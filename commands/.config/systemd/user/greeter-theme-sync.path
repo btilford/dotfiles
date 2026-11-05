@@ -1,0 +1,12 @@
+[Unit]
+Description=Watch the wallust ReGreet CSS and current wallpaper for the greeter
+
+[Path]
+# The wallpaper path is a stow symlink; WallustSwww.sh writes through it with
+# `cp -f`, i.e. in place, so the watch survives every rotation.
+PathChanged=%h/.cache/wallust/regreet.css
+PathChanged=%h/.config/hypr/wallpaper_effects/.wallpaper_current
+Unit=greeter-theme-sync.service
+
+[Install]
+WantedBy=default.target

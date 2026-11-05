@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Copy the wallust ReGreet CSS and the current wallpaper to where the greetd
+# greeter can read them. Triggered by greeter-theme-sync.path on every change.
+#
+# /var/lib/greetd-theme is owned by this user (setup:greeter creates it), so
+# nothing here runs as root — the alternative, a root unit copying user-supplied
+# files, would let a symlink in $HOME publish any root-readable file.
+#
+# Files are replaced atomically, and only with a valid source, so a half-written
+# render or an empty file never reaches the greeter: it keeps the last good copy,
+# and setup:greeter's fixed seeds before that.
+set -euo pipefail
+
+dest=${GREETER_THEME_DIR:-/var/lib/greetd-theme}
+css_src=${XDG_CACHE_HOME:-$HOME/.cache}/wallust/regreet.css
+wall_src=$HOME/.config/hypr/wallpaper_effects/.wallpaper_current
+
+# Not set up on this machine (no greetd, or setup:greeter not run): nothing to do.
+[[ -d $dest && -w $dest ]] || exit 0
+
+# install_if <src> <name> <mime-prefix>
+install_if() {
+  local src=$1 name=$2 want=$3 mime tmp
+  [[ -s $src ]] || return 0
+  mime=$(file -bL --mime-type -- "$src")
+  if [[ $mime != "$want"* ]]; then
+    echo "greeter-theme-sync: skipping $src ($mime, want $want*)" >&2
+    return 0
+  fi
+  tmp=$(mktemp "$dest/.$name.XXXXXX")
+  cp -L -- "$src" "$tmp"
+  chmod 644 "$tmp"
+  mv -f -- "$tmp" "$dest/$name"
+}
+
+install_if "$css_src" regreet.css text/
+install_if "$wall_src" wallpaper image/

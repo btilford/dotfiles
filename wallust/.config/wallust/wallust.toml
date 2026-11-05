@@ -28,3 +28,8 @@ quickshell.target = '~/.config/quickshell/wallust/colors.json'
 
 clipborg.template = 'colors-quickshell.json'
 clipborg.target = '~/.config/clipborg/colors.json'
+
+# greetd/ReGreet. The greeter user cannot read $HOME, so this renders to a cache
+# path and greeter-theme-sync.path copies it to /var/lib/greetd-theme.
+regreet.template = 'colors-regreet.css'
+regreet.target = '~/.cache/wallust/regreet.css'

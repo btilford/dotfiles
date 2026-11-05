@@ -722,6 +722,34 @@ that case from a package that genuinely needs re-stowing.
 Platform divergence lives in per-host `metapac` tables and local-override files,
 not a platform branch — the `macos` branch was retired.
 
+## Login greeter: greetd + ReGreet, not SDDM
+
+SDDM's Wayland greeter runs on kwin, and kwin 6.8.2 segfaulted in it on every
+boot (2026-11-04), leaving a console. `greeter/etc/greetd/` replaces it: greetd
+starts a **greeter-only Hyprland** (`hyprland.lua` there — never the desktop
+config) that runs ReGreet. `greeter/` is **not a stow package** — stow only
+targets `$HOME` — so `mise run setup:greeter` copies it into `/etc/greetd`, and
+`stow-status.sh` lists it under `not_packages`. Re-run the task after editing it.
+
+- **Monitors:** every output is on (hotplug and a closed lid just work); the login
+  window is pinned to `MON.main` from a *copy* of `monitors.local.lua` in
+  `/etc/greetd`, since `desc:` serials cannot be tracked and the greeter user
+  cannot read `$HOME`. No copy = auto layout, window on the cursor's output.
+- **Theme:** wallust renders `colors-regreet.css` to `~/.cache/wallust/`; the user
+  unit `greeter-theme-sync.path` copies it and `.wallpaper_current` into
+  `/var/lib/greetd-theme`. That dir is **owned by the user**, so no root unit ever
+  copies user-controlled files (a symlink in `$HOME` would otherwise publish any
+  root-readable file). Copies are atomic and type-checked; the fixed
+  `regreet.css` and the committed wallpaper seed are the fallback.
+- **kwallet:** the task adds `pam_kwallet5` (auth + `session auto_start`) to
+  `/etc/pam.d/greetd`, matching what `/etc/pam.d/sddm` had.
+- **Dispatch exit is Lua:** the greeter hands over with
+  `hyprctl dispatch 'hl.dsp.exit()'`; the hyprlang `dispatch exit` is a parse
+  error that exits 0, and the greeter would never close.
+
+The task does not switch display managers without `-- --enable`, which also
+removes the SDDM-only `/etc/sddm.conf.d/99-x11-greeter.conf` workaround.
+
 ## Hyprland Lua API
 
 - Authoritative API stubs: `/usr/share/hypr/stubs/hl.meta.lua` (installed by `hyprland` package)
@@ -885,6 +913,8 @@ mise run setup:atuin-ai-server             # docker: atuin-ai-server on 127.0.0.
 atuin hook install claude-code             # atuin agent hooks, one per agent
 atuin hook install codex
 atuin hook install pi
+
+mise run setup:greeter                     # Arch: greetd + ReGreet into /etc (sudo); -- --enable switches from SDDM
 
 systemctl --user mask gnome-keyring-daemon.socket gnome-keyring-daemon.service
 systemctl --user enable --now dotfiles-secrets.service
