@@ -110,6 +110,9 @@ if ((enable)); then
     sudo rm -f "$x11_override"
   fi
   say "done. Reboot to use greetd. To revert: sudo systemctl disable greetd && sudo systemctl enable sddm"
+elif systemctl is-enabled --quiet greetd.service 2> /dev/null; then
+  say "installed. greetd is the display manager; log out to see the changes"
 else
-  say "installed. SDDM is still the display manager. To switch: mise run setup:greeter -- --enable"
+  dm=$(systemctl is-enabled --quiet sddm.service 2> /dev/null && echo SDDM || echo "not greetd")
+  say "installed. $dm is still the display manager. To switch: mise run setup:greeter -- --enable"
 fi
