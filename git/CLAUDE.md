@@ -23,7 +23,7 @@ The `git` stow package provides the complete git configuration for all machines.
 | `spice.gitconfig` | git-spice: `spice.log.*`, `spice.submit.navigationComment`, `spice.branchDelete.restack`. Forge URLs are machine-specific and live in `~/.gitconfig.local`. |
 | `hk.gitconfig` | Registers hk as config-based hooks (`hook.hk-pre-commit`, `hook.hk-commit-msg`; git 2.54+), so every repo with an `hk.pkl` runs its hooks with no per-clone install. Hand-written, not generated — see below. |
 | `templates/hooks/post-checkout`, `templates/hooks/pre-commit` | Identical shims installed into new repos by `init.templateDir`. They derive the hook name from `$0` and delegate to `hooks/<name>`. |
-| `hooks/post-checkout` | Real logic: auto-init + auto-track branches with git-spice. Exits 0 on every path. |
+| `hooks/post-checkout` | Real logic: auto-init + auto-track branches with git-spice, skipping GitHub remotes (those use `gh stack`). Exits 0 on every path. |
 | `hooks/pre-commit` | Real logic: `betterleaks git --staged`, using the repo's own `.betterleaks.toml` (or `.gitleaks.toml`) when present. Stands down in a repo whose `hk.pkl` runs betterleaks. Must be able to fail. |
 | `.local/bin/git-template-sync` | Dereferences `templates/` into `~/.local/share/git-template` (real files — see below). |
 | `.local/bin/git-spice-hook-install` | Retrofits hooks into already-cloned repos; chains an incumbent `post-checkout` instead of clobbering it. |
