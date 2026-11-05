@@ -41,16 +41,7 @@ hl.config({
     no_update_news = true,
     no_donation_nag = true,
   },
-  cursor = MON.main and { default_monitor = MON.main } or nil,
 })
-
-if MON.main then
-  hl.window_rule({
-    name = "regreet-main",
-    match = { class = ".*regreet.*" },
-    monitor = MON.main,
-  })
-end
 
 -- Theme files are written by greeter-theme-sync (wallust CSS + current wallpaper)
 -- and seeded with fixed defaults by setup:greeter, so they always exist.
@@ -58,6 +49,14 @@ local theme = "/var/lib/greetd-theme"
 
 hl.on("hyprland.start", function()
   hl.exec_cmd("swaybg -m fill -i " .. theme .. "/wallpaper")
+  -- ReGreet opens on the focused monitor, so focus MON.main before starting it.
+  -- A `monitor = MON.main` window rule and `cursor.default_monitor` both took the
+  -- `desc:` string without complaint and put the window on another output anyway
+  -- (2026-11-04: it landed on the drawing tablet). The focus dispatcher does
+  -- resolve `desc:`, verified live by moving focus DP-3 -> DP-4 with it.
+  if MON.main then
+    hl.dispatch(hl.dsp.focus({ monitor = MON.main }))
+  end
   -- Dispatcher strings are Lua under a Lua config: `hyprctl dispatch exit` is a
   -- parse error that still exits 0, so the greeter would never hand over.
   hl.exec_cmd(

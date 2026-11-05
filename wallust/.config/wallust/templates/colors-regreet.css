@@ -7,34 +7,29 @@
 @define-color accent {{color12}};
 @define-color urgent {{color9}};
 
-window {
-  color: @fg;
-}
+window { color: @fg; }
+frame, .background { background-color: alpha(@bg, 0.75); border-radius: 12px; }
+label { color: @fg; }
 
-frame,
-.background {
-  background-color: alpha(@bg, 0.75);
-  border-radius: 12px;
-}
-
-entry,
-dropdown button,
-combobox button {
+/* GTK draws button and entry fills with background-image in the default
+   theme, so a background-color alone never shows. Reset the image first. */
+button, entry, dropdown > button, combobox button {
+  background-image: none;
   background-color: alpha(@bg, 0.9);
   color: @fg;
   border: 1px solid alpha(@accent, 0.5);
+  box-shadow: none;
+  text-shadow: none;
 }
+button:hover, dropdown > button:hover, combobox button:hover { background-color: alpha(@accent, 0.3); }
+entry:focus-within, button:focus { border-color: @accent; }
+entry > text > selection, entry selection { background-color: alpha(@accent, 0.5); color: @fg; }
+button label, entry text { color: @fg; }
 
-entry:focus-within {
-  border-color: @accent;
-}
+button.suggested-action { background-color: @accent; border-color: @accent; color: @bg; }
+button.suggested-action label { color: @bg; }
+button.suggested-action:hover { background-color: shade(@accent, 1.1); }
+button.destructive-action { background-color: @urgent; border-color: @urgent; color: @bg; }
+button.destructive-action label { color: @bg; }
 
-button.suggested-action {
-  background-color: @accent;
-  color: @bg;
-}
-
-button.destructive-action {
-  background-color: @urgent;
-  color: @bg;
-}
+popover > contents, popover > arrow { background-image: none; background-color: @bg; color: @fg; }
