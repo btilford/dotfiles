@@ -70,7 +70,7 @@ strict=0
 
 # Directories that are NOT stow packages: repo infrastructure, build output.
 # Everything else with at least one dot-entry is treated as a package.
-not_packages=" mise-scripts scripts build graphify-out .git .github .claude node_modules "
+not_packages=" mise-scripts scripts greeter build graphify-out .git .github .claude node_modules "
 
 while [ $# -gt 0 ]; do
   case "$1" in

@@ -1,0 +1,40 @@
+/* wallust template - ReGreet (greetd). Rendered to ~/.cache/wallust/regreet.css;
+ * greeter-theme-sync copies it to /var/lib/greetd-theme. Selectors mirror the
+ * fixed fallback in greeter/etc/greetd/regreet.css. */
+
+@define-color fg {{foreground}};
+@define-color bg {{background}};
+@define-color accent {{color12}};
+@define-color urgent {{color9}};
+
+window {
+  color: @fg;
+}
+
+frame,
+.background {
+  background-color: alpha(@bg, 0.75);
+  border-radius: 12px;
+}
+
+entry,
+dropdown button,
+combobox button {
+  background-color: alpha(@bg, 0.9);
+  color: @fg;
+  border: 1px solid alpha(@accent, 0.5);
+}
+
+entry:focus-within {
+  border-color: @accent;
+}
+
+button.suggested-action {
+  background-color: @accent;
+  color: @bg;
+}
+
+button.destructive-action {
+  background-color: @urgent;
+  color: @bg;
+}

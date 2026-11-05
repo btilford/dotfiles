@@ -1,0 +1,41 @@
+/* Fixed fallback theme for ReGreet. setup:greeter seeds it into
+ * /var/lib/greetd-theme/regreet.css; greeter-theme-sync replaces it with the
+ * wallust render (wallust/.config/wallust/templates/colors-regreet.css) once one
+ * exists. Keep the selectors in step with that template. */
+
+@define-color fg #d8dee9;
+@define-color bg #1e222a;
+@define-color accent #81a1c1;
+@define-color urgent #bf616a;
+
+window {
+  color: @fg;
+}
+
+frame,
+.background {
+  background-color: alpha(@bg, 0.75);
+  border-radius: 12px;
+}
+
+entry,
+dropdown button,
+combobox button {
+  background-color: alpha(@bg, 0.9);
+  color: @fg;
+  border: 1px solid alpha(@accent, 0.5);
+}
+
+entry:focus-within {
+  border-color: @accent;
+}
+
+button.suggested-action {
+  background-color: @accent;
+  color: @bg;
+}
+
+button.destructive-action {
+  background-color: @urgent;
+  color: @bg;
+}
