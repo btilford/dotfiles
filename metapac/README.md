@@ -36,22 +36,19 @@ entry Arch-only. The reverse (`core` → `macos`) makes it macOS-only.
 1. **Install metapac.**
    - Arch: from the AUR (`paru -S metapac`) — `[arch] package_manager = "paru"`
      keeps AUR installs behind the aur-policy gate.
-   - Arch, **before the first sync**: enable upstream aurscan's signed `[manticore]`
-     repo. `aurscan-bin` left the AUR, and metapac validates every package before
-     installing any, so without the repo the whole sync aborts with
-     `packages for the Arch backend are invalid: {"aurscan-bin"}`. Steps are
-     upstream's ([aurscan#install](https://github.com/manticore-projects/aurscan#install)):
+   - Arch, **outside metapac**: the aurscan scanner that aur-policy drives
+     ([manticore-projects/aurscan](https://github.com/manticore-projects/aurscan))
+     is built per host from upstream's PKGBUILD and installs as
+     `aurscan-manticore-release-git`. It is in no repo, so it is **not declared**:
+     metapac validates every package before installing any, and one it cannot
+     resolve aborts the whole sync as `invalid`. That is exactly how a declared
+     `aurscan-bin` broke every Arch sync — and `aurscan-bin` is also the wrong
+     package, since it shadows the manticore build.
 
-     ```sh
-     curl -fsSL https://manticore-projects.github.io/aurscan/aurscan.gpg | sudo pacman-key --add -
-     sudo pacman-key --lsign-key 61E73AA7539ACB261ABCF10C188331308EF56D11
-     grep -q '^\[manticore\]' /etc/pacman.conf ||
-       printf '\n[manticore]\nSigLevel = Required DatabaseOptional\nServer = https://manticore-projects.github.io/aurscan/$arch\n' |
-       sudo tee -a /etc/pacman.conf
-     ```
-
-     If `aurscan-git` is installed, remove it first (`sudo pacman -R aurscan-git`):
-     it is an unrelated ClamAV wrapper claiming the same `/usr/bin/aurscan`.
+     Consequences: the scanner appears in `metapac unmanaged`, and **`metapac clean`
+     offers to remove it** — leave it out of that confirmation. Never install
+     `aurscan-git` either: it is an unrelated ClamAV wrapper claiming the same
+     `/usr/bin/aurscan`. Check with `pacman -Qo /usr/bin/aurscan`.
    - Arch, **before the first sync**: install every enabled backend's binary
      from the OS repos — `sudo pacman -S --needed flatpak bun uv rustup` then
      `rustup default stable`. metapac queries *all* backends before installing
