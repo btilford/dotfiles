@@ -257,7 +257,10 @@ arch = { packages = [
   "hyprsunset",
   "hyprsysteminfo",
   "inetutils",
-  "infisical",
+  # infisical-bin, not the AUR source package `infisical`: both own
+  # /usr/bin/infisical, and -bin is the one installed (and newer). Declaring
+  # `infisical` made every paru install batch fail on file conflicts.
+  "infisical-bin",
   "inkscape",
   "inotify-tools",
   "iptables",
