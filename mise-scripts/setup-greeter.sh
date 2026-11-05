@@ -37,7 +37,8 @@ for pkg in greetd greetd-regreet swaybg; do
 done
 if ((${#missing[@]})); then
   echo "missing packages: ${missing[*]}" >&2
-  echo "  sudo pacman -S ${missing[*]}" >&2
+  echo "  declared in metapac desktop-arch: mise run metapac -- sync" >&2
+  echo "  or: sudo pacman -S ${missing[*]}" >&2
   exit 1
 fi
 
