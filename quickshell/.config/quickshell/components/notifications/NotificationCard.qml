@@ -15,7 +15,7 @@ Rectangle {
     readonly property bool critical: entry.urgency === NotificationUrgency.Critical
     readonly property bool low: entry.urgency === NotificationUrgency.Low
     // per-urgency accent: low recedes into the subtext grey, critical takes the urgent tone
-    readonly property color urgencyColor: card.critical ? Theme.urgent : (card.low ? Theme.subtext : Theme.accent)
+    readonly property color urgencyColor: card.critical ? Theme.urgent : (card.low ? Theme.muted : Theme.accent)
 
     // resolved icon: the notification image (image-data / image-path hints, materialized by
     // quickshell) wins over app_icon, which may be a themed icon name or a plain path
@@ -246,7 +246,7 @@ Rectangle {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: ""
-                color: closeMa.containsMouse ? Theme.urgent : Theme.subtext
+                color: closeMa.containsMouse ? Theme.urgent : Theme.muted
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.fontSize
                 MouseArea {
@@ -302,7 +302,7 @@ Rectangle {
 
             Text {
                 text: card.expanded ? "  less" : "  more"
-                color: moreMa.containsMouse ? Theme.accent : Theme.subtext
+                color: moreMa.containsMouse ? Theme.accent : Theme.muted
                 font.family: Theme.fontMono
                 font.pixelSize: Theme.fontSize - 3
                 MouseArea {
@@ -317,7 +317,7 @@ Rectangle {
 
             Text {
                 text: "  yank"
-                color: copyMa.containsMouse ? Theme.accent : Theme.subtext
+                color: copyMa.containsMouse ? Theme.accent : Theme.muted
                 font.family: Theme.fontMono
                 font.pixelSize: Theme.fontSize - 3
                 MouseArea {
@@ -343,7 +343,7 @@ Rectangle {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: card.timerState ? Timers.fmt(Timers.remainingOf(card.timerState)) : ""
-                color: card.timerPaused ? Theme.subtext : Theme.fg
+                color: card.timerPaused ? Theme.muted : Theme.fg
                 font.family: Theme.fontMono
                 font.pixelSize: Theme.fontSize + 8
                 font.bold: true
@@ -359,7 +359,7 @@ Rectangle {
                     const state = card.timerPaused ? "paused" : "running";
                     return phase.length ? phase + "  ·  " + state : state;
                 }
-                color: Theme.subtext
+                color: Theme.muted
                 font.family: Theme.fontMono
                 font.pixelSize: Theme.fontSize - 3
             }
@@ -433,7 +433,7 @@ Rectangle {
         Text {
             visible: card.entry.awaitingCapture
             text: "  working…"
-            color: Theme.subtext
+            color: Theme.muted
             font.family: Theme.fontMono
             font.pixelSize: Theme.fontSize - 3
         }
@@ -509,7 +509,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: promptInput.text.length === 0
                     text: NotifyConfig.prompt.placeholder + "  (Ctrl+Enter sends, Esc cancels)"
-                    color: Theme.subtext
+                    color: Theme.muted
                     font: promptInput.font
                 }
             }

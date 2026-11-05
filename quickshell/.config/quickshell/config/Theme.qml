@@ -38,6 +38,42 @@ Singleton {
     readonly property color urgent: palette.color9 ? palette.color9 : fbUrgent
     readonly property color border: accent
 
+    // --- contrast ---
+    //
+    // `subtext` is wallust's color8 as-is, so its contrast against our (pinned, warm) surfaces
+    // changes with every wallpaper: #766C57 on #2a1010 is about 3:1, under the 4.5:1 small
+    // text needs, and secondary text in the notification drawer was hard to read for exactly
+    // that reason. Do not fix it by picking a brighter constant — the next wallpaper moves it
+    // again. Ask for a ratio against the background the text actually sits on instead.
+    //
+    // WCAG 2 relative luminance and contrast ratio.
+    function luminance(c: color): real {
+        const f = v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+    }
+    function contrast(a: color, b: color): real {
+        const la = luminance(a);
+        const lb = luminance(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+    // `c`, moved toward white (on a dark background) or black (on a light one) in 5% steps
+    // until it reaches `min` against `bg`. Mixing rather than replacing keeps the hue, so muted
+    // text still carries the wallpaper's tint; a colour that already passes comes back as is.
+    function readable(c: color, bg: color, min: real): color {
+        const toWhite = luminance(bg) < 0.18;
+        const t = toWhite ? 1 : 0;
+        for (let k = 0; k <= 20; k++) {
+            const w = k / 20;
+            const m = Qt.rgba(c.r + (t - c.r) * w, c.g + (t - c.g) * w, c.b + (t - c.b) * w, 1);
+            if (contrast(m, bg) >= min)
+                return m;
+        }
+        return Qt.rgba(t, t, t, 1);
+    }
+    // Secondary text that is legible on `surface` — the default for muted text on cards and rows.
+    readonly property real textContrast: 4.5
+    readonly property color muted: readable(subtext, surface, textContrast)
+
     // --- glass ---
     //
     // The tint for translucent slabs (submap hints, notification drawer). NOT `surface` used
