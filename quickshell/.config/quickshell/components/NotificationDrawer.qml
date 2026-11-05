@@ -23,6 +23,11 @@ PanelWindow {
 
     readonly property bool modal: NotifyDrawer.mode === "modal"
 
+    // How far the selected row is tinted toward the accent. It was 0.35, which made the
+    // selection an orange block that the row's own text then had to fight; the row text
+    // carries the selection now (rowBg + mutedText), so the fill only has to mark it.
+    readonly property real selectTint: 0.22
+
     // ExclusionMode.Ignore means the bar does not push this window off its strip, so a
     // full-height panel has to step around it by hand — exactly as the popup stack does. The
     // hub height covers both bar sizes: overshooting a minimal bar by a few pixels is
@@ -336,7 +341,7 @@ PanelWindow {
                         visible: !search.text.length
                         verticalAlignment: Text.AlignVCenter
                         text: NotifyDrawer.timePrompting ? "Remind me in\u2026  20m · 2h · 17:30   [\u21b5] snooze · [Esc] cancel" : "Search\u2026  [/] search · [j/k] move · [\u21b5] expand · [p] compose · [y] yank · [d] clear · [D] group · [r] remind · [z] snoozed · [f] range · [Esc] close"
-                        color: Theme.subtext
+                        color: Theme.readable(Theme.subtext, Theme.bg, Theme.textContrast)
                         font: search.font
                         elide: Text.ElideRight
                     }
@@ -365,7 +370,18 @@ PanelWindow {
                     readonly property var row: entry.modelData.row || null
                     readonly property bool selected: NotifyDrawer.selectedKey === entry.modelData.key
                     readonly property int urgency: entry.isGroup ? entry.modelData.group.urgency : (entry.row ? entry.row.urgency : 1)
-                    readonly property color urgencyColor: entry.urgency === NotificationUrgency.Critical ? Theme.urgent : (entry.urgency === NotificationUrgency.Low ? Theme.subtext : Theme.accent)
+                    // What this row's text actually sits on, as an opaque colour. Secondary text is
+                    // made legible against THIS, not against `surface`: the selected row is tinted
+                    // toward the accent, and grey that passes on maroon fails on orange — the body
+                    // and the action hints of the selected row were the least readable thing in
+                    // the drawer.
+                    readonly property color rowBg: {
+                        if (entry.selected)
+                            return Qt.rgba(Theme.accent.r * win.selectTint + Theme.surface.r * (1 - win.selectTint), Theme.accent.g * win.selectTint + Theme.surface.g * (1 - win.selectTint), Theme.accent.b * win.selectTint + Theme.surface.b * (1 - win.selectTint), 1);
+                        return entry.isGroup ? Theme.bg : Theme.surface;
+                    }
+                    readonly property color mutedText: Theme.readable(Theme.subtext, entry.rowBg, Theme.textContrast)
+                    readonly property color urgencyColor: entry.urgency === NotificationUrgency.Critical ? Theme.urgent : (entry.urgency === NotificationUrgency.Low ? entry.mutedText : Theme.accent)
 
                     width: list.width
                     height: body.implicitHeight + 12
@@ -386,11 +402,14 @@ PanelWindow {
                         radius: Theme.radius
                         color: {
                             const a = NotifyConfig.drawer.itemOpacity;
+                            const c = entry.rowBg;
                             if (entry.selected)
-                                return Qt.rgba(Theme.accent.r * 0.35 + Theme.surface.r * 0.65, Theme.accent.g * 0.35 + Theme.surface.g * 0.65, Theme.accent.b * 0.35 + Theme.surface.b * 0.65, Math.min(1, a + 0.1));
+                                return Qt.rgba(c.r, c.g, c.b, Math.min(1, a + 0.1));
+                            // a header sits back, but not so far that the desktop behind it
+                            // decides whether its label is readable (it was 0.47 at the default)
                             if (entry.isGroup)
-                                return Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, Math.max(0.15, a - 0.35));
-                            return Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, a);
+                                return Qt.rgba(c.r, c.g, c.b, Math.max(0.15, a - 0.2));
+                            return Qt.rgba(c.r, c.g, c.b, a);
                         }
                         Behavior on color {
                             ColorAnimation {
@@ -439,7 +458,7 @@ PanelWindow {
 
                             Text {
                                 text: NotifyDrawer.isCollapsed(entry.isGroup ? entry.modelData.group.name : "") ? "" : ""
-                                color: Theme.subtext
+                                color: entry.mutedText
                                 font.family: Theme.fontUi
                                 font.pixelSize: Theme.fontSize - 3
                             }
@@ -452,7 +471,7 @@ PanelWindow {
                             }
                             Text {
                                 text: entry.isGroup ? "×" + entry.modelData.group.count + (entry.modelData.group.unread ? " · " + entry.modelData.group.unread + " new" : "") : ""
-                                color: Theme.subtext
+                                color: entry.mutedText
                                 font.family: Theme.fontMono
                                 font.pixelSize: Theme.fontSize - 3
                             }
@@ -499,7 +518,7 @@ PanelWindow {
                                         return "\uf017 " + Qt.formatDateTime(new Date(entry.row.wake_at), "HH:mm");
                                     return win.ago(entry.row.received_at);
                                 }
-                                color: stamp.snoozed ? Theme.accent : Theme.subtext
+                                color: stamp.snoozed ? Theme.accent : entry.mutedText
                                 font.family: Theme.fontMono
                                 font.pixelSize: Theme.fontSize - 3
                             }
@@ -523,7 +542,7 @@ PanelWindow {
                                 return entry.row && NotifyDrawer.isExpanded(entry.row.row_id) ? 24 : 2;
                             }
                             wrapMode: Text.Wrap
-                            color: Theme.subtext
+                            color: entry.mutedText
                             font.family: Theme.fontUi
                             font.pixelSize: Theme.fontSize - 2
                         }
@@ -548,7 +567,7 @@ PanelWindow {
                                 return parts.join("   ");
                             }
                             elide: Text.ElideRight
-                            color: Theme.subtext
+                            color: entry.mutedText
                             font.family: Theme.fontMono
                             font.pixelSize: Theme.fontSize - 4
                         }
