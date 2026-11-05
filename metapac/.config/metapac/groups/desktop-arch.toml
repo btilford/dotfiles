@@ -24,6 +24,8 @@ arch = { packages = [
   "ansible-language-server",
   "ansible-lint",
   "appimagelauncher",
+  # arch-audit: the CVE source `aur-policy doctor` checks for.
+  "arch-audit",
   "archlinux-xdg-menu",
   "ark",
   "atop",
