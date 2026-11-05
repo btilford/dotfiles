@@ -666,7 +666,11 @@ arch = { packages = [
   "vulkan-icd-loader",
   "vulkan-mesa-implicit-layers",
   "vulkan-tools",
-  "wallust-git",
+  # wallust, not wallust-git: -git builds upstream master, which is the v4 alpha
+  # and rejects this repo's v3 config (`unknown variant kmeans`) — every render
+  # failed silently behind `|| true` in WallustSwww.sh. -git was only a workaround
+  # for a stale AUR checksum in 3.5.2-1 (373dbb8); 3.5.2-2 fixed it.
+  "wallust",
   "waybar",
   "wayland-logout",
   "waypaper",
