@@ -24,6 +24,8 @@ arch = { packages = [
   "ansible-language-server",
   "ansible-lint",
   "appimagelauncher",
+  # arch-audit: the CVE source `aur-policy doctor` checks for.
+  "arch-audit",
   "archlinux-xdg-menu",
   "ark",
   "atop",
@@ -257,7 +259,10 @@ arch = { packages = [
   "hyprsunset",
   "hyprsysteminfo",
   "inetutils",
-  "infisical",
+  # infisical-bin, not the AUR source package `infisical`: both own
+  # /usr/bin/infisical, and -bin is the one installed (and newer). Declaring
+  # `infisical` made every paru install batch fail on file conflicts.
+  "infisical-bin",
   "inkscape",
   "inotify-tools",
   "iptables",
@@ -661,7 +666,11 @@ arch = { packages = [
   "vulkan-icd-loader",
   "vulkan-mesa-implicit-layers",
   "vulkan-tools",
-  "wallust-git",
+  # wallust, not wallust-git: -git builds upstream master, which is the v4 alpha
+  # and rejects this repo's v3 config (`unknown variant kmeans`) — every render
+  # failed silently behind `|| true` in WallustSwww.sh. -git was only a workaround
+  # for a stale AUR checksum in 3.5.2-1 (373dbb8); 3.5.2-2 fixed it.
+  "wallust",
   "waybar",
   "wayland-logout",
   "waypaper",
@@ -706,9 +715,7 @@ arch = { packages = [
   "yt-dlp",
   "zeal",
   "zed",
-  "zephyr-sdk-bin",
   "zip",
-  "zmk-studio-bin",
   "zoxide",
 ] }
 flatpak = { repos = [
