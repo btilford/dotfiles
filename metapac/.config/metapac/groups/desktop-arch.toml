@@ -710,7 +710,6 @@ arch = { packages = [
   "zeal",
   "zed",
   "zip",
-  "zmk-studio-bin",
   "zoxide",
 ] }
 flatpak = { repos = [
