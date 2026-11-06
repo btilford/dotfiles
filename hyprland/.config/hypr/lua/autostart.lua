@@ -104,9 +104,16 @@ hl.on("hyprland.start", function()
   -- Plasma's settings at every startup: it replaced base/'s stow links with real
   -- files carrying an empty GTK theme and Gdk/WindowScalingFactor 2, which made
   -- XWayland GTK apps draw at double size on top of Hyprland's own 1.5 scaling.
-  -- Disable it in the same shell, before kded6 reads its config.
+  -- It also sets org.gnome.desktop.interface scaling-factor 2 and gtk-xft-dpi in
+  -- ~/.config/gtk-{3,4}.0/settings.ini. Disable it in the same shell, before kded6
+  -- reads its config.
+  --
+  -- The file is kded5rc, NOT kded6rc, even for kded6. KF6 kded kept the KF5 name:
+  -- setModuleAutoloading over D-Bus writes kded5rc, and isModuleAutoloaded ignores
+  -- a kded6rc entry. Writing kded6rc (the first version of this fix) disabled
+  -- nothing, which went unnoticed until the next real login.
   hl.exec_cmd(
-    "sh -c 'kwriteconfig6 --file kded6rc --group Module-gtkconfig --key autoload false; "
+    "sh -c 'kwriteconfig6 --file kded5rc --group Module-gtkconfig --key autoload false; "
       .. "exec kded6'"
   )
 

@@ -24,14 +24,9 @@ vault at `$DOTFILES_SCREENSHOT_ARCHIVE`
 
 That variable (and `$VOL_SCREENSHOT_ARCHIVE`) is **machine-local and untracked** —
 the vault path only exists on hosts that sync it, so hardcoding it in the repo
-would be wrong on any other machine. Set it per host in the local override your
-shell already sources:
-
-| Shell | File |
-|-------|------|
-| bash | `~/.bashrc_local` |
-| zsh | `~/.zshrc_local` |
-| fish | `~/.config/fish/conf.d/local.fish` |
+would be wrong on any other machine. Set it per host in
+`~/.config/dotfiles/local.env`, which every shell reads at startup (see the
+`.d/` pattern in the top-level `CLAUDE.md`).
 
 Not `~/.config/nushell/local.nu` — that path is inside the stow package and **is
 tracked**, so anything put there gets committed.
