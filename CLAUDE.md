@@ -695,7 +695,7 @@ Two things this depends on, neither of them local to these files:
 
 ## Structure
 
-- **Cross-platform**: `atuin`, `atuin-ai-server`, `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `metapac`, `workmux`, `tuicr`, `continue`, `ghostty`, `gh`, `gh-dash`
+- **Cross-platform**: `atuin`, `atuin-ai-server`, `bash`, `fish`, `zsh`, `nvim`, `tmux`, `git`, `starship`, `yazi`, `lazygit`, `helix`, `metapac`, `workmux`, `tuicr`, `continue`, `ghostty`, `gh`, `gh-dash`, `rex`
 - **macOS-only**: `aerc`, `macos`
 - **Linux-only**: `hyprland`, `rofi`, `konsole`, `kmonad`, `brave-linux`, `xdg`
 - **Shared base**: `base`

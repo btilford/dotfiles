@@ -42,6 +42,13 @@ files["nvim/.config/nvim/**/*.lua"] = {
   read_globals = { "Snacks" },
 }
 
+files["rex/**/*.lua"] = {
+  -- Rex injects `rex` into init.lua and every module it requires. The config only
+  -- calls into it (rex.bind, rex.action, rex.client, ...), never assigns a field.
+  -- Fields are not enumerated: Rex ships no stubs to generate them from yet.
+  read_globals = { "rex" },
+}
+
 files["yazi/**/*.lua"] = {
   -- yazi plugin API: ya/cx/ui are injected, Status and Header are the
   -- extendable UI components a plugin patches.
