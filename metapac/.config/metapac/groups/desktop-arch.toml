@@ -508,6 +508,9 @@ arch = { packages = [
   "resources",
   "restic",
   "resvg",
+  # rex (superlogical): multiplexer SERVER only on Linux. Needs the vendor
+  # pacman repo in /etc/pacman.conf first; see rex/README.md.
+  "rex",
   "ripgrep",
   "ristretto",
   "rmpc",

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# rex-sesh: sesh's picker, for rex. Bound to C-b S by ~/.config/rex/popups.lua.
+#
+# Lists live rex sessions, then sesh.toml entries and zoxide dirs (read through
+# `sesh list --json`, so sesh.toml stays the one place projects are declared).
+# Picking a live session switches to it. Picking a project reuses the rex
+# session with the same label, or creates one in that directory, running the
+# entry's startup_command first and leaving a shell behind, as sesh does.
+#
+# Usage: rex-sesh [CLIENT_ID]
+#   CLIENT_ID is the app to switch. Switching an app's view from the CLI needs
+#   Remote Control on in that app (Settings > Server > Client Info). Without a
+#   client ID the session is still created, and printed.
+set -euo pipefail
+
+client=${1:-}
+
+for bin in rex sesh fzf jq; do
+  command -v "$bin" > /dev/null || {
+    echo "rex-sesh: $bin not found" >&2
+    read -r -n1 -p "press a key"
+    exit 1
+  }
+done
+
+# Fields: kind<TAB>label<TAB>id-or-path<TAB>startup-command
+list() {
+  rex ls --json | jq -r '.sessions[] | ["rex", .label, .session_id, ""] | @tsv'
+  sesh list --config --zoxide --hide-duplicates --json |
+    jq -r '.[] | [.Src, .Name, .Path, (.StartupCommand // "")] | @tsv'
+}
+
+choice=$(list | fzf \
+  --delimiter '\t' --with-nth 1,2 \
+  --border-label ' Sesh ' --prompt '⚡ ' \
+  --preview 'if [ {1} = rex ]; then rex session inspect {3}; else eza --all --git --icons --color=always {3}; fi') || exit 0
+
+IFS=$'\t' read -r kind label target startup <<< "$choice"
+
+if [ "$kind" = rex ]; then
+  sid=$target
+else
+  # zoxide names are paths; label the session with the directory name.
+  [ "$kind" = zoxide ] && label=$(basename "$target")
+  sid=$(rex ls --json | jq -r --arg l "$label" '.sessions[] | select(.label == $l) | .session_id' | head -n1)
+  if [ -z "$sid" ]; then
+    if [ -n "$startup" ]; then
+      # Run the startup command, then drop to a shell, like sesh.
+      sh=${SHELL:-sh}
+      sid=$(rex new "$label" -c "$target" --json -- "$sh" -c "$startup; exec \"$sh\"" | jq -r .session_id)
+    else
+      sid=$(rex new "$label" -c "$target" --json | jq -r .session_id)
+    fi
+  fi
+fi
+
+if [ -n "$client" ]; then
+  rex -C "$client" "do" session.select session_id="$sid" > /dev/null
+else
+  echo "$sid"
+fi
