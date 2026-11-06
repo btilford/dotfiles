@@ -13,7 +13,7 @@ set -x M2_HOME $HOME/.m2
 
 # $VOL_SCREENSHOT_ARCHIVE / $DOTFILES_SCREENSHOT_ARCHIVE are machine-local (they
 # point into a notes vault that only exists on some hosts) — set them in
-# ~/.config/fish/conf.d/local.fish, which is untracked. See scripts/visuals/README.md.
+# ~/.config/dotfiles/local.env, which is untracked. See mise-scripts/visuals/README.md.
 
 set -gx --prepend PATH $HOME/.cargo/bin
 set -gx --prepend PATH $HOME/.local/bin

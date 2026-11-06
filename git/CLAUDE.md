@@ -109,7 +109,7 @@ export GCM_CREDENTIAL_STORE=gpg            # GPG-encrypted file store (no daemon
 export GCM_CREDENTIAL_STORE=cache          # in-memory, lost on reboot
 ```
 
-Add the chosen `GCM_CREDENTIAL_STORE` export to `~/.config/fish/conf.d/local.fish` (or shell equiv) — do not commit it.
+Add the chosen `GCM_CREDENTIAL_STORE=…` line to `~/.config/dotfiles/local.env`, which every shell and the systemd session read — do not commit it.
 
 Run `git credential-manager configure` once after setup to verify. Then authenticate by performing a `git fetch` or `git push` against a protected repo; GCM will prompt once and store the credential in the keyring.
 

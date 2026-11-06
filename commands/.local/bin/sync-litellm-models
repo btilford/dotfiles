@@ -43,11 +43,11 @@ import urllib.request
 from pathlib import Path
 
 # Infrastructure identifiers are machine-local — set them in
-# ~/.config/fish/conf.d/local.fish (untracked), not here:
+# ~/.config/dotfiles/local.env (untracked), not here:
 #
-#   set -gx INFISICAL_PROJECT <uuid>
-#   set -gx INFISICAL_DOMAIN  https://infisical.example.com
-#   set -gx LITELLM_GATEWAY   https://litellm.example.com
+#   INFISICAL_PROJECT=<uuid>
+#   INFISICAL_DOMAIN=https://infisical.example.com
+#   LITELLM_GATEWAY=https://litellm.example.com
 #
 # The two LAN model hosts default to localhost, so a machine that runs neither
 # still works — those providers just report unreachable and keep their entries:
