@@ -32,16 +32,13 @@ done
 #pkill qs && qs &
 
 # Wallust refresh (synchronous to ensure colors are ready)
-${SCRIPTSDIR}/WallustSwww.sh
+"${SCRIPTSDIR}"/WallustSwww.sh
 sleep 0.2
-
-# reload swaync
-swaync-client --reload-config
 
 # Relaunching rainbow borders if the script exists
 sleep 1
 if file_exists "${UserScripts}/RainbowBorders.sh"; then
-  ${UserScripts}/RainbowBorders.sh &
+  "${UserScripts}"/RainbowBorders.sh &
 fi
 
 exit 0

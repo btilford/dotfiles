@@ -514,7 +514,7 @@ hl.bind(
 hl.define_submap("notif-cmd", function()
   hl.bind("d", function()
     -- searchable history drawer; also opens from the bar bell
-    notif_run("qs ipc call notifications drawer 2>/dev/null || swaync-client -t 2>/dev/null")
+    notif_run("qs ipc call notifications drawer 2>/dev/null")
   end, { description = "Notification history drawer" })
 
   hl.bind("f", function()
@@ -524,8 +524,7 @@ hl.define_submap("notif-cmd", function()
   end, { description = "Focus the notification stack (keyboard control)" })
 
   hl.bind("x", function()
-    -- falls back to swaync while it is still the server on hosts without HYPR_NOTIFY=quickshell
-    notif_run("qs ipc call notifications dismissAll 2>/dev/null || swaync-client -C 2>/dev/null")
+    notif_run("qs ipc call notifications dismissAll 2>/dev/null")
   end, { description = "Dismiss everything on screen" })
 
   hl.bind("r", function()
@@ -544,10 +543,10 @@ end)
 -- Kept outside the submap: the drawer is the verb reached most often, and dismiss-all is a panic
 -- key that should never need two presses.
 hl.bind("SUPER + i", function()
-  os.execute("qs ipc call notifications drawer 2>/dev/null || swaync-client -t 2>/dev/null")
+  os.execute("qs ipc call notifications drawer 2>/dev/null")
 end, { description = "Notification history drawer" })
 hl.bind("SUPER + SHIFT + N", function()
-  os.execute("qs ipc call notifications dismissAll 2>/dev/null || swaync-client -C 2>/dev/null")
+  os.execute("qs ipc call notifications dismissAll 2>/dev/null")
 end, { description = "Dismiss all notifications" })
 -- Clock drawer: weather, world clocks, calendar. The bar clock opens the same surface.
 --
