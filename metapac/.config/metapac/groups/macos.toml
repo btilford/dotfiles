@@ -71,6 +71,7 @@ brew = { packages = [
   "gzip",
   "ijhttp",
   "imagemagick",
+  "iperf3",
   "joplin",
   "joplin-cli",
   "jq",
