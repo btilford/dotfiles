@@ -267,6 +267,7 @@ arch = { packages = [
   "infisical-bin",
   "inkscape",
   "inotify-tools",
+  "iperf3",
   "iptables",
   "ivpn",
   "iwd",
