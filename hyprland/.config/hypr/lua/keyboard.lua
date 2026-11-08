@@ -22,3 +22,12 @@ hl.config({
     },
   },
 })
+
+-- ZMK trackball. Its speed is tuned on the keyboard for macOS, so Linux must not
+-- scale it again: the global sensitivity above is the maximum (1.0) for the other
+-- mice. Flat + 0.0 passes ZMK's movement through untouched; go negative if fast.
+hl.device({
+  name = "crosses-bt-mouse",
+  sensitivity = 0.0,
+  accel_profile = "flat",
+})
