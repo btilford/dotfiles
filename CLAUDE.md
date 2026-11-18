@@ -32,7 +32,7 @@ ever set.)
 | `LITELLM_GATEWAY` | `nvim` `plugins/ai.lua` | `http://localhost:4000` |
 | `LEMONADE_URL` / `OLLAMA_URL` | `sync-litellm-models` | `localhost:13305` / `:11434` |
 | `OLLAMA_HOST` | `nvim` `plugins/ai.lua` (gen.nvim) | `localhost` |
-| `HERMES_TUI_GATEWAY_URL` | `fish/conf.d/hermes.fish` | `http://localhost:8642` |
+| `HERMES_TUI_GATEWAY_URL` | `hermes` (remote gateway only) | unset = discover the local gateway. A set value must be `ws://` or `wss://` — `http://` fails every cron job |
 | `NAS_HOST` / `NAS_SHARE_ROOT` | `mount-library.sh` | **exits** via `${VAR:?}` |
 | `NAS_MOUNT_ROOT` / `NAS_SHARES` / `HOME_NET_PREFIXES` | `mount-library.sh` | `~/nas` / three shares / the built-in prefix list (values live in `local.env`; documented in `private-dotfiles`) |
 
@@ -378,9 +378,8 @@ shell readers in place, the API key silently becomes the literal string
 
 **Two reserved slots, ordered opposite ways:**
 
-- `05-local-env` — *values*, must load **early**. Configs that self-default use
-  "set only if unset" (`fish/conf.d/hermes.fish`), so a reader running after them
-  would never apply.
+- `05-local-env` — *values*, must load **early**. Any config that self-defaults
+  with "set only if unset" must sort after it, or the local value never applies.
 - `99-local` — *behaviour* overrides, must load **last** to win.
 
 ### Secrets reach the shell from a tmpfs cache — never from a startup fetch
