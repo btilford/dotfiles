@@ -2,15 +2,17 @@
 "   the same commands as the original .vimrc configuration.
 " You can find a list of commands here: https://jb.gg/h38q75
 " Find more examples here: https://jb.gg/share-ideavimrc
+"
+" Keys follow the nvim config in this package: same leader groups, LSP gr*
+" maps, mini.surround s* maps and <C-hjkl> split moves. Needs IdeaVim >= 2.48.
 
 " Source your .vimrc
 source ~/.vimrc
 
-"" -- Suggested options --
-" Show a few lines of context around the cursor. Note that this makes the
-" text scroll if you mouse-click near the start or end of the window.
-" Do incremental searching.
+" Plugins read the leader when they register their maps, so set it first.
+let mapleader = " "
 
+"" -- Suggested options --
 " Don't use Ex mode, use Q for formatting.
 map Q gq
 set ideajoin
@@ -24,111 +26,200 @@ set idearefactormode=select
 set ideastatusicon=enabled
 set ideavimsupport=dialog,singleline
 set ideawrite=file
-"set trackactionids
+"set ideatrackactionids
+
+" Scrolling with the mouse moves the caret, and each split keeps its own
+" jump list, as in nvim.
+set ideascrollcursor
+set ideawindowjumps
+" Vim in the AI Assistant chat prompt (Claude Agent included). It opens in
+" Insert mode, so <Enter> still sends.
+set ideaeditor+=chat
+
 " --- Enable IdeaVim plugins https://jb.gg/ideavim-plugins
-
-" Highlight copied text
 Plug 'machakann/vim-highlightedyank'
-" Commentary plugin
 Plug 'tpope/vim-commentary'
-
 Plug 'tpope/vim-surround'
-Plug 'vim-scripts/argtextobj.vim'
-Plug 'easymotion/vim-easymotion'
-Plug 'machakann/vim-highlightedyank'
+" targets.vim stands in for mini.ai: pairs, quotes, args, tags, next/last.
+Plug 'wellle/targets.vim'
 Plug 'michaeljsmith/vim-indent-object'
-packadd matchit
-set min-ai
-Plug 'terryma/vim-multiple-cursors'
-Plug 'preservim/nerdtree'
-set peekaboo
-set quickscope
+" Sub-word motions on comma: ,w ,b ,e ,ge and ci,w.
+let g:camelcasemotion_key = ','
+Plug 'bkad/CamelCaseMotion'
 Plug 'vim-scripts/ReplaceWithRegister'
-Plug 'justinmk/vim-sneak'
+Plug 'bronson/vim-visual-star-search'
+Plug 'preservim/nerdtree'
+packadd matchit
+set peekaboo
 set which-key
 set timeoutlen=5000
 let g:WhichKey_ShowVimActions = "true"
-set surround
-"" -- Map IDE actions to IdeaVim -- https://jb.gg/abva4t
-"" Map \r to the Reformat Code action
-"map \r <Action>(ReformatCode)
+" Tool windows, trees and tables get vim keys.
+set VimEverywhere
 
-"" Map <leader>d to start debug
-"map <leader>d <Action>(Debug)
+" clever-f stands in for flash.nvim's char mode: f/F/t/T repeat with the
+" same key. It replaces quickscope, which highlighted the same targets.
+let g:clever_f_smart_case = 1
+Plug 'rhysd/clever-f.vim'
 
-"" Map \b to toggle the breakpoint on the current line
-"map \b <Action>(ToggleLineBreakpoint)
-let mapleader = " "
+" EasyMotion stands in for flash.nvim jumps. Its default <leader><leader>
+" maps are off, so that key stays free for the recent-files picker.
+let g:EasyMotion_do_mapping = 0
+Plug 'easymotion/vim-easymotion'
+
+" visual-multi replaces vim-multiple-cursors; both claim <C-n>. Arrow keys
+" add cursors as multicursor.nvim does; <C-arrows> stay window moves.
+let g:VM_maps = {}
+let g:VM_maps['Add Cursor Down'] = '<Down>'
+let g:VM_maps['Add Cursor Up'] = '<Up>'
+Plug 'mg979/vim-visual-multi'
+nmap <leader>n <Plug>(VM-Find-Under)
+xmap <leader>n <Plug>(VM-Find-Subword-Under)
+
+" ----------------------------------------------
+" Which-key groups (mirror nvim's which-key spec)
+" ----------------------------------------------
+let g:WhichKeyDesc_search = "<leader>s Search"
+let g:WhichKeyDesc_ai = "<leader>a AI"
+let g:WhichKeyDesc_code = "<leader>c Code"
+let g:WhichKeyDesc_run = "<leader>r Run"
+let g:WhichKeyDesc_debug = "<leader>d Debug"
+let g:WhichKeyDesc_buffer = "<leader>b Buffer"
+let g:WhichKeyDesc_diagnostics = "<leader>x Diagnostics"
+let g:WhichKeyDesc_git = "<leader>g Git"
+let g:WhichKeyDesc_flash = "<leader>F Flash"
+let g:WhichKeyDesc_undo = "<leader>u Undo"
+
+" ----------------------------------------------
+" Basics (mappings.lua)
+" ----------------------------------------------
+nnoremap ; :
+inoremap jk <Esc>
+" <C-a> selects all, so + and - do vim's increment and decrement.
+map <C-a> <Action>($SelectAll)
+nnoremap + <C-a>
+nnoremap - <C-x>
+nnoremap ,p "0p
+xnoremap ,p "0p
 imap <C-v> <Action>($Paste)
 imap <C-p> <Action>($Paste)
 imap <C-c> <Action>($Copy)
 imap <C-y> <Action>($Copy)
-map <C-a> <Action>($SelectAll)
-map <C-a> <Action>($SelectAll)
 map <leader>f <Action>(ReformatCode)
+
+" mini.surround keys on top of vim-surround's ys/ds/cs.
+nmap sa <Plug>YSurround
+xmap sa <Plug>VSurround
+nmap sd <Plug>DSurround
+nmap sr <Plug>CSurround
+
 " ----------------------------------------------
-" Menus
+" Search (telescope)
 " ----------------------------------------------
-nmap si <Action>(GotoAction)
-nmap sc <Action>(GotoClass)
-nmap sf <Action>(GotoFile)
-" Grep Search
-nmap sg <Action>(SearchEverywhere)
-nmap sw <Action>($SearchWeb)
-nmap ss <Action>(GotoSymbol)
-nmap ss <Action>(ReplaceInPath)
+nmap <leader>sf <Action>(GotoFile)
+nmap <leader>sg <Action>(FindInPath)
+nmap <leader>sw <Action>(FindInPath)
+nmap <leader>ss <Action>(GotoAction)
+nmap <leader>sc <Action>(GotoClass)
+nmap <leader>so <Action>(GotoClass)
+nmap <leader>sa <Action>(SearchEverywhere)
+nmap <leader>sd <Action>(ActivateProblemsViewToolWindow)
+nmap <leader>sR <Action>(ReplaceInPath)
+nmap <leader>sW <Action>($SearchWeb)
+nmap <leader><leader> <Action>(RecentFiles)
+nmap <leader>/ <Action>(Find)
 
 " ----------------------------------------------
 " Editor Nav
 " ----------------------------------------------
 nmap <S-Tab> <Action>(PreviousTab)
 nmap <Tab> <Action>(NextTab)
+nmap ]b <Action>(NextTab)
+nmap [b <Action>(PreviousTab)
+nmap <leader>bn <Action>(NextTab)
+nmap <leader>bp <Action>(PreviousTab)
+nmap <leader>bb <C-^>
 map <leader>e <Action>(ActivateProjectToolWindow)
-map <C-l> <Action>(NextSplitter)
-map <C-j> <Action>(NextSplitter)
+" Split moves use IDE actions, because <C-w> is not usable on this keymap.
+" <C-h> and <C-k> only reach vim once their handler is set to Vim (see below).
 map <C-h> <Action>(PrevSplitter)
 map <C-k> <Action>(PrevSplitter)
-" ----------------------------------------------
-" Refactoring
-" ----------------------------------------------
-map <leader>ca <Action>(RefactoringMenu)
-map <leader>crn <Action>(RenameElement)
-nmap grn <Action>(RenameElement)
-map <leader>crm <Action>(RefactoringMenu)
-" ----------------------------------------------
-" Code Manipulation
-" ----------------------------------------------
-map <leader>ld <Action>(EditorDuplicateLines)
-"map <A-CR> <Action>(ShowIntentionActions)
+map <C-j> <Action>(NextSplitter)
+map <C-l> <Action>(NextSplitter)
+map <C-Left> <Action>(PrevSplitter)
+map <C-Up> <Action>(PrevSplitter)
+map <C-Down> <Action>(NextSplitter)
+map <C-Right> <Action>(NextSplitter)
 
 " ----------------------------------------------
-" Code Nav
+" Flash
+" ----------------------------------------------
+map <leader>Fj <Plug>(easymotion-s)
+nmap <leader>Ft <Action>(EditorSelectWord)
+xmap <leader>Ft <Action>(EditorSelectWord)
+
+" ----------------------------------------------
+" LSP (nvim 0.11 gr* defaults + lspconfig.lua)
 " ----------------------------------------------
 nmap gd <Action>(GotoDeclaration)
-nmap gi <Action>(GotoImplementation)
-nmap gu <Action>(ShowUsages)
-" map <A-j> <Action>(SelectNextOccurrence)
+nmap grd <Action>(GotoDeclaration)
+nmap grn <Action>(RenameElement)
+nmap gra <Action>(ShowIntentionActions)
+xmap gra <Action>(ShowIntentionActions)
+nmap grr <Action>(ShowUsages)
+nmap gri <Action>(GotoImplementation)
+nmap grt <Action>(GotoTypeDeclaration)
+nmap gO <Action>(FileStructurePopup)
+nmap gW <Action>(GotoSymbol)
+nmap ]d <Action>(GotoNextError)
+nmap [d <Action>(GotoPreviousError)
+nmap ]q <Action>(NextOccurence)
+nmap [q <Action>(PreviousOccurence)
 nmap gf <Action>(GoToLinkTarget)
-nmap ge <Action>(GotoNextError)
-nmap gE <Action>(GotoPreviousError)
-nmap grc <Action>(ContextRun)
-nmap gre <Action>(Console.Jdbc.Execute)
-imap <C-Enter> <Action>(Console.Jdbc.Execute)
 
-nmap gdc <Action>(ContextDebug)
-nmap grr <Action>(Rerun)
-nmap grft <Action>(RerunFailedTests)
-nmap grt <Action>(RerunTests)
-nmap grv <Action>(RunCoverage)
-nmap grg <Action>(Gradle.ExecuteTask)
-nmap <C-n> <Action>(NextOccurence)
 " ----------------------------------------------
-" TODO
+" Refactoring / Code
 " ----------------------------------------------
-"map <leader>ac <Action>(LookupActions)
-" map <leader>ac <Action>(EditorPopupMenu.GoTo)
-" ShowIntentionActions
-"
+nmap <leader>ca <Action>(ShowIntentionActions)
+xmap <leader>ca <Action>(ShowIntentionActions)
+map <leader>crn <Action>(RenameElement)
+map <leader>crm <Action>(RefactoringMenu)
+map <leader>ld <Action>(EditorDuplicateLines)
+
+" ----------------------------------------------
+" Diagnostics / Git / Undo
+" ----------------------------------------------
+nmap <leader>q <Action>(ActivateProblemsViewToolWindow)
+nmap <leader>xx <Action>(ActivateProblemsViewToolWindow)
+nmap <leader>gl <Action>(ActivateVersionControlToolWindow)
+nmap <leader>ut <Action>(LocalHistory.ShowHistory)
+
+" ----------------------------------------------
+" Run / Debug
+" ----------------------------------------------
+" Kept off the gr* prefix, which nvim gives to LSP.
+nmap <leader>rc <Action>(ContextRun)
+nmap <leader>rr <Action>(Rerun)
+nmap <leader>rf <Action>(RerunFailedTests)
+nmap <leader>rt <Action>(RerunTests)
+nmap <leader>rv <Action>(RunCoverage)
+nmap <leader>rg <Action>(Gradle.ExecuteTask)
+nmap <leader>re <Action>(Console.Jdbc.Execute)
+imap <C-Enter> <Action>(Console.Jdbc.Execute)
+nmap <leader>dd <Action>(ContextDebug)
+nmap <leader>db <Action>(ToggleLineBreakpoint)
+
+" ----------------------------------------------
+" Claude Code (AI)
+" ----------------------------------------------
+" Same keys as opencode.nvim: ga adds the selection to the agent's context,
+" <C-.> opens the agent. The <leader>a pair is for which-key discovery.
+nmap ga <Action>(com.anthropic.code.plugin.actions.SendToClaudeAction)
+xmap ga <Action>(com.anthropic.code.plugin.actions.SendToClaudeAction)
+nmap <C-.> <Action>(com.anthropic.code.plugin.actions.OpenClaudeInTerminalAction)
+nmap <leader>ao <Action>(com.anthropic.code.plugin.actions.OpenClaudeInTerminalAction)
+nmap <leader>as <Action>(com.anthropic.code.plugin.actions.SendToClaudeAction)
+xmap <leader>as <Action>(com.anthropic.code.plugin.actions.SendToClaudeAction)
 
 " ----------------------------------------------
 " Continue (AI)

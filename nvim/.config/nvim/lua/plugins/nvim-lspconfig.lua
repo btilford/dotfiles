@@ -229,6 +229,27 @@ return {
       --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
       local capabilities = require("blink.cmp").get_lsp_capabilities()
 
+      -- YAML: a file picks its schema with a first-line modeline,
+      -- `# yaml-language-server: $schema=<path or url>`; other files use the SchemaStore catalog.
+      vim.lsp.config("yamlls", {
+        capabilities = capabilities,
+        settings = {
+          redhat = { telemetry = { enabled = false } },
+          yaml = {
+            validate = true,
+            hover = true,
+            completion = true,
+            keyOrdering = false,
+            format = { enable = true },
+            schemaStore = {
+              enable = true,
+              url = "https://www.schemastore.org/api/json/catalog.json",
+            },
+          },
+        },
+      })
+      vim.lsp.enable("yamlls")
+
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
       --
@@ -387,6 +408,7 @@ return {
         -- debuggers
         "jdtls",
         "kotlin-lsp",
+        "yaml-language-server", -- yamlls, configured above
         -- "java-test",
         "js-debug-adapter",
         "kotlin-debug-adapter",
