@@ -104,6 +104,9 @@ the tmux look:
 | prefix hints | Terminal > Keyboard > Show key sequence hints |
 | `M-hjkl` on macOS | Terminal > Keyboard > Option key sends Alt |
 
+The last three rows are set by one action. On each Mac, open the command
+palette and run **Apply Dotfiles App Settings**.
+
 ## Not ported
 
 - **vi copy-mode** and **flash.tmux**: Rex has Find and mouse selection only.

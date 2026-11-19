@@ -87,3 +87,15 @@ rex.bind("cmd+k", "com.superlogical.terminal.clear")
 rex.bind("alt+r", "client.config.reload")
 rex.bind("ctrl+shift+v", "pane.paste")
 rex.bind("ctrl+shift+c", "pane.copy")
+
+-- The app owns these settings, not init.lua. Run this once per Mac from the command palette.
+rex.action({
+  name = "apply_app_settings",
+  title = "Apply Dotfiles App Settings",
+  category = "Settings",
+  run = function()
+    rex.client.queue("client.setting.terminal.keyboard.option", { value = "sends_alt" }) -- M-hjkl
+    rex.client.queue("client.setting.terminal.keyboard.sequence_hints", { value = true })
+    rex.client.queue("client.setting.terminal.selection.copy_on_select", { value = true })
+  end,
+})
