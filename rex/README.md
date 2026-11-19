@@ -48,6 +48,13 @@ No prefix:
 | --- | --- |
 | `C-h/j/k/l` | Focus a pane. In nvim, nvim gets the key first (see below). |
 | `M-h/j/k/l` | Resize a pane. In nvim, nvim gets the key. |
+| `cmd+k` | Clear the terminal, as in Ghostty. The session picker is on `C-b s`. |
+| `M-r` | Reload the config. |
+| `C-S-c` `C-S-v` | Copy and paste. |
+
+`P`, `G`, `v`, `e` and `D` bind only when their tool is on the server's
+`PATH`, as the `if-shell` guards in `.tmux.conf` do. Reload after you
+install a tool.
 
 After `C-b`:
 

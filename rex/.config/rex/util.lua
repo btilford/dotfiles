@@ -28,8 +28,17 @@ function M.is_vim(block_id)
   return name ~= nil and VIM[name] == true
 end
 
+-- True when bin is on the server's PATH: the tmux.conf `if-shell 'command -v'` guard.
+function M.has(bin)
+  local r = rex.exec(
+    { "sh", "-c", 'command -v "$1"', "sh", bin },
+    { stdout = false, stderr = false }
+  )
+  return r ~= nil and r.ok
+end
+
 -- The directory the terminal last reported (OSC 7), as a plain path.
--- `pwd` answers a file:// URI with a host part: file://host/path.
+-- Programs that send no OSC 7 fall back to the foreground process's cwd.
 function M.cwd(block_id)
   if not block_id then
     return nil
@@ -37,7 +46,9 @@ function M.cwd(block_id)
   local r = rex.block.call(M.TERM, "pwd", { block_id = block_id })
   local uri = r and r.pwd
   if not uri then
-    return nil
+    local p = rex.block.call(M.TERM, "process", { block_id = block_id })
+    local fg = p and (p.foreground or p.child)
+    return fg and fg.cwd
   end
   local path = uri:match("^file://[^/]*(/.*)$") or uri
   return (path:gsub("%%(%x%x)", function(h)
