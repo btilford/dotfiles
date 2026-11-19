@@ -97,5 +97,8 @@ rex.action({
     rex.client.queue("client.setting.terminal.keyboard.option", { value = "sends_alt" }) -- M-hjkl
     rex.client.queue("client.setting.terminal.keyboard.sequence_hints", { value = true })
     rex.client.queue("client.setting.terminal.selection.copy_on_select", { value = true })
+    -- Glass panes: the nearest match to Ghostty's background-opacity.
+    rex.client.queue("client.setting.interface.appearance.style", { value = "glass" })
+    rex.client.queue("client.setting.interface.appearance.glass", { value = true })
   end,
 })

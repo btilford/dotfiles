@@ -103,8 +103,9 @@ the tmux look:
 | tmux-yank | Terminal > Selection > Copy on selection |
 | prefix hints | Terminal > Keyboard > Show key sequence hints |
 | `M-hjkl` on macOS | Terminal > Keyboard > Option key sends Alt |
+| Ghostty `background-opacity` | Interface > Appearance > Style: Glass, and Use Glass for Panes |
 
-The last three rows are set by one action. On each Mac, open the command
+The last four rows are set by one action. On each Mac, open the command
 palette and run **Apply Dotfiles App Settings**.
 
 ## Not ported
