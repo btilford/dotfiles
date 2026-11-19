@@ -103,7 +103,7 @@ the tmux look:
 | tmux-yank | Terminal > Selection > Copy on selection |
 | prefix hints | Terminal > Keyboard > Show key sequence hints |
 | `M-hjkl` on macOS | Terminal > Keyboard > Option key sends Alt |
-| Ghostty `background-opacity` | Interface > Appearance > Style: Glass, and Use Glass for Panes |
+| Ghostty `background-opacity` | Interface > Appearance > Interface style: Glass, and Use glass for panes (macOS 26 or later; hidden on macOS 15) |
 
 The last four rows are set by one action. On each Mac, open the command
 palette and run **Apply Dotfiles App Settings**.
