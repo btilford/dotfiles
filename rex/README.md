@@ -64,7 +64,8 @@ After `C-b`:
 | `%` `"` | split | `pane.split` right / down |
 | `z` `x` `o` `;` `!` `{` `}` `space` | panes | zoom, close, next, previous, break to tab, move, balance |
 | `h/j/k/l` | select-pane | plain focus |
-| `S` | sesh | `rex-sesh` in a floating layer |
+| `S` | sesh | sesh picker in the command palette |
+| `C-s` | — | `rex-sesh` (fzf) in a floating layer |
 | `s` `w` `$` `(` `)` | sessions | switch, rename, previous, next |
 | `[` `f` | copy-mode, flash.tmux | Find (no vi copy-mode in Rex) |
 | `]` | paste | paste clipboard |
@@ -118,8 +119,24 @@ palette and run **Apply Dotfiles App Settings**.
 - **detach**: there is nothing to detach from. Close the app, and the server
   keeps the sessions.
 
-## The sesh picker needs Remote Control
+## The sesh pickers
 
-`rex-sesh` creates or picks a session, then asks the app to show it with
-`rex -C <client> do session.select`. The app accepts that only with
-Settings > Server > Client Info > Remote Control on.
+There are two. Both list live Rex sessions, then sesh.toml and zoxide
+entries. Both reuse a session with the same label, or create one.
+
+- `C-b S` (`sesh_pick`) uses `rex.ui.pick` in the command palette and needs no
+  Remote Control. The palette has a fixed width and no preview pane.
+- `C-b C-s` (`sesh`) runs `rex-sesh` with fzf and previews in a floating layer.
+  It switches the app with `rex -C <client> do session.select`, which the app
+  accepts only with Settings > Server > Client Info > Remote Control on.
+
+**To check on Rex updates:** whether `rex.ui.pick` gets a preview pane or a
+width option, or a config action can wait for a popup to exit. Either change
+would let one picker have both the fzf look and the switch without Remote
+Control.
+
+## The server PATH
+
+The server runs with launchd's or systemd's bare `PATH`. `util.lua` reads the
+login shell's `PATH` once at load, and `u.exec` passes it to `rex.exec`. Call
+`u.exec`, not `rex.exec`, for any tool outside `/usr/bin`.

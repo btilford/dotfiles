@@ -43,7 +43,8 @@ bind("k", "pane.focus.up")
 bind("l", "pane.focus.right")
 
 -- ── Sessions ─────────────────────────────────────────────────────────────────
-bind("shift+s", "sesh") -- S  sesh picker
+bind("shift+s", "sesh_pick") -- S  sesh picker, in the command palette
+bind("ctrl+s", "sesh") -- the fzf sesh picker in a popup (needs Remote Control)
 bind("s", "session.switch") -- choose-session
 bind("w", "session.switch") -- choose-tree
 bind("shift+4", "session.rename") -- $

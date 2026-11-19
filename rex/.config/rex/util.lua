@@ -28,12 +28,27 @@ function M.is_vim(block_id)
   return name ~= nil and VIM[name] == true
 end
 
--- True when bin is on the server's PATH: the tmux.conf `if-shell 'command -v'` guard.
+-- The server runs with launchd's or systemd's bare PATH. Read the login shell's
+-- PATH once, so rex.exec finds the tools a terminal would.
+local function login_path()
+  local shell = os.getenv("SHELL") or "sh"
+  local r = rex.exec({ shell, "-l", "-c", "printenv PATH" }, { stderr = false, timeout = 5 })
+  local path = r and r.ok and r.stdout:match("([^\n]+)\n*$")
+  return path or os.getenv("PATH")
+end
+local PATH = login_path()
+
+-- rex.exec with the login shell's PATH.
+function M.exec(argv, opts)
+  opts = opts or {}
+  opts.env = opts.env or {}
+  opts.env.PATH = opts.env.PATH or PATH
+  return rex.exec(argv, opts)
+end
+
+-- True when bin is on the login PATH: the tmux.conf `if-shell 'command -v'` guard.
 function M.has(bin)
-  local r = rex.exec(
-    { "sh", "-c", 'command -v "$1"', "sh", bin },
-    { stdout = false, stderr = false }
-  )
+  local r = M.exec({ "sh", "-c", 'command -v "$1"', "sh", bin }, { stdout = false, stderr = false })
   return r ~= nil and r.ok
 end
 
