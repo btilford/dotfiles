@@ -23,8 +23,5 @@
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
-[credential "https://dev.azure.com"]
-	useHttpPath = true
-
 [include]
     path = ~/.gitconfig.local
