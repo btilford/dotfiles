@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# rig (OpenRig CLI), run under the Node line OpenRig supports.
+#
+# OpenRig declares `^22 || ^24` and ships one native module (better-sqlite3).
+# The machine default node is newer, and `npm install -g` puts `rig` inside ONE
+# node install, so the mise shim fails under any other version ("mise ERROR").
+# This wrapper puts that install's bin dir first on PATH, so the CLI, the daemon
+# it spawns (started with process.execPath) and the native module all agree.
+#
+# Lives in ~/.local/bin, ahead of the mise shims, so it wins over the shim.
+# Install / re-pin with:  mise run setup:openrig
+#
+# OPENRIG_NODE overrides the node version (default 24).
+
+set -euo pipefail
+
+node_ver=${OPENRIG_NODE:-24}
+
+if ! node_dir=$(mise where "node@$node_ver" 2> /dev/null) || [ ! -x "$node_dir/bin/rig" ]; then
+  echo "rig: OpenRig is not installed under node@$node_ver — run: mise run setup:openrig" >&2
+  exit 127
+fi
+
+PATH="$node_dir/bin:$PATH" exec "$node_dir/bin/rig" "$@"

@@ -143,6 +143,14 @@ description = "Create this host's role/* aliases in the local Ollama (per machin
 # old weights and says nothing. Refuses a non-loopback OLLAMA_HOST.
 run = "ollama-role-aliases"
 
+[tasks."setup:openrig"]
+description = "Install OpenRig under node 24 and apply safe config — never runs `rig setup` (per machine)"
+# `rig setup` writes through the stowed ~/.tmux.conf into this repo and lowers
+# history-limit; the daemon's default bind is unauthenticated on the netbird
+# range. The script header has the full account. Pass `-- --pi-seat <session>`
+# to write a LiteLLM models.json for a pi seat.
+run = "mise-scripts/setup-openrig.sh"
+
 [tasks."setup:atuin-ai-server"]
 description = "Start atuin-ai-server on 127.0.0.1:8080 (per machine — it starts a container)"
 # The atuin client speaks the Atuin AI protocol, not OpenAI, so it cannot reach

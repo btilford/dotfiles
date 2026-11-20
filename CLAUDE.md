@@ -607,6 +607,37 @@ cannot drive the tools.
   the small models this host serves, so they run the GGUF path. Check `ollama ps`
   for `PROCESSOR = 100% GPU`.
 
+## OpenRig: never run `rig setup`
+
+OpenRig (`rig`, npm `@openrig/cli`) runs agent teams in tmux. Install and
+configure it with `mise run setup:openrig`, never with `rig setup` —
+`mise-scripts/setup-openrig.sh` has the full account. In short:
+
+- **`rig setup` edits this repo.** It appends a block to `~/.tmux.conf` with a
+  write that follows the stow symlink, has no flag to skip it, and sets
+  `history-limit 10000` after our 50000. Its only useful effect is two config
+  keys, which the task sets directly.
+- **Two keys must be set before the first daemon start:** `daemon.host
+  127.0.0.1` (the default also binds the netbird address in the CGNAT range, with
+  that range exempt from the bearer token) and `terminal.tmux_server isolated`
+  (seats stay off the personal tmux server).
+- **It runs on node 24, not the machine default.** It declares `^22 || ^24` and
+  ships better-sqlite3. `commands/.local/bin/rig` puts mise's node 24 first on
+  PATH, because the mise shim fails under any other node.
+- **A seat's `cwd` decides where it writes files**: `.claude/settings.local.json`,
+  `.mcp.json`, `.openrig/` and a managed `CLAUDE.md` block. Never give a seat a
+  `cwd` inside `~/dotfiles` or `~/private-dotfiles`.
+- **A seat does not work in its `cwd` by default.** Agents ask
+  `rig context work-install`, which names `~/.openrig/workspace` unless
+  `workspace.yaml` there lists a project with the rig under `rigs:`. Without
+  that entry a pi builder wrote its files into `~/.openrig/workspace` and
+  reported success.
+- **pi seats ignore `~/.pi/agent`.** See `pi-agent/README.md`.
+
+Everything OpenRig writes is machine-local: `~/.openrig`, three skill folders
+in `~/.claude/skills` and `~/.agents/skills`, and trust flags in
+`~/.claude.json`. None of it is tracked.
+
 ## atuin: a personal/work split that is not an OS split
 
 `atuin` (shell history, sync, AI) is the first package whose config varies by
@@ -909,6 +940,7 @@ install -m 600 ~/.config/aerc/accounts.conf{.example,}   # then fill it in
 launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.dotfiles.ollama.plist  # macOS
 mise run setup:ollama-roles                # role/* aliases; RE-RUN AFTER ollama pull
 mise run setup:atuin-ai-server             # docker: atuin-ai-server on 127.0.0.1:8080
+mise run setup:openrig                     # OpenRig on node 24, localhost-only; NEVER `rig setup`
 atuin hook install claude-code             # atuin agent hooks, one per agent
 atuin hook install codex
 atuin hook install pi
