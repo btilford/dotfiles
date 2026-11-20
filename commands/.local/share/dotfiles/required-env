@@ -23,7 +23,7 @@ DOTFILES_AI	optional	nvim ai.lua	kill switch: "off" disables every AI integratio
 LEMONADE_URL	optional	commands/.local/bin/sync-litellm-models	
 OLLAMA_URL	optional	commands/.local/bin/sync-litellm-models	
 OLLAMA_HOST	optional	nvim ai.lua (gen.nvim), ollama LaunchAgent	BARE HOST, NO PORT: gen.nvim appends :11434 itself. read via vim.env, so needs environment.d
-HERMES_TUI_GATEWAY_URL	optional	fish/.config/fish/conf.d/hermes.fish	defaults to http://localhost:8642
+HERMES_TUI_GATEWAY_URL	optional	hermes	leave unset for the local gateway; only for a remote one, and must be ws:// or wss://
 VOL_SCREENSHOT_ARCHIVE	optional	mise-scripts/visuals	
 DOTFILES_SCREENSHOT_ARCHIVE	optional	mise-scripts/visual-archive.sh	
 DOTFILES_LEMONADE_PREFIX	optional	commands/.local/bin/sync-litellm-models	host-qualified model prefix, e.g. <host>.lemonade; falls back to "lemonade"

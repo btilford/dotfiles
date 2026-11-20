@@ -8,7 +8,7 @@
 #
 # Numbered 05 deliberately: conf.d loads alphabetically, and configs that set
 # their own fallback use `set -q VAR; or set -gx VAR default`. If this ran after
-# them (e.g. hermes.fish) the default would already be set and the local value
+# them the default would already be set and the local value
 # would never apply. Values load early; behaviour overrides go in a `99-local`
 # file instead.
 #

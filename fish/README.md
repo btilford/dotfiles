@@ -62,5 +62,5 @@ it explicitly.
 / `secrets-refresh`. Neither ever calls the network — a fetch in `conf.d` hangs
 every new terminal when the gateway is unreachable.
 
-`conf.d/hermes.fish` self-defaults `HERMES_TUI_GATEWAY_URL` with "set only if
-unset", which is exactly why `05-local-env` must load before it.
+Any `conf.d` file that self-defaults with "set only if unset" must sort after
+`05-local-env`, or the machine-local value never applies.
