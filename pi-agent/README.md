@@ -65,24 +65,30 @@ Stow package for the Pi terminal AI agent.
 ## Secrets Policy
 
 Any file containing `apiKey`, `token`, `secret`, or `password` must remain untracked.
-The repo's `models.json` is a placeholder with `!printenv PI_API_KEY`.
+`models.json` is gitignored; `models.example.json` is the tracked template, and its
+key is the reference `!printenv PI_API_KEY` (pi runs an `apiKey` that starts with
+`!` as a command), never a literal value.
 
 ## Adopting on a Machine with Existing Configs
 
-If you already have a local `~/.pi/agent/models.json` with a real key:
+Do not use `stow --adopt` for this package: it would pull a real `models.json`
+(with its key) into the repo. Move the local copy aside, stow, then put it back
+as a plain file:
 
 ```bash
-cd ~/dotfiles
-# Adopt existing configs (copies local files into the repo)
-stow --adopt --no-folding pi-agent
-
-# IMMEDIATELY revert the repo's models.json to the placeholder
-git checkout HEAD -- pi-agent/.pi/agent/models.json
-
-# Break the symlink so the local file stays local
-rm ~/.pi/agent/models.json
-# (re-create your local file with the real key if needed)
+mv ~/.pi/agent/models.json /tmp/pi-models.json
+cd ~/dotfiles && stow --no-folding -t ~ pi-agent
+mv /tmp/pi-models.json ~/.pi/agent/models.json
 ```
+
+## OpenRig pi seats
+
+OpenRig gives each pi seat its own agent directory
+(`~/.openrig/state/pi/<session>/agent`) and never reads `~/.pi/agent`, so a seat
+does not see this `models.json` or `settings.json`. It also passes no custom
+provider key into the seat's environment. `mise run setup:openrig -- --pi-seat
+<session>` writes a seat `models.json` that resolves the key with
+`!dotfiles-secrets --get PI_API_KEY`.
 
 ## Example `models.json` (for reference)
 
