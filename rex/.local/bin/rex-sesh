@@ -30,7 +30,8 @@ list() {
     jq -r '.[] | [.Src, .Name, .Path, (.StartupCommand // "")] | @tsv'
 }
 
-choice=$(list | fzf \
+# fzf runs --preview with $SHELL, and the preview below is sh syntax (fish rejects it).
+choice=$(list | SHELL=/bin/sh fzf \
   --delimiter '\t' --with-nth 1,2 \
   --border-label ' Sesh ' --prompt '⚡ ' \
   --preview 'if [ {1} = rex ]; then rex session inspect {3}; else eza --all --git --icons --color=always {3}; fi') || exit 0

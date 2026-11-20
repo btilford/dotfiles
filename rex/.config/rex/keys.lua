@@ -4,6 +4,8 @@
 -- Turn on Settings > Terminal > Keyboard > "Show key sequence hints" in the app
 -- for a which-key style list after C-b.
 
+local u = require("util")
+
 local P = "ctrl+b>"
 local function bind(k, action, args)
   rex.bind(P .. k, action, args)
@@ -41,7 +43,8 @@ bind("k", "pane.focus.up")
 bind("l", "pane.focus.right")
 
 -- ── Sessions ─────────────────────────────────────────────────────────────────
-bind("shift+s", "sesh") -- S  sesh picker
+bind("shift+s", "sesh_pick") -- S  sesh picker, in the command palette
+bind("ctrl+s", "sesh") -- the fzf sesh picker in a popup (needs Remote Control)
 bind("s", "session.switch") -- choose-session
 bind("w", "session.switch") -- choose-tree
 bind("shift+4", "session.rename") -- $
@@ -61,11 +64,42 @@ bind("r", "client.config.reload")
 -- ── Popups & tools (same letters as .tmux.conf) ──────────────────────────────
 bind("p", "scratch_float") -- floax
 bind("shift+e", "edit_output") -- E
-bind("shift+p", "tuicr_popup") -- P
-bind("shift+g", "ghdash_popup") -- G
-bind("v", "clipborg_popup")
+-- Tool keys bind only where the tool is installed, as the tmux.conf if-shell guards do.
+if u.has("tuicr") then
+  bind("shift+p", "tuicr_popup") -- P
+end
+if u.has("gh") then
+  bind("shift+g", "ghdash_popup") -- G
+end
+if u.has("clipborg") then
+  bind("v", "clipborg_popup")
+end
 -- Agents: rex's Activity sidebar reads agent status natively (program status
 -- protocol + the agent hooks), so it takes over from `workmux sidebar`.
 bind("b", "client.sidebar.activity.toggle")
-bind("e", "workmux_dashboard")
-bind("shift+d", "workmux_diff") -- D
+if u.has("workmux") then
+  bind("e", "workmux_dashboard")
+  bind("shift+d", "workmux_diff") -- D
+end
+
+-- ── Terminal (from the Ghostty config) ───────────────────────────────────────
+-- cmd+k clears the screen, as in Ghostty and iTerm2; the session picker is on C-b s.
+rex.bind("cmd+k", "com.superlogical.terminal.clear")
+rex.bind("alt+r", "client.config.reload")
+rex.bind("ctrl+shift+v", "pane.paste")
+rex.bind("ctrl+shift+c", "pane.copy")
+
+-- The app owns these settings, not init.lua. Run this once per Mac from the command palette.
+rex.action({
+  name = "apply_app_settings",
+  title = "Apply Dotfiles App Settings",
+  category = "Settings",
+  run = function()
+    rex.client.queue("client.setting.terminal.keyboard.option", { value = "sends_alt" }) -- M-hjkl
+    rex.client.queue("client.setting.terminal.keyboard.sequence_hints", { value = true })
+    rex.client.queue("client.setting.terminal.selection.copy_on_select", { value = true })
+    -- Glass panes: the nearest match to Ghostty's background-opacity.
+    rex.client.queue("client.setting.interface.appearance.style", { value = "glass" })
+    rex.client.queue("client.setting.interface.appearance.glass", { value = true })
+  end,
+})

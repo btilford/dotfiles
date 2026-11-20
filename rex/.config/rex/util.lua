@@ -28,8 +28,32 @@ function M.is_vim(block_id)
   return name ~= nil and VIM[name] == true
 end
 
+-- The server runs with launchd's or systemd's bare PATH. Read the login shell's
+-- PATH once, so rex.exec finds the tools a terminal would.
+local function login_path()
+  local shell = os.getenv("SHELL") or "sh"
+  local r = rex.exec({ shell, "-l", "-c", "printenv PATH" }, { stderr = false, timeout = 5 })
+  local path = r and r.ok and r.stdout:match("([^\n]+)\n*$")
+  return path or os.getenv("PATH")
+end
+local PATH = login_path()
+
+-- rex.exec with the login shell's PATH.
+function M.exec(argv, opts)
+  opts = opts or {}
+  opts.env = opts.env or {}
+  opts.env.PATH = opts.env.PATH or PATH
+  return rex.exec(argv, opts)
+end
+
+-- True when bin is on the login PATH: the tmux.conf `if-shell 'command -v'` guard.
+function M.has(bin)
+  local r = M.exec({ "sh", "-c", 'command -v "$1"', "sh", bin }, { stdout = false, stderr = false })
+  return r ~= nil and r.ok
+end
+
 -- The directory the terminal last reported (OSC 7), as a plain path.
--- `pwd` answers a file:// URI with a host part: file://host/path.
+-- Programs that send no OSC 7 fall back to the foreground process's cwd.
 function M.cwd(block_id)
   if not block_id then
     return nil
@@ -37,7 +61,9 @@ function M.cwd(block_id)
   local r = rex.block.call(M.TERM, "pwd", { block_id = block_id })
   local uri = r and r.pwd
   if not uri then
-    return nil
+    local p = rex.block.call(M.TERM, "process", { block_id = block_id })
+    local fg = p and (p.foreground or p.child)
+    return fg and fg.cwd
   end
   local path = uri:match("^file://[^/]*(/.*)$") or uri
   return (path:gsub("%%(%x%x)", function(h)
