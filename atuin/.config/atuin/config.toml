@@ -132,3 +132,6 @@ autostart = true
 ## without saying anything.
 common_prefix = ["sudo"]
 ignored_commands = ["cd", "ls", "vi"]
+
+[threads]
+enabled = true

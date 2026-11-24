@@ -1,3 +1,10 @@
+# >>> lig pre >>>
+# lig (terminal autocomplete) is optional. Skip both hooks when it is absent.
+set -l lig_bin (command -s lig; or path filter -x /opt/homebrew/bin/lig)
+if test -n "$lig_bin"
+    eval ($lig_bin init fish pre | string collect)
+end
+# <<< lig pre <<<
 source ~/.config/fish/env.fish
 
 if not status is-interactive
@@ -40,3 +47,8 @@ if test -f ~/.config/fish/local_only.fish
 end
 
 
+# >>> lig post >>>
+if test -n "$lig_bin"
+    eval ($lig_bin init fish post | string collect)
+end
+# <<< lig post <<<

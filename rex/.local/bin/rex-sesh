@@ -34,7 +34,7 @@ list() {
 choice=$(list | SHELL=/bin/sh fzf \
   --delimiter '\t' --with-nth 1,2 \
   --border-label ' Sesh ' --prompt '⚡ ' \
-  --preview 'if [ {1} = rex ]; then rex session inspect {3}; else eza --all --git --icons --color=always {3}; fi') || exit 0
+  --preview 'if [ {1} = rex ]; then rex session inspect {3}; elif command -v eza >/dev/null; then eza --all --git --icons --color=always {3}; else ls -la {3}; fi') || exit 0
 
 IFS=$'\t' read -r kind label target startup <<< "$choice"
 
