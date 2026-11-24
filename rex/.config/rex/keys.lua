@@ -52,9 +52,9 @@ bind("shift+9", "session.previous") -- (
 bind("shift+0", "session.next") -- )
 
 -- ── Copy / search ────────────────────────────────────────────────────────────
--- rex has no vi copy-mode. Find + mouse selection ("Copy on selection" in the
--- app replaces tmux-yank) is the nearest thing.
-bind("[", "client.find.open")
+-- C-b [ enters the app's vi-style copy mode, as in tmux. Mouse selection with
+-- "Copy on selection" in the app replaces tmux-yank.
+bind("[", "pane.copy_mode.enter")
 bind("]", "pane.paste")
 bind("f", "client.find.open") -- flash.tmux: no label-jump equivalent
 

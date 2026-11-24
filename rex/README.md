@@ -67,7 +67,8 @@ After `C-b`:
 | `S` | sesh | sesh picker in the command palette |
 | `C-s` | — | `rex-sesh` (fzf) in a floating layer |
 | `s` `w` `$` `(` `)` | sessions | switch, rename, previous, next |
-| `[` `f` | copy-mode, flash.tmux | Find (no vi copy-mode in Rex) |
+| `[` | copy-mode | copy mode (vi keys) |
+| `f` | flash.tmux | Find (no label jump in Rex) |
 | `]` | paste | paste clipboard |
 | `r` | reload | `client.config.reload` |
 | `p` | floax | floating scratch shell at the pane's cwd |
@@ -111,7 +112,7 @@ palette and run **Apply Dotfiles App Settings**.
 
 ## Not ported
 
-- **vi copy-mode** and **flash.tmux**: Rex has Find and mouse selection only.
+- **flash.tmux**: Rex has Find, but no label jump.
 - **workmux sidebar**: workmux drives tmux. Rex's Activity sidebar shows agent
   state from its own agent hooks and the program status protocol.
 - **tmuxifier**: no layouts are defined. A layout in Rex is a Lua action that
@@ -140,3 +141,11 @@ Control.
 The server runs with launchd's or systemd's bare `PATH`. `util.lua` reads the
 login shell's `PATH` once at load, and `u.exec` passes it to `rex.exec`. Call
 `u.exec`, not `rex.exec`, for any tool outside `/usr/bin`.
+
+## To do
+
+- **A flash.nvim-style jump on `C-b f`.** The action reads the visible screen and
+  lists its words and tokens in the command palette. Picking one enters copy
+  mode and moves the cursor there with counted motions: `screen_top`, down N,
+  `line_start`, right M. It needs no Remote Control. Labels on the screen, as
+  flash.tmux draws them, need a floating replica and Remote Control.
