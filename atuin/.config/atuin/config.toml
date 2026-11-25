@@ -134,4 +134,4 @@ common_prefix = ["sudo"]
 ignored_commands = ["cd", "ls", "vi"]
 
 [threads]
-enabled = true
+capture = true
