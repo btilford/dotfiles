@@ -111,6 +111,14 @@ title_regex = []
 # renders nothing like a clipboard list. The dialog does show them as a tab. Both are gated
 # on [features] registers above: the capability is shared, the presentation isn't.)
 
+# Remote content, fetched only by the daemon (private addresses refused). "ask" = nothing
+# loads until Ctrl+I / :fetch (Space / :play for media) in the dialog or popup.
+[remote]
+preview_images = "ask"  # Markdown / <img> images in a text clip's preview
+page_thumbnails = "ask" # URL clips: page screenshot card (headless chromium/brave)
+metadata = "ask"        # URL clips: page title / site / description, on card load
+media = "ask"           # URL video clips via yt-dlp
+
 [llm]
 # Pipe an entry through an LLM harness; output becomes a new entry + clipboard.
 # Prompt files live in ~/.config/clipborg/prompts/.
