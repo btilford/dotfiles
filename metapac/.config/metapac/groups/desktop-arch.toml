@@ -530,6 +530,8 @@ arch = { packages = [
   "s-nail",
   "s3fs-fuse",
   "satty",
+  # rustc compile cache (RUSTC_WRAPPER set by the zsh/fish sccache drop-ins)
+  "sccache",
   "screen",
   "sddm",
   "sddm-kcm",
