@@ -1057,7 +1057,8 @@ desktop (2 × DisplayLink 1440p + 2 × DP 4K), 2026-11-25:
 Effects now take their time from `components/MotionClock.qml`, which advances only when the
 policy says so (`FrameAnimation` uncapped, a `Timer` at `capFps` on capped screens). Time is
 accumulated, not restarted, so pausing never jumps the phase. In `hybrid`/`proximity`, pointer
-proximity (`Motion.proximityPx`) also speeds an effect up and brightens Shimmer (`boost`).
+proximity (`Motion.proximityPx`) also speeds an effect up, brightens Shimmer and thickens
+EnergyBorder (`boost`; `boostThickness`, 1.0 = twice as thick, growing inward).
 Shimmer's light only follows the cursor while it animates — otherwise every 8 Hz `Pointer` poll
 would redraw every bar on every screen.
 

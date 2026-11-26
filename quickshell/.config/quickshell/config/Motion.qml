@@ -44,6 +44,9 @@ Singleton {
     property real boostSpeed: 0.75
     //! Extra shimmer strength at full proximity (1.0 = twice as bright).
     property real boostStrength: 1.0
+    //! Extra border thickness at full proximity (1.0 = twice as thick). The band grows
+    //! inward from the edge, so the item's geometry never changes.
+    property real boostThickness: 1.0
 
     readonly property string focusedScreen: Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
     readonly property bool usesProximity: mode === "proximity" || mode === "hybrid"
