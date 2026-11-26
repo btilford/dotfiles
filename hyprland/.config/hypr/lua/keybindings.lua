@@ -832,6 +832,48 @@ hl.bind(
   { description = "Focus first empty workspace" }
 )
 
+-- Dictation (hex). Hex's own hotkey (control+option+g) is not a global grab on
+-- Wayland, so Hyprland drives it through the CLI. Not `locked`: no dictating
+-- into the lock screen.
+--
+-- Every chord here is one-handed on the Crosses (zmk-config base.keymap): Super is
+-- the hold on `a`, and its positional hold only fires when the next key is on the
+-- right hand, the LEFT TOP ROW, or a thumb. So Super + left top row / left thumb
+-- works single-handed; Super + s/d/f or the bottom row does not. Shift is the left
+-- outer thumb. F-keys are out: they sit on SYM's right half.
+-- SPACE is a hold-tap for the MOUSE layer, so it can only ever be tapped — which is
+-- why hold-to-talk lives inside the submap on `t`, not on SUPER+SPACE itself.
+local function dictate_run(action)
+  hl.dispatch(hl.dsp.submap("reset"))
+  hl.dispatch(hl.dsp.exec_cmd("hex " .. action))
+end
+
+hl.bind(
+  "SUPER + SHIFT + t",
+  hl.dsp.exec_cmd("hex dictation toggle"),
+  { description = "Dictation: toggle" }
+)
+hl.bind(
+  "SUPER + space",
+  hl.dsp.submap("dictate-cmd"),
+  { description = "Dictation submap [dictate-cmd]" }
+)
+hl.define_submap("dictate-cmd", function()
+  -- Press starts, release stops. The submap stays active while `t` is held and is
+  -- left on release, before hex pastes, so the transcript lands in the window.
+  hl.bind("t", hl.dsp.exec_cmd("hex dictation start"), { description = "Hold to talk" })
+  hl.bind("t", function()
+    dictate_run("dictation stop")
+  end, { release = true, description = "Hold to talk (release: transcribe)" })
+  hl.bind("c", function()
+    dictate_run("dictation cancel")
+  end, { description = "Cancel dictation" })
+  hl.bind("v", function()
+    dictate_run("paste-last")
+  end, { description = "Paste last dictation" })
+  hl.bind("escape", hl.dsp.submap("reset"), { description = "Exit submap" })
+end)
+
 -- Media keys (no modifier)
 hl.bind(
   "XF86MonBrightnessUp",
