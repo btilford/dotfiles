@@ -245,6 +245,7 @@ arch = { packages = [
   "helmfile",
   "hermes-agent",
   "hermes-agent-desktop-bin",
+  "hex-bin",
   "htmlq",
   "hwdetect",
   "hwinfo",
