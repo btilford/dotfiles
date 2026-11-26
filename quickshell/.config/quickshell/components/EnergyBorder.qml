@@ -72,7 +72,8 @@ Item {
             blending: true
 
             property real u_energy: root._activeEnergy
-            property real u_thickness: root.thickness
+            // thicker while the pointer is near (hybrid/proximity), eased by clock.boost
+            property real u_thickness: root.thickness * (1 + Motion.boostThickness * clock.boost)
             property real u_borderWidth: width
             property real u_borderHeight: height
             property real u_time: clock.time
