@@ -13,6 +13,8 @@ import Quickshell.Io
 //       QS_SUBMAP_HINTS=1|0  QS_SUBMAP_HINTS_DELAY=<ms>  QS_SUBMAP_HINTS_OPACITY=<0.05..1>
 //       QS_NOW_PLAYING=1|0  QS_NOW_PLAYING_TIMEOUT=<ms>  QS_NOW_PLAYING_MONITOR=<desc|name>
 //       QS_LAUNCHER_HISTORY=1|0  QS_LAUNCHER_HALFLIFE_DAYS=<days>
+//       QS_MOTION=always|focus|proximity|hybrid|still  QS_MOTION_CAP_FPS=<fps>
+//       QS_MOTION_CAP_SCREENS=<regex>
 // HYPR_BAR_DEV renders the qs bar at the BOTTOM (no exclusive zone) for side-by-side testing
 // against waybar during development.
 // QS_EFFECTS=off swaps every shader (energy borders, fills, shimmer, reflections) for static
@@ -80,6 +82,13 @@ Singleton {
     // into noise rather than switching it off, which is what QS_LAUNCHER_HISTORY=0 is for.
     property real launcherHalfLifeDays: 30
 
+    // Shader motion policy (config/Motion.qml): which surfaces animate, and the frame-rate cap
+    // for screens whose every redraw costs CPU (DisplayLink/evdi connectors are DVI-*). These
+    // are startup defaults; `qs ipc call motion …` changes them live without touching the file.
+    property string motionMode: "hybrid"
+    property int motionCapFps: 15
+    property string motionCapScreens: "^DVI-"
+
     // shaders render only when effects aren't switched off; "low" reserved, treated as full
     readonly property bool effectsOn: effectsMode !== "off"
 
@@ -106,6 +115,9 @@ Singleton {
         let nowPlayingMonitor = "";
         let launcherHistory = "1";
         let launcherHalfLife = "30";
+        let motion = "hybrid";
+        let motionCap = "15";
+        let motionScreens = "^DVI-";
         if (t) {
             for (const line of t.split("\n")) {
                 const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
@@ -137,6 +149,12 @@ Singleton {
                     launcherHistory = m[2];
                 else if (m[1] === "QS_LAUNCHER_HALFLIFE_DAYS")
                     launcherHalfLife = m[2];
+                else if (m[1] === "QS_MOTION")
+                    motion = m[2];
+                else if (m[1] === "QS_MOTION_CAP_FPS")
+                    motionCap = m[2];
+                else if (m[1] === "QS_MOTION_CAP_SCREENS")
+                    motionScreens = m[2];
             }
         }
         // environment overrides the file, key by key — an unset var leaves the file's value alone
@@ -167,6 +185,14 @@ Singleton {
         root.launcherHistoryEnabled = !(lhRaw === "0" || lhRaw === "off" || lhRaw === "false");
         const halfLife = parseFloat(envOr("QS_LAUNCHER_HALFLIFE_DAYS", launcherHalfLife));
         root.launcherHalfLifeDays = (isNaN(halfLife) || halfLife < 1) ? 30 : halfLife;
+        // An unknown mode falls back to the default rather than to "still": a typo must not
+        // read as the effects being broken.
+        const mRaw = envOr("QS_MOTION", motion);
+        root.motionMode = ["always", "focus", "proximity", "hybrid", "still"].includes(mRaw) ? mRaw : "hybrid";
+        // 0 = no cap. Negative or garbage falls back to the default; above 60 is pointless.
+        const cap = parseInt(envOr("QS_MOTION_CAP_FPS", motionCap), 10);
+        root.motionCapFps = (isNaN(cap) || cap < 0) ? 15 : Math.min(cap, 60);
+        root.motionCapScreens = envOr("QS_MOTION_CAP_SCREENS", motionScreens);
     }
 
     // Quickshell.env returns undefined for an unset variable and "" for an empty one; treat both

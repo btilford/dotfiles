@@ -50,6 +50,33 @@ ShellRoot {
         source: "components/ClipboardDialog.qml"
     }
 
+    // Shader motion policy (config/Motion.qml). Live, no restart:
+    //   qs ipc call motion mode hybrid      always | focus | proximity | hybrid | still
+    //   qs ipc call motion cap 15           fps on capped (DisplayLink) screens, 0 = no cap
+    //   qs ipc call motion screens '^DVI-'  connector-name regex for the cap
+    //   qs ipc call motion status
+    // Startup defaults are QS_MOTION / QS_MOTION_CAP_FPS / QS_MOTION_CAP_SCREENS.
+    IpcHandler {
+        target: "motion"
+        function mode(m: string): string {
+            if (!Motion.modes.includes(m))
+                return "unknown mode '" + m + "' (" + Motion.modes.join(" | ") + ")";
+            Motion.mode = m;
+            return Motion.status();
+        }
+        function cap(fps: int): string {
+            Motion.capFps = Math.max(0, Math.min(fps, 60));
+            return Motion.status();
+        }
+        function screens(pattern: string): string {
+            Motion.capScreens = pattern;
+            return Motion.status();
+        }
+        function status(): string {
+            return Motion.status();
+        }
+    }
+
     // Driven by SUPER+/ : `qs ipc call keymap toggle`
     IpcHandler {
         target: "keymap"

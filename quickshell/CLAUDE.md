@@ -1033,6 +1033,40 @@ active bar/launcher per machine in `~/.config/hypr/shell.local.env` (not stowed)
 | `QS_LAUNCHER_HISTORY` | `1` (default) \| `0` | launcher selection history and usage ranking (`config/LauncherStore.qml`). Off = nothing recorded, nothing read, alphabetical order as before |
 | `QS_LAUNCHER_HALFLIFE_DAYS` | days (default `30`) | how long a selection keeps half its weight. Floored at 1 — a 0 makes every decay factor NaN and turns ranking into noise rather than switching it off |
 | `QS_EFFECTS` | `full` (default) \| `low` \| `off` | `off` = shaders never instantiated (Loader-gated); static themed fallbacks: accent Rectangle/Shape borders, flat accent fills, no shimmer/reflection/glyph lava. `low` reserved, currently = `full`. |
+| `QS_MOTION` | `hybrid` (default) \| `always` \| `focus` \| `proximity` \| `still` | which shader effects animate (`config/Motion.qml`). Unknown → `hybrid`. Live: `qs ipc call motion mode <m>` |
+| `QS_MOTION_CAP_FPS` | fps (default `15`), `0` = no cap | frame rate of effects on capped screens. Live: `qs ipc call motion cap <fps>` |
+| `QS_MOTION_CAP_SCREENS` | connector regex (default `^DVI-`) | which screens are capped — DisplayLink/evdi connectors are `DVI-*`. Live: `qs ipc call motion screens <re>` |
+
+### Motion policy: shaders animate only where they are seen (`config/Motion.qml`)
+
+Every shader effect (EnergyBorder, Shimmer, EnergyFill, EnergyGlyph) used to run
+`NumberAnimation on u_time { loops: Animation.Infinite }` while visible, so each bar redrew at the
+refresh rate on every monitor forever. Cheap on a GPU-scanned output; expensive on a DisplayLink
+(evdi) output, where DisplayLinkManager compresses every changed frame on the CPU. Measured on the
+desktop (2 × DisplayLink 1440p + 2 × DP 4K), 2026-11-25:
+
+| Setup | DisplayLinkManager CPU |
+|---|---|
+| old behaviour (`always`, no cap) | 84% |
+| `always`, DVI capped at 15 fps | 24% |
+| `hybrid`/`focus`, focus on a DP screen | 0% |
+| `focus`/`hybrid`, focus on a DVI screen, cap 15 / 10 / none | 12% / 8% / 38% |
+| `hybrid`/`proximity`, pointer resting on a DVI bar | ~45% (but ~40% of that is hover itself, see below) |
+| `still` | 0% |
+
+Effects now take their time from `components/MotionClock.qml`, which advances only when the
+policy says so (`FrameAnimation` uncapped, a `Timer` at `capFps` on capped screens). Time is
+accumulated, not restarted, so pausing never jumps the phase. In `hybrid`/`proximity`, pointer
+proximity (`Motion.proximityPx`) also speeds an effect up and brightens Shimmer (`boost`).
+Shimmer's light only follows the cursor while it animates — otherwise every 8 Hz `Pointer` poll
+would redraw every bar on every screen.
+
+**Open:** with the pointer resting on a DVI bar, DisplayLink costs ~40% even in `still` mode, with
+qs itself at ~4%. Not the shader clocks; suspect cursor-shape/hover handling with software cursors
+(`no_hardware_cursors = true`). Unresolved.
+
+**Measuring:** `kill -STOP` on qs isolates its share (DisplayLink fell from 125% to 1%). Measure
+while the session is unlocked — hyprlock on the DisplayLink screens costs ~85% by itself.
 
 Border weights are Theme tokens: `Theme.borderThickness` (energy borders) and `Theme.borderThin`
 (static hairlines). Don't hardcode border thickness in components.

@@ -32,7 +32,7 @@ Item {
         sourceComponent: ShaderEffect {
             blending: true
 
-            property real u_time: 0
+            property real u_time: clock.time
             property real u_width: width
             property real u_height: height
             property real u_radius: root.radius
@@ -41,11 +41,10 @@ Item {
 
             // exactly one 2π period so the loop is seamless. 9s/loop → the sin(2t) breath term
             // cycles every 4.5s, slow enough to read as breathing but clearly alive.
-            NumberAnimation on u_time {
-                running: root.visible
-                loops: Animation.Infinite
-                from: 0
-                to: 6.2831853
+            MotionClock {
+                id: clock
+                target: root
+                enabled: root.visible
                 duration: 9000
             }
 

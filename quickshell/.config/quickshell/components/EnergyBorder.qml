@@ -75,18 +75,19 @@ Item {
             property real u_thickness: root.thickness
             property real u_borderWidth: width
             property real u_borderHeight: height
-            property real u_time: 0
+            property real u_time: clock.time
             property real u_sl: root.slantLeft
             property real u_sr: root.slantRight
             property real u_skipTop: root.skipTop ? 1.0 : 0.0
             property real u_radius: root.radius
             property color u_color: root._shaderColor
 
-            NumberAnimation on u_time {
-                running: fx.visible
-                loops: Animation.Infinite
-                from: 0
-                to: 62.831853
+            // advances only when config/Motion.qml says this border should move
+            MotionClock {
+                id: clock
+                target: root
+                enabled: fx.visible
+                period: 62.831853
                 duration: 40000
             }
 
