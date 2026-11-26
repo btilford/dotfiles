@@ -1,0 +1,16 @@
+# sccache — compile cache for rustc. Compiled dependencies are reused across
+# worktrees and survive a wiped or fresh target/, so a throwaway review checkout
+# doesn't rebuild the whole dependency tree. No-op on machines without it.
+#
+# SCCACHE_DIR is pinned to an absolute path resolved here, at shell start:
+# test harnesses that run cargo under `HOME=$(mktemp -d)` would otherwise move
+# the cache into /tmp (a RAM tmpfs) and start it cold every run.
+#
+# Workspace crates built incrementally (the dev-profile default) are not cached;
+# that is a sccache limitation, and dependencies are the bulk of a cold build.
+
+if command -v sccache > /dev/null 2>&1; then
+    export RUSTC_WRAPPER=sccache
+    export SCCACHE_DIR="$HOME/.cache/sccache"
+    export SCCACHE_CACHE_SIZE=20G
+fi
