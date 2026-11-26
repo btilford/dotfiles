@@ -30,18 +30,17 @@ ShaderEffect {
     // `source` is bound automatically by layer.effect
     property variant source
 
-    property real u_time: 0
+    property real u_time: clock.time
     property real u_width: width
     property real u_height: height
     property real u_alpha: fx.alpha
     property color u_color: fx.color
 
     // 9s per 2π loop → 4.5s breath cycle (matches EnergyFill)
-    NumberAnimation on u_time {
-        running: fx.visible
-        loops: Animation.Infinite
-        from: 0
-        to: 6.2831853
+    MotionClock {
+        id: clock
+        target: fx
+        enabled: fx.visible
         duration: 9000
     }
 

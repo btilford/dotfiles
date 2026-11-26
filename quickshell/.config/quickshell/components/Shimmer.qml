@@ -50,6 +50,27 @@ Item {
         return ((Pointer.y - (s ? s.y : 0)) - o.y) / Math.max(root.height, 1);
     }
 
+    // The light only follows the cursor while the effect is animating. Otherwise every 8Hz
+    // pointer poll would change the uniform and redraw this surface on every monitor, which is
+    // exactly the cost config/Motion.qml exists to remove. A still shimmer holds its light.
+    property real _heldX: 0.5
+    property real _heldY: 0.5
+    property bool _animating: false
+    Binding {
+        target: root
+        property: "_heldX"
+        value: root._lx
+        when: root._animating
+        restoreMode: Binding.RestoreNone
+    }
+    Binding {
+        target: root
+        property: "_heldY"
+        value: root._ly
+        when: root._animating
+        restoreMode: Binding.RestoreNone
+    }
+
     // QS_EFFECTS=off → no glimmer at all; the effect is pure ambience with no static stand-in
     Loader {
         anchors.fill: parent
@@ -57,15 +78,16 @@ Item {
         sourceComponent: ShaderEffect {
             blending: true
 
-            property real u_time: 0
+            property real u_time: clock.time
             property real u_width: width
             property real u_height: height
             property real u_radius: root.radius
             property real u_sl: root.slantLeft
             property real u_sr: root.slantRight
-            property real u_strength: root.strength
-            property real u_lightX: root._lx
-            property real u_lightY: root._ly
+            // proximity (hybrid mode) brightens the glimmer as the pointer reaches the surface
+            property real u_strength: root.strength * (1 + Motion.boostStrength * clock.boost)
+            property real u_lightX: root._heldX
+            property real u_lightY: root._heldY
 
             // smooth the 8Hz cursor poll into continuous light motion
             Behavior on u_lightX {
@@ -82,12 +104,13 @@ Item {
             }
 
             // exactly one 2π period — the band phase is periodic, so the loop is seamless
-            NumberAnimation on u_time {
-                running: root.visible
-                loops: Animation.Infinite
-                from: 0
-                to: 6.2831853
+            MotionClock {
+                id: clock
+                target: root
+                enabled: root.visible
                 duration: 24000
+                onAnimatingChanged: root._animating = animating
+                Component.onCompleted: root._animating = animating
             }
 
             fragmentShader: Qt.resolvedUrl("shimmer.frag.qsb")
