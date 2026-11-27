@@ -38,6 +38,8 @@ bun = { packages = [
   # Migrated off npm -g; both platforms.
   "neovim",
   "tree-sitter-cli",
+  # Must stay on 5.x: TS 7 ships no tsserver.js, so typescript-language-server fails.
+  # metapac's bun backend cannot pin; run `bun add -g typescript@5` on a new machine.
   "typescript",
   "typescript-language-server",
   "prettier",
