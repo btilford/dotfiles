@@ -817,6 +817,17 @@ PanelWindow {
         return m; // run | emoji | wallpaper
     }
 
+    // Enter on a file: text opens in $EDITOR (nvim) in a Ghostty window started in the file's
+    // directory; anything else goes to xdg-open as before. Decided by `file --mime-type` rather
+    // than by extension, so dotfiles with no extension (.zshrc, hypridle.conf's siblings, an
+    // extensionless script) still count as text, and -L follows stow symlinks, which `file`
+    // otherwise reports as inode/symlink. The path arrives as "$1" — never spliced into
+    // the script text — so no file name can inject shell.
+    readonly property string fileOpenScript: 'f="$1"; case "$(file -L -b --mime-type -- "$f")" in ' +
+        'text/*|inode/x-empty|application/json|application/xml|application/javascript|application/x-ndjson) ' +
+        'exec ghostty --class=app.editor --working-directory="$(dirname -- "$f")" -e "${EDITOR:-nvim}" -- "$f";; ' +
+        '*) exec xdg-open "$f";; esac'
+
     // ---- activation ----
     function activate(item) {
         if (!item)
@@ -844,7 +855,7 @@ PanelWindow {
                 Qt.callLater(refresh);
             } else {
                 LauncherStore.record("file", item.path, item.label);
-                Quickshell.execDetached(["xdg-open", item.path]);
+                Quickshell.execDetached(["sh", "-c", root.fileOpenScript, "launcher-open", item.path]);
                 close();
             }
         } else if (item.kind === "emoji" || item.kind === "glyph") {
