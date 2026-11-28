@@ -833,7 +833,7 @@ hl.define_submap("window-cmd", function()
     hl.dispatch(hl.dsp.window.bring_to_top())
   end, { description = "Cycle to next window (raise)", hint = "Next window", group = "Focus" })
   bind("slash", function()
-    picker("pick")
+    picker("pick ''")
   end, { description = "Pick any window", group = "Focus" })
 
   bind(
@@ -1070,7 +1070,7 @@ hl.define_submap("focus-cmd", function()
   end, { description = "Focus Brave browser", group = "Apps" })
   bind("l", hl.dsp.focus({ last = true }), { description = "Focus last window", group = "Window" })
   bind("slash", function()
-    picker("pick")
+    picker("pick ''")
   end, { description = "Pick any window", group = "Window" })
 
   -- Exit submap

@@ -17,6 +17,11 @@ ShellRoot {
         id: launcher
     }
 
+    // window picker + close-all confirm for the Hyprland app/window/focus submaps:
+    // `qs ipc call windowpicker pick|close <class>`. Exclusive keyboard grab, with a
+    // click-away and an idle timeout as keyboard-free exits (see the component header).
+    WindowPicker {}
+
     // fullscreen session/power dialog (replaces wlogout); state lives in the Session singleton
     SessionOverlay {}
 
