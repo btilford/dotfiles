@@ -58,9 +58,9 @@ hl.bind("SUPER + S", hl.dsp.submap("system-cmd"), { description = "System submap
 -- lua/monitors.lua does this automatically on hotplug -- this is the manual cure
 -- for an output that was already up, or for one the hook missed.
 local function dpms_cycle(name)
-  hl.dispatch(hl.dsp.dpms("off", name))
+  hl.dispatch(hl.dsp.dpms({ action = "off", monitor = name }))
   hl.timer(function()
-    hl.dispatch(hl.dsp.dpms("on", name))
+    hl.dispatch(hl.dsp.dpms({ action = "on", monitor = name }))
   end, { timeout = 400, type = "oneshot" })
 end
 
