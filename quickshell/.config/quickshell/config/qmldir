@@ -19,3 +19,4 @@ singleton Weather Weather.qml
 singleton Clocks Clocks.qml
 singleton LauncherStore LauncherStore.qml
 singleton Motion Motion.qml
+singleton WorkspaceIcons WorkspaceIcons.qml

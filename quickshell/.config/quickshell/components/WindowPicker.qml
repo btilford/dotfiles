@@ -93,12 +93,7 @@ PanelWindow {
     }
 
     function wsLabel(c) {
-        const n = c.workspace ? c.workspace.name : "";
-        if (n.startsWith("special:hide-"))
-            return "hidden";
-        if (n.startsWith("special:"))
-            return n.substring(8) + " (special)";
-        return n;
+        return WorkspaceIcons.label(c.workspace ? c.workspace.name : "");
     }
 
     function dispatch(lua) {
@@ -316,7 +311,7 @@ PanelWindow {
                         anchors.left: parent.left
                         anchors.leftMargin: 14
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 110
+                        width: 130
                         text: root.wsLabel(row.modelData)
                         elide: Text.ElideRight
                         color: Theme.accent

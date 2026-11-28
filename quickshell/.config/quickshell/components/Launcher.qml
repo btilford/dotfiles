@@ -7,7 +7,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import "../config"
 
-// Multi-mode launcher (rofi parity): combi (apps + run fallback), drun, run, files, emoji, glyphs, icons, wallpaper.
+// Multi-mode launcher (rofi parity): combi (apps + open windows + run fallback), drun, windows, run, files, emoji, glyphs, icons, wallpaper.
 PanelWindow {
     id: root
     visible: false
@@ -27,12 +27,12 @@ PanelWindow {
         right: true
     }
 
-    property string mode: "combi" // combi | drun | run | files | emoji | glyphs | icons | wallpaper
+    property string mode: "combi" // combi | drun | windows | run | files | emoji | glyphs | icons | wallpaper
     property string query: ""
     property string folder: Quickshell.env("HOME")
     property var results: []
     // reactive effective mode (for the tab row/placeholder); mirrors effectiveMode()
-    readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : query.startsWith(":") ? "emoji" : query.startsWith(";") ? "glyphs" : query.startsWith("#") ? "icons" : query.startsWith("!") ? "wallpaper" : mode
+    readonly property string activeMode: query.startsWith(">") ? "run" : (query.startsWith("/") || query.startsWith("~")) ? "files" : query.startsWith(":") ? "emoji" : query.startsWith(";") ? "glyphs" : query.startsWith("#") ? "icons" : query.startsWith("!") ? "wallpaper" : query.startsWith("@") ? "windows" : mode
 
     // The modes, in tab order, each with the query prefix that also selects it. One list drives
     // the tab row, Tab cycling, and the prefix stripping in selectMode() — they cannot drift.
@@ -46,6 +46,11 @@ PanelWindow {
         {
             name: "drun",
             chord: ""
+        },
+        // open windows, Raycast's "Switch Windows": Enter focuses, on any workspace
+        {
+            name: "windows",
+            chord: "@"
         },
         {
             name: "run",
@@ -73,7 +78,7 @@ PanelWindow {
         }
     ]
     // every character that steers activeMode from the front of the query ("~" is files, as above)
-    readonly property string modePrefixes: ">/~:;#!"
+    readonly property string modePrefixes: ">/~:;#!@"
 
     // ---- lifecycle ----
     function open(m) {
@@ -84,6 +89,7 @@ PanelWindow {
             root.screen = Hyprland.focusedMonitor.screen;
         input.text = "";
         visible = true;
+        windowProc.running = true; // async; refreshes again when the list lands
         refresh();
         input.forceActiveFocus();
     }
@@ -125,6 +131,48 @@ PanelWindow {
     }
     Component.onCompleted: pathProc.running = true
 
+    // ---- open windows (windows mode + the combi window group), read fresh on every open ----
+    // hyprctl JSON rather than Hyprland.toplevels: one read carries title, class, workspace
+    // name and focus history, and the list should reflect the moment the launcher opened.
+    property var windowData: []
+    Process {
+        id: windowProc
+        command: ["hyprctl", "clients", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let all = [];
+                try {
+                    all = JSON.parse(this.text);
+                } catch (e) {
+                    all = [];
+                }
+                // most recently used first: Hyprland's own focus order is the ranking
+                all.sort((a, b) => (a.focusHistoryID ?? 1e9) - (b.focusHistoryID ?? 1e9));
+                root.windowData = all;
+                if (root.visible)
+                    root.refresh();
+            }
+        }
+    }
+    function windowRows(q) {
+        const rows = [];
+        for (const c of root.windowData) {
+            const ws = WorkspaceIcons.label(c.workspace ? c.workspace.name : "");
+            const hay = ((c.title || "") + " " + (c.class || "") + " " + ws).toLowerCase();
+            if (q.length && !hay.includes(q))
+                continue;
+            const de = c.class ? DesktopEntries.heuristicLookup(c.class) : null;
+            rows.push({
+                kind: "window",
+                label: c.title || c.class || "(untitled)",
+                sub: ws + "  ·  " + (c.class || ""),
+                icon: de && de.icon ? de.icon : "",
+                address: c.address
+            });
+        }
+        return rows;
+    }
+
     // The store answers asynchronously. A launcher opened in the first moments of a session
     // would otherwise show the pre-history order until the next keystroke moved it.
     Connections {
@@ -138,7 +186,7 @@ PanelWindow {
     // ---- effective query (strip mode prefix) ----
     function effectiveQuery() {
         let q = query;
-        if (q.startsWith(">") || q.startsWith("/") || q.startsWith("~") || q.startsWith(":") || q.startsWith(";") || q.startsWith("#") || q.startsWith("!"))
+        if (q.startsWith(">") || q.startsWith("/") || q.startsWith("~") || q.startsWith(":") || q.startsWith(";") || q.startsWith("#") || q.startsWith("!") || q.startsWith("@"))
             return q.slice(1).trim();
         return q.trim();
     }
@@ -155,6 +203,8 @@ PanelWindow {
             return "icons";
         if (query.startsWith("!"))
             return "wallpaper";
+        if (query.startsWith("@"))
+            return "windows";
         return mode;
     }
 
@@ -400,6 +450,12 @@ PanelWindow {
             out = out.concat(root.rankGroup(appRows, "app", q));
         }
 
+        // Windows: the whole tab, or in combi a group AFTER the apps (and before run), so Enter
+        // on a typed app name still launches it as it always has. No rankGroup: a window has
+        // no stable identity to record history against, and focus order already ranks it.
+        if (m === "windows" || (m === "combi" && q.length))
+            out = out.concat(root.windowRows(q));
+
         if (m === "run" || (m === "combi" && q.length)) {
             const runRows = [];
             // Commands run before, exactly as they were run — arguments and flags included. The
@@ -639,6 +695,8 @@ PanelWindow {
             return "icon";
         if (m === "files")
             return "file";
+        if (m === "windows")
+            return "window";
         return m; // run | emoji | wallpaper
     }
 
@@ -650,6 +708,10 @@ PanelWindow {
             // The desktop-entry id, not the name: the name is localised and user-visible.
             LauncherStore.record("app", root.selectionKey(item), item.label);
             item.entry.execute();
+            close();
+        } else if (item.kind === "window") {
+            // not recorded: an address dies with the window, so it is no identity to rank by
+            Quickshell.execDetached(["hyprctl", "dispatch", 'hl.dsp.focus({ window = "address:' + item.address + '" })']);
             close();
         } else if (item.kind === "run") {
             LauncherStore.record("run", item.cmd, item.label);
@@ -899,6 +961,8 @@ PanelWindow {
                                 ? "Search glyphs  ·  Enter copies to clipboard"
                                 : root.activeMode === "icons"
                                     ? "Search icons  ·  Enter copies icon name"
+                                    : root.activeMode === "windows"
+                                        ? "Search open windows  ·  Enter focuses"
                                     : root.activeMode === "wallpaper"
                                         ? "Search wallpapers  ·  Enter applies"
                                         : "Search apps  ·  Tab switches mode"   // the prefixes are on the tabs now
@@ -1001,7 +1065,7 @@ PanelWindow {
                                 id: appIcon
                                 anchors.fill: parent
                                 visible: source != ""
-                                source: (modelData.kind === "app" && modelData.icon)
+                                source: ((modelData.kind === "app" || modelData.kind === "window") && modelData.icon)
                                     ? Quickshell.iconPath(modelData.icon, true)
                                     : modelData.kind === "icon"
                                         ? "file://" + modelData.path
@@ -1019,6 +1083,8 @@ PanelWindow {
                                 visible: !appIcon.visible
                                 text: (modelData.kind === "emoji" || modelData.kind === "glyph")
                                     ? modelData.char
+                                    : modelData.kind === "window"
+                                    ? "" // window
                                     : modelData.kind === "run"
                                     ? "" // terminal
                                     : modelData.kind === "file"

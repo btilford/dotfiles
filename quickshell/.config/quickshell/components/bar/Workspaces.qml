@@ -20,20 +20,9 @@ Item {
         Hyprland.dispatch('hl.dsp.focus({workspace="' + id + '"})');
     }
 
-    // workspace name → nerd-font glyph (falls back to the name/id when unmapped)
+    // workspace name → nerd-font glyph; the map is shared (config/WorkspaceIcons.qml)
     function iconFor(name) {
-        const m = {
-            "Main": "\uf015",       // home
-            "CLI1": "\uf120",       // terminal
-            "CLI2": "\uf120",       // terminal
-            "Draw": "\uf1fc",       // paint-brush
-            "RefLeft": "\uf02d",    // book
-            "RefRight": "\uf02d",   // book
-            "Music": "\uf001",      // music
-            "Messaging": "\uf086",  // comments
-            "Other": "\uf141"       // ellipsis
-        };
-        return name && m[name] ? m[name] : "";
+        return WorkspaceIcons.iconFor(name);
     }
 
     function computeWs() {
