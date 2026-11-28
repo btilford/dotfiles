@@ -129,7 +129,10 @@ PanelWindow {
             onStreamFinished: root.pathBins = this.text.split("\n").filter(s => s.length)
         }
     }
-    Component.onCompleted: pathProc.running = true
+    Component.onCompleted: {
+        pathProc.running = true;
+        root.writeFdIgnore();
+    }
 
     // ---- open windows (windows mode + the combi window group), read fresh on every open ----
     // hyprctl JSON rather than Hyprland.toplevels: one read carries title, class, workspace
@@ -521,6 +524,29 @@ PanelWindow {
             // Directories still go through rankGroup so a typed query orders them by match
             // quality; with no query they have no score and no pin and come back untouched.
             out = root.rankGroup(dirRows, "file", q).concat(root.rankGroup(plainRows, "file", q));
+
+            // Recursive matches below the current folder, from fd, AFTER the folder's own
+            // entries and with the same directories-first split. Asynchronous: the first
+            // refresh for a query shows only the folder listing, and the fd answer re-runs
+            // refresh when it lands. Deduplicated against the listing by path.
+            const fdKey = root.folder + "\n" + q;
+            if (q.length >= root.fdMinChars) {
+                if (fdKey !== root.fdFor && fdKey !== root.fdPending) {
+                    root.fdPending = fdKey;
+                    fdDebounce.restart();
+                }
+                if (fdKey === root.fdFor) {
+                    const listed = {};
+                    for (const r of fileRows)
+                        listed[r.path] = true;
+                    const deepDirs = [];
+                    const deepFiles = [];
+                    for (const r of root.fdRows)
+                        if (!listed[r.path])
+                            (r.isDir ? deepDirs : deepFiles).push(r);
+                    out = out.concat(root.rankGroup(deepDirs, "file", q)).concat(root.rankGroup(deepFiles, "file", q));
+                }
+            }
         }
 
         if (m === "emoji") {
@@ -632,6 +658,94 @@ PanelWindow {
     }
 
     // ---- files mode ----
+    // Recursive search (fd) behind the files tab, for 2+ typed characters. fd rather than
+    // plocate: plocate is instant but reads an index only as fresh as the last updatedb and
+    // ignores .gitignore; fd walks live and skips gitignored paths. --one-file-system keeps it
+    // off network mounts (~/nas), where one slow share would stall the search.
+    //
+    // Hidden paths by ALLOWLIST, because the files this is most often for are config files and
+    // nearly all of them live under a dot-directory. fd has no allowlist flag, so it runs with
+    // --hidden plus a generated ignore file in gitignore syntax: ".*" drops every hidden name,
+    // then "!<name>" lets the allowed ones back in at any depth. Allowed names come from
+    // Shell.launcherFilesHidden (QS_LAUNCHER_FILES_HIDDEN, default .config). Non-hidden bulk
+    // that .gitignore does not always cover is excluded by name.
+    readonly property int fdMinChars: 2
+    readonly property int fdMaxResults: 150
+    readonly property var fdExcludes: ["node_modules", "__pycache__", "target"]
+    readonly property string fdIgnorePath: Quickshell.env("XDG_RUNTIME_DIR") + "/quickshell-launcher-fd.ignore"
+    // rewritten whenever the allowlist changes (the settings file is watched)
+    readonly property string fdIgnoreText: [".*"].concat(Shell.launcherFilesHidden.map(n => "!" + n)).join("\n")
+    onFdIgnoreTextChanged: root.writeFdIgnore()
+    function writeFdIgnore() {
+        fdIgnoreWriter.running = false;
+        fdIgnoreWriter.command = ["sh", "-c", 'printf "%s\\n" "$@" > "$0"', root.fdIgnorePath].concat(root.fdIgnoreText.split("\n"));
+        fdIgnoreWriter.running = true;
+        root.fdFor = ""; // the allowlist changed, so a cached answer is stale
+    }
+    Process {
+        id: fdIgnoreWriter
+    }
+    property string fdPending: ""   // folder + "\n" + query queued behind the debounce
+    property string fdFor: ""       // folder + "\n" + query that fdRows answers
+    property var fdRows: []
+    Timer {
+        id: fdDebounce
+        interval: 150
+        onTriggered: {
+            const key = root.fdPending;
+            const cut = key.indexOf("\n");
+            const dir = key.substring(0, cut);
+            const q = key.substring(cut + 1);
+            fdProc.running = false;
+            fdProc.forKey = key;
+            const cmd = ["fd", "--ignore-case", "--fixed-strings", "--hidden", "--ignore-file", root.fdIgnorePath, "--one-file-system", "--color", "never", "--max-results", String(root.fdMaxResults)];
+            for (const x of root.fdExcludes)
+                cmd.push("--exclude", x);
+            fdProc.command = cmd.concat(["--", q, dir]);
+            fdProc.running = true;
+        }
+    }
+    Process {
+        id: fdProc
+        property string forKey: ""
+        stdout: StdioCollector {
+            onStreamFinished: {
+                // a slower, superseded run must not overwrite a newer answer
+                if (fdProc.forKey !== root.fdPending)
+                    return;
+                const base = root.folder.endsWith("/") ? root.folder : root.folder + "/";
+                const rows = [];
+                for (const line of this.text.split("\n")) {
+                    if (!line.length)
+                        continue;
+                    // fd 10 marks directories with a trailing "/"
+                    const isDir = line.endsWith("/");
+                    const path = isDir ? line.slice(0, -1) : line;
+                    const name = path.split("/").pop();
+                    const rel = path.startsWith(base) ? path.substring(base.length) : path;
+                    const parent = rel.includes("/") ? rel.substring(0, rel.lastIndexOf("/")) : ".";
+                    rows.push({
+                        kind: "file",
+                        label: name,
+                        sub: parent,
+                        icon: "",
+                        path: path,
+                        isDir: isDir
+                    });
+                }
+                // Shallowest first. fd's own order is its parallel walk's, i.e. arbitrary, and
+                // rankGroup keeps the incoming order between rows of the same match tier — so
+                // this is what puts ~/.config/hypr/lua/keybindings.lua above the copies in
+                // every ~/worktrees/* checkout.
+                rows.sort((a, b) => a.path.split("/").length - b.path.split("/").length);
+                root.fdRows = rows;
+                root.fdFor = fdProc.forKey;
+                if (root.visible)
+                    root.refresh();
+            }
+        }
+    }
+
     FolderListModel {
         id: folderModel
         folder: "file://" + root.folder
@@ -703,6 +817,17 @@ PanelWindow {
         return m; // run | emoji | wallpaper
     }
 
+    // Enter on a file: text opens in $EDITOR (nvim) in a Ghostty window started in the file's
+    // directory; anything else goes to xdg-open as before. Decided by `file --mime-type` rather
+    // than by extension, so dotfiles with no extension (.zshrc, hypridle.conf's siblings, an
+    // extensionless script) still count as text, and -L follows stow symlinks, which `file`
+    // otherwise reports as inode/symlink. The path arrives as "$1" — never spliced into
+    // the script text — so no file name can inject shell.
+    readonly property string fileOpenScript: 'f="$1"; case "$(file -L -b --mime-type -- "$f")" in ' +
+        'text/*|inode/x-empty|application/json|application/xml|application/javascript|application/x-ndjson) ' +
+        'exec ghostty --class=app.editor --working-directory="$(dirname -- "$f")" -e "${EDITOR:-nvim}" -- "$f";; ' +
+        '*) exec xdg-open "$f";; esac'
+
     // ---- activation ----
     function activate(item) {
         if (!item)
@@ -730,7 +855,7 @@ PanelWindow {
                 Qt.callLater(refresh);
             } else {
                 LauncherStore.record("file", item.path, item.label);
-                Quickshell.execDetached(["xdg-open", item.path]);
+                Quickshell.execDetached(["sh", "-c", root.fileOpenScript, "launcher-open", item.path]);
                 close();
             }
         } else if (item.kind === "emoji" || item.kind === "glyph") {

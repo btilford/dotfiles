@@ -13,6 +13,7 @@ import Quickshell.Io
 //       QS_SUBMAP_HINTS=1|0  QS_SUBMAP_HINTS_DELAY=<ms>  QS_SUBMAP_HINTS_OPACITY=<0.05..1>
 //       QS_NOW_PLAYING=1|0  QS_NOW_PLAYING_TIMEOUT=<ms>  QS_NOW_PLAYING_MONITOR=<desc|name>
 //       QS_LAUNCHER_HISTORY=1|0  QS_LAUNCHER_HALFLIFE_DAYS=<days>
+//       QS_LAUNCHER_FILES_HIDDEN=<names>   hidden dirs/files the files search may enter
 //       QS_MOTION=always|focus|proximity|hybrid|still  QS_MOTION_CAP_FPS=<fps>
 //       QS_MOTION_CAP_SCREENS=<regex>
 // HYPR_BAR_DEV renders the qs bar at the BOTTOM (no exclusive zone) for side-by-side testing
@@ -81,6 +82,12 @@ Singleton {
     // a code change. Floored at one day — a 0 makes every decay factor NaN and turns ranking
     // into noise rather than switching it off, which is what QS_LAUNCHER_HISTORY=0 is for.
     property real launcherHalfLifeDays: 30
+    // Hidden (dot) names the launcher's recursive file search is allowed into, matched by NAME
+    // at any depth, so ".config" covers ~/.config and the .config inside every stow package.
+    // Everything else hidden stays out. Comma- or space-separated; names only — an entry with a
+    // "/" is dropped, because fd's ignore-file negation cannot re-include a nested path without
+    // leaking its siblings (".local/bin" would let ".local/share" back in).
+    property var launcherFilesHidden: [".config"]
 
     // Shader motion policy (config/Motion.qml): which surfaces animate, and the frame-rate cap
     // for screens whose every redraw costs CPU (DisplayLink/evdi connectors are DVI-*). These
@@ -115,6 +122,7 @@ Singleton {
         let nowPlayingMonitor = "";
         let launcherHistory = "1";
         let launcherHalfLife = "30";
+        let filesHidden = ".config";
         let motion = "hybrid";
         let motionCap = "15";
         let motionScreens = "^DVI-";
@@ -149,6 +157,8 @@ Singleton {
                     launcherHistory = m[2];
                 else if (m[1] === "QS_LAUNCHER_HALFLIFE_DAYS")
                     launcherHalfLife = m[2];
+                else if (m[1] === "QS_LAUNCHER_FILES_HIDDEN")
+                    filesHidden = m[2];
                 else if (m[1] === "QS_MOTION")
                     motion = m[2];
                 else if (m[1] === "QS_MOTION_CAP_FPS")
@@ -185,6 +195,7 @@ Singleton {
         root.launcherHistoryEnabled = !(lhRaw === "0" || lhRaw === "off" || lhRaw === "false");
         const halfLife = parseFloat(envOr("QS_LAUNCHER_HALFLIFE_DAYS", launcherHalfLife));
         root.launcherHalfLifeDays = (isNaN(halfLife) || halfLife < 1) ? 30 : halfLife;
+        root.launcherFilesHidden = envOr("QS_LAUNCHER_FILES_HIDDEN", filesHidden).split(/[\s,]+/).filter(n => n.startsWith(".") && n.length > 1 && !n.includes("/"));
         // An unknown mode falls back to the default rather than to "still": a typo must not
         // read as the effects being broken.
         const mRaw = envOr("QS_MOTION", motion);
