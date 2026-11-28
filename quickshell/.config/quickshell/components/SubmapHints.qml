@@ -53,7 +53,8 @@ PanelWindow {
                 out.push({
                     "chord": chords[i % chords.length],
                     "label": i % 5 === 0 ? "+nested group" : "action with a deliberately long name " + i,
-                    "group": i % 5 === 0
+                    "nested": i % 5 === 0,
+                    "section": i < count - 2 ? "Group " + Math.floor(i / 6) : ""
                 });
             }
             win.previewEntries = out;
@@ -112,8 +113,10 @@ PanelWindow {
 
     implicitHeight: slab.height + Theme.pad * 2
 
-    // [{chord, label, group}] for the active submap. A bind that enters a NESTED submap is
-    // rendered as a which-key "+prefix" group rather than by its dispatcher.
+    // [{chord, label, nested, section}] for the active submap, in DEFINITION order (the
+    // order hyprctl reports binds), so a group such as workspaces 1-10 reads in sequence
+    // rather than in chord-string order. A bind that enters a NESTED submap is rendered
+    // as a which-key "+prefix" rather than by its dispatcher.
     readonly property var entries: {
         if (win.previewEntries)
             return win.previewEntries;
@@ -125,12 +128,60 @@ PanelWindow {
                 continue;
             const nested = Keymap.submapEntry(bind);
             out.push({
-                "chord": Keymap.chord(bind),
-                "label": nested.length ? "+" + nested : Keymap.action(bind),
-                "group": nested.length > 0
+                "chord": win.compactChord(Keymap.chord(bind)),
+                "label": nested.length ? "+" + nested : Keymap.hint(bind),
+                "nested": nested.length > 0,
+                "section": Keymap.group(bind)
             });
         }
-        out.sort((a, b) => a.chord.localeCompare(b.chord));
+        return out;
+    }
+
+    // which-key / vim notation for the narrow chord column: "CTRL + SHIFT + TAB" becomes
+    // "C-S-Tab", "SHIFT + period" becomes "S-.". The full-width cheatsheet keeps
+    // Keymap.chord's spelled-out form; only this overlay has a fixed ~5em column, and the
+    // spelled-out modifiers were eliding to "…IFT + r", which hides the part you need.
+    readonly property var keyNames: ({
+            "period": ".",
+            "comma": ",",
+            "slash": "/",
+            "grave": "`",
+            "escape": "Esc",
+            "TAB": "Tab",
+            "RETURN": "Ret",
+            "space": "Spc"
+        })
+    readonly property var modNames: ({
+            "SUPER": "M",
+            "CTRL": "C",
+            "SHIFT": "S",
+            "ALT": "A"
+        })
+    function compactChord(chord: string): string {
+        const parts = chord.split(" + ");
+        const key = parts.pop();
+        const mods = parts.map(m => win.modNames[m] || m);
+        return mods.map(m => m + "-").join("") + (win.keyNames[key] || key);
+    }
+
+    // entries bucketed into [{title, items}] in order of first appearance, from each bind's
+    // `group = ...` (hypr/lua/keybindings.lua). Ungrouped binds (Escape) go in a final
+    // untitled box, so they never interrupt a named group.
+    readonly property var sections: {
+        const order = [];
+        const byTitle = {};
+        for (const e of win.entries) {
+            const t = e.section || "";
+            if (!(t in byTitle)) {
+                byTitle[t] = [];
+                if (t.length)
+                    order.push(t);
+            }
+            byTitle[t].push(e);
+        }
+        const out = order.map(t => ({ "title": t, "items": byTitle[t] }));
+        if ("" in byTitle)
+            out.push({ "title": "", "items": byTitle[""] });
         return out;
     }
 
@@ -155,8 +206,12 @@ PanelWindow {
     // scales with the text, so a font bump cannot start clipping "SUPER+SHIFT+j"
     readonly property int chordWidth: Math.round(win.textSize * 5.3)
     readonly property int hintWidth: win.chordWidth + Math.round(win.textSize * 13)
-    readonly property int columnCount: Math.max(1, Math.min(win.entries.length, Math.floor((win.slabWidth - Theme.pad * 2 + Theme.pad) / (win.hintWidth + Theme.pad))))
-    readonly property int rowCount: Math.max(1, Math.ceil(win.entries.length / win.columnCount))
+    // A group box is a short column-major grid: at most `maxRows` tall, then a new column.
+    // Boxes flow left to right and wrap, so the slab stays wide and short; a box never
+    // gets more columns than fit the slab, which only bites on a very narrow screen.
+    readonly property int maxRows: 4
+    readonly property int boxPad: Math.round(Theme.pad / 2)
+    readonly property int maxBoxColumns: Math.max(1, Math.floor((win.slabWidth - Theme.pad * 2 - win.boxPad * 2 + Theme.pad) / (win.hintWidth + Theme.pad)))
 
     onSubmapChanged: {
         if (win.submap.length) {
@@ -249,52 +304,92 @@ PanelWindow {
                 font.bold: true
             }
 
-            Grid {
-                flow: Grid.TopToBottom
-                rows: win.rowCount
-                columns: win.columnCount
-                rowSpacing: 2
-                columnSpacing: Theme.pad
+            Flow {
+                width: slab.width - Theme.pad * 2
+                spacing: Theme.pad
 
                 Repeater {
-                    model: win.entries
+                    model: win.sections
 
-                    Row {
-                        id: hint
+                    Rectangle {
+                        id: box
                         required property var modelData
-                        width: win.hintWidth
-                        height: win.rowHeight
-                        spacing: 6
+                        readonly property int n: box.modelData.items.length
+                        readonly property int cols: Math.min(win.maxBoxColumns, Math.ceil(box.n / win.maxRows))
+                        readonly property int rows: Math.ceil(box.n / box.cols)
 
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: win.chordWidth
-                            horizontalAlignment: Text.AlignRight
-                            text: hint.modelData.chord
-                            color: Theme.accent
-                            font.family: Theme.fontMono
-                            font.pixelSize: win.textSize
-                            elide: Text.ElideLeft
-                        }
-                        Text {
-                            id: arrow
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "→"
-                            color: Theme.subtext
-                            font.family: Theme.fontMono
-                            font.pixelSize: win.textSize - 1
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            // fills the rest of the fixed cell, so long labels elide instead of
-                            // pushing the next column out of alignment
-                            width: hint.width - win.chordWidth - arrow.width - hint.spacing * 2
-                            text: hint.modelData.label
-                            elide: Text.ElideRight
-                            // a group reads like which-key's "+prefix": accent, not body text
-                            color: hint.modelData.group ? Theme.accent : Theme.fg
-                            font.family: Theme.fontUi
-                            font.pixelSize: win.textSize
+                        width: boxBody.implicitWidth + win.boxPad * 2
+                        height: boxBody.implicitHeight + win.boxPad * 2
+                        radius: Math.round(Theme.radius / 2)
+                        color: "transparent"
+                        border.width: 1
+                        border.color: Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.45)
+
+                        Column {
+                            id: boxBody
+                            x: win.boxPad
+                            y: win.boxPad
+                            spacing: 2
+
+                            Text {
+                                visible: box.modelData.title.length > 0
+                                text: box.modelData.title
+                                color: Theme.muted
+                                font.family: Theme.fontUi
+                                font.pixelSize: win.textSize - 2
+                                font.bold: true
+                            }
+
+                            Grid {
+                                flow: Grid.TopToBottom
+                                rows: box.rows
+                                columns: box.cols
+                                rowSpacing: 2
+                                columnSpacing: Theme.pad
+
+                                Repeater {
+                                    model: box.modelData.items
+
+                                    Row {
+                                        id: hint
+                                        required property var modelData
+                                        width: win.hintWidth
+                                        height: win.rowHeight
+                                        spacing: 6
+
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: win.chordWidth
+                                            horizontalAlignment: Text.AlignRight
+                                            text: hint.modelData.chord
+                                            color: Theme.accent
+                                            font.family: Theme.fontMono
+                                            font.pixelSize: win.textSize
+                                            elide: Text.ElideLeft
+                                        }
+                                        Text {
+                                            id: arrow
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "→"
+                                            color: Theme.subtext
+                                            font.family: Theme.fontMono
+                                            font.pixelSize: win.textSize - 1
+                                        }
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            // fills the rest of the fixed cell, so long labels elide
+                                            // instead of pushing the next column out of alignment
+                                            width: hint.width - win.chordWidth - arrow.width - hint.spacing * 2
+                                            text: hint.modelData.label
+                                            elide: Text.ElideRight
+                                            // a nested map reads like which-key's "+prefix": accent
+                                            color: hint.modelData.nested ? Theme.accent : Theme.fg
+                                            font.family: Theme.fontUi
+                                            font.pixelSize: win.textSize
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

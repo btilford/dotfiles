@@ -110,11 +110,23 @@ Singleton {
         return m ? m[1] : "";
     }
 
-    // what the bind does: description if present (minus any trailing "[submap]" tag),
-    // else dispatcher + arg
+    // what the bind does: description if present (minus any trailing "[submap]" tag, any
+    // "{hint}" and any "<group>"), else dispatcher + arg
     function action(b) {
         if (b.description && b.description.length)
-            return b.description.replace(/\s*\[[^\]]+\]$/, "");
+            return b.description.replace(/\s*\[[^\]]+\]$/, "").replace(/\s*\{[^}]*\}/, "").replace(/\s*<[^>]*>/, "");
         return (b.dispatcher || "") + (b.arg ? " " + b.arg : "");
+    }
+    // short label for the which-key overlay: the "{hint}" that hypr/lua/keybindings.lua
+    // writes into the description from a bind's `hint = ...` option, else action(b).
+    // Hyprland stores nothing but the description string, so the hint has to ride in it.
+    function hint(b) {
+        const m = (b.description || "").match(/\{([^}]*)\}/);
+        return m && m[1].length ? m[1] : action(b);
+    }
+    // which-key section: the "<group>" written from a bind's `group = ...` option, or ""
+    function group(b) {
+        const m = (b.description || "").match(/<([^>]*)>/);
+        return m ? m[1] : "";
     }
 }
