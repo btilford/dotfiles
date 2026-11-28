@@ -58,6 +58,18 @@ PanelWindow {
         return root.clients.filter(c => (c.title + " " + c.class + " " + root.wsLabel(c)).toLowerCase().includes(q));
     }
 
+    // DesktopEntries scans lazily, only once something BINDS to `applications`; an imperative
+    // heuristicLookup() before that returns null forever. This binding is what arms the scan
+    // for the row icons, so it must stay a binding, not a one-off read.
+    readonly property int desktopEntryCount: DesktopEntries.applications.values.length
+
+    function iconFor(cls) {
+        if (!cls || root.desktopEntryCount === 0)
+            return "";
+        const de = DesktopEntries.heuristicLookup(cls);
+        return de && de.icon ? Quickshell.iconPath(de.icon, true) : "";
+    }
+
     IpcHandler {
         target: "windowpicker"
         function pick(cls: string): void {
@@ -93,12 +105,7 @@ PanelWindow {
     }
 
     function wsLabel(c) {
-        const n = c.workspace ? c.workspace.name : "";
-        if (n.startsWith("special:hide-"))
-            return "hidden";
-        if (n.startsWith("special:"))
-            return n.substring(8) + " (special)";
-        return n;
+        return WorkspaceIcons.label(c.workspace ? c.workspace.name : "");
     }
 
     function dispatch(lua) {
@@ -310,13 +317,40 @@ PanelWindow {
                         color: Theme.accent
                     }
 
-                    // workspace chip, fixed width so titles line up
-                    Text {
-                        id: wsChip
+                    // app icon, then the workspace chip, both fixed width so titles line up
+                    Item {
+                        id: iconBox
                         anchors.left: parent.left
                         anchors.leftMargin: 14
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 110
+                        width: 26
+                        height: 26
+                        Image {
+                            id: appIcon
+                            anchors.fill: parent
+                            source: root.iconFor(row.modelData.class)
+                            visible: source != ""
+                            sourceSize.width: 26
+                            sourceSize.height: 26
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                            smooth: true
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            visible: !appIcon.visible
+                            text: "\uf2d0" // window
+                            color: Theme.accent
+                            font.family: Theme.fontUi
+                            font.pixelSize: 18
+                        }
+                    }
+                    Text {
+                        id: wsChip
+                        anchors.left: iconBox.right
+                        anchors.leftMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 130
                         text: root.wsLabel(row.modelData)
                         elide: Text.ElideRight
                         color: Theme.accent
