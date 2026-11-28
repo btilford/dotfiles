@@ -26,15 +26,17 @@ Singleton {
         return name && glyphs[name] ? glyphs[name] : "";
     }
 
-    // "<glyph> <name>" for a hyprctl workspace name, as a list row shows it:
+    // "<glyph>  <name>" for a hyprctl workspace name, as a list row shows it. Two spaces, not
+    // one: nerd-font glyphs overhang their cell and swallow most of a single space, which left
+    // the glyph touching the name ("⌂Main").
     // hide-* workspaces read "hidden", other specials drop their "special:" prefix.
     function label(name) {
         const n = name || "";
         if (n.startsWith("special:hide-"))
-            return hiddenGlyph + " hidden";
+            return hiddenGlyph + "  hidden";
         if (n.startsWith("special:"))
             return n.substring(8) + " (special)";
         const ic = iconFor(n);
-        return ic ? ic + " " + n : n;
+        return ic ? ic + "  " + n : n;
     }
 }
