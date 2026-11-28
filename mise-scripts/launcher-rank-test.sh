@@ -21,7 +21,7 @@
 #      the log must not grow while characters are typed into the launcher.
 #   4. Directories stay above files in files mode, however hot a file is.
 #   4b. A typed files query adds fd's recursive matches below the folder listing, directories
-#       first, deduplicated, hidden paths skipped.
+#       first, deduplicated; hidden paths only by allowlist (default .config).
 #   5. Fail-open on all three routes: an unwritable path, no sqlite3 binary at all, and a
 #      corrupt database. The middle one matters most because it never reaches fail() — with no
 #      binary to spawn, `ready` and `loaded` simply stay false while `healthy` stays true.
@@ -447,9 +447,14 @@ FHOME="$RUNTIME/home"
 mkdir -p "$FHOME/Documents" "$FHOME/Downloads"
 : > "$FHOME/notes.md"
 : > "$FHOME/zzz.txt"
-mkdir -p "$FHOME/Documents/notesdir" "$FHOME/Documents/projects" "$FHOME/.hidden"
+mkdir -p "$FHOME/Documents/notesdir" "$FHOME/Documents/projects/deeper" "$FHOME/.config/app" \
+  "$FHOME/.cache/junk" "$FHOME/.git/x"
+: > "$FHOME/Documents/projects/deeper/note-deep.md"
 : > "$FHOME/Documents/projects/deepnote.md"
-: > "$FHOME/.hidden/note.txt"
+: > "$FHOME/.config/app/note.conf"
+: > "$FHOME/.cache/junk/note.cache"
+: > "$FHOME/.git/x/note.obj"
+mkdir -p "$FHOME/.ssh" && : > "$FHOME/.ssh/note.key"
 FDB="$RUNTIME/files.db"
 "$REAL_SQLITE" "$FDB" "
 CREATE TABLE selections (
@@ -469,16 +474,17 @@ check "files mode: a scored file never outranks a directory" \
   ".,..,Documents,Downloads,notes.md,zzz.txt" "$got"
 
 # --- 9b: a typed files query searches recursively (fd) ------------------------
-# The folder's own match (notes.md) first, then fd's: the nested directory before the nested
-# file, and notes.md NOT repeated. .hidden/ is skipped, as fd skips hidden paths by default.
-# The fixture is created before qs starts, but fd walks live, so it would see later files too.
+# The folder's own match (notes.md) first, then fd's: the nested directory before the files,
+# and notes.md NOT repeated. Files: prefix matches (tier 1) before substring ones, and within
+# a tier shallower paths first. Hidden paths are searched by ALLOWLIST: the default allows
+# .config (.config/app/note.conf is found); .cache, .git and .ssh are not on it.
 if [ -n "$KBD_PID" ] && command -v fd > /dev/null 2>&1; then
   focus_ready
   wtype -s 40 -- "note" > /dev/null 2>&1
   sleep 1.0 # 150ms debounce + fd + the refresh it triggers
   got="$(labels file | paste -sd, -)"
-  check "files query: listing, then fd dirs, then fd files, deduplicated" \
-    "notes.md,notesdir,deepnote.md" "$got"
+  check "files query: listing, fd dirs, fd files; only allowlisted hidden dirs" \
+    "notes.md,notesdir,note.conf,note-deep.md,deepnote.md" "$got"
 else
   warn "skipping the recursive files test (needs wtype and fd)"
 fi

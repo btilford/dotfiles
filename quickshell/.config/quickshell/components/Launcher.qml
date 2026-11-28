@@ -129,7 +129,10 @@ PanelWindow {
             onStreamFinished: root.pathBins = this.text.split("\n").filter(s => s.length)
         }
     }
-    Component.onCompleted: pathProc.running = true
+    Component.onCompleted: {
+        pathProc.running = true;
+        root.writeFdIgnore();
+    }
 
     // ---- open windows (windows mode + the combi window group), read fresh on every open ----
     // hyprctl JSON rather than Hyprland.toplevels: one read carries title, class, workspace
@@ -657,11 +660,31 @@ PanelWindow {
     // ---- files mode ----
     // Recursive search (fd) behind the files tab, for 2+ typed characters. fd rather than
     // plocate: plocate is instant but reads an index only as fresh as the last updatedb and
-    // ignores .gitignore; fd walks live, skips hidden and gitignored paths, and with a result
-    // cap answers a home-wide query in ~0.1s. --one-file-system keeps it off network mounts
-    // (~/nas), where one slow share would stall every keystroke.
+    // ignores .gitignore; fd walks live and skips gitignored paths. --one-file-system keeps it
+    // off network mounts (~/nas), where one slow share would stall the search.
+    //
+    // Hidden paths by ALLOWLIST, because the files this is most often for are config files and
+    // nearly all of them live under a dot-directory. fd has no allowlist flag, so it runs with
+    // --hidden plus a generated ignore file in gitignore syntax: ".*" drops every hidden name,
+    // then "!<name>" lets the allowed ones back in at any depth. Allowed names come from
+    // Shell.launcherFilesHidden (QS_LAUNCHER_FILES_HIDDEN, default .config). Non-hidden bulk
+    // that .gitignore does not always cover is excluded by name.
     readonly property int fdMinChars: 2
     readonly property int fdMaxResults: 150
+    readonly property var fdExcludes: ["node_modules", "__pycache__", "target"]
+    readonly property string fdIgnorePath: Quickshell.env("XDG_RUNTIME_DIR") + "/quickshell-launcher-fd.ignore"
+    // rewritten whenever the allowlist changes (the settings file is watched)
+    readonly property string fdIgnoreText: [".*"].concat(Shell.launcherFilesHidden.map(n => "!" + n)).join("\n")
+    onFdIgnoreTextChanged: root.writeFdIgnore()
+    function writeFdIgnore() {
+        fdIgnoreWriter.running = false;
+        fdIgnoreWriter.command = ["sh", "-c", 'printf "%s\\n" "$@" > "$0"', root.fdIgnorePath].concat(root.fdIgnoreText.split("\n"));
+        fdIgnoreWriter.running = true;
+        root.fdFor = ""; // the allowlist changed, so a cached answer is stale
+    }
+    Process {
+        id: fdIgnoreWriter
+    }
     property string fdPending: ""   // folder + "\n" + query queued behind the debounce
     property string fdFor: ""       // folder + "\n" + query that fdRows answers
     property var fdRows: []
@@ -675,7 +698,10 @@ PanelWindow {
             const q = key.substring(cut + 1);
             fdProc.running = false;
             fdProc.forKey = key;
-            fdProc.command = ["fd", "--ignore-case", "--fixed-strings", "--one-file-system", "--color", "never", "--max-results", String(root.fdMaxResults), "--", q, dir];
+            const cmd = ["fd", "--ignore-case", "--fixed-strings", "--hidden", "--ignore-file", root.fdIgnorePath, "--one-file-system", "--color", "never", "--max-results", String(root.fdMaxResults)];
+            for (const x of root.fdExcludes)
+                cmd.push("--exclude", x);
+            fdProc.command = cmd.concat(["--", q, dir]);
             fdProc.running = true;
         }
     }
@@ -707,6 +733,11 @@ PanelWindow {
                         isDir: isDir
                     });
                 }
+                // Shallowest first. fd's own order is its parallel walk's, i.e. arbitrary, and
+                // rankGroup keeps the incoming order between rows of the same match tier — so
+                // this is what puts ~/.config/hypr/lua/keybindings.lua above the copies in
+                // every ~/worktrees/* checkout.
+                rows.sort((a, b) => a.path.split("/").length - b.path.split("/").length);
                 root.fdRows = rows;
                 root.fdFor = fdProc.forKey;
                 if (root.visible)
