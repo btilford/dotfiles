@@ -7,7 +7,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import "../config"
 
-// Multi-mode launcher (rofi parity): combi (apps + open windows + run fallback), drun, windows, run, files, emoji, glyphs, icons, wallpaper.
+// Multi-mode launcher (rofi parity): combi (open windows + apps + run fallback), drun, windows, run, files, emoji, glyphs, icons, wallpaper.
 PanelWindow {
     id: root
     visible: false
@@ -450,11 +450,14 @@ PanelWindow {
             out = out.concat(root.rankGroup(appRows, "app", q));
         }
 
-        // Windows: the whole tab, or in combi a group AFTER the apps (and before run), so Enter
-        // on a typed app name still launches it as it always has. No rankGroup: a window has
-        // no stable identity to record history against, and focus order already ranks it.
-        if (m === "windows" || (m === "combi" && q.length))
+        // Windows: the whole tab, or in combi a group ABOVE the apps, Raycast-style: typing an
+        // app's name with one already open switches to it, and the launch row is one Down
+        // away. No rankGroup: a window has no stable identity to record history against, and
+        // focus order already ranks it.
+        if (m === "windows")
             out = out.concat(root.windowRows(q));
+        else if (m === "combi" && q.length)
+            out = root.windowRows(q).concat(out);
 
         if (m === "run" || (m === "combi" && q.length)) {
             const runRows = [];
