@@ -81,9 +81,9 @@ hl.on("monitor.added", function(mon)
     return
   end
   hl.timer(function()
-    hl.dispatch(hl.dsp.dpms("off", name))
+    hl.dispatch(hl.dsp.dpms({ action = "off", monitor = name }))
     hl.timer(function()
-      hl.dispatch(hl.dsp.dpms("on", name))
+      hl.dispatch(hl.dsp.dpms({ action = "on", monitor = name }))
     end, { timeout = 400, type = "oneshot" })
   end, { timeout = 1500, type = "oneshot" })
 end)
